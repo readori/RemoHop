@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/readori/RemoHop/internal/cli"
 )
 
 func TestRedact(t *testing.T) {
@@ -190,7 +192,14 @@ func TestDiagnosticsPersistAndRotate(t *testing.T) {
 }
 
 func TestCoreVersion(t *testing.T) {
-	if v := CoreVersion(); !strings.Contains(v, "go1.") {
+	if v := CoreVersion(); !strings.Contains(v, "go1.") || strings.HasPrefix(v, "v0.0.0") {
 		t.Errorf("CoreVersion() = %q", v)
+	}
+	// The build scripts stamp the app's version and commit.
+	old := cli.Version
+	t.Cleanup(func() { cli.Version = old })
+	cli.Version = "1.0.0+38bab3e"
+	if v := CoreVersion(); !strings.HasPrefix(v, "1.0.0+38bab3e (go1.") {
+		t.Errorf("stamped CoreVersion() = %q", v)
 	}
 }

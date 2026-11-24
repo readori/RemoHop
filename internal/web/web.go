@@ -44,6 +44,8 @@
 //	POST   logout
 //	GET    connections        live host sessions (also the page heartbeat)
 //	GET    peers              saved peers
+//	POST   peers/alias        {target, alias} name a saved host ("" removes the name)
+//	POST   peers/forget       {target} forget a saved host (and end its sessions)
 //	POST   connect            {target, password, pair, pair_name} -> {attempt}
 //	GET    connect/{id}       attempt state: dialing, waiting_approval, connected, failed
 //	DELETE connect/{id}       cancel
@@ -135,6 +137,10 @@ type Config struct {
 	Dial  DialFunc
 	Pair  PairFunc
 	Peers func() ([]PeerInfo, error)
+	// SetAlias names a saved host ("" removes the name); Forget removes
+	// one. The defaults edit the saved-peers file in ConfigDir.
+	SetAlias func(target, alias string) error
+	Forget   func(target string) (int, error)
 
 	// Limits.
 	MaxSessions        int           // concurrent host sessions, default 16
@@ -255,6 +261,12 @@ func New(cfg Config) (*Server, error) {
 	}
 	if s.cfg.Peers == nil {
 		s.cfg.Peers = s.defaultPeers
+	}
+	if s.cfg.SetAlias == nil {
+		s.cfg.SetAlias = s.defaultSetAlias
+	}
+	if s.cfg.Forget == nil {
+		s.cfg.Forget = s.defaultForget
 	}
 	s.lim = newLimiter(s.cfg.Now)
 
@@ -485,6 +497,8 @@ func (s *Server) routes() *http.ServeMux {
 	api("POST /api/v1/logout", s.handleLogout)
 	api("GET /api/v1/connections", s.handleConnections)
 	api("GET /api/v1/peers", s.handlePeers)
+	api("POST /api/v1/peers/alias", s.handlePeerAlias)
+	api("POST /api/v1/peers/forget", s.handlePeerForget)
 	api("POST /api/v1/connect", s.handleConnect)
 	api("GET /api/v1/connect/{id}", s.handleAttempt)
 	api("DELETE /api/v1/connect/{id}", s.handleAttemptCancel)

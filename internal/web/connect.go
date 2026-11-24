@@ -45,6 +45,9 @@ type PeerInfo struct {
 	Alias    string `json:"alias,omitempty"`
 	Paired   bool   `json:"paired"`
 	KeyLogin bool   `json:"key_login,omitempty"`
+	// LastSeen is when this device last logged in to the host (or saw it
+	// online), if it ever did.
+	LastSeen *time.Time `json:"last_seen,omitempty"`
 }
 
 func (s *Server) defaultDial(ctx context.Context, req DialRequest) (*peer.Conn, error) {
@@ -83,7 +86,7 @@ func (s *Server) defaultPeers() ([]PeerInfo, error) {
 	}
 	out := make([]PeerInfo, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, PeerInfo{Target: p.Target, Alias: p.Alias, Paired: p.Paired(), KeyLogin: p.KeyLogin})
+		out = append(out, PeerInfo{Target: p.Target, Alias: p.Alias, Paired: p.Paired(), KeyLogin: p.KeyLogin, LastSeen: p.LastSeen})
 	}
 	return out, nil
 }

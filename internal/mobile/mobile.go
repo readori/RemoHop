@@ -784,12 +784,15 @@ func CancelPair() {
 	}
 }
 
-// SetAlias names a saved host; an empty alias removes the name.
+// SetAlias names a saved host, paired or recent; an empty alias removes
+// the name. The alias is trimmed; dial.CheckAlias says what it may be
+// (letters of any script, digits, single spaces, '.', '_', '-').
 func SetAlias(target, alias string) error {
 	d, err := configDir()
 	if err != nil {
 		return err
 	}
+	alias = strings.TrimSpace(alias)
 	if alias != "" {
 		if err := dial.CheckAlias(alias); err != nil {
 			return err
@@ -799,7 +802,7 @@ func SetAlias(target, alias string) error {
 	if err != nil {
 		return err
 	}
-	return st.SetAlias(cli.NormalizeTarget(target), alias)
+	return st.SetAlias(cli.NormalizeTarget(strings.TrimSpace(target)), alias)
 }
 
 // Forget discards what is saved for a host (pinned key, pairing token,

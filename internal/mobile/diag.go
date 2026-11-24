@@ -39,6 +39,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/signal"
@@ -414,19 +415,26 @@ type diagReport struct {
 
 const diagNote = "Recorded on this device only and shared by the user. Passwords, tokens and private keys are removed; host IDs, host names and IP addresses are kept."
 
-// CoreVersion describes the Go core: its module version (or revision) and
-// the Go release it was built with.
+// CoreVersion describes the Go core: the version stamped at build time
+// (-ldflags "-X github.com/readori/RemoHop/internal/cli.Version=...", see
+// mobile/android/build.sh and mobile/ios/build-xcframework.sh), or else its
+// module version or revision, and the Go release it was built with.
 func CoreVersion() string {
 	v := "dev"
+	if cli.Version != "" && cli.Version != "dev" {
+		v = cli.Version
+	}
 	extra := []string{runtime.Version()}
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, dep := range append([]*debug.Module{&bi.Main}, bi.Deps...) {
-			if dep.Path == "github.com/readori/RemoHop" && dep.Version != "" && dep.Version != "(devel)" {
+			// The apps' module requires this one as v0.0.0 with a replace:
+			// that says nothing.
+			if v == "dev" && dep.Path == "github.com/readori/RemoHop" && dep.Version != "" && dep.Version != "(devel)" && dep.Version != "v0.0.0" {
 				v = dep.Version
 			}
 		}
 		for _, s := range bi.Settings {
-			if s.Key == "vcs.revision" && len(s.Value) >= 7 {
+			if s.Key == "vcs.revision" && len(s.Value) >= 7 && !strings.Contains(v, s.Value[:7]) {
 				extra = append(extra, "rev "+s.Value[:7])
 			}
 		}
