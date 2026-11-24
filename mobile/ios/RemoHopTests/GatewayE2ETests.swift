@@ -238,6 +238,9 @@ final class GatewayE2ETests: XCTestCase {
             left = await eventually("!document.getElementById('connect').hidden", timeout: 3)
         }
         XCTAssertTrue(left, "back never returned to the connect screen")
+
+        // The bug this release blocked on: the listener lost in the background.
+        try await listenerLoss(cfg)
     }
 
     /// The release-blocking bug: after a trip to another app (to copy the
@@ -249,6 +252,9 @@ final class GatewayE2ETests: XCTestCase {
     /// the bridge, the app reopens the listener on the same port, the page
     /// retries) must make the very next Connect work; and the app's
     /// background/foreground path (pause, then ensure) must keep the URL.
+    ///
+    /// CI runs it as the last part of `testConnectTerminalFiles` (the one
+    /// end-to-end test the workflow names); it can also run on its own.
     func testConnectAfterListenerLoss() async throws {
         let cfg = settings()
         guard !cfg.target.isEmpty, !cfg.password.isEmpty else {
@@ -261,6 +267,10 @@ final class GatewayE2ETests: XCTestCase {
             await pause(0.25)
         }
         web = try XCTUnwrap(found, "the app never showed its web view (the gateway did not start)")
+        try await listenerLoss(cfg)
+    }
+
+    private func listenerLoss(_ cfg: Settings) async throws {
         try await require("the connect form", "document.getElementById('connect') && !document.getElementById('connect').hidden", timeout: 60)
         try await require("the injected script", "typeof window.remohopMobile === 'object'")
         let before = try await Task.detached { try Core.gatewayURL() }.value
