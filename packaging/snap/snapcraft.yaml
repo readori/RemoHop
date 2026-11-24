@@ -1,0 +1,92 @@
+# Snap package of RemoHop (https://snapcraft.io/remohop once the listing is public).
+#
+# It repackages the signed release: bin/remohop is the remohop binary from the
+# release's remohop_linux_<arch>.tar.gz, byte for byte. The pull step downloads
+# SHA256SUMS of the release, checks it against the hash pinned below (taken from
+# the cosign-verified SHA256SUMS by bump.sh), then checks the tarball against
+# SHA256SUMS. Nothing is compiled here.
+#
+# To package another release: packaging/snap/bump.sh vX.Y.Z (rewrites VERSION
+# and SUMS_SHA256 below). Build: see packaging/snap/README.md.
+#
+# Classic confinement: remohop is a remote-control host. It runs shells with the
+# user's own environment and tools, reads and writes any file the user can,
+# forwards ports, creates TUN devices, attaches USB/IP and serial devices,
+# captures X11/Wayland screens and injects input, and installs systemd units
+# that run it at boot. The reasons are written out in README.md.
+name: remohop
+title: RemoHop
+summary: Peer-to-peer remote control - shell, files, forwarding, desktop
+description: |
+  RemoHop is a peer-to-peer remote control tool. One program, `remohop`, is the
+  command-line client, the host daemon on the machine you want to control, the
+  rendezvous server that introduces the two machines, a browser gateway and an
+  MCP server for AI agents. Sessions are end-to-end encrypted and go directly
+  between the two machines by default.
+
+  - Shell and background jobs, file copy/sync/mount, TCP/UDP port forwarding,
+    VPN, clipboard, screenshots and remote desktop, serial and USB/IP.
+  - `remohop.quick`: quick support. Shows an ID and a password to read out to
+    the person helping you; every connection needs your OK.
+  - `remohop service install` runs the host as a systemd service.
+
+  The binary is the one published, checksummed and signed with each GitHub
+  release. Documentation: https://github.com/readori/RemoHop/tree/main/docs
+license: AGPL-3.0-only
+website: https://remohop.com
+source-code: https://github.com/readori/RemoHop
+issues: https://github.com/readori/RemoHop/issues
+contact: info@remohop.com
+icon: gui/icon.svg
+base: core24
+grade: stable
+confinement: classic
+adopt-info: remohop
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  remohop:
+    command: bin/remohop
+  quick:
+    command: bin/remohop quick
+    desktop: usr/share/applications/remohop-quick.desktop
+
+parts:
+  remohop:
+    plugin: nil
+    build-packages: [curl, ca-certificates]
+    override-pull: |
+      set -eu
+      VERSION=v1.0.0
+      SUMS_SHA256=18bbd539ceb2cc5f2a84d0f7e9726cca711bb73f2764257d594499c90d06c489
+      base="https://github.com/readori/RemoHop/releases/download/$VERSION"
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64 | arm64) ;;
+        *) echo "remohop: no Linux release archive for $CRAFT_ARCH_BUILD_FOR" >&2; exit 1 ;;
+      esac
+      archive="remohop_linux_${CRAFT_ARCH_BUILD_FOR}.tar.gz"
+      curl -fsSL --retry 3 -o SHA256SUMS "$base/SHA256SUMS"
+      echo "$SUMS_SHA256  SHA256SUMS" | sha256sum --strict -c -
+      curl -fsSL --retry 3 -o "$archive" "$base/$archive"
+      grep -E "^[0-9a-f]{64}  $archive\$" SHA256SUMS > archive.sum
+      [ "$(wc -l < archive.sum)" = 1 ] || { echo "remohop: $archive is not listed once in SHA256SUMS" >&2; exit 1; }
+      sha256sum --strict -c archive.sum
+      tar -xzf "$archive" --no-same-owner --no-same-permissions remohop LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+      craftctl set version="${VERSION#v}"
+    override-build: |
+      set -eu
+      install -D -m 0755 "$CRAFT_PART_SRC/remohop" "$CRAFT_PART_INSTALL/bin/remohop"
+      for f in LICENSE NOTICE THIRD_PARTY_LICENSES.txt; do
+        install -D -m 0644 "$CRAFT_PART_SRC/$f" "$CRAFT_PART_INSTALL/usr/share/doc/remohop/$f"
+      done
+
+  desktop:
+    plugin: dump
+    source: gui
+    organize:
+      remohop-quick.desktop: usr/share/applications/remohop-quick.desktop
+    stage:
+      - usr/share/applications/remohop-quick.desktop

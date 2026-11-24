@@ -1,0 +1,6 @@
+# snapcraft --destructive-mode work directories and output
+/parts/
+/stage/
+/prime/
+/overlay/
+/*.snap

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=RemoHop Quick Support
+Name[zh_CN]=RemoHop 快速协助
+GenericName=Remote support
+GenericName[zh_CN]=远程协助
+Comment=Share this computer with someone who is helping you. Every connection needs your OK.
+Comment[zh_CN]=把这台电脑分享给正在帮助你的人。每次连接都需要你同意。
+Exec=remohop.quick
+Icon=${SNAP}/meta/gui/icon.svg
+Terminal=false
+StartupNotify=false
+Categories=Network;RemoteAccess;
+Keywords=remote;support;help;desktop;screen;sharing;
+Keywords[zh_CN]=远程;协助;帮助;桌面;屏幕;共享;

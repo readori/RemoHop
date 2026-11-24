@@ -24,6 +24,7 @@
 | Scoop（Windows） | `scoop bucket add readori https://github.com/readori/scoop-bucket`，然后 `scoop install remohop` |
 | winget（Windows） | `winget install RemoHop.RemoHop` |
 | AUR（Arch） | `yay -S remohop-bin` |
+| Snap（Linux；**即将推出**：Snap Store 页面尚未公开） | `sudo snap install remohop --classic`；同时以 `remohop.quick` 安装快速协助，并带有启动器图标。见 [packaging/snap/README.md](../../packaging/snap/README.md) |
 | Nix | 对生成的 `remohop.nix` 使用 `callPackage` |
 
 说明：

@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+
+	"github.com/readori/RemoHop/internal/snapenv"
 )
 
 // DefaultName is the service name when --name is not given. Platforms map it
@@ -225,7 +227,8 @@ func (o Options) hostArgs() []string {
 
 // exePath is the binary the service runs. os.Executable already resolves
 // symlinks on Linux; on other systems the path is used as given so a package
-// manager's stable symlink survives upgrades.
+// manager's stable symlink survives upgrades. From the snap, the revision
+// directory is replaced by /snap/<name>/current, which follows refreshes.
 func (o Options) exePath() (string, error) {
 	if o.Exe != "" {
 		return o.Exe, nil
@@ -234,7 +237,11 @@ func (o Options) exePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot locate this binary: %w (use --exe)", err)
 	}
-	return filepath.Abs(exe)
+	exe, err = filepath.Abs(exe)
+	if err != nil {
+		return "", err
+	}
+	return snapenv.StableExe(exe), nil
 }
 
 func isRoot() bool { return os.Geteuid() == 0 }
