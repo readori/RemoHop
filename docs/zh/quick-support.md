@@ -14,7 +14,7 @@
 | macOS 12 及以上 | `RemoHop.app` | `dist/quick/macos/RemoHop.app`（通用二进制） |
 | Linux，或任何终端 | `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.zip`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；不带参数启动时运行的就是 `remohop quick`。
+每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.dmg`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；不带参数启动时运行的就是 `remohop quick`。
 
 坐在电脑前的人会看到：
 
@@ -42,5 +42,5 @@
 需要了解的限制：
 
 - **Windows：** `RemoHop.exe` 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。
-- **macOS：** 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 > 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。下载的 `RemoHop-macos.zip` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；签名和公证见 [packaging/quick/README.md](../../packaging/quick/README.md)。
+- **macOS：** 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 > 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。下载的 `RemoHop-macos.dmg` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；签名和公证见 [packaging/quick/README.md](../../packaging/quick/README.md)。
 - 页面及其服务器在 Linux 上用真实浏览器测试过。围绕它们的 Windows 和 macOS 部分（Edge 应用窗口、系统对话框、`.app` 包）能够编译，并做了结构检查，但尚未在这两个系统上实际运行。

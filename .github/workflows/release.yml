@@ -163,6 +163,7 @@ jobs:
           cd macos
           sha256sum -c SHA256SUMS-macos
           grep -q ' RemoHop-macos.zip$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.zip (is the CI repo's workflow up to date?)"; exit 1; }
+          grep -q ' RemoHop-macos.dmg$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.dmg (is the CI repo's workflow up to date?)"; exit 1; }
           [ "$(head -c 4 remohop | od -An -tx1 | tr -d ' \n')" = cafebabe ] || { echo "::error::remohop is not a universal Mach-O"; exit 1; }
           grep -aqF -- "$TAG" remohop || { echo "::error::remohop does not carry version $TAG"; exit 1; }
 
@@ -172,6 +173,7 @@ jobs:
           path: |
             macos/remohop
             macos/RemoHop-macos.zip
+            macos/RemoHop-macos.dmg
           if-no-files-found: error
 
   publish:
@@ -206,12 +208,13 @@ jobs:
       - name: Add the macOS archive and app, installers and SHA256SUMS
         env:
           # Only a deliberate SKIP_MACOS run may lack the macOS files.
-          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz RemoHop-macos.zip' || '' }}
+          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz RemoHop-macos.zip RemoHop-macos.dmg' || '' }}
         run: |
           set -eu
           if [ -f macos/remohop ]; then
             VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin macos/remohop
             VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin-app macos/RemoHop-macos.zip
+            cp macos/RemoHop-macos.dmg assets/RemoHop-macos.dmg
           fi
           scripts/finalize-release.sh assets
 

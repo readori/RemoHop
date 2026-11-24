@@ -50,6 +50,7 @@ sedargs=(
 	-e "s|@SHA_WINDOWS_AMD64_UPPER@|$(sum remohop_windows_amd64.zip | tr a-f A-F)|g"
 	-e "s|@SHA_WINDOWS_ARM64_UPPER@|$(sum remohop_windows_arm64.zip | tr a-f A-F)|g"
 	-e "s|@SHA_MACOS_APP@|$(sum RemoHop-macos.zip)|g"
+	-e "s|@SHA_MACOS_DMG@|$(sum RemoHop-macos.dmg)|g"
 )
 render() { # template out
 	mkdir -p "$(dirname "$2")"

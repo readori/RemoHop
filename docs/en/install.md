@@ -39,7 +39,7 @@ The double-click program for the person being helped ([Quick support](quick-supp
 | System | File | Then |
 |---|---|---|
 | Windows 10/11 | `RemoHop-windows-amd64.zip` (ARM64: `RemoHop-windows-arm64.zip`) | unzip, double-click `RemoHop.exe`; not code-signed yet, so SmartScreen warns ("More info", "Run anyway") |
-| macOS 12+ | `RemoHop-macos.zip` (Apple silicon and Intel) | unzip, open `RemoHop.app`; signed with a Developer ID, notarized and stapled |
+| macOS 12+ | `RemoHop-macos.dmg` (Apple silicon and Intel) | open it, drag `RemoHop.app` to Applications, open it from there; signed with a Developer ID, notarized and stapled |
 | Linux | `remohop-quick_linux_amd64.tar.gz` (ARM64: `..._arm64.tar.gz`) | unpack, run `./remohop-quick` |
 
 Each is at `https://github.com/readori/RemoHop/releases/latest/download/<file>` and covered by the release's `SHA256SUMS`. A Microsoft Store version is in preparation.
