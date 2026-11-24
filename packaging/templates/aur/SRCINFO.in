@@ -1,0 +1,17 @@
+pkgbase = remohop-bin
+	pkgdesc = Lightweight peer-to-peer remote control over an end-to-end encrypted session (remohop)
+	pkgver = @VERSION_AUR@
+	pkgrel = 1
+	url = https://github.com/@REPO@
+	arch = x86_64
+	arch = aarch64
+	license = AGPL-3.0-only
+	options = !strip
+	provides = remohop
+	conflicts = remohop
+	source_x86_64 = remohop_linux_amd64-@VERSION_AUR@.tar.gz::https://github.com/@REPO@/releases/download/@TAG@/remohop_linux_amd64.tar.gz
+	sha256sums_x86_64 = @SHA_LINUX_AMD64@
+	source_aarch64 = remohop_linux_arm64-@VERSION_AUR@.tar.gz::https://github.com/@REPO@/releases/download/@TAG@/remohop_linux_arm64.tar.gz
+	sha256sums_aarch64 = @SHA_LINUX_ARM64@
+
+pkgname = remohop-bin

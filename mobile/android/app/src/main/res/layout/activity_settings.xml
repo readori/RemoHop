@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView style="@style/Heading" android:text="@string/language_heading" />
+        <RadioGroup
+            android:id="@+id/language"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <RadioButton
+                android:id="@+id/lang_system"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/lang_system" />
+            <RadioButton
+                android:id="@+id/lang_zh"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/lang_zh" />
+            <RadioButton
+                android:id="@+id/lang_en"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/lang_en" />
+        </RadioGroup>
+
+        <TextView style="@style/Heading" android:text="@string/rendezvous_heading" />
+        <TextView style="@style/Hint" android:text="@string/rendezvous_hint" />
+        <EditText
+            android:id="@+id/signal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:hint="@string/rendezvous_example"
+            android:importantForAutofill="no"
+            android:inputType="textUri"
+            android:minHeight="48dp" />
+        <EditText
+            android:id="@+id/signal_pin"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/rendezvous_pin"
+            android:importantForAutofill="no"
+            android:inputType="text|textNoSuggestions"
+            android:minHeight="48dp" />
+        <Switch
+            android:id="@+id/relay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/relay" />
+
+        <TextView style="@style/Heading" android:text="@string/device_heading" />
+        <EditText
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/device_name"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLength="64"
+            android:minHeight="48dp" />
+        <Button
+            android:id="@+id/save"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/save" />
+        <TextView android:id="@+id/save_status" style="@style/Hint" />
+
+        <TextView style="@style/Heading" android:text="@string/identity_heading" />
+        <TextView
+            android:id="@+id/fingerprint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true" />
+        <TextView style="@style/Hint" android:text="@string/identity_hint" />
+        <Button
+            android:id="@+id/copy_key"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/copy_key" />
+
+        <TextView style="@style/Heading" android:text="@string/pair_heading" />
+        <TextView style="@style/Hint" android:text="@string/pair_hint" />
+        <EditText
+            android:id="@+id/pair_target"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/pair_target"
+            android:importantForAutofill="no"
+            android:inputType="text|textNoSuggestions"
+            android:minHeight="48dp" />
+        <EditText
+            android:id="@+id/pair_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/pair_password"
+            android:importantForAutofill="no"
+            android:inputType="textPassword"
+            android:minHeight="48dp" />
+        <EditText
+            android:id="@+id/pair_alias"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/pair_alias"
+            android:importantForAutofill="no"
+            android:inputType="text|textNoSuggestions"
+            android:minHeight="48dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/pair"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/pair" />
+            <Button
+                android:id="@+id/pair_cancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/cancel"
+                android:visibility="gone" />
+        </LinearLayout>
+        <TextView android:id="@+id/pair_status" style="@style/Hint" />
+
+        <TextView style="@style/Heading" android:text="@string/hosts_heading" />
+        <Button
+            android:id="@+id/refresh_hosts"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/refresh" />
+        <LinearLayout
+            android:id="@+id/hosts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView style="@style/Hint" android:layout_marginTop="24dp" android:text="@string/privacy_note" />
+    </LinearLayout>
+</ScrollView>

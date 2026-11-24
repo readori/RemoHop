@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>网状网络与 Tailscale | RemoHop</title>
+<meta name="description" content="remohop net up 把账号里的所有设备（见账号）连成一个私有网络，相当于只给自己设备用的小型 Tailscale：每台设备得到一个由身份密钥推导出的固定地址（10.78.x.y 和一个 IPv6 唯一本地地址），以及一个名字，例如 nas.remohop。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/mesh-and-tailscale/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="网状网络与 Tailscale | RemoHop">
+<meta property="og:description" content="remohop net up 把账号里的所有设备（见账号）连成一个私有网络，相当于只给自己设备用的小型 Tailscale：每台设备得到一个由身份密钥推导出的固定地址（10.78.x.y 和一个 IPv6 唯一本地地址），以及一个名字，例如 nas.remohop。">
+<meta property="og:url" content="https://remohop.com/docs/mesh-and-tailscale/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/mesh-and-tailscale/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="网状网络与-tailscale">网状网络与 Tailscale</h1>
+<h2 id="网状网络remohop-net">网状网络（remohop net）</h2>
+<p><code>remohop net up</code> 把账号里的所有设备（见<a href="/docs/accounts/">账号</a>）连成一个私有网络，相当于只给自己设备用的小型 Tailscale：每台设备得到一个由身份密钥推导出的固定地址（<code>10.78.x.y</code> 和一个 IPv6 唯一本地地址），以及一个名字，例如 <code>nas.remohop</code>。</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop net up
+remohop net peers
+ping nas.remohop
+sudo remohop net up --route 192.168.1.0/24 --exit     # 办公室的机器
+sudo remohop net up --accept-routes --use-exit office  # 笔记本
+remohop net policy set policy.json
+sudo remohop net down</code></pre>
+<ul>
+<li>设备之间的链路就是普通的 RemoHop 会话，有流量时才建立（先打洞，不行再走中继或 websocket 桥），有保活，设备重启或换网络后会重新建立。这种登录只限于网状网络：同一账号的设备并不因此获得对方的 shell 或文件。</li>
+<li>签名的访问策略（哪台设备可以访问哪些端口）在设备之间传递，由接收方执行。没有策略时，每台设备可以访问其他设备的所有端口。</li>
+<li>网状网络运行在被控端守护进程里（需要 root 或 <code>CAP_NET_ADMIN</code>），随被控端服务一起启动。目前只支持 Linux；子网路由和出口节点只支持 IPv4。</li>
+<li>对系统 DNS 的改动尽量保守：有 systemd-resolved 时只为 <code>.remohop</code> 设置按接口的分流 DNS，否则只在要求时（<code>--dns hosts</code>）改动。</li>
+</ul>
+<p>详细说明、测试范围，以及没有复刻的 Tailscale 功能（单点登录、与他人共享、管理后台、Funnel 等）见 <a href="/en/docs/net/">net.md</a>（英文）。</p>
+<h2 id="与-tailscale-一起使用">与 Tailscale 一起使用</h2>
+<p>RemoHop 会检测正在运行的 Tailscale（本地 API、<code>tailscale status --json</code> 或它的网络接口），但不依赖它。两台机器在同一个 tailnet 上时，tailnet 地址作为额外的候选路径，优先于打洞，并且在中继之前尝试；这时 <code>remohop &lt;ID&gt; ping</code> 显示 <code>tailnet path</code>。走这条路径的仍然是 RemoHop 自己的会话，和其他路径一样端到端加密并经过认证。<code>remohop doctor</code> 会解释当前的网络情况，包括 Tailscale；设置 <code>REMOHOP_TAILSCALE=off</code> 可以让 RemoHop 忽略 Tailscale。见 <a href="/en/docs/net/#using-remohop-with-tailscale">net.md</a>。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/mesh-and-tailscale.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

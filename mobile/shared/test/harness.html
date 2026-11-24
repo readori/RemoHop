@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>remohop-mobile.js harness</title>
+<!-- The parts of the gateway page (internal/web/assets/index.html) that
+     remohop-mobile.js touches, with a stand-in for desktop.js's socket. -->
+<link rel="stylesheet" href="harness.css">
+</head>
+<body>
+<header class="top"><h1>RemoHop</h1><button type="button" id="newconn">Connect another</button></header>
+<div id="connerr"></div>
+<main>
+  <section id="workspace">
+    <div id="panel-desktop">
+      <label><input type="checkbox" id="d-viewonly"> View only</label>
+      <button type="button" id="d-fit">Fit</button>
+      <button type="button" id="d-fs">Fullscreen</button>
+      <div id="d-stage">
+        <canvas id="d-canvas" width="1600" height="900"></canvas>
+      </div>
+    </div>
+  </section>
+</main>
+<dialog id="dlg"><p>dialog</p></dialog>
+<script src="harness.js"></script>
+</body>
+</html>

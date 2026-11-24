@@ -1,0 +1,208 @@
+package web
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"html"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"time"
+
+	"github.com/readori/RemoHop/internal/cli"
+	"github.com/readori/RemoHop/internal/config"
+)
+
+const usage = `usage: remohop web [--listen ADDR] [--tls-cert FILE --tls-key FILE]
+               [--password-file FILE] [--public-url URL] [--no-open]
+               [--target ID] [--no-saved]
+
+Serve a browser client (remote desktop, terminal, files, clipboard, info)
+from this machine.
+
+A browser cannot hole-punch or speak the QUIC session, so this process is
+the client: it speaks the normal end-to-end encrypted P2P session to the
+remote host and serves the page. The browser talks to THIS GATEWAY, so the
+gateway sees everything: the screen, every keystroke, files, the clipboard
+and the host passwords you type into the page. Use only a gateway you
+control, and never expose it beyond localhost without TLS and its own login.
+
+Default: listen on 127.0.0.1 on a random port and open a URL that contains
+an unguessable token. On loopback the token is the login; Host and Origin
+headers are validated against DNS rebinding and cross-site WebSocket
+hijacking, and the page uses no external assets.
+
+Flags:
+  --listen ADDR          address to listen on (default 127.0.0.1:0)
+  --tls-cert FILE        PEM certificate (with --tls-key)
+  --tls-key FILE         PEM private key
+  --password-file FILE   the gateway password (at least 8 characters), read
+                         from this file (mode 600); visitors must log in
+  --public-url URL       the https:// address browsers use when a TLS
+                         reverse proxy or tunnel forwards to this gateway
+                         (see "Behind Cloudflare Tunnel" below); needs a
+                         loopback --listen and --password-file
+  --no-open              print the URL, do not start a browser
+  --target ID            pre-fill the connect form with this host
+  --no-saved             shared-gateway mode: hide saved peers and never use
+                         saved pairings; users type the host's ID and password
+                         every time (and cannot pair)
+
+Self-hosting (a --listen address that is not loopback) REFUSES to start
+without --tls-cert, --tls-key and --password-file. Login is rate limited
+with lockout, the session cookie is HttpOnly, Secure and SameSite=Strict,
+and every state-changing request carries a per-session CSRF token.
+
+Behind Cloudflare Tunnel (or another TLS-terminating proxy): keep the
+gateway on loopback with a fixed port and a password, and name the public
+address so its Host and Origin headers are accepted:
+
+  remohop web --listen 127.0.0.1:8470 --password-file ~/.config/remohop-web.pw \
+          --public-url https://desk.example.com --no-open
+  cloudflared tunnel ... --url http://127.0.0.1:8470
+
+Put a Cloudflare Access policy in front of the hostname as well. The login
+rate limiter keys on the CF-Connecting-IP header for requests that arrive
+through the public address.
+
+Programs (not browsers) can skip the login call and send the gateway
+password on every request as "Authorization: Bearer <password>", for
+example through a proxy that injects the header so the program never sees
+the password. Such requests share one gateway session, need no cookie, CSRF
+token or Origin, and failures count against the login rate limit. This
+needs --password-file.
+
+Anyone who logs in to a gateway can use ITS saved pairings (the peers in its
+config directory, REMOHOP_CONFIG_DIR). A shared gateway should run with an empty
+config dir (or --no-saved) so users bring the remote host's ID and password.
+
+In the page, a host password is sent once over the page's connection to the
+gateway, used for that one login and not stored, unless "pair this gateway"
+is ticked, which runs the pair flow and saves a token in the gateway's peers.
+
+The host's own settings still apply: a feature the host switched off (shell,
+file, clip, screen, input, info) shows the host's refusal in its tab.
+`
+
+func init() {
+	cli.Register(&cli.Command{
+		Name:    "web",
+		Summary: "browser client gateway: desktop, terminal, files, clipboard",
+		Usage:   usage,
+		Run:     run,
+	})
+}
+
+func run(ctx context.Context, env *cli.Env, args []string) int {
+	fs := flag.NewFlagSet("web", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	listen := fs.String("listen", "127.0.0.1:0", "")
+	cert := fs.String("tls-cert", "", "")
+	key := fs.String("tls-key", "", "")
+	pwFile := fs.String("password-file", "", "")
+	noOpen := fs.Bool("no-open", false, "")
+	target := fs.String("target", "", "")
+	noSaved := fs.Bool("no-saved", false, "")
+	publicURL := fs.String("public-url", "", "")
+	if err := fs.Parse(args); err != nil {
+		env.Errorf("web: %v\n%s", err, usage)
+		return cli.ExitUsage
+	}
+	if fs.NArg() != 0 {
+		env.Errorf("web: unexpected argument %q", fs.Arg(0))
+		return cli.ExitUsage
+	}
+	srv, err := New(Config{Listen: *listen, TLSCert: *cert, TLSKey: *key, PasswordFile: *pwFile,
+		Target: cli.NormalizeTarget(*target), NoSaved: *noSaved, PublicURL: *publicURL})
+	if err != nil {
+		env.Errorf("web: %v", err)
+		if errors.Is(err, errNoTLSPassword) {
+			return cli.ExitUsage
+		}
+		return cli.ExitError
+	}
+	url := srv.URL()
+	fmt.Fprintf(env.Stdout, "RemoHop web gateway: %s\n", url)
+	if srv.PasswordMode() {
+		fmt.Fprintln(env.Stdout, "log in with the gateway password from --password-file")
+	} else {
+		fmt.Fprintln(env.Stdout, "the token in the URL is the login; do not share it")
+	}
+	fmt.Fprintln(env.Stdout, "the gateway sees everything you do in the page; stop it with Ctrl-C")
+	if !*noOpen {
+		defer openBrowser(env, url)()
+	}
+	if err := srv.Serve(ctx); err != nil {
+		env.Errorf("web: %v", err)
+		return cli.ExitError
+	}
+	srv.Close()
+	return cli.ExitOK
+}
+
+// openBrowser opens url in the default browser, best effort. The URL carries
+// the access token and an opener's argument list is visible to every local
+// user, so the browser is pointed at a private temporary file that only
+// redirects. (The same technique as the desktop viewer's; see the report.)
+func openBrowser(env *cli.Env, url string) (cleanup func()) {
+	cleanup = func() {}
+	fail := func(err error) { env.Errorf("web: opening browser: %v; open the URL above manually", err) }
+	dir, err := config.SubDir("run")
+	if err != nil {
+		fail(err)
+		return
+	}
+	var rnd [16]byte
+	if _, err := rand.Read(rnd[:]); err != nil {
+		fail(err)
+		return
+	}
+	path := filepath.Join(dir, "open-web-"+hex.EncodeToString(rnd[:])+".html")
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		fail(err)
+		return
+	}
+	js, _ := json.Marshal(url)
+	_, werr := f.WriteString(`<!doctype html><html><head><meta charset="utf-8"><title>RemoHop</title>` +
+		`<meta http-equiv="refresh" content="0;url=` + html.EscapeString(url) + `">` +
+		`<script>location.replace(` + string(js) + `)</script></head><body>Opening the RemoHop web client...</body></html>`)
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	remove := func() { os.Remove(path) }
+	if werr != nil {
+		remove()
+		fail(werr)
+		return
+	}
+	timer := time.AfterFunc(30*time.Second, remove)
+	removeNow := func() { timer.Stop(); remove() }
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", path)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	if err := cmd.Start(); err != nil {
+		removeNow()
+		if errors.Is(err, exec.ErrNotFound) {
+			env.Errorf("web: could not open a browser; open the URL above manually")
+		} else {
+			fail(err)
+		}
+		return func() {}
+	}
+	go cmd.Wait()
+	return removeNow
+}

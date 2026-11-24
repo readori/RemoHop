@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>快速开始 | RemoHop</title>
+<meta name="description" content="下面的步骤假设有一台带公网地址的机器运行汇合服务器（下文用 sig.example.net 表示），另有两台机器：被控机和你自己的工作机。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/quick-start/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/quick-start/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/quick-start/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/quick-start/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="快速开始 | RemoHop">
+<meta property="og:description" content="下面的步骤假设有一台带公网地址的机器运行汇合服务器（下文用 sig.example.net 表示），另有两台机器：被控机和你自己的工作机。">
+<meta property="og:url" content="https://remohop.com/docs/quick-start/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/quick-start/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="快速开始">快速开始</h1>
+<p>下面的步骤假设有一台带公网地址的机器运行汇合服务器（下文用 <code>sig.example.net</code> 表示），另有两台机器：被控机和你自己的工作机。</p>
+<h2 id="1-安装">1. 安装</h2>
+<p>在每台要用它的机器上安装 <code>remohop</code>（见<a href="/docs/install/">安装</a>），不需要其他软件。</p>
+<h2 id="2-运行汇合服务器">2. 运行汇合服务器</h2>
+<p>在一台有公网 IP 的机器上开放两个 UDP 端口（默认 <code>21116</code> 和 <code>21117</code>），然后运行：</p>
+<pre tabindex="0"><code class="language-bash">remohop signal</code></pre>
+<p>服务器启动时会打印自己的公钥，客户端可以固定这把公钥（见 <a href="/en/docs/security/#rendezvous-server">security.md</a>）。如果还想为无法直连的会话提供中继，用 <code>remohop signal --relay</code> 启动（见<a href="/docs/how-it-works/#中继">中继</a>）。在小虚拟机上长期运行见<a href="/docs/self-hosting/">自建汇合服务器</a>。</p>
+<h2 id="3-启动被控机">3. 启动被控机</h2>
+<p>在要被控制的机器上：</p>
+<pre tabindex="0"><code class="language-bash">remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> 在前台运行，输出类似下面的内容（ID 和密码由程序生成）：</p>
+<pre tabindex="0"><code>RemoHop host ready
+  ID:        276 941 009
+  Password:  xrb8-upuu  (temporary, changes on restart)
+  Direct:    203.0.113.7:51820
+  Identity:  7197:70c3:1130:65a3:9c97
+Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
+<p>ID 属于主机的身份密钥，重启后保持不变。临时密码每次启动都会重新生成。需要固定密码时执行 <code>remohop passwd</code>：它以不回显的方式询问密码，之后也不会再把它打印出来。</p>
+<h2 id="4-或者把被控端安装为系统服务">4. 或者把被控端安装为系统服务</h2>
+<p>如果希望开机或登录后自动运行，不必一直开着终端：</p>
+<pre tabindex="0"><code class="language-bash">remohop service install
+remohop status --show-password</code></pre>
+<p><code>remohop service install</code> 会写入 systemd 单元（Linux）、launchd 任务（macOS）或 Windows 服务，设为自启并立即启动。服务有自己独立的身份、ID 和密码，与手动启动的 <code>remohop host</code> 不是同一个实例，用 <code>remohop status</code> 查看。系统级服务（<code>--system</code>）和 Windows 服务看不到桌面会话，所以需要截图或远程桌面时请使用用户级服务（非 root 时的默认方式）。在 Windows 上，<code>remohop service install --unattended</code> 让服务的客户端看到并控制控制台会话，包括登录界面、锁屏和 UAC 提示（默认关闭；请先阅读 <a href="/en/docs/security/#windows-unattended-access">security.md</a>）。各平台的细节见 <code>remohop help service</code>。</p>
+<h2 id="5-从你的机器连接">5. 从你的机器连接</h2>
+<pre tabindex="0"><code class="language-bash">remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> 显示到被控机的路径。第一次连接需要密码，所以它会提示输入。</li>
+<li><code>pair --name dev</code> 只需输入一次密码，随后在你的机器上保存一个绑定到本机身份的配对令牌，并保存别名 <code>dev</code>。</li>
+<li>配对之后，<code>remohop dev ...</code> 无需密码即可连接。<code>remohop devices</code> 列出已保存的主机以及它们是否在线。</li>
+</ul>
+<h2 id="不使用汇合服务器局域网或公网-ip-直连">不使用汇合服务器（局域网或公网 IP 直连）</h2>
+<p>如果能直接通过地址访问被控机，就不需要汇合服务器。在被控机上：</p>
+<pre tabindex="0"><code class="language-bash">remohop host --no-signal --listen :21118</code></pre>
+<p>在客户端上用地址代替 ID，仍然需要密码：</p>
+<pre tabindex="0"><code class="language-bash">remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+<h2 id="状态与设备">状态与设备</h2>
+<pre tabindex="0"><code class="language-bash">remohop dev info
+remohop dev ping -c 10
+remohop status
+remohop devices</code></pre>
+<p><code>info</code> 描述远程机器。<code>ping</code> 测量往返时间并报告路径类型：<code>lan</code>、<code>direct</code>、<code>punched</code> 是点对点路径，<code>relayed</code> 表示经过汇合服务器的中继。<code>remohop status</code> 显示本机守护进程的状态、ID 和当前会话。<code>remohop devices</code> 列出已保存的主机，向汇合服务器查询其中哪些在线，并显示正在连向每台主机的后台命令。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/quick-start.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+    "version": "@VERSION_NOV@",
+    "description": "Lightweight peer-to-peer remote control over an end-to-end encrypted session",
+    "homepage": "https://github.com/@REPO@",
+    "license": "AGPL-3.0-only",
+    "notes": "Release binaries are not code-signed yet, so SmartScreen may warn on first run. Start with: remohop host",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/@REPO@/releases/download/@TAG@/remohop_windows_amd64.zip",
+            "hash": "@SHA_WINDOWS_AMD64@"
+        },
+        "arm64": {
+            "url": "https://github.com/@REPO@/releases/download/@TAG@/remohop_windows_arm64.zip",
+            "hash": "@SHA_WINDOWS_ARM64@"
+        }
+    },
+    "bin": "remohop.exe",
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/@REPO@/releases/download/v$version/remohop_windows_amd64.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/@REPO@/releases/download/v$version/remohop_windows_arm64.zip"
+            }
+        },
+        "hash": {
+            "url": "https://github.com/@REPO@/releases/download/v$version/SHA256SUMS",
+            "regex": "$sha256\\s+$basename"
+        }
+    }
+}

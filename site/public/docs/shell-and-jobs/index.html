@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>shell 与后台任务 | RemoHop</title>
+<meta name="description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/shell-and-jobs/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/shell-and-jobs/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/shell-and-jobs/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/shell-and-jobs/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="shell 与后台任务 | RemoHop">
+<meta property="og:description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
+<meta property="og:url" content="https://remohop.com/docs/shell-and-jobs/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/shell-and-jobs/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="shell-与后台任务">shell 与后台任务</h1>
+<p>远程命令的格式都是 <code>remohop &lt;ID&gt; &lt;command&gt;</code>。本页的例子用 <code>dev</code> 作为别名，它来自 <code>remohop &lt;ID&gt; pair --name dev</code>（见<a href="/docs/quick-start/">快速开始</a>）。每个命令的完整语法用 <code>remohop help &lt;command&gt;</code> 查看。</p>
+<p>交互式 shell 是持久的：你断开后会话仍在被控机上运行，重新连接时会回放你错过的输出。</p>
+<pre tabindex="0"><code class="language-bash">remohop dev shell</code></pre>
+<p>先按回车，再输入 <code>~.</code> 即可分离。分离后的会话默认在被控机上保留 30 分钟（由被控端的 <code>term-keep</code> 设置决定）。用 <code>remohop dev shell</code> 重新连接；用 <code>remohop dev shell -s build --new</code> 另开一个会话。</p>
+<p>执行单条命令，或者启动一个在你断开后仍继续运行的后台任务：</p>
+<pre tabindex="0"><code class="language-bash">remohop dev shell -c 'make test' --cwd src/app --env CI=1 --timeout 10m
+remohop dev spawn --name build --cwd src/app make -j8
+remohop dev logs -f build
+remohop dev jobs
+remohop dev kill build</code></pre>
+<p>被控机是 Windows 时，shell 是 PowerShell，命令要按 PowerShell 的语法写。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/shell-and-jobs.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

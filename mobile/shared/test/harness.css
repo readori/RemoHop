@@ -1,0 +1,3 @@
+body { margin: 0; background: #111; color: #eee; font: 14px sans-serif; }
+#d-stage { position: relative; background: #000; overflow: auto; display: flex; justify-content: center; align-items: flex-start; height: 500px; }
+#d-canvas { width: 390px; height: 219px; display: block; background: #234; }

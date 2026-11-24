@@ -1,0 +1,73 @@
+<h1>自建汇合服务器</h1>
+<p>RemoHop 没有内置的默认服务器。汇合服务器（<code>remohop signal</code>）的工作是让两台机器找到彼此：分配 ID、记录在线状态、交换候选地址。它很轻，一台最小规格的虚拟机就够。会话内容不经过它，除非你开启了中继。</p>
+
+<h2 id="size">需要多大的机器</h2>
+<p>实测数字（来自 <code>remohop help signal</code> 和测量，不是保证）：空闲时约 17 MB 内存，每个在线主机约 70 KB，1000 个主机约 85 MB。Oracle Cloud Always Free 的 1 OCPU / 1 GB 实例足够。中继每 10 Mbit/s 大约消耗 1% 的 CPU 核。</p>
+
+<h2 id="run">运行</h2>
+<pre><code>remohop signal --relay --relay-ports 40000-40099
+remohop signal --print-firewall --relay --relay-ports 40000-40099
+remohop signal --show-key</code></pre>
+<ul>
+<li><code>--relay</code> 开启中继。默认关闭，因为它是唯一真正消耗服务器带宽的功能。</li>
+<li><code>--relay-ports LO-HI</code> 把中继端口限制在一个范围内，防火墙只需开放这个范围；不加则每个会话用随机高端口。</li>
+<li><code>--max-conns N</code> 限制同时打开的连接数。默认值按可用内存估算：1 GB 的机器约 6400，最多 50000。</li>
+<li><code>--print-firewall</code> 只打印开放端口所需的命令，不会执行。</li>
+</ul>
+<p>安装为加固的 systemd 服务（只支持 Linux，需要 root）：</p>
+<pre><code>sudo install -m 755 remohop /usr/local/bin/remohop
+sudo /usr/local/bin/remohop service install --role signal --relay --relay-ports 40000-40099
+remohop service status --role signal
+sudo remohop signal --show-key --data /var/lib/remohop-signal</code></pre>
+<p class="note">必须开放 UDP <code>21116</code>、<code>21117</code> 和中继端口范围，而且要在<strong>两处</strong>都开放：机器自己的防火墙，以及云厂商的安全列表（Oracle Cloud 的 security list、AWS 的 security group 等）。Cloudflare Tunnel 不转发 UDP，汇合服务器本身不能放到隧道后面。</p>
+
+<h2 id="clients">让客户端指向它</h2>
+<pre><code>remohop config set signal HOST:PORT
+remohop config set signal-pin KEY</code></pre>
+<!--src-->
+<p>也可以在构建时把地址和公钥写进程序，这样分发出去的 <code>remohop</code> 就带有默认服务器：</p>
+<pre><code>go build -ldflags "-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:PORT \
+  -X github.com/readori/RemoHop/internal/dial.DefaultSignalPin=KEY" -o remohop ./cmd/remohop</code></pre>
+<!--/src-->
+
+<h2 id="ws">只允许 HTTPS 出网的网络：websocket 桥</h2>
+<p>CI 运行器、云容器和企业网络常常封锁 UDP。服务器可以另外提供一个 websocket 桥，客户端和被控机在 UDP 汇合 4 秒内没有应答时会自动回退到它：</p>
+<pre><code>remohop signal --relay --relay-ports 40000-40099 \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
+<pre><code>remohop config set signal relay.example.com:21116
+remohop config set signal-ws wss://relay.example.com/remohop/v1/udp</code></pre>
+<p>经过桥没法打洞，所以这类会话总是走中继，中继必须开启。加密、密码交换和服务器公钥固定都和 UDP 完全一样：桥和它前面的代理只能看到 QUIC 密文。这个桥在网络命名空间里做过端到端测试，还没有经过真实的 Cloudflare 隧道。</p>
+
+<h2 id="public">面向公众提供中继</h2>
+<p>如果要把中继提供给不认识的人（例如作为你自己构建的 <code>remohop</code> 的默认服务器），应当给它加上访问控制和流量预算。汇合服务本身仍然对所有人开放，有自己的按地址限速；受限的只有中继。以每月 10 TB 出站流量的 Oracle Cloud 免费实例为例：</p>
+<pre><code>sudo remohop service install --role signal --relay --relay-ports 40000-40099 -- \
+    --relay-kbps 2000 --relay-per-source 2 --relay-monthly-gb 8000 \
+    --relay-deny /etc/remohop/relay-deny \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
+<div class="table-wrap" tabindex="0" role="region" aria-label="公共中继的参数">
+<table>
+<thead><tr><th scope="col">参数</th><th scope="col">作用</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>--relay-kbps 2000</code></th><td>匿名会话的带宽上限（2 Mbit/s）。超出的流量被整形，不是直接截断。</td></tr>
+<tr><th scope="row"><code>--relay-per-source 2</code></th><td>每个地址（IPv6 按 /64 计）同时最多两个中继会话，双方都计入。会话关闭后立即释放名额。</td></tr>
+<tr><th scope="row"><code>--relay-monthly-gb 8000</code></th><td>每月流量预算（按 UTC 自然月）。到 80% 时匿名会话带宽减半；到 100% 时拒绝新的匿名会话；到 110% 时拒绝所有新会话。重启后继续累计。</td></tr>
+<tr><th scope="row"><code>--relay-deny FILE</code></th><td>列出的地址、网段和身份密钥不能使用中继，列出的密钥也不能注册为被控机。文件改动后 10 秒内重新读取。</td></tr>
+</tbody>
+</table>
+</div>
+<p>开启账号（<code>--accounts</code>，需要 SMTP）之后，可以用 <code>--relay-account-kbps</code> 给已验证的账号成员更高的带宽，或用 <code>--relay-for accounts</code> 只为他们中继。成员身份由签名证明，不采信客户端的自称。</p>
+<p>查看用量：<code>sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8000</code>。日志里每小时有一行 <code>relay summary</code>，汇总会话数、字节数和各类拒绝次数，不含地址。</p>
+
+<h2 id="visible">运营者能看到和看不到什么</h2>
+<p>服务器永远看不到会话内容，学不到密码，也加入不了会话。它看得到元数据：</p>
+<ul>
+<li><strong>汇合：</strong>每台主机的身份公钥、9 位 ID、在线时的公网地址、最后一次出现的时间；每次介绍时，哪个地址查询了哪个 ID。</li>
+<li><strong>中继：</strong>双方的地址，每个中继会话的开始时间、时长和字节数。</li>
+<li><strong>websocket 桥：</strong>客户端地址、连接时间、承载的字节数。</li>
+<li><strong>账号：</strong>邮箱地址的哈希、设备的身份公钥和名称、签名的成员日志。登录码通过邮件发送，从不保存。</li>
+</ul>
+<p>默认写入日志的内容：主机上线和下线（ID 和地址）、中继会话开始和结束（双方地址、带宽档位、时长、字节数）、websocket 连接的打开和关闭、账号登录，以及每小时的汇总。日志进入 systemd journal。请设一个你能说明理由的保留期限，例如在 <code>/etc/systemd/journald.conf</code> 里写 <code>MaxRetentionSec=14day</code>，并在你的隐私声明里写明。</p>
+<p>英文参考文档 <a href="{{E:docs/public-server}}">Running a public rendezvous server</a> 里有一份可以直接改写的隐私声明模板。本站自己的<a href="{{L:privacy}}">隐私政策</a>就是按它写的。</p>
+
+<h2 id="agpl">运营者与 AGPL</h2>
+<p>运行未修改的 <code>remohop signal</code> 没有额外义务。如果你修改了它并提供给别人使用，AGPL-3.0 第 13 条要求你向这些用户提供修改后的源代码。不想公开修改的话，可以购买<a href="{{L:licensing}}">商业授权</a>。</p>

@@ -1,0 +1,47 @@
+# nfpm configuration for the .deb and .rpm packages (https://nfpm.goreleaser.com).
+# The release workflow sets the environment variables referenced below:
+#   VERSION  package version without the leading "v", e.g. 1.2.3
+#   GOARCH   amd64 or arm64
+# and the workflow copies the built binary for that architecture to
+# packaging/stage/remohop first (nfpm does not expand variables in `src`).
+name: remohop
+arch: ${GOARCH}
+platform: linux
+version: ${VERSION}
+version_schema: semver
+section: net
+priority: optional
+maintainer: RemoHop maintainers <noreply@users.noreply.github.com>
+description: |
+  Lightweight peer-to-peer remote control: shell, files, mounts, port
+  forwarding, clipboard, screenshots and desktop over an end-to-end encrypted
+  session. Installs the remohop command and systemd unit files; nothing is
+  enabled automatically.
+vendor: RemoHop
+license: AGPL-3.0-only
+homepage: https://github.com/readori/RemoHop
+
+contents:
+  - src: packaging/stage/remohop
+    dst: /usr/bin/remohop
+  - src: LICENSE
+    dst: /usr/share/doc/remohop/LICENSE
+  - src: packaging/stage/THIRD_PARTY_LICENSES.txt
+    dst: /usr/share/doc/remohop/THIRD_PARTY_LICENSES.txt
+    file_info:
+      mode: 0755
+  # Both units are shipped disabled. The system unit is a packaged equivalent
+  # of `sudo remohop service install --system`; the user unit of `remohop service
+  # install --user`.
+  - src: packaging/systemd/remohop.service
+    dst: /usr/lib/systemd/system/remohop.service
+    file_info:
+      mode: 0644
+  - src: packaging/systemd/remohop-user.service
+    dst: /usr/lib/systemd/user/remohop.service
+    file_info:
+      mode: 0644
+
+scripts:
+  postinstall: packaging/scripts/postinstall.sh
+  preremove: packaging/scripts/preremove.sh

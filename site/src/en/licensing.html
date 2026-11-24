@@ -1,0 +1,36 @@
+<h1>Licensing</h1>
+<p>RemoHop is dual-licensed: an open-source license and a commercial one. <!--nosrc-->The source will be published under the AGPL-3.0 once the apps are out; this page describes the terms that will apply then. <!--/nosrc-->The license texts are what applies. This page is a reading aid.</p>
+
+<h2 id="agpl">Open source: GNU AGPL-3.0</h2>
+<!--src-->
+<p>Everyone may use, study, modify and redistribute RemoHop under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). The full text is in <a href="{{REPO}}/blob/main/LICENSE">LICENSE</a> in the repository.</p>
+<!--/src-->
+<!--nosrc-->
+<p>Once the source is published, everyone may use, study, modify and redistribute RemoHop under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). The full text will come with the source; you can read it now on <a href="https://www.gnu.org/licenses/agpl-3.0.html">gnu.org</a>.</p>
+<!--/nosrc-->
+<ul>
+<li>You may run RemoHop for any purpose, including commercially.</li>
+<li>If you distribute RemoHop, modified or not, you must make the corresponding source code available under the AGPL-3.0.</li>
+<li><strong>Network use counts.</strong> If you modify RemoHop and let other people use it over a network, for example by running a modified <code>remohop signal</code> rendezvous server or a modified <code>remohop web</code> gateway for others, you must offer those users the source code of your modified version (section 13 of the AGPL-3.0).</li>
+<li>Running an unmodified RemoHop, or using it only yourself, adds no obligation beyond the license's notices.</li>
+</ul>
+
+<h2 id="commercial">Commercial license</h2>
+<p>If the AGPL-3.0 does not fit your use, a commercial license is available from the copyright holder, Readori. Typical cases:</p>
+<ul>
+<li>shipping RemoHop inside a closed-source product;</li>
+<li>running a modified server for others without publishing your changes;</li>
+<li>distributing it through a store whose terms conflict with the AGPL.</li>
+</ul>
+<p>For commercial licensing, write to <a href="mailto:{{EMAIL}}?subject=RemoHop%20commercial%20license">{{EMAIL}}</a>. Say how you plan to use RemoHop (embedded in a product, as a hosted service, or distributed internally) and at roughly what scale.</p>
+
+<h2 id="contrib">Contributions</h2>
+<p><!--nosrc-->Contributions become possible once the source is published. <!--/nosrc-->Because RemoHop is also offered under a commercial license, a contribution must be covered by a signed Contributor License Agreement (CLA) that lets the copyright holder distribute it under both licenses. You keep the copyright in your work. <!--src-->See <a href="{{REPO}}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> in the repository; questions<!--/src--><!--nosrc-->Questions<!--/nosrc--> about the CLA can go to <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
+
+<h2 id="third-party">Third-party software</h2>
+<p>RemoHop links Go modules under the MIT, BSD-2-Clause, BSD-3-Clause, ISC and Apache-2.0 licenses, all compatible with the AGPL-3.0. Release archives will include their license texts as <code>THIRD_PARTY_LICENSES.txt</code>.</p>
+<p>RemoHop does not include or distribute ffmpeg. The remote desktop runs the <code>ffmpeg</code> already installed on the host as a separate program. Anyone who bundles an ffmpeg build with RemoHop takes on that build's own license terms: ffmpeg with libx264 is under the GPL.</p>
+<p>The VPN client on Windows needs the Wintun driver, which <code>remohop</code> neither includes nor downloads.</p>
+
+<h2 id="trademark">Names</h2>
+<p>The AGPL-3.0 grants no right to use the names and marks “RemoHop” and “Readori”. If you distribute a modified version, please do not present it as the official one.</p>

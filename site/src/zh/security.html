@@ -1,0 +1,86 @@
+<h1>安全模型</h1>
+<p>这一页是英文参考文档 <a href="{{E:docs/security}}">RemoHop security model</a> 的摘要，写给三类人：运行被控端的人、用 <code>remohop</code> 连接机器的人，以及让 AI 代理或浏览器网关使用 RemoHop 的人。细节以那份文档为准。</p>
+<p class="note warn"><strong>RemoHop 没有经过独立的安全审计。</strong>下面的机制是根据代码和测试描述的，局限也照实写出。</p>
+
+<h2 id="summary">要点</h2>
+<ul>
+<li>会话在两台机器之间端到端加密。无论直连还是中继，汇合服务器都读不到内容，也加入不了会话。</li>
+<li>登录用密码认证密钥交换（CPace），并与这条 TLS 连接和双方的身份密钥绑定。中间人完成不了它，也没人能离线验证密码猜测。</li>
+<li>针对被控机的在线密码猜测，按来源地址和全局两级限速。</li>
+<li>客户端在首次登录时固定主机的身份密钥，之后拒绝不同的密钥。</li>
+<li>配对用一个 256 位随机令牌代替密码；也可以只凭身份密钥授权客户端。两者都能由被控机撤销。</li>
+<li>登录成功的客户端，在被控端允许的功能范围内，能做被控机用户能做的一切。只和你信任的机器配对。</li>
+<li>有两个组件有意放在端到端通道之外：浏览器网关（<code>remohop web</code>），以及 macOS 和 Windows 挂载背后的本机 WebDAV 服务。</li>
+</ul>
+
+<h2 id="actors">谁能看到什么</h2>
+<div class="table-wrap wide" tabindex="0" role="region" aria-label="各方能做和不能做的事">
+<table>
+<thead><tr><th scope="col">角色</th><th scope="col">能</th><th scope="col">不能</th></tr></thead>
+<tbody>
+<tr><th scope="row">两台机器之间的网络旁观者</th><td>看到有 UDP 流量，以及它的大小和时间</td><td>读取命令、文件或屏幕内容；得知密码</td></tr>
+<tr><th scope="row">汇合服务器的运营者，或攻破它的人</th><td>看到哪些 ID 在线、它们的公网地址、何时互相连接；拒绝介绍或停机；中继时看到该会话的密文、大小和时间，并能限速或掐断</td><td>解密或加入会话；对已固定其密钥的客户端冒充主机；离线验证密码</td></tr>
+<tr><th scope="row">路径上的主动攻击者（包括恶意的汇合服务器）</th><td>阻断或干扰流量，让连接失败</td><td>在没有凭据的情况下完成登录；读取会话数据</td></tr>
+<tr><th scope="row">只知道 ID、不知道密码的人</th><td>在限速之内尝试猜密码</td><td>登录；获得令牌</td></tr>
+<tr><th scope="row">已配对或已授权的客户端</th><td>在允许的功能范围内，做被控机用户能做的一切</td><td>换一个身份使用它的凭据；在 <code>remohop host revoke</code> 之后继续访问</td></tr>
+<tr><th scope="row">被控机的主人</th><td>看到客户端发来的每条命令、文件、剪贴板内容和按键</td><td>（没有什么对他隐藏，机器是他的）</td></tr>
+<tr><th scope="row">浏览器网关（<code>remohop web</code>）的运营者</th><td>看到并能修改经过页面的一切，使用网关里保存的配对</td><td>（没有什么对他隐藏）</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="login">会话建立与登录</h2>
+<ol>
+<li>在 UDP 上建立 QUIC。QUIC 内部的 TLS 1.3 负责加密，但双方没有证书颁发机构，光靠 TLS 并不能说明对方是谁。</li>
+<li>在第一条流上，双方用凭据（密码或令牌）运行 CPace。这条连接的 TLS exporter 被混入密钥推导，双方各自把身份密钥绑定进交换，并在确认步骤里证明自己知道密钥。</li>
+<li>中间人在两段连接上得到的 TLS exporter 不同，推导出的密钥也不同，确认失败，攻击者得不到任何可用于猜密码的信息。</li>
+<li>密码从不发送。</li>
+</ol>
+
+<h2 id="passwords">密码与限速</h2>
+<ul>
+<li><strong>临时密码：</strong>每次启动用密码学随机数生成器生成，8 个字符，代码估计约 40 比特。显示为 <code>xxxx-xxxx</code>，短横线不算在内。</li>
+<li><strong>一次性密码：</strong><code>remohop config otp on</code> 之后，每次用它登录后就更换。</li>
+<li><strong>固定密码：</strong>用 <code>remohop passwd</code> 设置，至少 8 个字符。<code>remohop status</code> 和 <code>remohop host</code> 从不打印它。它保存在被控机的 <code>config.json</code>（仅所有者可读）里，能读这个文件的人就能读到它。</li>
+</ul>
+<p>失败登录的限速（默认值）：同一来源地址的前两次失败不计；从连续第三次起锁定 10 秒，之后每次翻倍，最长 10 分钟；30 分钟没有尝试后清零。所有来源合计有 20 次失败的突发额度，每 5 秒补充一次。</p>
+<p>这个速率下在线猜测很慢，但对弱密码并非不可能。尽量用配对或密钥授权代替输入密码；密码是多人共用的被控机，考虑开启 <code>remohop config ask on</code>。</p>
+
+<h2 id="host-control">被控端的访问控制</h2>
+<ul>
+<li><strong>功能开关：</strong><code>remohop config feature NAME on|off</code>，NAME 可以是 <code>shell</code>、<code>file</code>、<code>forward</code>、<code>clip</code>、<code>screen</code>、<code>input</code>、<code>info</code>、<code>vpn</code>、<code>serial</code>、<code>usb</code>。只让看不让动就关掉 <code>input</code>。</li>
+<li><strong>连接审批：</strong><code>remohop config ask on</code> 之后，每次密码登录都要有人在被控机上确认；<code>ask-paired on</code> 把审批扩展到已配对的客户端和已授权的密钥。</li>
+<li><strong>VPN 路由：</strong><code>vpn-exit</code> 默认关闭。不开它，VPN 客户端只能访问被控机自身和它直接相连的网络。</li>
+<li><strong>USB 允许列表：</strong>客户端只能挂接主人用 <code>remohop usb allow</code> 逐个允许过的设备。</li>
+<li><strong>撤销：</strong><code>remohop host paired</code> 列出配对和已授权的密钥，<code>remohop host revoke</code> 移除它们，用到它们的会话会在几秒内被关闭。</li>
+<li><strong>审计日志：</strong><code>remohop log</code> 记录登录成功与被拒（含原因）、审批结果、每个会话首次使用某项功能、会话结束。它记录的是用了哪些功能，不是每条命令；控制被控机账号的人可以修改它。</li>
+</ul>
+<p>功能开关以下没有按命令划分的权限模型。装成系统级服务的被控端默认以 root（Windows 上是 LocalSystem）运行，它的客户端也就拥有这些权限，除非你用 <code>--run-as</code> 另行指定。</p>
+
+<h2 id="rendezvous">汇合服务器、中继与 websocket 桥</h2>
+<p>汇合服务器在设计上就不被信任。它把 9 位 ID 对应到主机的 Ed25519 身份密钥，告诉客户端主机在哪里。恶意的服务器可以谎报地址，但那只会让连接失败，因为随后的登录过不了。它能拒绝服务，也看得到元数据。用 <code>remohop config set signal-pin KEY</code> 固定服务器公钥，可以防止客户端接受别的服务器。</p>
+<p>中继默认关闭，只有打洞失败之后才使用。它转发密文，读不到会话，也加入不了会话。它比纯汇合服务器多看到一些东西：整个会话的大小和时间，以及会话期间双方的地址。客户端或被控机可以用 <code>remohop config relay off</code> 拒绝中继。</p>
+<p>websocket 桥不是开放代理：来自 websocket 的数据报只能发往服务器自己的端口。经过桥的仍然是同样的 QUIC 密文，前面的 TLS 终止代理（例如 Cloudflare Tunnel）看到的也只是密文和中继能看到的那些元数据。</p>
+
+<h2 id="accounts">账号</h2>
+<p>账号是可选的，默认关闭，由汇合服务器运营者开启。它只把你的设备归为一组，让它们互相看到在线状态，<strong>不授予任何访问权</strong>。成员列表是一条只追加、哈希链接的日志，每一条都由账号内设备的身份密钥签名；服务器只保存和转发，不持有任何成员密钥，所以它不能往账号里加设备。</p>
+<p>唯一的例外是被控机主人主动开启的 <code>remohop config account-trust on</code>（默认关闭）：这样的被控机会像接受已授权密钥一样接受本账号的其他设备。恶意的服务器可以对设备隐瞒最新的日志条目，从而推迟一次移除生效；被控机连不上服务器时最多沿用上次验证过的列表 7 天。加入设备时，两个指纹都要通过你信任的渠道认真比对。</p>
+
+<h2 id="gateway">浏览器网关和移动应用</h2>
+<p><code>remohop web</code> 进程才是会话的客户端，所以它看得到经过它的一切：屏幕、每一次按键、文件、剪贴板，以及在页面里输入的主机密码。浏览器到网关这一段不是和被控机端到端的。登录网关的人都能使用网关里保存的配对，供多人共用的网关应加上 <code>--no-saved</code>。</p>
+<ul>
+<li>默认只监听 <code>127.0.0.1</code>，登录凭据是地址里猜不到的令牌；检查 <code>Host</code> 和 <code>Origin</code> 头以防 DNS 重绑定和跨站 WebSocket 劫持；页面不使用任何外部资源。</li>
+<li>监听非回环地址时，没有 <code>--tls-cert</code>、<code>--tls-key</code> 和 <code>--password-file</code> 就拒绝启动。登录有限速和锁定，会话 Cookie 是 HttpOnly、Secure、SameSite=Strict，每个改变状态的请求都带 CSRF 令牌。</li>
+<li>放在 Cloudflare Tunnel 这类代理之后时，代理终止 TLS，它的运营者能看到网关能看到的一切。</li>
+</ul>
+<p>Android 和 iOS 应用把这个网关放在手机上的应用进程里，上面的注意事项同样适用，只是网关在你自己的手机上。访问令牌在应用加载的地址里；身份和配对保存在应用的私有目录中。</p>
+
+<h2 id="client-risks">被控机能对客户端做什么</h2>
+<p>被控机得不到你机器上的服务，但你执行的一些命令会给它开口子：反向转发（<code>forward -R</code>）让远程机器能连到你指定的本机地址；剪贴板同步会把你的剪贴板发给它；VPN 隧道开着时，它能向你的隧道地址发 IP 包，用 <code>--exit</code> 时你的全部流量都从它那里出去；挂接远程 USB 设备意味着由你的内核来处理它呈现的任何设备。</p>
+<p>把来自远程机器的任何输出都当作数据，不要当作指令。这一点对 AI 代理最重要：命令输出、文件或截图里的文字都可能在引导它。</p>
+
+<h2 id="disk">磁盘上的机密</h2>
+<p>配置目录在 Linux 和 macOS 上以 0700 权限创建，其中的文件为 0600；Windows 上设置仅所有者可访问的访问控制列表。里面有：<code>identity.key</code>（本机的 Ed25519 身份密钥）、<code>peers.json</code>（固定的主机密钥、配对令牌、别名）、<code>paired.json</code>（被控端的配对令牌和已授权密钥）、<code>config.json</code>（设置，包括固定密码）、<code>audit.jsonl</code>（审计日志）。</p>
+
+<h2 id="report">报告安全问题</h2>
+<p>请不要在公开的 issue 里报告安全问题。发邮件到 <a href="mailto:{{EMAIL}}?subject=RemoHop%20security">{{EMAIL}}</a>，标题里写上“security”，说明受影响的版本或提交、复现步骤和你认为的影响。我们会回信确认收到。</p>

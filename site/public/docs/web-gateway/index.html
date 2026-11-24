@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>浏览器客户端 | RemoHop</title>
+<meta name="description" content="remohop web 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）：">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/web-gateway/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/web-gateway/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/web-gateway/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/web-gateway/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="浏览器客户端 | RemoHop">
+<meta property="og:description" content="remohop web 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）：">
+<meta property="og:url" content="https://remohop.com/docs/web-gateway/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/web-gateway/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="浏览器客户端">浏览器客户端</h1>
+<p><code>remohop web</code> 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）：</p>
+<pre tabindex="0"><code class="language-bash">remohop web
+remohop web --target dev</code></pre>
+<p>页面有简体中文和英文两种语言：默认跟随浏览器语言（任何 <code>zh-*</code> 都显示中文），页面顶部的“中文 / English”开关可随时切换，选择会记在这个浏览器里。在地址后加 <code>?lang=zh</code> 或 <code>?lang=en</code> 也可以指定语言。</p>
+<p>默认只监听 <code>127.0.0.1</code>，并打开一个带有不可猜测令牌的地址，这个令牌就是登录凭据。浏览器本身无法建立 P2P 会话，所以这个进程才是真正的客户端，页面里的一切它都能看到。监听非回环地址时必须同时提供 <code>--tls-cert</code>、<code>--tls-key</code> 和 <code>--password-file</code>；供多人共用的网关应加上 <code>--no-saved</code>。见 <a href="/en/docs/security/#browser-gateway">security.md</a>。</p>
+<h2 id="通过-cloudflare-tunnel-对外提供">通过 Cloudflare Tunnel 对外提供</h2>
+<p>如果要在外网使用 <code>remohop web</code>，让它只监听本机回环地址的固定端口，用 <code>cloudflared</code> 把隧道指向它，并在前面加一条 Cloudflare Access 策略。<code>--public-url</code> 告诉网关浏览器实际使用的 https 地址，网关据此接受隧道转发过来的 <code>Host</code> 和 <code>Origin</code> 头。网关端已有单元测试模拟隧道请求，但没有接真实的 Cloudflare 测试过。</p>
+<pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
+        --public-url https://remohop.example.com --no-open --no-saved
+cloudflared tunnel run --url http://127.0.0.1:8470 &lt;隧道名&gt;</code></pre>
+<p><code>--public-url</code> 要求回环监听地址和 <code>--password-file</code>。经公网地址来的请求，登录限速按 Cloudflare 填写的 <code>CF-Connecting-IP</code> 区分访客。</p>
+<p>程序客户端（不是浏览器）可以不调用登录接口，在每个请求里带 <code>Authorization: Bearer &lt;网关密码&gt;</code>。这适合由代理注入请求头、程序本身看不到密码的场景，例如在 Cloudflare Access 服务令牌之外再注入网关密码。这类请求共用一个网关会话，不需要 Cookie、CSRF 令牌和 Origin，失败次数计入登录限速。</p>
+<ul>
+<li>在 Cloudflare Zero Trust 里为这个主机名创建 Access 应用，只允许你自己的身份或域。</li>
+<li>保留 <code>remohop web</code> 自己的登录（<code>--password-file</code>）。Access 挡在前面，但网关仍然能看到页面里的一切。</li>
+<li>浏览器与网关之间的这一段经过 Cloudflare，它终止 TLS，因此能看到屏幕、按键、文件和你在页面里输入的主机密码。只有接受这一点才这样做。</li>
+<li>供多人使用时加上 <code>--no-saved</code>，否则任何登录网关的人都能使用网关里保存的配对。</li>
+<li>Cloudflare Tunnel 只转发 HTTP(S)。汇合服务器本身使用 UDP；它为只能用 HTTPS 出网的机器提供的 websocket 桥可以走隧道（见<a href="/docs/self-hosting/#只允许-https-出网的网络websocket-桥">只允许 HTTPS 出网的网络</a>）。</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/web-gateway.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

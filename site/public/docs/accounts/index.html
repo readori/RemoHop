@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>账号（可选） | RemoHop</title>
+<meta name="description" content="账号只把你自己的设备归在一起，让每台设备能列出其他设备并看到谁在线（remohop devices）。账号不会授予任何访问权：连接被控机仍然需要被控机接受的密码、配对令牌或密钥。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/accounts/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/accounts/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/accounts/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/accounts/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="账号（可选） | RemoHop">
+<meta property="og:description" content="账号只把你自己的设备归在一起，让每台设备能列出其他设备并看到谁在线（remohop devices）。账号不会授予任何访问权：连接被控机仍然需要被控机接受的密码、配对令牌或密钥。">
+<meta property="og:url" content="https://remohop.com/docs/accounts/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/accounts/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="账号可选">账号（可选）</h1>
+<p>账号只把你自己的设备归在一起，让每台设备能列出其他设备并看到谁在线（<code>remohop devices</code>）。账号不会授予任何访问权：连接被控机仍然需要被控机接受的密码、配对令牌或密钥。</p>
+<p>账号托管在汇合服务器上，由服务器运营者用 <code>remohop signal --accounts</code> 开启（还需要 SMTP 和允许的邮箱范围，见 <code>remohop help signal</code>）。</p>
+<pre tabindex="0"><code class="language-bash">remohop login me@example.com
+remohop account
+remohop account approve 3f9a:01bc:77d2:e410:9c55
+remohop account remove old-laptop
+remohop logout</code></pre>
+<ul>
+<li>登录码由服务器通过邮件发送：8 位数字，10 分钟有效，只能用一次。</li>
+<li>第一台登录的设备创建账号。之后每台新设备都必须由账号里已有的设备批准。</li>
+<li>加入设备要在两台设备上各比对一次完整指纹：新设备显示<strong>账号指纹</strong>，请确认它与旧设备上 <code>remohop account</code> 显示的一致；新设备还会打印<strong>自己的身份指纹</strong>，在旧设备上用 <code>remohop account approve 指纹</code> 输入完整的值，不接受前缀。</li>
+<li>成员列表是一条哈希链接、由账号内设备签名的日志。服务器只负责保存和转发，没有任何成员密钥，所以服务器不能自行添加设备。</li>
+<li>默认不信任账号设备。被控机的主人可以用 <code>remohop config account-trust on</code> 选择让本账号的其他设备像 <code>remohop authorize</code> 授权的密钥一样登录；被控机每分钟左右检查一次成员列表。用 <code>remohop account remove</code> 移除设备后，开启了该选项的被控机会在下一次检查时停止接受它。</li>
+<li>服务器仍然可以拒绝服务，也可以对某台设备隐瞒最新的日志条目（例如一次移除）。被控机在连不上服务器时最多沿用上次验证过的列表 7 天，之后不再信任任何账号设备。完整说明见 <a href="/en/docs/security/#accounts">security.md</a>。</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/accounts.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

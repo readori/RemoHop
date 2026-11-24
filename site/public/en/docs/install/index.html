@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Install | RemoHop</title>
+<meta name="description" content="Releases are built by the release workflow on every v* tag. No release has been published yet, so the download commands below work only from the first…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/install/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/install/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/install/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/install/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Install | RemoHop">
+<meta property="og:description" content="Releases are built by the release workflow on every v* tag. No release has been published yet, so the download commands below work only from the first…">
+<meta property="og:url" content="https://remohop.com/en/docs/install/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/install/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="install">Install</h1>
+<p>Releases are built by the release workflow on every <code>v*</code> tag. No release has been published yet, so the download commands below work only from the first release; until then, <a href="#from-source">build from source</a>.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Platform / Command">
+<table>
+<thead><tr><th scope="col">Platform</th><th scope="col">Command</th></tr></thead>
+<tbody>
+<tr><td>Linux, macOS</td><td><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh</code>, read it, then <code>sh install.sh</code></td></tr>
+<tr><td>Windows</td><td><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1</code>, read it, then <code>powershell -ExecutionPolicy Bypass -File .\install.ps1</code></td></tr>
+<tr><td>Debian, Ubuntu</td><td>download <code>remohop_&lt;version&gt;_&lt;amd64|arm64&gt;.deb</code> from the release, then <code>sudo apt install ./remohop_*.deb</code></td></tr>
+<tr><td>Fedora, RHEL, SUSE</td><td>download <code>remohop-&lt;version&gt;-1.&lt;x86_64|aarch64&gt;.rpm</code>, then <code>sudo dnf install ./remohop-*.rpm</code></td></tr>
+<tr><td>Alpine</td><td>download <code>remohop_&lt;version&gt;_&lt;x86_64|aarch64&gt;.apk</code>, then <code>sudo apk add --allow-untrusted ./remohop_*.apk</code></td></tr>
+<tr><td>Docker (rendezvous server only)</td><td><code>docker run ... ghcr.io/readori/remohop-signal:&lt;version&gt;</code>, see <a href="https://github.com/readori/RemoHop/blob/main/packaging/docker/README.md">packaging/docker/README.md</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>The scripts download the archive for your OS and CPU, check it against the release's <code>SHA256SUMS</code>, check that file's signature when <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> is installed, and copy <code>remohop</code> to <code>~/.local/bin</code> (as root: <code>/usr/local/bin</code>; Windows: <code>%LOCALAPPDATA%\Programs\RemoHop</code>, added to your user <code>PATH</code>). They never use <code>sudo</code> and never edit shell profiles. Options: <code>--version vX.Y.Z</code>, <code>--bindir DIR</code>, <code>--verify require</code> (fail unless the signature checks out); <code>install.ps1</code> takes <code>-Version</code>, <code>-BinDir</code>, <code>-Verify</code>, <code>-NoPath</code>.</p>
+<p>Package managers (planned; the tap, bucket and packages are not published yet, so these are templates, see <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>):</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Manager / Command once published">
+<table>
+<thead><tr><th scope="col">Manager</th><th scope="col">Command once published</th></tr></thead>
+<tbody>
+<tr><td>Homebrew (macOS, Linux)</td><td><code>brew install &lt;owner&gt;/&lt;tap&gt;/remohop</code></td></tr>
+<tr><td>Scoop (Windows)</td><td><code>scoop bucket add &lt;name&gt; &lt;bucket-url&gt;</code> then <code>scoop install remohop</code></td></tr>
+<tr><td>winget (Windows)</td><td><code>winget install &lt;Publisher&gt;.RemoHop</code></td></tr>
+<tr><td>AUR (Arch)</td><td><code>yay -S remohop-bin</code></td></tr>
+<tr><td>Nix</td><td><code>callPackage</code> of the generated <code>remohop.nix</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Notes:</p>
+<ul>
+<li><strong>macOS:</strong> releases carry one universal (Apple silicon and Intel) binary, which the release workflow signs with a Developer ID and submits to Apple for notarization. Gatekeeper checks the notarization online on first run; a bare executable cannot carry an offline ticket.</li>
+<li><strong>Windows:</strong> the binaries are <strong>not code-signed yet</strong>, so SmartScreen may warn on first run. The checksum and cosign signature are how to verify a download until signing is set up.</li>
+<li><strong>Linux packages</strong> install <code>remohop</code> and the systemd unit files and enable nothing. <code>remohop service install</code> is the supported way to run the host at boot or login.</li>
+<li><strong>Verify a download by hand:</strong></li>
+</ul>
+<pre tabindex="0"><code class="language-bash">sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>Each release also lists its dependencies in <code>remohop_sbom.cdx.json</code> (CycloneDX).</p>
+<h2 id="from-source">From source</h2>
+<p>With the Go version given in <code>go.mod</code>:</p>
+<pre tabindex="0"><code class="language-bash">make build</code></pre>
+<p>This writes <code>bin/remohop</code> with <code>CGO_ENABLED=0</code>. Put it on your <code>PATH</code>. A plain <code>go build -o remohop ./cmd/remohop</code> also works.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/install.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

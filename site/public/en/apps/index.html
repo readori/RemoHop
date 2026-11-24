@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Android and iOS controller apps | RemoHop</title>
+<meta name="description" content="The RemoHop mobile apps are controllers only: connect to and operate your computers from a phone. TestFlight for iOS is in preparation; neither platform has a store release yet.">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/apps/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/apps/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/apps/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/apps/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Android and iOS controller apps | RemoHop">
+<meta property="og:description" content="The RemoHop mobile apps are controllers only: connect to and operate your computers from a phone. TestFlight for iOS is in preparation; neither platform has a store release yet.">
+<meta property="og:url" content="https://remohop.com/en/apps/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/" aria-current="page">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/apps/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>Android and iOS controller apps</h1>
+<p>The mobile apps let you connect to and operate your computers from a phone or tablet. They are <strong>controllers</strong> only: a phone cannot be controlled.</p>
+
+<div class="note">
+<p><strong>Release status:</strong> the iOS app is being prepared for TestFlight and is not on the App Store. The Android app is not in any store and there is no APK to download. For now the only way to use either is to build it from source. When they are released, this page will link to the stores.</p>
+</div>
+
+<h2 id="what">What is in the app</h2>
+<p>Both apps have the same structure: a native shell around a WebView that shows the <code>remohop web</code> gateway. The gateway and the Go core run inside the app process and listen only on the phone's own <code>127.0.0.1</code>. The session is therefore still an end-to-end encrypted peer-to-peer connection between the phone and the host, with no Readori server in between.</p>
+<ul>
+<li><strong>Remote desktop:</strong> view and control the computer's screen, with full screen, quality presets and a monitor switch.</li>
+<li><strong>Terminal:</strong> persistent shell sessions, with helper keys for Esc, Tab, Ctrl and the arrows.</li>
+<li><strong>Files:</strong> browse, upload, download, create folders, rename and delete.</li>
+<li><strong>Clipboard:</strong> move text between the phone and the computer.</li>
+<li><strong>System information and screenshots.</strong></li>
+<li><strong>Languages:</strong> the app and its pages are in English and Simplified Chinese. They follow the system by default; choose the language in Settings.</li>
+<li><strong>Settings (native):</strong> the language, the rendezvous server's address and key, whether relaying is allowed, the device name, this device's identity fingerprint, pairing by password, and saved hosts.</li>
+</ul>
+
+<h2 id="limits">Current limits</h2>
+<ul>
+<li>Controller only. Using an Android or iOS device as a host is not implemented.</li>
+<li>No built-in server. Enter your own rendezvous server in the settings, or connect by <code>host:port</code>.</li>
+<li>No account login.</li>
+<li>The iOS app has run only in a CI iOS simulator, where an in-app test connects to an <code>remohop host</code> by address and password, runs a command in the terminal and lists a directory in Files. It has not been verified on a physical iPhone or iPad.</li>
+<li>The Android app has had no real-device test.</li>
+</ul>
+
+<h2 id="requirements">Requirements</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Requirements">
+<table>
+<thead><tr><th scope="col"></th><th scope="col">iOS / iPadOS</th><th scope="col">Android</th></tr></thead>
+<tbody>
+<tr><th scope="row">Minimum OS</th><td>iOS 16.0</td><td>Android 8.0 (API 26)</td></tr>
+<tr><th scope="row">Devices</th><td>iPhone and iPad</td><td>Phones and tablets</td></tr>
+<tr><th scope="row">App identifier</th><td><code>com.remohop.app</code></td><td><code>com.remohop.app</code></td></tr>
+<tr><th scope="row">System permissions</th><td>Local network; camera or photos through the system picker when you upload a photo</td><td>Internet access, network state</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="privacy">The app and your data</h2>
+<p>The app talks to two kinds of peers only: the hosts you connect to, and the rendezvous server you enter in the settings. The identity key, pairing tokens and settings stay in the app's private directory and are excluded from system backups. The app contains no analytics, advertising or crash-reporting SDK. The <a href="/en/privacy/">privacy policy</a> has the details.</p>
+
+<h2 id="build">Build it yourself</h2>
+<h3>Android</h3>
+<p>Needs Go, JDK 17 or later, the Android SDK and NDK, and <code>ANDROID_HOME</code>. By default this produces a debug APK and runs the JVM unit tests:</p>
+<pre tabindex="0"><code>mobile/android/build.sh</code></pre>
+<h3>iOS</h3>
+<p>On macOS, build the Go core as an xcframework first, then build the project with Xcode:</p>
+<pre tabindex="0"><code>mobile/ios/build-xcframework.sh
+open mobile/ios/RemoHop.xcodeproj</code></pre>
+
+<h2 id="first-use">First use</h2>
+<ol>
+<li>On the computer, run <code>remohop host</code> and note the ID (or address) and the password.</li>
+<li>In the app's settings, enter your rendezvous server. On the same LAN as the computer you can leave it empty and use an address such as <code>192.168.1.5:21118</code> (start the computer with <code>remohop host --no-signal --listen :21118</code>).</li>
+<li>On the connect screen, enter the ID or address and the password. Tick the pairing box and you will not need the password next time.</li>
+</ol>
+<p>If something goes wrong, see <a href="/en/support/">Support</a>. Reports from real devices are especially useful to us.</p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

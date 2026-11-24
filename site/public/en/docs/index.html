@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Quick start and documentation | RemoHop</title>
+<meta name="description" content="Build remohop from source, run a rendezvous server, start a host, pair and connect. With the index of the RemoHop user guide and reference documents.">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Quick start and documentation | RemoHop">
+<meta property="og:description" content="Build remohop from source, run a rendezvous server, start a host, pair and connect. With the index of the RemoHop user guide and reference documents.">
+<meta property="og:url" content="https://remohop.com/en/docs/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="page">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>Quick start</h1>
+<p>This page covers the five steps from nothing to a first connection. For the full syntax of a command, run <code>remohop help &lt;command&gt;</code>. Everything else is in the documentation, one page per topic, <a href="#more">listed below</a>.</p>
+<p>The walkthrough assumes three machines: a small server with a public address for the rendezvous server (<code>sig.example.net</code> below), the host you want to control, and your own workstation. On a LAN you can <a href="#direct">skip the server</a>.</p>
+
+<h2 id="build">1. Build</h2>
+<p>There are no published downloads yet. Build with the Go version named in <code>go.mod</code> (1.26):</p>
+<pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
+cd RemoHop
+make build</code></pre>
+<p>This writes <code>bin/remohop</code>, built with <code>CGO_ENABLED=0</code>. Put it on the <code>PATH</code> of every machine. A plain <code>go build -o remohop ./cmd/remohop</code> works too.</p>
+
+<h2 id="signal">2. Run a rendezvous server</h2>
+<p>On a machine with a public IP, open UDP ports <code>21116</code> and <code>21117</code>, then run:</p>
+<pre tabindex="0"><code>remohop signal</code></pre>
+<p>The server prints its public key on start. Clients can pin it with <code>remohop config set signal-pin KEY</code>. To relay sessions that cannot connect directly, start it with <code>remohop signal --relay</code> instead. For a long-running server, see <a href="/en/self-hosting/">Self-hosting</a>.</p>
+
+<h2 id="host">3. Start the host</h2>
+<pre tabindex="0"><code>remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> runs in the foreground and prints the ID and the temporary password. To start at boot, install it as a service:</p>
+<pre tabindex="0"><code>remohop service install
+remohop status --show-password</code></pre>
+<p>This writes a systemd unit (Linux), a launchd job (macOS) or a Windows service. The service has its own identity, ID and password; it is not the same instance as an <code>remohop host</code> you start by hand. A system-wide service and the Windows service cannot see the desktop session, so use the per-user service when you need screenshots or remote desktop.</p>
+<p>For a fixed password run <code>remohop passwd</code>. It asks without echo and never prints the password again.</p>
+
+<h2 id="connect">4. Connect and pair</h2>
+<pre tabindex="0"><code>remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> shows the path to the host. The first connection needs the password, so it prompts.</li>
+<li><code>pair --name dev</code> asks for the password once, then stores a pairing token bound to this machine's identity and saves the alias <code>dev</code>.</li>
+<li>After that, <code>remohop dev ...</code> needs no password. <code>remohop devices</code> lists saved hosts and whether they are online.</li>
+</ul>
+
+<h2 id="use">5. Use it</h2>
+<pre tabindex="0"><code>remohop dev shell                       <span class="c"># persistent terminal; press Enter then ~. to detach</span>
+remohop dev cp ./build.tar.gz :/tmp/    <span class="c"># remote paths start with a colon</span>
+remohop dev forward -b 18080:8080       <span class="c"># remote port 8080 on local port 18080</span>
+remohop dev desktop                     <span class="c"># view and control the remote screen in a browser</span>
+remohop web --target dev                <span class="c"># browser client: desktop, terminal, files, clipboard</span></code></pre>
+
+<h2 id="direct">Without a server: LAN or public IP</h2>
+<p>If you can reach the host by address, you need no rendezvous server. On the host:</p>
+<pre tabindex="0"><code>remohop host --no-signal --listen :21118</code></pre>
+<p>On the client, use the address in place of the ID. A password is still required:</p>
+<pre tabindex="0"><code>remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+
+<h2 id="agents">For AI agents</h2>
+<p>Pair first, then add the MCP server to the agent's host program. With Claude Code:</p>
+<pre tabindex="0"><code>claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>For clients that read an <code>mcpServers</code> configuration, such as Cursor:</p>
+<pre tabindex="0"><code>{
+  "mcpServers": {
+    "remohop": { "command": "remohop", "args": ["mcp"] }
+  }
+}</code></pre>
+<p>An agent acts on the remote machine with the privileges of the user who runs the host. Pair only the machines you want an agent to reach, switch off features it does not need (for example <code>remohop config feature input off</code>), and revoke the pairing with <code>remohop host revoke</code> when you are done.</p>
+
+<h2 id="more">Full documentation</h2>
+<p>The user guide has one page per topic, the same in English and Chinese; the in-depth references are in English. When something fails, start with <a href="/en/docs/troubleshooting/">troubleshooting</a>.</p>
+<p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. The pages use <code>dev</code> as the example alias, from <code>remohop &lt;ID&gt; pair --name dev</code>. Run <code>remohop help &lt;command&gt;</code> for the full syntax.</p>
+<h3 id="getting-started">Getting started</h3>
+<ul>
+<li><a href="/en/docs/install/">Install</a>: install scripts, packages, verifying a download by hand, building from source.</li>
+<li><a href="/en/docs/quick-start/">Quick start</a>: rendezvous server, host, pairing, running as a service, direct connections without a rendezvous server, status and devices.</li>
+<li><a href="/en/docs/quick-support/">Quick support</a>: helping someone who will never open a terminal.</li>
+</ul>
+<h3 id="using-remohop">Using RemoHop</h3>
+<ul>
+<li><a href="/en/docs/shell-and-jobs/">Shell and background jobs</a></li>
+<li><a href="/en/docs/files/">Files</a>: copy, sync, send, mount.</li>
+<li><a href="/en/docs/forwarding/">Port forwarding and Wake-on-LAN</a></li>
+<li><a href="/en/docs/vpn/">VPN</a></li>
+<li><a href="/en/docs/mesh-and-tailscale/">Mesh network and Tailscale</a></li>
+<li><a href="/en/docs/serial-and-usb/">Serial ports and USB devices</a></li>
+<li><a href="/en/docs/clipboard/">Clipboard</a></li>
+<li><a href="/en/docs/remote-desktop/">Screen and remote desktop</a>: screenshots, remote desktop, audio, monitors, GUI automation.</li>
+<li><a href="/en/docs/web-gateway/">Browser client</a>: <code>remohop web</code>, and exposing it through Cloudflare Tunnel.</li>
+<li><a href="/en/docs/accounts/">Accounts</a></li>
+<li><a href="/en/docs/ai-agents/">AI agents</a>: MCP server, Agent Skills, grants.</li>
+<li><a href="/en/docs/mobile-apps/">Mobile apps</a></li>
+</ul>
+<h3 id="hosts-and-servers">Hosts and servers</h3>
+<ul>
+<li><a href="/en/docs/host-access-control/">Host access control</a>: feature switches, approval, one-time passwords, key logins, audit log.</li>
+<li><a href="/en/docs/self-hosting/">Self-hosting</a>: the rendezvous server, relay, websocket bridge and public servers.</li>
+<li><a href="/en/docs/how-it-works/">How it works</a>: how a connection is made and when the relay is used.</li>
+</ul>
+<h3 id="reference">Reference</h3>
+<ul>
+<li><a href="/en/docs/platforms/">Platform support and limitations</a></li>
+<li><a href="/en/docs/building/">Building and testing</a></li>
+<li>In depth: <a href="/en/docs/security/">security model</a>, <a href="/en/docs/troubleshooting/">troubleshooting</a>, <a href="/en/docs/agents/">grants and MCP client setup</a>, <a href="/en/docs/net/">mesh network in detail</a>, <a href="/en/docs/public-server/">public server</a>, <a href="/en/docs/architecture/">architecture</a>, <a href="/en/docs/roadmap/">roadmap</a></li>
+</ul>
+<p>Installing the Agent Skills, and the full list of the 28 MCP tools: <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a> in the repository.</p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

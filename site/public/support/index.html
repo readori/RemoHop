@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>支持与联系 | RemoHop</title>
+<meta name="description" content="通过 support@readori.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/support/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/support/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/support/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/support/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="支持与联系 | RemoHop">
+<meta property="og:description" content="通过 support@readori.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。">
+<meta property="og:url" content="https://remohop.com/support/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/" aria-current="page">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/support/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>支持与联系</h1>
+<p>RemoHop 由 Readori 发布。有问题可以写信，也可以在 Telegram 上找我们：</p>
+<p><a class="btn primary" href="mailto:support@readori.com">support@readori.com</a> <a class="btn" href="https://t.me/remohop" rel="noopener">Telegram：@remohop</a></p>
+<p>中文或英文都可以。安全问题和需要附带日志的报告请用邮件。这是一个小团队维护的项目，没有承诺的响应时间。</p>
+
+<h2 id="first">先自己查一下</h2>
+<ul>
+<li><a href="/en/docs/troubleshooting/">故障排查文档（英文）</a>按错误信息逐条解释：连不上、密码被拒、没有直连路径、挂载、VPN、远程桌面黑屏、ffmpeg 和编码器。</li>
+<li><code>remohop &lt;ID&gt; ping</code> 会显示当前路径是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>，多数连接问题从这里就能看出原因。</li>
+<li>在任何命令前加 <code>-v</code>（或设置 <code>REMOHOP_DEBUG=1</code>）可以在 stderr 上看到调试日志。</li>
+<li><a href="/features/#status">功能与限制</a>一页的“状态与限制”列出了已知没有测试过的平台和功能。</li>
+</ul>
+
+<h2 id="report">报告问题时请附上</h2>
+<ol>
+<li>客户端上 <code>remohop -v &lt;出问题的命令&gt;</code> 的输出。</li>
+<li>被控机上 <code>remohop status</code>、<code>remohop log</code> 和 <code>remohop config</code> 的输出。</li>
+<li><code>remohop version</code>，或者你编译时所用的提交。</li>
+<li>两端的操作系统和版本；移动应用请写明机型和系统版本。</li>
+<li>两端的网络情况：家用宽带、公司网络、移动网络，是否经过代理，用的是谁的汇合服务器。</li>
+<li>你预期发生什么，实际发生了什么。</li>
+</ol>
+<p class="note warn"><strong>发送前请删掉机密。</strong>不要把密码、配对令牌、<code>identity.key</code> 的内容、网关地址里的令牌或 Cloudflare Access 的密钥发给我们。ID 和公网 IP 地址如果不想透露，也可以打码。</p>
+
+<h2 id="security">安全问题</h2>
+<p>发现安全漏洞时，请<strong>不要</strong>在公开的 issue 或论坛里披露，直接发邮件到 <a href="mailto:support@readori.com?subject=RemoHop%20security">support@readori.com</a>，标题里带上“security”。请写明受影响的版本或提交、复现步骤和你判断的影响。我们会回信确认收到，并在修复后与你商量公开的时间。安全模型见<a href="/security/">安全</a>一页。</p>
+
+<h2 id="other">其他事项</h2>
+<dl>
+<dt>商业授权</dt>
+<dd>写信到 <a href="mailto:support@readori.com?subject=RemoHop%20commercial%20license">support@readori.com</a>，说明用途。见<a href="/licensing/">许可证</a>。</dd>
+<dt>隐私与数据删除</dt>
+<dd>见<a href="/privacy/">隐私政策</a>。应用和软件不向我们回传数据；要删除 Readori 服务器上的账号，执行 <code>remohop account delete --yes</code>，或写信给我们。</dd>
+<dt>滥用举报</dt>
+<dd>如果有人通过 Readori 运营的服务器滥用服务，请把时间（含时区）、相关的 IP 地址或 ID 发给我们。</dd>
+<dt>贡献代码</dt>
+<dd>见仓库里的 <a href="https://github.com/readori/RemoHop/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>。合并之前需要签署贡献者许可协议。</dd>
+</dl>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

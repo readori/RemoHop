@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Quick support | RemoHop</title>
+<meta name="description" content="For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect.">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/quick-support/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/quick-support/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/quick-support/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/quick-support/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Quick support | RemoHop">
+<meta property="og:description" content="For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect.">
+<meta property="og:url" content="https://remohop.com/en/docs/quick-support/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/quick-support/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="quick-support">Quick support</h1>
+<p>For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Ready / Someone asks to connect">
+<table>
+<thead><tr><th scope="col">Ready</th><th scope="col">Someone asks to connect</th></tr></thead>
+<tbody>
+<tr><td><img src="/assets/docs/quick-ready-en.png?v=e4a1155de4" alt="The quick-support window showing the ID and the password" width="480" height="1033" loading="lazy" decoding="async"></td><td><img src="/assets/docs/quick-request-en.png?v=918910c4a2" alt="A connection request with Allow and Deny" width="480" height="1333" loading="lazy" decoding="async"></td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="System / What they open / Built by make quick as">
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">What they open</th><th scope="col">Built by <code>make quick</code> as</th></tr></thead>
+<tbody>
+<tr><td>Windows 10/11</td><td><code>RemoHop.exe</code></td><td><code>dist/quick/windows-amd64/RemoHop.exe</code> (and <code>windows-arm64</code>)</td></tr>
+<tr><td>macOS 12+</td><td><code>RemoHop.app</code></td><td><code>dist/quick/macos/RemoHop.app</code> (universal)</td></tr>
+<tr><td>Linux, or any terminal</td><td><code>remohop quick</code></td><td><code>dist/quick/linux-*/remohop-quick</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; started without arguments they run <code>remohop quick</code>.</p>
+<p>What the person at the computer gets:</p>
+<ul>
+<li><strong>The ID and a temporary password, large,</strong> with Copy buttons and "Create a new password". The password is new on every start; the ID stays the same for the computer.</li>
+<li><strong>A question for every connection.</strong> The right password is not enough: each login waits until they press Allow, and is refused after 60 seconds without an answer. The request shows the name the other side gave itself, its device key (the fingerprint of its identity key) and its address. On Windows and macOS the same question also appears as a system dialog on top of everything else, so it is not missed when the window is buried; either place answers.</li>
+<li><strong>Who is connected,</strong> each with a Disconnect button, and <strong>Stop sharing</strong>, which ends every session and quits. Closing the window stops sharing too.</li>
+<li><strong>Three switches</strong> for what an allowed helper may do besides seeing the screen: use the mouse and keyboard (on), transfer files and use the clipboard (on), run commands and reach the network: terminal, port forwarding, VPN, serial, USB (off). They apply at once, also to a helper who is already connected.</li>
+<li><strong>The state of the connection in plain words:</strong> registered with the server or not, still trying, and whether helpers come directly or through the relay.</li>
+</ul>
+<p>The window follows the system language (Chinese or English) and can be switched in its corner; the choice is remembered for the next start and also applies to the system's connection dialogs. <code>--lang zh|en</code> overrides both.</p>
+<p>You, the helper, connect as usual: <code>remohop &lt;ID&gt; desktop</code>, the browser client (<code>remohop web</code>) or the mobile app, with the password they read to you.</p>
+<p><strong>The rendezvous server.</strong> A build with a built-in server (<code>-X .../internal/dial.DefaultSignal=HOST:PORT</code>, see <a href="/en/docs/self-hosting/">Self-hosting the rendezvous server</a>) needs no setup. Without one, the window asks for the server address on first start and stores it (the same setting as <code>remohop config set signal</code>). To pass the build setting to <code>make quick</code>: <code>EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick</code>.</p>
+<p><strong>What a quick-support host allows, whatever <code>remohop config</code> says:</strong> approval for every login, pairings and authorised keys included; only the temporary password of this run (a fixed <code>host-password</code> is ignored); no new pairings; and only the features ticked in the window. Features switched off with <code>remohop config feature</code> stay off. It uses the same identity as <code>remohop host</code>, so the computer has one ID; if a host is already running there (a service, or <code>remohop host</code> in a terminal), the window says so instead of starting a second one. Starting RemoHop again while quick support runs brings its window back.</p>
+<p><strong>How the window works, and what protects it.</strong> There is no native toolkit in RemoHop (it stays pure Go, without cgo), so the window is a page served by the process itself on <code>127.0.0.1</code>, opened in an app window of Microsoft Edge on Windows and in the default browser elsewhere (<code>--browser</code> forces the default browser, <code>--no-open</code> only prints the address). It cannot be reached from another machine, its address contains a 128-bit random token, requests with a foreign <code>Host</code> or <code>Origin</code> are refused (DNS rebinding, cross-site requests), and every action is a JSON request carrying a second secret. A client waiting for approval has no session and therefore no way to move the mouse on that computer: nobody can approve themselves. A helper who <em>has</em> been allowed and can use the mouse can click anything on that screen, this window included; that is what allowing remote control means, and why the mouse-and-keyboard switch exists.</p>
+<p>Limits to know about:</p>
+<ul>
+<li><strong>Windows:</strong> <code>RemoHop.exe</code> is not code-signed yet, so SmartScreen warns on first start ("More info", then "Run anyway"). It runs without administrator rights, so the helper cannot operate UAC prompts or windows of programs running as administrator. Windows Firewall may ask about network access on first start; connections work with either answer on most networks, because the host connects outwards.</li>
+<li><strong>macOS:</strong> the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings &gt; Privacy &amp; Security; both are listed as "RemoHop", and Screen Recording takes effect after RemoHop is started again). <code>RemoHop.app</code> built here is unsigned; see <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a> for signing and notarization.</li>
+<li>The page and its server are tested in a real browser on Linux. The Windows and macOS pieces around them (the Edge app window, the system dialogs, the <code>.app</code> bundle) compile and are checked structurally but have not been run on those systems yet.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/quick-support.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

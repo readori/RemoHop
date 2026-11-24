@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Self-hosting the rendezvous server | RemoHop</title>
+<meta name="description" content="The rendezvous server is light. A small VM is enough, for example an Oracle Cloud Always Free instance with 1 OCPU and 1 GB. Measured figures, not…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/self-hosting/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/self-hosting/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/self-hosting/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/self-hosting/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Self-hosting the rendezvous server | RemoHop">
+<meta property="og:description" content="The rendezvous server is light. A small VM is enough, for example an Oracle Cloud Always Free instance with 1 OCPU and 1 GB. Measured figures, not…">
+<meta property="og:url" content="https://remohop.com/en/docs/self-hosting/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/self-hosting/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="self-hosting-the-rendezvous-server">Self-hosting the rendezvous server</h1>
+<p>The rendezvous server is light. A small VM is enough, for example an Oracle Cloud Always Free instance with 1 OCPU and 1 GB. Measured figures, not guarantees: about 17 MB RSS idle, about 70 KB per online host, about 85 MB with 1000 hosts online.</p>
+<pre tabindex="0"><code class="language-bash">remohop signal --relay --relay-ports 40000-40099
+remohop signal --print-firewall --relay --relay-ports 40000-40099
+remohop signal --show-key</code></pre>
+<ul>
+<li><code>--relay</code> turns the relay on (off by default; it costs bandwidth). <code>--relay-ports LO-HI</code> takes relay ports from one range, so the firewall opens only that range. Without it each session gets a random high port.</li>
+<li><code>--max-conns N</code> caps open connections (hosts online plus clients asking), about 70 KB each. The default is sized to the available memory (cgroup limit, else RAM): about 6400 on a 1 GB machine, at most 50000.</li>
+<li><code>--print-firewall</code> prints the commands that open the ports (iptables on Ubuntu/Debian, firewall-cmd on Oracle Linux/RHEL). It runs nothing.</li>
+<li><code>--show-key</code> prints the server's public key and how to pin it.</li>
+</ul>
+<p>To install a hardened systemd service (Linux with systemd only, needs root):</p>
+<pre tabindex="0"><code class="language-bash">sudo install -m 755 remohop /usr/local/bin/remohop   # the unit's sandbox hides /home, /root and /tmp
+sudo /usr/local/bin/remohop service install --role signal --relay --relay-ports 40000-40099
+remohop service status --role signal
+sudo remohop signal --show-key --data /var/lib/remohop-signal</code></pre>
+<p>Open UDP <code>21116</code>, <code>21117</code> and the relay range in <strong>both</strong> places: the machine's firewall and the cloud provider's security list (Oracle Cloud security list, AWS security group, and so on). Clients reach the server directly over UDP; Cloudflare Tunnel does not carry UDP. Machines where only HTTPS gets out use the websocket bridge below.</p>
+<p>Point clients at it and pin its key:</p>
+<pre tabindex="0"><code class="language-bash">remohop config set signal HOST:PORT
+remohop config set signal-pin KEY</code></pre>
+<p>Or bake both into a build:</p>
+<pre tabindex="0"><code class="language-bash">go build -ldflags "-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:PORT -X github.com/readori/RemoHop/internal/dial.DefaultSignalPin=KEY" -o remohop ./cmd/remohop</code></pre>
+<h2 id="networks-that-allow-only-https-websocket-bridge">Networks that allow only HTTPS (websocket bridge)</h2>
+<p>CI runners, cloud containers and corporate networks often block UDP and let only HTTPS out, sometimes only through an HTTP proxy. For them the rendezvous server can also serve a websocket bridge, and both clients and hosts fall back to it by themselves:</p>
+<pre tabindex="0"><code class="language-bash">remohop signal --relay --relay-ports 40000-40099 \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
+<p>Serve it through a Cloudflare Tunnel (the UDP ports stay open as before; only the bridge goes through the tunnel). In <code>cloudflared</code>'s <code>config.yml</code>:</p>
+<pre tabindex="0"><code class="language-yaml">tunnel: &lt;tunnel-id&gt;
+credentials-file: /etc/cloudflared/&lt;tunnel-id&gt;.json
+ingress:
+  - hostname: relay.example.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404</code></pre>
+<p>On the machines:</p>
+<pre tabindex="0"><code class="language-bash">remohop config set signal relay.example.com:21116        # as before, for UDP
+remohop config set signal-ws wss://relay.example.com/remohop/v1/udp</code></pre>
+<ul>
+<li>When the UDP rendezvous does not answer within 4 seconds and <code>signal-ws</code> is set, <code>remohop</code> and <code>remohop host</code> go through the bridge. <code>REMOHOP_TRANSPORT=ws</code> (or <code>remohop config set signal-transport ws</code>) skips the UDP attempt; <code>REMOHOP_TRANSPORT=udp</code> never uses the bridge. <code>REMOHOP_SIGNAL_WS</code> overrides the URL. A machine with only <code>signal-ws</code> configured uses the bridge alone.</li>
+<li>The bridge honours <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> and <code>NO_PROXY</code> (CONNECT; <code>http://USER:PASSWORD@proxy:port</code> for proxy authentication).</li>
+<li>Behind the bridge no hole punching is possible, so such sessions always go through the server's relay, which must be on (<code>--relay</code>). <code>remohop &lt;ID&gt; ping</code> shows <code>relayed path (websocket)</code>, <code>remohop host status</code> shows <code>over its websocket bridge</code>. Encryption, the password exchange and the server pin are exactly as over UDP: the bridge and Cloudflare see only QUIC ciphertext.</li>
+<li><code>--ws-real-ip-header CF-Connecting-IP</code> makes the per-address limits use the client's address that Cloudflare passes on; without it every client counts as the tunnel's own address. <code>--ws-tls-cert</code>/<code>--ws-tls-key</code> serve <code>wss://</code> directly without a tunnel. <code>--ws-max-conns</code> (default 512, 32 per address) bounds open bridges.</li>
+<li>With a Cloudflare Access application in front of the hostname, give machines a service token. The secret never goes on a command line:</li>
+</ul>
+<pre tabindex="0"><code class="language-bash">remohop config set signal-ws-access-id &lt;client-id&gt;.access
+remohop config set signal-ws-access-secret-file /etc/remohop/ws-secret   # or REMOHOP_SIGNAL_WS_ACCESS_SECRET</code></pre>
+<ul>
+<li>A build can carry the bridge too: add <code>-X github.com/readori/RemoHop/internal/dial.DefaultSignalWS=wss://relay.example.com/remohop/v1/udp</code> to the <code>-ldflags</code> above.</li>
+</ul>
+<p>The bridge was tested end to end in network namespaces (UDP dropped except DNS, then only an HTTP CONNECT proxy allowed) and with in-process servers; it has not yet been tried through a real Cloudflare tunnel.</p>
+<h2 id="running-a-public-server">Running a public server</h2>
+<p>To offer the relay to people you do not know, for example as the built-in default of your own <code>remohop</code> builds, give it access controls and a budget. Rendezvous (IDs, presence, hole punching) stays open to everyone; only the relay is limited. For an Oracle Cloud Always Free micro VM with 10 TB of outbound traffic a month:</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop service install --role signal --relay --relay-ports 40000-40099 -- \
+    --relay-kbps 2000 --relay-per-source 2 --relay-monthly-gb 8000 \
+    --relay-deny /etc/remohop/relay-deny \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP
+sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8000</code></pre>
+<ul>
+<li><code>--relay-per-source N</code> (default 2): concurrent relayed sessions per address (IPv6 by its /64), counting both peers and websocket clients' real addresses. A closed session frees its slot at once.</li>
+<li><code>--relay-kbps</code> caps anonymous sessions. With <code>--accounts</code>, <code>--relay-account-kbps N</code> gives a higher cap to sessions where either peer is a verified member of an account on this server, and <code>--relay-for accounts</code> relays only those. Membership is proven by signatures, never taken on the client's word.</li>
+<li><code>--relay-deny FILE</code>: addresses, networks and identity keys that get no relay (listed keys also cannot register as hosts). The file is re-read when it changes and on SIGHUP.</li>
+<li><code>--relay-monthly-gb N</code>: monthly budget, persisted across restarts. From 80 % anonymous sessions get half their rate; at 100 % anonymous sessions are refused; at 110 % all are. <code>remohop signal --status</code> shows the month's usage, and an hourly log line summarises sessions, bytes and refusals without addresses.</li>
+</ul>
+<p><a href="/en/docs/public-server/">public-server.md</a> is the full reference for these options; it also covers what such an operator can and cannot see, and has a privacy notice template.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/self-hosting.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

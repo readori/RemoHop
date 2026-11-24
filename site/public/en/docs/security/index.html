@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RemoHop security model | RemoHop</title>
+<meta name="description" content="This document describes what RemoHop protects, against which threats, and what it does not protect. It is written for people who run a host, people who…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/security/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="RemoHop security model | RemoHop">
+<meta property="og:description" content="This document describes what RemoHop protects, against which threats, and what it does not protect. It is written for people who run a host, people who…">
+<meta property="og:url" content="https://remohop.com/en/docs/security/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="remohop-security-model">RemoHop security model</h1>
+<p>This document describes what RemoHop protects, against which threats, and what it does not protect. It is written for people who run a host, people who connect to machines with <code>remohop</code>, and people who let AI agents or a browser gateway use RemoHop. The design is summarised in <a href="/en/docs/architecture/">ARCHITECTURE.md</a>; this page covers the user-facing consequences.</p>
+<p>RemoHop has not had an independent security audit. The mechanisms below are described from the code and its tests, and the limits are stated as they are.</p>
+<h2 id="summary">Summary</h2>
+<ul>
+<li>Session traffic is encrypted end to end between the two machines. The rendezvous server cannot read it or join a session, whether the session is direct or relayed.</li>
+<li>A session is authenticated with a password-authenticated key exchange (CPace), bound to the TLS connection and to both machines' identity keys. A man in the middle cannot complete it, and nobody can test password guesses offline.</li>
+<li>Password guessing against a host is rate limited per source address and globally.</li>
+<li>A client pins each host's identity key on first login and refuses a different key afterwards.</li>
+<li>Pairing replaces the password with a random 256-bit token, and a client can also be authorised by its identity key alone. The host can revoke both.</li>
+<li>The host's owner can switch features off, require approval for each login, use one-time passwords and read an audit log.</li>
+<li>An authenticated client can do everything the host's user can do, within the features the host allows. Pair only machines you trust.</li>
+<li>Accounts are optional. An account grants no access by itself. A host may opt in to accepting its account's other devices; the membership list is signed by those devices, so the rendezvous server cannot add one. See <a href="#accounts">Accounts</a>.</li>
+<li>The mesh network (<code>remohop net</code>) lets an account's devices reach each other over IP. Its logins are limited to the mesh service, and a signed policy is enforced by each receiving device. A shared tailnet is used only as a path. See <a href="#mesh-network-and-tailscale">Mesh network and Tailscale</a>.</li>
+<li>Unattended access to a Windows machine's console (sign-in screen, lock screen, UAC prompts) is off by default; it exists only on a service installed with <code>remohop service install --unattended</code>. See <a href="#windows-unattended-access">Windows unattended access</a>.</li>
+<li>Two components deliberately sit outside the end-to-end channel: the browser gateway (<code>remohop web</code>) and the loopback WebDAV server behind macOS and Windows mounts. Both are explained below.</li>
+</ul>
+<h2 id="actors-and-what-they-can-do">Actors and what they can do</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Actor / Can / Cannot">
+<table>
+<thead><tr><th scope="col">Actor</th><th scope="col">Can</th><th scope="col">Cannot</th></tr></thead>
+<tbody>
+<tr><td>Network observer between the machines</td><td>see that UDP traffic flows, its size and timing</td><td>read commands, files or screen contents; learn the password</td></tr>
+<tr><td>Rendezvous server (<code>remohop signal</code>) operator, or a compromise of it</td><td>see which IDs are online, their public addresses and when they connect to each other; refuse to introduce peers, or go down; when it relays a session, see that session's ciphertext, size and timing, and throttle or drop it</td><td>decrypt or join a session; impersonate a host to a client that has pinned its key; test passwords offline</td></tr>
+<tr><td>Active attacker on the path, including a malicious rendezvous server</td><td>block or disrupt traffic; cause connections to fail</td><td>complete the login without a credential; read session data</td></tr>
+<tr><td>Someone with a host's ID but not its password</td><td>attempt password guesses, subject to the limits below</td><td>log in; obtain a token</td></tr>
+<tr><td>Rendezvous server with accounts on</td><td>see which devices belong to an account and when they are online; refuse service; withhold the newest membership entries from a device</td><td>add a device to an account; log in to a host; forge the signed member list; read a session</td></tr>
+<tr><td>Client that has paired or been authorised</td><td>everything the host's user can do, within the allowed features (see below)</td><td>use its credential from a different identity; keep access after <code>remohop host revoke</code></td></tr>
+<tr><td>Host operator (the machine owner)</td><td>everything on that machine; see every command, file, clipboard item and keystroke a client sends; with VPN <code>--exit</code>, see the client's traffic as it leaves the tunnel</td><td>nothing is hidden from them; they control the machine</td></tr>
+<tr><td>Operator of a browser gateway (<code>remohop web</code>)</td><td>see and change everything that passes through the page, and use the gateway's saved pairings</td><td>nothing is hidden from them, see <a href="#browser-gateway">Browser gateway</a></td></tr>
+<tr><td>Someone with read access to your disk</td><td>read whatever is stored in the config directory (see "Secrets on disk")</td><td>nothing beyond that, unless they also get the process</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="rendezvous-server">Rendezvous server</h2>
+<p>The rendezvous server is untrusted by design:</p>
+<ul>
+<li>It assigns each host's 9-digit ID to the host's Ed25519 identity key and keeps that mapping in its data directory (<code>signal</code> under the config directory, or <code>--data</code>).</li>
+<li>It tells a client where the host is: the candidate addresses on both sides, and the NAT type.</li>
+<li>It answers <code>remohop devices</code> presence queries for the IDs a client asks about: online, offline or unknown, no more than a connection attempt would reveal.</li>
+<li>It forwards no session traffic unless its operator enabled the relay.</li>
+</ul>
+<p>A malicious server can lie about addresses, which only prevents a connection, because the login below fails. It can refuse service and it sees the metadata: which IDs connect and when. There is no built-in default server; you choose and run your own.</p>
+<p>To stop a client from accepting a different rendezvous server than you intend, pin its key:</p>
+<pre tabindex="0"><code class="language-bash">remohop config set signal-pin KEY</code></pre>
+<p><code>remohop signal</code> prints its public key on start. A client refuses a rendezvous server whose key does not match the pin.</p>
+<h2 id="accounts">Accounts</h2>
+<p>Accounts are optional and off by default. The rendezvous operator enables them with <code>remohop signal --accounts</code>. A person logs in with an email address (<code>remohop login</code>) and the server mails an 8-digit code (valid 10 minutes, single use; five wrong codes burn it and lock the address for 15 minutes).</p>
+<p><strong>What an account is for.</strong> It groups your devices so each can list the others and see which are online. It grants no access. Connecting to a host still needs a password, a pairing or a key that the host accepts.</p>
+<p><strong>The one exception: account-trust.</strong> A host whose owner ran <code>remohop config account-trust on</code> (default off) accepts the account's other devices like keys authorised with <code>remohop authorize</code>. Their keys appear in <code>remohop host paired</code> as <code>account:NAME</code>. The host's <code>ask-paired</code> setting applies to them. <code>remohop host revoke</code> of one keeps that device out until account-trust is turned off and on again.</p>
+<p><strong>How membership is protected.</strong> The membership of an account is an append-only, hash-chained log. Each entry is signed with the identity key of a device that is a member at that point: the first device creates the account, an existing member signs each addition, and any member can sign a removal. The hash of the first entry is the account ID. The server stores and relays the log but holds no member key.</p>
+<p><strong>Joining a device.</strong> Two comparisons make this safe against the server, and both are required:</p>
+<ol>
+<li>The new device shows the account fingerprint. Confirm it equals the one <code>remohop account</code> shows on a device already in the account (scripts pass <code>--account-fingerprint</code>).</li>
+<li>The new device prints its own identity fingerprint. On an existing device, run <code>remohop account approve FINGERPRINT</code> with the complete value. A prefix is refused.</li>
+</ol>
+<p>Both fingerprints are 80 bits of SHA-256, so the server cannot grind a key that matches. Compare them over a channel you trust, not over the mail the code came in. A device keeps the account ID it confirmed, and it rejects a log that does not extend the longest one it already verified.</p>
+<p><strong>What a malicious or compromised rendezvous server can do:</strong></p>
+<ul>
+<li>refuse service, or delete the account's stored data;</li>
+<li>see which devices belong together, which are online, when, and from which addresses, and the (hashed-index) account records it stores; it also sees the email address when it mails a code;</li>
+<li>withhold the newest log entries from a device. For account-trust that delays a removal: a host that has not yet seen it keeps accepting the removed device. A host never accepts a shorter log than one it has verified, so it cannot be rolled back once seen. A host that cannot reach the server keeps the last verified list for up to 7 days, then trusts no account device until it can check again. <code>remohop config account-trust off</code> takes effect at once;</li>
+<li>show itself as a "pending" device in the account. Never approve a device you did not start yourself.</li>
+</ul>
+<p><strong>What it cannot do:</strong> add a device to an account, log in to a host (even one with account-trust on), read a session, or forge the member list.</p>
+<p><strong>What remains your job.</strong> Compare the fingerprints for real. Anyone who controls a device that is already in the account can add other devices and, for hosts with account-trust on, can log in to those hosts. Remove a lost device with <code>remohop account remove</code> as soon as you can, and consider <code>account-trust</code> only for hosts where that risk is acceptable. The mail server and the email address are trusted only to deliver the login code.</p>
+<p>The server's account file is <code>accounts.journal</code> in its data directory, indexed by a hash of the address, with session tokens hashed and codes never stored. RemoHop has not had an independent audit of this design.</p>
+<h2 id="mesh-network-and-tailscale">Mesh network and Tailscale</h2>
+<p><code>remohop net</code> (see <a href="/en/docs/net/">net.md</a>) joins the devices of one account into an IP network. What it rests on:</p>
+<ul>
+<li><strong>Membership is the account's signed log</strong>, as for account-trust: the rendezvous server cannot add a device to the mesh. A device whose log was last verified more than 7 days ago does not run the mesh until it can refresh it.</li>
+<li><strong>Links are ordinary sessions.</strong> Each link is a RemoHop session from one device's host to the other's, with the host key pinned from the signed log and the client's identity key proven in the TLS handshake. The host admits such a key through a limited login scope: the session may open the mesh service (and ping) and nothing else, owner approval (<code>ask</code>) does not apply, and it is not a <code>remohop authorize</code> entry. A mesh device therefore gets no shell, files or screen on another device unless that host grants them in one of the usual ways. A login that does have full access (a pairing, <code>remohop authorize</code>, account-trust) may also open the mesh service, which still checks that the key is a member.</li>
+<li><strong>Addresses are claims both ends check.</strong> Each device computes every member's address from its key and the log; a link whose peer claims another address is refused.</li>
+<li><strong>Policy at the receiver.</strong> Every packet that arrives over a link is checked where it arrives: its source must be the sending device's own mesh address (or, as a reply, a network that device routes for this one), its destination this device (or a network this device routes for the mesh), and the policy must allow it; replies to connections this device opened pass. The policy is signed by a member and adopted only with a higher version, so a peer cannot roll it back to an older one it holds; any member can set a new one, as any member can approve or remove devices.</li>
+<li><strong>Subnet routes and exit nodes</strong> are opt-in on the forwarding device (<code>--route</code>, <code>--exit</code>) and use the VPN's forwarding rules (masquerade, only replies back, guard on the other interfaces). A device using an exit node keeps its own LAN, its links and the rendezvous server off that route.</li>
+<li><strong>System DNS</strong> is changed only per interface (systemd-resolved, vanishing with the interface) or, on request, in a marked block of the hosts file. The responder answers only <code>.remohop</code> names and refuses everything else.</li>
+</ul>
+<p><strong>Tailscale.</strong> RemoHop reads Tailscale's status (local API, CLI or interface) and, when both machines are on one tailnet, uses the peer's tailnet address as one more path for the same session. Nothing Tailscale says is taken as identity: the session over a tailnet is authenticated by RemoHop's login and host key pinning exactly as over any other path. A stub status (<code>REMOHOP_TAILSCALE_STATUS</code>) or a lying Tailscale can only make RemoHop prefer or try a path; it cannot make a session succeed without the credential and the pinned key. <code>REMOHOP_TAILSCALE=off</code> turns the detection off.</p>
+<h2 id="relay">Relay</h2>
+<p>A relay is off unless the rendezvous operator runs <code>remohop signal --relay</code>. It is used only after hole punching has failed, and it carries the same QUIC session with the same login:</p>
+<ul>
+<li>The relay passes ciphertext. It cannot read the session, and it cannot join one, because it does not know the credential and the key exchange is bound to the end-to-end TLS connection.</li>
+<li>The relay sees more than a rendezvous-only server: the size and timing of the whole session, and both peers' addresses for its duration. It can slow the session down or cut it.</li>
+<li>A relayed session is announced on stderr when it is set up and is labelled <code>relayed</code> in <code>remohop &lt;ID&gt; ping</code> and <code>remohop status</code>.</li>
+<li>A client or host refuses relayed connections with <code>remohop config relay off</code> or <code>REMOHOP_RELAY=0</code>. With that set, a connection that cannot be made directly fails.</li>
+<li>Traffic over the cap is paced: held back for up to 100 ms, then dropped. The queue is bounded per session (1024 packets, at most 100 ms of the cap), so pacing adds no unbounded memory.</li>
+</ul>
+<h2 id="websocket-bridge">Websocket bridge</h2>
+<p><code>remohop signal --ws-listen</code> serves a websocket bridge for peers whose network lets only HTTP(S) out. It is off by default. Each WebSocket connection gets its own UDP socket on the server, and each binary message carries one datagram and a port number.</p>
+<ul>
+<li><strong>Not an open proxy.</strong> A datagram from a WebSocket goes only to one of the server's own UDP ports: the rendezvous port, the NAT-detection port, or the port of a relay session open at that moment. Every other port is dropped, and so is anything arriving at the bridge socket from an address other than those server ports. The destination host is never taken from the client. The bridge cannot be used to send UDP to a third party, and it reaches nothing a UDP client could not reach already.</li>
+<li><strong>The server still sees only ciphertext.</strong> What crosses the bridge is the same QUIC a UDP peer would send: the rendezvous protocol (TLS 1.3, server key pinnable) and relayed sessions (end-to-end encrypted, PAKE-authenticated). A TLS-terminating proxy in front, such as a Cloudflare Tunnel, sees the same ciphertext and the metadata the relay sees (sizes, timing, the client's address). It cannot read or join a session or learn a password. The server pin defeats an impostor bridge exactly as it defeats an impostor UDP server.</li>
+<li><strong>Bridged peers are relay-only.</strong> The server marks a bridged peer in introductions. The other side then neither punches nor probes any address of it, and the bridged peer's self-reported candidates are discarded, so it cannot make a host send probes to that host's own loopback or LAN. Such connections need the relay, and a client or host with relaying turned off refuses them.</li>
+<li><strong>Abuse limits.</strong> Open WebSocket connections are capped (<code>--ws-max-conns</code>, default 512) and so are those per source address (32). Each connection has a byte budget of the relay's per-session rate plus 32 KB/s, there is a total budget across connections, a message carries at most 2051 bytes, and a connection idle for 2 minutes is closed. Bridged peers count against the rendezvous server's own per-address limits by the WebSocket client's address. Behind a proxy that address comes from <code>--ws-real-ip-header</code> (for example <code>CF-Connecting-IP</code>), and a request without that header is refused. The header is trusted, so only set it when the bridge is reachable through that proxy alone (for example <code>--ws-listen 127.0.0.1:PORT</code> behind <code>cloudflared</code>). Otherwise a client could pick its own address for the limits.</li>
+<li><strong>Browsers are refused.</strong> The server accepts only the remohop subprotocol and the remohop client's Origin value, and browsers always send the page's origin. A web page therefore cannot use its visitors to talk to the bridge.</li>
+<li><strong>Access tokens.</strong> A Cloudflare Access service-token secret is read from a file (<code>signal-ws-access-secret-file</code>) or <code>REMOHOP_SIGNAL_WS_ACCESS_SECRET</code>, never from the command line. It is sent only to the bridge, inside TLS for <code>wss://</code> (also through an HTTP proxy, which sees only the CONNECT target), and it is never logged. Proxy credentials in <code>HTTPS_PROXY</code> are sent to the proxy only and kept out of error messages.</li>
+<li>The server logs one line when a bridge opens and one when it closes (client address, duration, byte counts). Headers and payloads are not logged.</li>
+</ul>
+<h2 id="public-relay-servers">Public relay servers</h2>
+<p>An operator who offers the relay to the public (see <a href="/en/docs/public-server/">public-server.md</a>) limits it as follows. Rendezvous stays open and keeps its own rate limits:</p>
+<ul>
+<li><strong>Per-address cap</strong> (<code>--relay-per-source</code>, default 2): concurrent relayed sessions per source (IPv4 address, IPv6 /64), counting both peers. A bridged peer counts by its WebSocket client's address. A client releases its session with an authenticated message when it closes, so the cap does not hold slots for the relay's idle timeout.</li>
+<li><strong>Tiers</strong> (<code>--relay-account-kbps</code>, <code>--relay-for accounts</code>): the better tier applies only when the server itself can verify that a peer is a member of an account in its own ledger. A host's key is proven by its registration signature. A client proves its key with an Ed25519 signature over a label, the introduction's nonce and the TLS exporter of its rendezvous connection. The signature is fresh for each introduction and useless on any other connection. A key without a valid proof is refused, not ignored. A client sends its key only when it is a member of an account on that same server, identified by the pinned server key. Otherwise relay requests stay anonymous and the server never learns the client's identity key.</li>
+<li><strong>Deny list</strong> (<code>--relay-deny</code>): addresses, networks and identity keys that get no relay. Listed keys also cannot register as hosts. Clients are listed by address unless they identify themselves, which only account members do.</li>
+<li><strong>Monthly budget</strong> (<code>--relay-monthly-gb</code>): relayed bytes are counted per UTC month in the data directory, written atomically about once a minute. A crash loses at most the last minute. Anonymous sessions get half their rate from 80 %, anonymous sessions are refused from 100 %, and all new sessions are refused from 110 %.</li>
+<li><strong>Summaries without addresses</strong>: the hourly <code>relay summary</code> log line has counts only. Per-session log lines do contain both peers' addresses (see public-server.md for what to tell users and how long to keep logs).</li>
+</ul>
+<p>None of this changes what the relay can see: ciphertext, both addresses, timing and volume.</p>
+<h2 id="session-establishment-and-authentication">Session establishment and authentication</h2>
+<ol>
+<li>QUIC is set up over UDP. TLS 1.3 inside QUIC encrypts the traffic, but the peers have no certificate authority, so TLS alone does not say who the peer is.</li>
+<li>On the first stream, both sides run CPace over the credential (password or token). The TLS exporter of this exact connection is mixed into the key derivation, each side binds its identity key into the exchange, and each side proves knowledge of the key in a confirmation step.</li>
+<li>A man in the middle ends up with a different TLS exporter on each leg. The two legs derive different keys, the confirmation fails, and the attacker learns nothing useful for guessing the password.</li>
+<li>The password is never sent. An attacker who records a failed login cannot check candidate passwords offline.</li>
+</ol>
+<h2 id="passwords-and-rate-limiting">Passwords and rate limiting</h2>
+<p>A host has one password at a time:</p>
+<ul>
+<li><strong>Temporary password.</strong> Generated with a cryptographic random generator on every start: 8 characters, which the code estimates at about 40 bits. It is shown as <code>xxxx-xxxx</code>; the dash is not part of it. <code>remohop status --show-password</code> and <code>remohop otp</code> print it.</li>
+<li><strong>One-time password.</strong> With <code>remohop config otp on</code>, the temporary password is replaced after every login that used it. <code>remohop otp new</code> replaces it at once.</li>
+<li><strong>Fixed password.</strong> Set with <code>remohop passwd</code>, which asks without echo and keeps the password off the command line and out of shell history. It must be at least 8 characters, not counting spaces and dashes. <code>remohop status</code> and <code>remohop host</code> never print a fixed password. It is stored in the host's <code>config.json</code> (owner-only, see "Secrets on disk"), so anyone who can read that file can read it.</li>
+</ul>
+<p>Failed logins are limited by the host (<code>internal/auth/limiter.go</code>). With its defaults:</p>
+<ul>
+<li>Per source address, the first two failures are free. From the third consecutive failure the source is locked out for 10 seconds; each further failure doubles the lockout, up to 10 minutes.</li>
+<li>A source's failure count is cleared after 30 minutes without attempts.</li>
+<li>Across all sources there is a burst of 20 failed attempts, refilled at one attempt every 5 seconds.</li>
+</ul>
+<p>Online guessing at this rate is slow, but not impossible against a weak password. Prefer pairing or key authorisation to typing a password, and consider <code>remohop config ask on</code> for hosts whose password is shared.</p>
+<h2 id="pairing-authorised-keys-and-identities">Pairing, authorised keys and identities</h2>
+<p><strong>Pairing.</strong> <code>remohop &lt;ID&gt; pair</code> asks the host for a random 256-bit token bound to the client's identity key. The client stores it in <code>peers.json</code>. Later connections present the token instead of the password. <code>remohop host --no-pairing</code> refuses pairing.</p>
+<p><strong>Authorised keys.</strong> A client can log in with its identity key alone:</p>
+<ol>
+<li>On the client, <code>remohop key export</code> prints one line with the public key.</li>
+<li>On the host, <code>remohop authorize "LINE"</code> authorises that key and prints the host's own key line.</li>
+<li>On the client, <code>remohop peers trust TARGET "HOST-LINE"</code> records the host's key.</li>
+</ol>
+<p>No password is involved, so there is nothing to guess, and the host's key is pinned from a line you received from its owner instead of on first use. The exchange is only as trustworthy as the channel you used to pass the two lines.</p>
+<p><strong>Revocation.</strong> <code>remohop host paired</code> lists pairings and authorised keys. <code>remohop host revoke NAME|ID...</code> removes them, and open sessions that used them are closed within seconds. On the client, <code>remohop peers forget</code> discards the saved token and key.</p>
+<p><strong>Identity management.</strong> <code>remohop key export --private FILE</code> writes the private key to a file with mode 0600 so that <code>remohop key import FILE --yes</code> can move the identity to another machine. Delete that file once imported: it is a full copy of the machine's identity. <code>remohop key gen --yes</code> and <code>remohop key clear --yes</code> discard the identity for good: every pairing and authorised key that hosts hold for it stops working, clients that pinned it as a host refuse it, and a host on this machine gets a new ID.</p>
+<p><strong>Device names.</strong> <code>remohop config set name NAME</code> is shown to peers in <code>ping</code>, approval prompts and <code>remohop status</code>. A name is whatever the other side chose to call itself. When you approve a login, judge it by the identity fingerprint and source address, not by the name.</p>
+<h2 id="host-access-control">Host access control</h2>
+<p>The host's owner decides what clients may do. Changes take effect at once, also for sessions that are already connected:</p>
+<ul>
+<li><strong>Feature switches.</strong> <code>remohop config feature NAME on|off</code> for <code>shell</code>, <code>file</code>, <code>forward</code>, <code>clip</code>, <code>screen</code>, <code>input</code>, <code>info</code>, <code>vpn</code>, <code>serial</code> and <code>usb</code>. A refused request names the feature and the command that would allow it. Switch off what a client does not need: <code>input</code> for a view-only machine, <code>shell</code> for a file drop, <code>usb</code> and <code>serial</code> unless you use them.</li>
+<li><strong>VPN routing.</strong> <code>remohop config vpn-exit</code> is off by default. Without it a VPN client reaches only the host itself and the networks the host is directly attached to.</li>
+<li><strong>Approval.</strong> With <code>remohop config ask on</code>, each password login waits until someone at the host says yes, in the <code>remohop host</code> terminal or with <code>remohop host approve N</code>. <code>remohop config ask-paired on</code> extends this to paired clients and authorised keys. An unanswered request is refused after a few minutes. A host running as a service has no terminal, so answer with <code>remohop host approve</code>.</li>
+<li><strong>USB allow list.</strong> A client can only attach a USB device the host's owner allowed with <code>remohop usb allow BUSID</code>, which records its bus ID and VID:PID.</li>
+<li><strong>Account devices.</strong> <code>remohop config account-trust on</code> is off by default. Leave it off on hosts that should only accept credentials you gave out one by one.</li>
+<li><strong>Grants.</strong> <code>remohop host grant NAME --for 2h --allow ...</code> issues a credential with less than full access: allowed services, file roots, a command allow-list, expiry, a session limit, approval of each command and file change, and recording. The host checks it on every stream and every command or file operation; <code>remohop host revoke NAME</code> and <code>remohop host panic</code> end its sessions at once. See <a href="/en/docs/agents/">agents.md</a> for the vocabulary and <a href="/en/docs/agents/#limits-of-the-protection">what grants do not do</a>.</li>
+<li><strong>Audit log.</strong> <code>remohop log</code> shows logins accepted and refused with the reason, approval decisions, the first use of each feature in a session, and session ends. It is <code>audit.jsonl</code> in the config directory, readable only by the owner and rotated at 1 MB. It records which features were used, not every command, and anyone who controls the host account can edit it.</li>
+</ul>
+<h2 id="host-identity-and-key-pinning">Host identity and key pinning</h2>
+<p>Each machine has an Ed25519 identity key in <code>identity.key</code> in its config directory. A host's fingerprint is shown by <code>remohop status</code> on the host and <code>remohop peers</code> on the client.</p>
+<p>On the first successful password login, the client records the host's key ("trust on first use"). That login succeeds only if the host proved the password on that connection, so an attacker who does not know the password cannot be pinned in. For a sensitive host, compare the fingerprint through a channel you trust, or use <code>remohop peers trust</code> with the host's key line.</p>
+<p>On later connections, a different host key is refused before the client sends any login message:</p>
+<pre tabindex="0"><code>host identity has changed: &lt;target&gt; now presents key &lt;new&gt; but &lt;old&gt; was pinned on first login. Someone may be impersonating the host. If the host was reinstalled, run `remohop peers forget &lt;target&gt;` and connect again</code></pre>
+<p>A host started by hand and the same machine's installed service are two instances with two identities and two IDs. Only run <code>remohop peers forget</code> after you know why the key changed.</p>
+<h2 id="what-an-authenticated-client-can-do">What an authenticated client can do</h2>
+<p>A client that passes the login gets the host's services, and those services run as the user that runs the host. With every feature on, a client can:</p>
+<ul>
+<li>run commands, shells and background jobs, and forward TCP and UDP ports, with that user's privileges;</li>
+<li>read, write and delete files the user can access, and mount directories;</li>
+<li>read and set the clipboard, read the host's clipboard history (<code>clip history --remote</code>), and take screenshots;</li>
+<li>move the pointer, click and type, unless <code>input</code> is off or <code>REMOHOP_DESKTOP_VIEW_ONLY=1</code> is set on the host. On a macOS host this works only after the owner grants <code>remohop</code> the Accessibility permission (System Settings &gt; Privacy &amp; Security &gt; Accessibility; capture needs Screen Recording). Without it macOS drops the events and <code>remohop</code> reports the missing permission;</li>
+<li>listen to what the host plays (<code>desktop --audio</code>): the <code>screen</code> feature covers it, a client must ask for it per session, <code>REMOHOP_DESKTOP_AUDIO=off</code> on the host refuses it alone, and only the machine's output is captured, never a microphone, unless the owner sets <code>REMOHOP_DESKTOP_AUDIO_SOURCE</code>;</li>
+<li>open the host's serial ports, which may be consoles with a login prompt;</li>
+<li>export a USB device the owner allowed, which detaches it from the host's own drivers while attached;</li>
+<li>open a VPN tunnel and reach the host at the IP level, plus its directly attached networks; with <code>vpn-exit on</code>, any network the host can reach, including the internet, using the host's address;</li>
+<li>ask the host to send Wake-on-LAN packets on its own networks. The host picks the destinations and limits the rate.</li>
+</ul>
+<p>Below the feature switches, the only finer permissions are grants (see <a href="#host-access-control">Host access control</a> and <a href="/en/docs/agents/">agents.md</a>): a client that logs in with a grant's credential gets what the grant allows and nothing else. Otherwise, pair only machines you trust, switch off features you do not need, and revoke pairings that you no longer use. A host installed as a system-wide service runs as root (or LocalSystem on Windows) unless you chose otherwise with <code>--run-as</code>; a client of that host has those privileges.</p>
+<h2 id="what-a-host-can-do-to-a-client">What a host can do to a client</h2>
+<p>A host does not get services on your machine. Hosts export services, and a client exposes local services only to sessions it opts into. A host cannot open a shell, read files or use the clipboard on your machine by itself. But several commands you run give the host a way in, and you should know which:</p>
+<ul>
+<li><strong>Reverse forwards</strong> (<code>forward -R</code>) let the remote machine connect to a local address you named.</li>
+<li><strong>Clipboard sync</strong> (<code>clip</code>, unless <code>--pull-only</code>) sends your clipboard to the host while it runs.</li>
+<li><strong>VPN.</strong> While a tunnel is up, the host can send IP packets to this machine's tunnel address, so local services listening on all interfaces are reachable from it. With <code>--exit</code>, all your traffic leaves through the host, which sees whatever is not encrypted end to end above the tunnel; DNS goes through the tunnel too where systemd-resolved is in use.</li>
+<li><strong>USB attach.</strong> An attached remote device is handled by this machine's kernel USB stack, so a malicious host can present whatever device it likes to your kernel. Attach devices only from hosts you trust.</li>
+<li><strong>Serial.</strong> Whatever the remote port sends arrives in your local terminal program.</li>
+<li><strong>Files.</strong> Files you copy or open from a mount come from the host. Downloads with <code>cp</code> and <code>sync</code> never get setuid or setgid bits.</li>
+<li>A host sees everything sent to it: commands, files, clipboard content, typed text.</li>
+</ul>
+<p>Treat any output from a remote machine as data, not instructions. This matters most for AI agents, which can be steered by text in command output, files or screenshots.</p>
+<h2 id="windows-unattended-access">Windows unattended access</h2>
+<p><code>remohop service install --unattended</code> (Windows only, from an elevated prompt) changes what a client of the Windows service can do. Without it the service runs as LocalSystem in session 0 and sees no desktop. With it, a client that passes the service's login sees and controls the session on the physical console, whoever is logged in there or nobody, as LocalSystem:</p>
+<ul>
+<li>the user's desktop, and the secure desktop: the sign-in screen, the lock screen, the Ctrl+Alt+Del screen and UAC prompts. Input reaches elevated windows and the secure desktop, which input from a user's session cannot (UIPI). A client can therefore type a password into the sign-in screen, answer a UAC prompt, or use an unlocked session it found;</li>
+<li>Ctrl+Alt+Del, sent by the service with <code>SendSAS</code>, but only where the machine's policy allows services to (<code>SoftwareSASGeneration</code> = 1 or 3; the service does not change the policy);</li>
+<li>the console session after a log off, fast user switching, or a remote desktop connection that took the user's session away from the console. <code>REMOHOP_UNATTENDED_SESSION=active</code> in the service's environment shows a session with a user logged in, such as a remote desktop one, instead of an empty console.</li>
+</ul>
+<p>What does not change: who may log in. The service's password, pairings, authorised keys, approval (<code>remohop config ask on</code>), one-time passwords, feature switches (<code>screen</code>, <code>input</code>) and the audit log apply exactly as before; <code>--unattended</code> grants nothing to anyone by itself. It is the reach of an authenticated client that grows, from session 0 to the console, so treat the service's credentials like the machine's administrator password. Nobody at the console is asked or told; there is no on-screen indicator yet. Reinstall without the flag to turn it off.</p>
+<p>How it is built (internal/unattended), and what each part prevents:</p>
+<ul>
+<li><strong>Only the service starts helpers.</strong> For the screen and input the service starts a helper process, <code>remohop service session-helper</code>, with a copy of its own LocalSystem token moved into the console session (SeTcbPrivilege), on <code>winsta0\Winlogon</code>. The helper refuses to run unless it is LocalSystem, so starting it by hand does nothing; only something that already has LocalSystem-level rights can start one.</li>
+<li><strong>A private pipe per launch.</strong> Service and helper talk over a named pipe with a random 128-bit name, created by the helper with <code>FILE_FLAG_FIRST_PIPE_INSTANCE</code> (it does not serve on a name someone else made) and an access list that admits LocalSystem alone, not Administrators and not the logged-in user; remote clients are rejected. One instance always waits, so the name never lapses while the helper runs.</li>
+<li><strong>Both ends check each other.</strong> The helper accepts connections only from the process ID of the service that started it; the service talks only to a pipe served by the process ID it started. Both then prove knowledge of a 256-bit secret made for that launch (HMAC-SHA256 challenge and response in both directions, so neither side's answer can be replayed). The secret reaches the helper through an inherited anonymous pipe (its standard input), never the command line; only that pipe and the helper's log pipe are inherited.</li>
+<li><strong>Lifetime.</strong> Helpers are started on demand, ended after a minute without use, ended when the console moves to another session, and placed in a job object that kills them with the service. A helper also exits when the service process ends.</li>
+<li><strong>No windows.</strong> The helper creates no windows, so window messages from the user's session cannot reach it. Its threads attach to the input desktop (<code>OpenInputDesktop</code>, <code>SetThreadDesktop</code>) for each capture and input operation; capture uses GDI, which works on the secure desktop.</li>
+<li><strong>Binaries.</strong> The service runs <code>remohop.exe</code> as LocalSystem in the console session, and the desktop service runs ffmpeg as LocalSystem. Keep both where only administrators can write, such as under Program Files; <code>install --unattended</code> warns when <code>remohop.exe</code> is elsewhere. A user who can replace either file gets LocalSystem.</li>
+</ul>
+<h2 id="windows-vpn-driver">Windows VPN driver</h2>
+<p>The Windows VPN client needs the Wintun driver. <code>remohop</code> does not ship or download it. It looks for <code>wintun.dll</code> in <code>REMOHOP_WINTUN_DIR</code>, next to <code>remohop.exe</code>, in the config directory and on <code>PATH</code>, and accepts only the build whose SHA-256 it has pinned (Wintun 0.14.1). It copies the matching file into a directory only the current user can write and loads it from there, because the DLL runs with Administrator rights. A different file with the same name is refused.</p>
+<h2 id="mobile-apps">Mobile apps</h2>
+<p>The Android and iOS apps are controllers only. Each is a native shell with a WebView on an in-process <code>remohop web</code> gateway, so the <a href="#browser-gateway">browser gateway</a> caveats apply, with the gateway running on the phone. The access token is in the URL the app loads. The apps keep their identity and pairings in the app's private directory. The iOS app has only run in the iOS Simulator in CI, and the Android app has had no real-device test.</p>
+<h2 id="local-listeners-on-the-client">Local listeners on the client</h2>
+<p>Several commands open a listener on this machine. All of them bind to <code>127.0.0.1</code> by default:</p>
+<ul>
+<li><strong>Desktop viewer</strong> (<code>remohop &lt;ID&gt; desktop</code>): the URL contains a random 128-bit token, the server rejects requests whose <code>Host</code> header is not a loopback name, and it compares the token in constant time. Anyone who can read the printed URL while the viewer runs can use it. Files dropped on the page are uploaded with a POST that must carry the viewer's own <code>Origin</code> and a custom header, so a web page of another origin cannot write to the remote machine through your browser; uploads need the host's <code>file</code> feature and never overwrite.</li>
+<li><strong>WebDAV mounts</strong> (the default on macOS and Windows, or <code>--webdav</code>): a WebDAV server inside remohop on a random port, below a random 128-bit path. It refuses requests from web pages and requests not addressed to 127.0.0.1. There is no password, because Windows refuses Basic authentication over plain HTTP: the URL is the credential, and it shows in the mount table (<code>mount</code>, <code>net use</code>), so other users of the same computer who can read it can use the mount while it exists. On a shared computer, prefer <code>remohop cp</code> or FUSE.</li>
+<li><strong>Port forwards</strong> listen on 127.0.0.1 unless you give a bind address; <code>*</code> exposes them to your network.</li>
+<li><strong>Recordings</strong> (<code>desktop --record</code>) are written with mode 0600 and contain everything shown on the remote screen.</li>
+</ul>
+<h2 id="browser-gateway">Browser gateway</h2>
+<p><code>remohop web</code> serves a browser client. A browser cannot hole-punch or speak the QUIC session, so the gateway process is the client: it speaks the end-to-end encrypted session to the host and serves the page. That has consequences:</p>
+<ul>
+<li><strong>The gateway sees everything it relays:</strong> the screen, every keystroke, files, the clipboard, and any host password typed into the page.</li>
+<li><strong>The browser-to-gateway leg is not end to end with the host.</strong> It is plain HTTP on loopback, or TLS that terminates at the gateway when self-hosted.</li>
+<li><strong>Anyone who logs in to a gateway can use its saved pairings</strong>, the peers in its config directory. A shared gateway should run with an empty config directory or <code>--no-saved</code>, so users bring the host's ID and password each time and cannot pair.</li>
+<li>A password typed into the page is used for one login and not stored, unless "pair this gateway" is ticked, which saves a token in the gateway's peers.</li>
+</ul>
+<p>Protections:</p>
+<ul>
+<li>By default the gateway listens on 127.0.0.1 and the login is an unguessable token in the URL. <code>Host</code> and <code>Origin</code> headers are checked against DNS rebinding and cross-site WebSocket hijacking, and the page uses no external assets.</li>
+<li>Any non-loopback <code>--listen</code> address refuses to start without <code>--tls-cert</code>, <code>--tls-key</code> and <code>--password-file</code>. The password (at least 8 characters) is read from a file with mode 600. Login is rate limited with lockout, the session cookie is HttpOnly, Secure and SameSite=Strict, and every state-changing request carries a per-session CSRF token.</li>
+<li>Behind a TLS-terminating proxy or tunnel, <code>--public-url https://HOST</code> adds that one host (as https) to the accepted <code>Host</code> and <code>Origin</code> values. It requires a loopback <code>--listen</code> and <code>--password-file</code>, so the plain-HTTP port is reachable only from the machine itself. Anyone with a local account on that machine can reach it too, and could set <code>CF-Connecting-IP</code> to spread login guesses over many limiter keys; the limiter's global failure budget still caps the total. The proxy terminates TLS, so its operator (for example Cloudflare) sees everything the gateway sees.</li>
+<li>A program can authenticate every request with <code>Authorization: Bearer &lt;gateway password&gt;</code> instead of the login call and cookie. Such requests skip the CSRF and Origin checks: forgery needs a browser to attach credentials by itself, and a browser never adds an Authorization header to a cross-site request or a WebSocket. Wrong passwords count against the same rate limiter as the login form. All bearer clients share one gateway session, so anyone holding the password shares its host connections.</li>
+<li>The host's own feature switches still apply to what the page can do.</li>
+</ul>
+<p>Use only a gateway you control.</p>
+<h2 id="quick-support-window">Quick support window</h2>
+<p><code>remohop quick</code> (and <code>RemoHop.exe</code> / <code>RemoHop.app</code>, which run it) is a host plus a local page that shows the ID and the temporary password, asks about each connection and lists sessions. Its rules are fixed in code and cannot be loosened from the config file: every login needs approval (pairings and authorised keys too, refused after 60 seconds without an answer), only the temporary password of the run is accepted, no pairing is minted, and only the features ticked in the window are offered (features switched off in the config file stay off).</p>
+<ul>
+<li><strong>The page is local.</strong> It is served on <code>127.0.0.1</code> only, under a path that starts with a 128-bit random token; the process refuses a <code>Host</code> header that is not the loopback address with its port (DNS rebinding), refuses API requests that a browser marks as coming from elsewhere (<code>Origin</code>, <code>Sec-Fetch-Site</code>), and accepts state changes only as JSON <code>POST</code>s carrying a second random value that the page obtains over that same checked channel. It sets a strict Content-Security-Policy, cannot be framed, and puts text from the other side (device names) into the page as text only. The browser is started on a private file that redirects to the page, so the token is not in any process's argument list.</li>
+<li><strong>Nobody approves themselves.</strong> Approval happens during login, before a session exists; a client that is waiting has no service to call and no way to send input to the host. There is no remote API for approving. The native question on Windows (a message box) and macOS (<code>osascript</code>) is shown by the host process on its own desktop and receives the client's name as data, never as script or markup.</li>
+<li><strong>An allowed helper with mouse control can click the window.</strong> That includes "Allow" for a later connection and the three switches. This is inherent in remote control; the user limits it by unticking mouse and keyboard, and ends it with Disconnect or Stop sharing.</li>
+<li><strong>Other users of the same computer</strong> cannot use the page without the token, which is in memory, in the page's address in the user's browser (and its history), and in <code>quick.url</code> in the config directory (mode 0600, removed on exit) so that a second start can bring the window back. The token is new on every start.</li>
+<li><strong>Closing the window stops sharing.</strong> The page tells the process when it is closed and the process ends every session. If the browser dies without saying so, the process stops once nobody is connected.</li>
+<li><strong>On Windows</strong> the program runs with the user's rights, not elevated: the helper cannot operate UAC prompts or elevated windows.</li>
+</ul>
+<h2 id="secrets-on-disk">Secrets on disk</h2>
+<p>The config directory is <code>$REMOHOP_CONFIG_DIR</code>, or the platform default. An installed system-wide service keeps its own: <code>/var/lib/remohop</code> on Linux, <code>/Library/Application Support/remohop</code> on macOS and <code>%ProgramData%\RemoHop</code> on Windows.</p>
+<p>On Linux and macOS the directory is created with mode 0700 and the files below with mode 0600. Windows has no mode bits: RemoHop sets an owner-only access list on its configuration directory, and the Windows service keeps its state under ProgramData restricted to SYSTEM and Administrators.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="File / Holds">
+<table>
+<thead><tr><th scope="col">File</th><th scope="col">Holds</th></tr></thead>
+<tbody>
+<tr><td><code>identity.key</code></td><td>the machine's Ed25519 identity key</td></tr>
+<tr><td><code>peers.json</code> (client)</td><td>pinned host keys, pairing tokens, aliases</td></tr>
+<tr><td><code>paired.json</code> (host)</td><td>pairing tokens and authorised keys</td></tr>
+<tr><td><code>config.json</code></td><td>settings, including a fixed <code>host-password</code> if set</td></tr>
+<tr><td><code>usb-allow.json</code> (host)</td><td>the USB devices the owner allowed</td></tr>
+<tr><td><code>audit.jsonl</code> (host)</td><td>the audit log</td></tr>
+<tr><td><code>grants.json</code> (host)</td><td>grants: names, limits, expiry; their credentials are in <code>paired.json</code></td></tr>
+<tr><td><code>recordings/</code> (host)</td><td>asciicast recordings of granted sessions made with <code>--record</code>; they contain whatever the commands printed</td></tr>
+<tr><td><code>signal/</code> (rendezvous server)</td><td>the server key and the ID table</td></tr>
+<tr><td><code>jobs/</code> (host)</td><td>background job records and logs; logs contain whatever the job prints</td></tr>
+<tr><td><code>clip/</code></td><td>clipboard history; on a host, <code>clip/host</code> records what passed through its clipboard during sessions. It contains clipboard text verbatim</td></tr>
+<tr><td><code>wake.json</code> (client)</td><td>names saved with <code>remohop wake --save</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Nothing in the config directory is encrypted at rest. Clipboard history can hold copied passwords; <code>remohop clip history off</code> stops recording and <code>remohop clip history clear</code> removes entries. The service definition written by <code>remohop service install</code> never contains the password. A <code>--password-file</code> for <code>remohop web</code> and a <code>key export --private</code> file are secrets of their own.</p>
+<h2 id="mcp-server-and-agents">MCP server and agents</h2>
+<p><code>remohop mcp</code> runs as a child of the agent host and speaks MCP over stdio:</p>
+<ul>
+<li>Connections use saved pairings, or <code>REMOHOP_PASSWORD</code> in the server's environment if you set it there. The server cannot prompt, so a machine that is not paired produces a tool error that asks a person to run <code>remohop &lt;ID&gt; pair</code> in a terminal.</li>
+<li>The tools accept no password argument. The model never sees a password.</li>
+<li>File tools that write on this machine take absolute paths, refuse to replace an existing file unless told to, never follow a symlink at the destination, and refuse anything inside RemoHop's own config directory.</li>
+<li>The GUI tools let an agent click and type on the remote screen. Do not let an agent type secrets: the text passes through its transcript. Switch <code>input</code> off on hosts where an agent should only look.</li>
+<li>An agent acts with the authority of the credential it uses. With a pairing that is everything the host's user can do; with a grant (<code>remohop host grant</code>, redeemed with <code>remohop peers redeem</code>) it is what the grant allows, enforced by the host. <code>remohop_limits</code> reports the grant's limits to the agent, refusals name the limit and the grant, and <code>remohop mcp --read-only</code> hides the tools that change anything (a convenience on the agent's side, not a boundary). See <a href="/en/docs/agents/">agents.md</a>.</li>
+</ul>
+<h2 id="limits-and-known-gaps">Limits and known gaps</h2>
+<ul>
+<li>RemoHop has not been independently audited.</li>
+<li>Accounts rely on you comparing both fingerprints. A device already in an account can add others, and hosts with account-trust on then accept them. See <a href="#accounts">Accounts</a>.</li>
+<li>There are no published releases yet. Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary. The install script checks a download against the release's checksum file, which on its own detects a damaged download, not a compromised release; with cosign installed (or <code>--verify require</code>) it also checks that file's keyless signature, which ties it to this repository's release workflow.</li>
+<li>The rendezvous server learns which IDs talk to each other and when; a relay also sees the volume and timing of the session.</li>
+<li>Trust on first use relies on the first login being genuine.</li>
+<li>A weak fixed password can be guessed online within the rate limits.</li>
+<li>Feature switches are coarse: <code>shell</code> on means any command. Grants are finer, but a command allow-list decides which program starts, not what it does, and file roots do not confine a shell; see <a href="/en/docs/agents/#limits-of-the-protection">agents.md</a>.</li>
+<li>The browser gateway and the WebDAV mount server are outside the end-to-end channel by design.</li>
+<li>Windows unattended access shows nothing on the console while a client watches or controls it, and has been run only on hosted CI runners (one session, one monitor, no physical console); multi-monitor consoles, remote desktop sessions with <code>REMOHOP_UNATTENDED_SESSION=active</code> and fast user switching are not covered by automated runs.</li>
+<li>USB/IP has been run against the real kernel only in CI (a virtual dummy_hcd device), not with physical USB hardware; treat it as experimental, and remember that the kernel's USB/IP code is part of what you expose.</li>
+<li>macOS and Windows are tested by automated runs on hosted runners, not on physical desktops; GUI input and WebDAV mounts on Windows have not been run. The macOS VPN client, the macOS desktop host (capture, VideoToolbox, input) and the iOS app are verified on hosted machines only: a macOS VM with one 1024x768 display, and the iOS Simulator. Physical Macs and iOS devices, Retina and multi-monitor Macs, <code>vpn up --exit</code> from macOS on a real network, GPU encoders other than VideoToolbox, and the Android app on a real device are untested. See <a href="/en/docs/troubleshooting/#platform-notes">troubleshooting.md</a>.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/security.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>安装 | RemoHop</title>
+<meta name="description" content="每次推送 v* 标签，发布工作流都会构建发布版本。目前还没有发布过任何版本，下面的下载命令要等首个发布版本之后才能用；在此之前请从源码编译。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/install/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/install/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/install/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/install/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="安装 | RemoHop">
+<meta property="og:description" content="每次推送 v* 标签，发布工作流都会构建发布版本。目前还没有发布过任何版本，下面的下载命令要等首个发布版本之后才能用；在此之前请从源码编译。">
+<meta property="og:url" content="https://remohop.com/docs/install/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/install/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="安装">安装</h1>
+<p>每次推送 <code>v*</code> 标签，发布工作流都会构建发布版本。目前还没有发布过任何版本，下面的下载命令要等首个发布版本之后才能用；在此之前请<a href="#从源码编译">从源码编译</a>。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="平台 / 命令">
+<table>
+<thead><tr><th scope="col">平台</th><th scope="col">命令</th></tr></thead>
+<tbody>
+<tr><td>Linux、macOS</td><td><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh</code>，先读一遍，再执行 <code>sh install.sh</code></td></tr>
+<tr><td>Windows</td><td><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1</code>，先读一遍，再执行 <code>powershell -ExecutionPolicy Bypass -File .\install.ps1</code></td></tr>
+<tr><td>Debian、Ubuntu</td><td>从发布页下载 <code>remohop_&lt;版本&gt;_&lt;amd64|arm64&gt;.deb</code>，然后 <code>sudo apt install ./remohop_*.deb</code></td></tr>
+<tr><td>Fedora、RHEL、SUSE</td><td>下载 <code>remohop-&lt;版本&gt;-1.&lt;x86_64|aarch64&gt;.rpm</code>，然后 <code>sudo dnf install ./remohop-*.rpm</code></td></tr>
+<tr><td>Alpine</td><td>下载 <code>remohop_&lt;版本&gt;_&lt;x86_64|aarch64&gt;.apk</code>，然后 <code>sudo apk add --allow-untrusted ./remohop_*.apk</code></td></tr>
+<tr><td>Docker（仅汇合服务器）</td><td><code>docker run ... ghcr.io/readori/remohop-signal:&lt;版本&gt;</code>，见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/docker/README.md">packaging/docker/README.md</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>安装脚本会下载与你的系统和 CPU 对应的压缩包，用发布页的 <code>SHA256SUMS</code> 校验；如果装了 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a>，还会校验该文件的签名；然后把 <code>remohop</code> 复制到 <code>~/.local/bin</code>（root 用户为 <code>/usr/local/bin</code>；Windows 为 <code>%LOCALAPPDATA%\Programs\RemoHop</code>，并加入当前用户的 <code>PATH</code>）。脚本从不使用 <code>sudo</code>，也不会修改 shell 配置文件。选项：<code>--version vX.Y.Z</code>、<code>--bindir DIR</code>、<code>--verify require</code>（签名校验不通过就失败）；<code>install.ps1</code> 对应 <code>-Version</code>、<code>-BinDir</code>、<code>-Verify</code>、<code>-NoPath</code>。</p>
+<p>包管理器（计划中；tap、bucket 和软件包尚未发布，下表是模板，见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>）：</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="包管理器 / 发布后的命令">
+<table>
+<thead><tr><th scope="col">包管理器</th><th scope="col">发布后的命令</th></tr></thead>
+<tbody>
+<tr><td>Homebrew（macOS、Linux）</td><td><code>brew install &lt;owner&gt;/&lt;tap&gt;/remohop</code></td></tr>
+<tr><td>Scoop（Windows）</td><td><code>scoop bucket add &lt;名称&gt; &lt;bucket 地址&gt;</code>，然后 <code>scoop install remohop</code></td></tr>
+<tr><td>winget（Windows）</td><td><code>winget install &lt;Publisher&gt;.RemoHop</code></td></tr>
+<tr><td>AUR（Arch）</td><td><code>yay -S remohop-bin</code></td></tr>
+<tr><td>Nix</td><td>对生成的 <code>remohop.nix</code> 使用 <code>callPackage</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>说明：</p>
+<ul>
+<li><strong>macOS：</strong> 发布版本只有一个通用二进制（同时支持 Apple 芯片和 Intel），由发布工作流用 Developer ID 签名并提交 Apple 公证。首次运行时 Gatekeeper 会联网检查公证结果；裸可执行文件无法携带离线票据。</li>
+<li><strong>Windows：</strong> 二进制<strong>尚未做代码签名</strong>，首次运行时 SmartScreen 可能给出警告。在签名就绪之前，请用校验和与 cosign 签名来验证下载。</li>
+<li><strong>Linux 软件包</strong>会安装 <code>remohop</code> 和 systemd 单元文件，但不会启用任何东西。让被控端开机或登录时自启的受支持方式是 <code>remohop service install</code>。</li>
+<li><strong>手动验证下载：</strong></li>
+</ul>
+<pre tabindex="0"><code class="language-bash">sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>每个发布版本还附带 <code>remohop_sbom.cdx.json</code>（CycloneDX 格式的依赖清单）。</p>
+<h2 id="从源码编译">从源码编译</h2>
+<p>使用 <code>go.mod</code> 中指定的 Go 版本：</p>
+<pre tabindex="0"><code class="language-bash">make build</code></pre>
+<p>这会以 <code>CGO_ENABLED=0</code> 生成 <code>bin/remohop</code>。把它放进 <code>PATH</code> 即可。直接执行 <code>go build -o remohop ./cmd/remohop</code> 也可以。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/install.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

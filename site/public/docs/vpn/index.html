@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>VPN | RemoHop</title>
+<meta name="description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/vpn/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/vpn/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/vpn/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/vpn/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="VPN | RemoHop">
+<meta property="og:description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
+<meta property="og:url" content="https://remohop.com/docs/vpn/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/vpn/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="vpn">VPN</h1>
+<p>远程命令的格式都是 <code>remohop &lt;ID&gt; &lt;command&gt;</code>。本页的例子用 <code>dev</code> 作为别名，它来自 <code>remohop &lt;ID&gt; pair --name dev</code>（见<a href="/docs/quick-start/">快速开始</a>）。每个命令的完整语法用 <code>remohop help &lt;command&gt;</code> 查看。</p>
+<p><code>remohop &lt;ID&gt; vpn up</code> 在加密会话里为本机和被控机建立一条虚拟 IPv4 链路：本机是 <code>10.77.0.2</code>，被控机是 <code>10.77.0.1</code>。在 Linux 上两端都需要 root 权限或 <code>CAP_NET_ADMIN</code>，在 Windows 上需要管理员权限。</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop dev vpn up -b
+sudo remohop dev vpn up --route 192.168.1.0/24 -b
+sudo remohop dev vpn up --exit --bypass 10.0.0.0/8
+remohop vpn
+sudo remohop dev vpn down</code></pre>
+<ul>
+<li><code>--route CIDR</code> 访问被控机那一侧的某个网络，由被控机负责转发。</li>
+<li><code>--exit</code> 让本机的全部流量经由被控机出去。</li>
+<li>访问被控机自身网络以外的地址，以及使用 <code>--exit</code>，都需要在被控机上执行 <code>remohop config vpn-exit on</code>，它默认关闭。被控机也可以用 <code>remohop config feature vpn off</code> 关掉整个功能。</li>
+<li>隧道创建的接口、路由和防火墙规则在隧道结束时全部删除。如果 <code>remohop</code> 被强行杀掉，下一条以相同权限运行的 <code>remohop</code> 命令会清理残留。</li>
+</ul>
+<p>两端都是 Linux 是测试过的组合。其他平台：</p>
+<ul>
+<li><strong>Windows</strong>：可以作为控制端（支持 <code>--route</code> 和 <code>--exit</code>），自身可以被访问；不能作为 <code>--route</code> 或 <code>--exit</code> 的转发主机。需要 Wintun 驱动，<code>remohop</code> 不包含也不下载它。从 <a href="https://www.wintun.net">https://www.wintun.net</a> 下载 Wintun 0.14.1，核对 zip 的 SHA-256（<code>07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51</code>），把 <code>wintun\bin\&lt;架构&gt;\wintun.dll</code> 放在 <code>remohop.exe</code> 旁边或 <code>remohop</code> 配置目录里，也可以用环境变量 <code>REMOHOP_WINTUN_DIR</code> 指定目录。<code>remohop</code> 还会核对这个 DLL 本身的 SHA-256，不匹配的文件会被拒绝。需要在真实 Windows 机器上手动做端到端测试（仓库里的测试默认跳过），尚未验证。</li>
+<li><strong>macOS</strong>：使用 utun。客户端（包括 <code>--route</code>）以及自身被访问的 macOS 被控端，已在托管的 macOS 虚拟机上由自动化测试验证：真实的 utun 接口、路由、双向收发数据包，以及 <code>vpn down</code> 后和进程被杀后的清理。<code>--exit</code> 没有在真实网络上运行过（它的例外路由测试过，接管默认路由没有测试），也没有在实体 Mac 上运行过。作为被控端不能为 VPN 客户端转发。</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/vpn.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

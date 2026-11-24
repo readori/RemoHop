@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>AI 代理 | RemoHop</title>
+<meta name="description" content="remohop mcp 以 stdio 方式运行 MCP 服务器，由代理宿主程序启动。以 Claude Code 为例：">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/ai-agents/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/ai-agents/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/ai-agents/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/ai-agents/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="AI 代理 | RemoHop">
+<meta property="og:description" content="remohop mcp 以 stdio 方式运行 MCP 服务器，由代理宿主程序启动。以 Claude Code 为例：">
+<meta property="og:url" content="https://remohop.com/docs/ai-agents/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/ai-agents/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="ai-代理">AI 代理</h1>
+<h2 id="mcp-服务器">MCP 服务器</h2>
+<p><code>remohop mcp</code> 以 stdio 方式运行 MCP 服务器，由代理宿主程序启动。以 Claude Code 为例：</p>
+<pre tabindex="0"><code class="language-bash">claude mcp add remohop -- remohop mcp
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>Cursor 等读取 <code>mcpServers</code> 配置的客户端：</p>
+<pre tabindex="0"><code class="language-json">{
+  "mcpServers": {
+    "remohop": {
+      "command": "remohop",
+      "args": ["mcp"]
+    }
+  }
+}</code></pre>
+<p>在 <code>args</code> 中加入 <code>"--target", "276941009"</code> 可以设置默认机器。服务器使用你用 <code>remohop &lt;ID&gt; pair</code> 保存的配对，所以请先配对。它无法提示输入密码，工具也不接受密码参数。如果某台机器尚未配对，或者被控机关闭了某项功能，工具返回的错误会说明需要由人执行哪条命令。</p>
+<p>29 个工具分为以下几组。除非设置了 <code>--target</code>，每个工具都需要 <code>target</code> 参数（ID、别名或 <code>host:port</code>）。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="类别 / 工具">
+<table>
+<thead><tr><th scope="col">类别</th><th scope="col">工具</th></tr></thead>
+<tbody>
+<tr><td>机器</td><td><code>remohop_info</code>、<code>remohop_peers</code>、<code>remohop_limits</code></td></tr>
+<tr><td>shell 与后台任务</td><td><code>remohop_exec</code>、<code>remohop_spawn</code>、<code>remohop_jobs</code>、<code>remohop_job_logs</code>、<code>remohop_job_kill</code>、<code>remohop_job_wait</code></td></tr>
+<tr><td>文件</td><td><code>remohop_read_file</code>、<code>remohop_write_file</code>、<code>remohop_list_dir</code>、<code>remohop_upload</code>、<code>remohop_download</code>、<code>remohop_send</code></td></tr>
+<tr><td>网络</td><td><code>remohop_forward_start</code>、<code>remohop_forward_list</code>、<code>remohop_forward_stop</code>、<code>remohop_wake</code></td></tr>
+<tr><td>剪贴板</td><td><code>remohop_clipboard_get</code>、<code>remohop_clipboard_set</code>、<code>remohop_clipboard_history</code></td></tr>
+<tr><td>屏幕与图形界面</td><td><code>remohop_screenshot</code>、<code>remohop_displays</code>、<code>remohop_click</code>、<code>remohop_move</code>、<code>remohop_scroll</code>、<code>remohop_type</code>、<code>remohop_key</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>指针类工具默认使用上一张截图中的坐标。完整的工具表见 <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a>。</p>
+<h2 id="agent-skills">Agent Skills</h2>
+<p><code>skills/</code> 目录包含六个 Agent Skills，教代理使用命令行：<code>remohop-shell</code>、<code>remohop-port-forward</code>、<code>remohop-clipboard</code>、<code>remohop-screenshot</code>、<code>remohop-gui</code> 和 <code>remohop-files</code>。Claude Code 的安装方式（在仓库根目录执行）：</p>
+<pre tabindex="0"><code class="language-bash">mkdir -p ~/.claude/skills
+for s in skills/remohop-*; do ln -sfn "$PWD/$s" ~/.claude/skills/$(basename "$s"); done</code></pre>
+<p>其他代理的安装方式见 <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a>。</p>
+<h2 id="代理的安全边界">代理的安全边界</h2>
+<p>持有配对的代理，会以运行被控端的用户的权限在远程机器上操作。如果只想把机器的一部分权限交给代理，在被控机上签发一个授权（grant）：它限定代理能用什么（只能执行命令或只能执行列入白名单的命令、只能访问指定目录下的文件、截图等），到期自动失效，可以要求你逐条批准命令和文件改动，可以录制会话，并以授权名记入审计日志。</p>
+<pre tabindex="0"><code class="language-bash">remohop host grant claude-session --for 2h --allow shell:run-only,files:read:~/project,screenshot   # 在被控机上
+remohop peers redeem 276941009 remohopg1-...                                                        # 在代理所在的机器上
+remohop host panic                                                                                  # 在被控机上：立即结束所有代理会话</code></pre>
+<p>授权由被控机强制执行；<code>remohop_limits</code> 工具告诉代理它能做什么，被拒绝时错误信息会指明是哪条限制（<code>files:write is not allowed by grant claude-session</code>）。<code>remohop mcp --read-only</code> 还会隐藏所有会改动东西的工具。授权、批准、审计日志与录像、紧急停止，以及 Claude Code、Claude Desktop、Cursor 和 VS Code 的具体配置，见 <a href="/en/docs/agents/">agents.md</a>（英文）。不使用授权时：只为希望代理访问的机器配对，关掉它用不到的功能（例如 <code>remohop config feature input off</code>），不再需要时用 <code>remohop host revoke</code> 撤销配对。详见 <a href="/en/docs/security/#what-an-authenticated-client-can-do">security.md</a>。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/ai-agents.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

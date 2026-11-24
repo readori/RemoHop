@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Mesh network and Tailscale | RemoHop</title>
+<meta name="description" content="remohop net up joins all devices of your account (see Accounts) into one private network, like a small Tailscale for your own machines: each device gets a…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/mesh-and-tailscale/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/mesh-and-tailscale/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Mesh network and Tailscale | RemoHop">
+<meta property="og:description" content="remohop net up joins all devices of your account (see Accounts) into one private network, like a small Tailscale for your own machines: each device gets a…">
+<meta property="og:url" content="https://remohop.com/en/docs/mesh-and-tailscale/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/mesh-and-tailscale/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="mesh-network-and-tailscale">Mesh network and Tailscale</h1>
+<h2 id="mesh-network-remohop-net">Mesh network (remohop net)</h2>
+<p><code>remohop net up</code> joins all devices of your account (see <a href="/en/docs/accounts/">Accounts</a>) into one private network, like a small Tailscale for your own machines: each device gets a stable address derived from its identity key (<code>10.78.x.y</code> and an IPv6 unique-local address) and a name like <code>nas.remohop</code>.</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop net up
+remohop net peers
+ping nas.remohop
+sudo remohop net up --route 192.168.1.0/24 --exit     # on the office machine
+sudo remohop net up --accept-routes --use-exit office  # on the laptop
+remohop net policy set policy.json
+sudo remohop net down</code></pre>
+<ul>
+<li>Links between devices are ordinary RemoHop sessions, opened when traffic needs them (punched, else relayed or through the websocket bridge), kept alive and re-opened after a device restarts or moves. Their login is limited to the mesh: being in the account gives no shell or files on another device.</li>
+<li>A signed policy (which device may reach which ports) is handed from device to device and enforced by the receiving one. Without one, every device reaches every port of every other.</li>
+<li>The mesh runs inside the host daemon (as root or with <code>CAP_NET_ADMIN</code>) and starts with the host service. Linux only so far; subnet routes and exit nodes are IPv4.</li>
+<li>DNS is touched conservatively: per-interface split DNS for <code>.remohop</code> with systemd-resolved, otherwise only on request (<code>--dns hosts</code>).</li>
+</ul>
+<p><a href="/en/docs/net/">net.md</a> has the details, what is tested, and what Tailscale features are not replicated (single sign-on, sharing with other people, an admin console, Funnel and others).</p>
+<h2 id="using-remohop-with-tailscale">Using RemoHop with Tailscale</h2>
+<p>RemoHop detects a running Tailscale (local API, <code>tailscale status --json</code>, or its interface) without depending on it. When both machines are on the same tailnet, the tailnet address is one more candidate path, preferred over punching and tried before the relay; <code>remohop &lt;ID&gt; ping</code> then shows <code>tailnet path</code>. The session over it is RemoHop's own, end-to-end encrypted and authenticated as on any path. <code>remohop doctor</code> explains the network situation, Tailscale included; <code>REMOHOP_TAILSCALE=off</code> makes RemoHop ignore Tailscale. See <a href="/en/docs/net/#using-remohop-with-tailscale">net.md</a>.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/mesh-and-tailscale.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

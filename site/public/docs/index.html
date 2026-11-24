@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>快速开始与文档 | RemoHop</title>
+<meta name="description" content="从源码编译 remohop，运行汇合服务器，启动被控机，配对并连接。附 RemoHop 全部使用指南和参考文档的目录。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="快速开始与文档 | RemoHop">
+<meta property="og:description" content="从源码编译 remohop，运行汇合服务器，启动被控机，配对并连接。附 RemoHop 全部使用指南和参考文档的目录。">
+<meta property="og:url" content="https://remohop.com/docs/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="page">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>快速开始</h1>
+<p>这一页只讲从零到第一次连上要做的五步。每个命令的完整语法用 <code>remohop help &lt;命令&gt;</code> 查看，其余内容在按主题分页的文档里，<a href="#more">目录在页面下方</a>。</p>
+<p>假设有三台机器：一台带公网地址的小服务器运行汇合服务器（下文写作 <code>sig.example.net</code>），一台被控机，一台你自己的工作机。只在局域网里用的话，可以<a href="#direct">跳过服务器</a>。</p>
+
+<h2 id="build">1. 编译</h2>
+<p>还没有可下载的发布版本。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
+cd RemoHop
+make build</code></pre>
+<p>结果是 <code>bin/remohop</code>，以 <code>CGO_ENABLED=0</code> 构建。把它放进每台机器的 <code>PATH</code>。直接执行 <code>go build -o remohop ./cmd/remohop</code> 也可以。</p>
+
+<h2 id="signal">2. 运行汇合服务器</h2>
+<p>在有公网 IP 的机器上开放 UDP 端口 <code>21116</code> 和 <code>21117</code>，然后运行：</p>
+<pre tabindex="0"><code>remohop signal</code></pre>
+<p>服务器启动时会打印自己的公钥，客户端可以用 <code>remohop config set signal-pin KEY</code> 固定它。要为无法直连的会话提供中继，改用 <code>remohop signal --relay</code>。长期运行见<a href="/self-hosting/">自建服务器</a>。</p>
+
+<h2 id="host">3. 启动被控机</h2>
+<pre tabindex="0"><code>remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> 在前台运行，打印 ID 和临时密码。想开机自启就装成系统服务：</p>
+<pre tabindex="0"><code>remohop service install
+remohop status --show-password</code></pre>
+<p>它会写入 systemd 单元（Linux）、launchd 任务（macOS）或 Windows 服务。服务有自己独立的身份、ID 和密码，和手动启动的 <code>remohop host</code> 不是同一个实例。系统级服务和 Windows 服务看不到桌面会话，需要截图或远程桌面时请用用户级服务。</p>
+<p>需要固定密码时执行 <code>remohop passwd</code>，它以不回显的方式询问，之后也不会再把密码打印出来。</p>
+
+<h2 id="connect">4. 连接并配对</h2>
+<pre tabindex="0"><code>remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> 显示到被控机的路径。第一次连接需要密码，它会提示输入。</li>
+<li><code>pair --name dev</code> 只需输入一次密码，随后在本机保存一个绑定到本机身份的配对令牌，并保存别名 <code>dev</code>。</li>
+<li>之后 <code>remohop dev ...</code> 不再需要密码。<code>remohop devices</code> 列出已保存的主机以及它们是否在线。</li>
+</ul>
+
+<h2 id="use">5. 开始用</h2>
+<pre tabindex="0"><code>remohop dev shell                       <span class="c"># 持久终端；先按回车再输入 ~. 分离</span>
+remohop dev cp ./build.tar.gz :/tmp/    <span class="c"># 远程路径以 : 开头</span>
+remohop dev forward -b 18080:8080       <span class="c"># 把远程的 8080 映射到本机 18080</span>
+remohop dev desktop                     <span class="c"># 在浏览器里查看并控制远程屏幕</span>
+remohop web --target dev                <span class="c"># 浏览器客户端：桌面、终端、文件、剪贴板</span></code></pre>
+
+<h2 id="direct">不用服务器：局域网或公网 IP 直连</h2>
+<p>能直接通过地址访问被控机时，不需要汇合服务器。在被控机上：</p>
+<pre tabindex="0"><code>remohop host --no-signal --listen :21118</code></pre>
+<p>在客户端用地址代替 ID，仍然需要密码：</p>
+<pre tabindex="0"><code>remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+
+<h2 id="agents">让 AI 代理使用</h2>
+<p>先配对，再把 MCP 服务器加进代理宿主程序。以 Claude Code 为例：</p>
+<pre tabindex="0"><code>claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>读取 <code>mcpServers</code> 配置的客户端（例如 Cursor）：</p>
+<pre tabindex="0"><code>{
+  "mcpServers": {
+    "remohop": { "command": "remohop", "args": ["mcp"] }
+  }
+}</code></pre>
+<p>代理会以运行被控端的那个用户的权限在远程机器上操作。只为希望代理访问的机器配对，关掉它用不到的功能（例如 <code>remohop config feature input off</code>），不再需要时用 <code>remohop host revoke</code> 撤销。</p>
+
+<h2 id="more">完整文档</h2>
+<p>使用指南按主题分页，中英文两个版本内容相同；深入的参考文档目前只有英文。遇到错误时先看<a href="/en/docs/troubleshooting/">故障排查</a>（英文）。</p>
+<p>远程命令的格式都是 <code>remohop &lt;ID&gt; &lt;command&gt;</code>。各页的例子用 <code>dev</code> 作为别名，它来自 <code>remohop &lt;ID&gt; pair --name dev</code>。每个命令的完整语法用 <code>remohop help &lt;command&gt;</code> 查看。</p>
+<h3 id="入门">入门</h3>
+<ul>
+<li><a href="/docs/install/">安装</a>：安装脚本、软件包、手动验证下载、从源码编译。</li>
+<li><a href="/docs/quick-start/">快速开始</a>：汇合服务器、被控机、配对、系统服务、不用汇合服务器的直连、状态与设备。</li>
+<li><a href="/docs/quick-support/">快速协助</a>：帮助一个不会打开终端的人。</li>
+</ul>
+<h3 id="使用">使用</h3>
+<ul>
+<li><a href="/docs/shell-and-jobs/">shell 与后台任务</a></li>
+<li><a href="/docs/files/">文件</a>：复制、同步、投递、挂载。</li>
+<li><a href="/docs/forwarding/">端口转发与网络唤醒</a></li>
+<li><a href="/docs/vpn/">VPN</a></li>
+<li><a href="/docs/mesh-and-tailscale/">网状网络与 Tailscale</a></li>
+<li><a href="/docs/serial-and-usb/">串口与 USB 设备</a></li>
+<li><a href="/docs/clipboard/">剪贴板</a></li>
+<li><a href="/docs/remote-desktop/">屏幕与远程桌面</a>：截图、远程桌面、音频、多显示器、图形界面自动化。</li>
+<li><a href="/docs/web-gateway/">浏览器客户端</a>：<code>remohop web</code>，以及通过 Cloudflare Tunnel 对外提供。</li>
+<li><a href="/docs/accounts/">账号</a></li>
+<li><a href="/docs/ai-agents/">AI 代理</a>：MCP 服务器、Agent Skills、授权。</li>
+<li><a href="/docs/mobile-apps/">移动端应用</a></li>
+</ul>
+<h3 id="被控端与服务器">被控端与服务器</h3>
+<ul>
+<li><a href="/docs/host-access-control/">被控端访问控制</a>：功能开关、审批、一次性密码、密钥登录、审计日志。</li>
+<li><a href="/docs/self-hosting/">自建汇合服务器</a>：中继、websocket 桥、公共服务器。</li>
+<li><a href="/docs/how-it-works/">工作原理</a>：连接如何建立，中继何时使用。</li>
+</ul>
+<h3 id="参考">参考</h3>
+<ul>
+<li><a href="/docs/platforms/">平台支持与限制</a></li>
+<li><a href="/docs/building/">构建与测试</a></li>
+<li>英文参考文档：<a href="/en/docs/security/">安全模型</a>、<a href="/en/docs/troubleshooting/">故障排查</a>、<a href="/en/docs/agents/">AI 代理的授权与配置</a>、<a href="/en/docs/net/">网状网络详解</a>、<a href="/en/docs/public-server/">公共服务器</a>、<a href="/en/docs/architecture/">架构</a>、<a href="/en/docs/roadmap/">路线图</a></li>
+</ul>
+<p>Agent Skills 的安装方式和 28 个 MCP 工具的完整列表见仓库里的 <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a>。</p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

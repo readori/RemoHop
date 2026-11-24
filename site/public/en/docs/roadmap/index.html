@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Roadmap | RemoHop</title>
+<meta name="description" content="RemoHop is open source (AGPL-3.0) first. Phase 1 aims at adoption: one binary that lets a person or an AI agent reach and operate another machine safely…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/roadmap/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Roadmap | RemoHop">
+<meta property="og:description" content="RemoHop is open source (AGPL-3.0) first. Phase 1 aims at adoption: one binary that lets a person or an AI agent reach and operate another machine safely…">
+<meta property="og:url" content="https://remohop.com/en/docs/roadmap/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="roadmap">Roadmap</h1>
+<p>RemoHop is open source (AGPL-3.0) first. Phase 1 aims at adoption: one binary that lets a person or an AI agent reach and operate another machine safely, without setting up a network first. Paid team features come later (phase 2) and fund the project through the commercial license.</p>
+<h2 id="phase-1-in-progress">Phase 1 (in progress)</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Priority / Area / What">
+<table>
+<thead><tr><th scope="col">Priority</th><th scope="col">Area</th><th scope="col">What</th></tr></thead>
+<tbody>
+<tr><td>P0</td><td>AI agents</td><td>Scoped, expiring grants for MCP clients (allowed services, read-only paths, command allow-lists), per-action approval, audit and session recording, a kill switch, setup docs for common agent tools</td></tr>
+<tr><td>P0</td><td>Quick support</td><td>Double-click host app for Windows and macOS: ID and password shown large, approve each connection, see and end sessions</td></tr>
+<tr><td>P1</td><td>Unattended Windows</td><td>System service that can show and control the login screen, lock screen and UAC prompts; off by default</td></tr>
+<tr><td>P1</td><td>Desktop experience</td><td>Audio, multi-monitor, drag-and-drop file upload, published latency numbers</td></tr>
+<tr><td>P2</td><td>Networking</td><td>Works alongside Tailscale (uses a shared tailnet as a direct path); <code>remohop net</code> mesh for the devices of one account with names, access policy, subnet routes and exit nodes</td></tr>
+<tr><td>Ongoing</td><td>Distribution</td><td>Signed builds, Homebrew, Scoop, winget, AUR, deb/rpm, install scripts, a Docker image for the rendezvous server</td></tr>
+<tr><td>Ongoing</td><td>Mobile</td><td>Android and iOS controller apps (no store releases yet); Android as a controlled device later</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="phase-2-teams-commercial-license">Phase 2: teams (commercial license)</h2>
+<p>Kept here so phase 1 decisions don't block it:</p>
+<ul>
+<li>Address book shared by a team, groups and per-group permissions</li>
+<li>Single sign-on (OIDC/SAML) and SCIM provisioning</li>
+<li>Central audit log, session recording storage and retention policies</li>
+<li>Admin console for devices, grants and relay usage</li>
+<li>Managed rendezvous/relay with SLA</li>
+</ul>
+<p>Phase 2 builds on phase 1 pieces (accounts and their signed device ledger, grants, audit log, relay access control) rather than replacing them.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/ROADMAP.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

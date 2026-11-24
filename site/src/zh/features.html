@@ -1,0 +1,293 @@
+<h1>功能与限制</h1>
+<p>RemoHop 能做什么、怎么做、在哪些平台上做过验证，以及还有哪些没做到。第一次使用请先看<a href="{{L:docs}}">快速开始</a>；每个命令的完整语法用 <code>remohop help &lt;命令&gt;</code> 查看。</p>
+<ul class="toc">
+<li><a href="#session">一次会话</a></li>
+<li><a href="#who">适合谁用</a></li>
+<li><a href="#commands">常用命令</a></li>
+<li><a href="#web">浏览器客户端</a></li>
+<li><a href="#how">连接怎么建立</a></li>
+<li><a href="#security">安全</a></li>
+<li><a href="#platforms">平台支持</a></li>
+<li><a href="#install">安装</a></li>
+<li><a href="#license">许可</a></li>
+<li><a href="#status">状态与限制</a></li>
+</ul>
+
+<h2 id="session">一次会话的样子</h2>
+<div class="pair">
+<figure>
+<p class="term-title">被控机</p>
+<pre><code><span class="p">$ </span>remohop host
+RemoHop host ready
+  ID:        276 941 009
+  Password:  xrb8-upuu  (temporary, changes on restart)
+  Direct:    203.0.113.7:51820
+  Identity:  7197:70c3:1130:65a3:9c97
+Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
+<figcaption>文档中的示例输出。ID 属于主机的身份密钥，重启后不变；临时密码每次启动都会重新生成。</figcaption>
+</figure>
+<figure>
+<p class="term-title">你的机器</p>
+<pre><code><span class="p">$ </span>remohop 127.0.0.1:21118 pair --name dev
+paired with 127.0.0.1:21118 (host identity 1242:02f7:9189:2d5f:d900)
+no password needed from now on: remohop dev &lt;command&gt;
+<span class="p">$ </span>remohop dev ping -c 3
+PING 127.0.0.1:21118 over direct path 0.0.0.0:55618 -&gt; 127.0.0.1:21118 (peer-to-peer, no relay)
+reply from 127.0.0.1:21118: seq=0 time=0.27 ms
+reply from 127.0.0.1:21118: seq=1 time=0.51 ms
+reply from 127.0.0.1:21118: seq=2 time=0.68 ms
+3 probes, rtt min/avg/max = 0.27/0.49/0.68 ms
+<span class="p">$ </span>remohop dev shell -c 'uname -sm &amp;&amp; uptime'
+Linux x86_64
+ 23:01:39 up 19 min,  0 user,  load average: 0.35, 0.16, 0.23</code></pre>
+<figcaption>一次真实会话的输出，被控端和客户端在同一台 Linux 机器的回环地址上，所以用地址代替了 ID，延迟也不代表真实网络。</figcaption>
+</figure>
+</div>
+
+<h2 id="who">适合谁用</h2>
+<div class="cols-2">
+<div>
+<h3>适合</h3>
+<ul>
+<li>要从命令行管理自己的几台机器：家里的主机、办公室的工作站、NAT 后面的开发板。</li>
+<li>想让 AI 代理（Claude Code、Cursor 等）在另一台机器上执行命令、读写文件、看屏幕。</li>
+<li>不想把会话内容交给第三方服务器，愿意自己运行一台很小的汇合服务器。</li>
+<li>需要的不只是屏幕：还要端口转发、挂载目录、串口、剪贴板或一条 VPN 链路。</li>
+</ul>
+</div>
+<div>
+<h3>目前不适合</h3>
+<ul>
+<li>想要下载即用的图形界面安装包。现在只有命令行，而且<!--src-->要自己编译<!--/src--><!--nosrc-->还没有发布<!--/nosrc-->。</li>
+<li>要控制手机或平板。移动应用只是控制端，手机不能被控。</li>
+<li>需要经过第三方审计的产品。RemoHop 还没有做过独立审计。</li>
+<li>被控机用的是原生 Wayland 桌面。屏幕采集目前只支持 X11、macOS 和 Windows。</li>
+</ul>
+</div>
+</div>
+
+<h2 id="commands">常做的事，对应的命令</h2>
+<p>远程命令的格式都是 <code>remohop &lt;ID&gt; &lt;命令&gt;</code>。下面用别名 <code>dev</code> 代替 ID，它来自 <code>remohop 276941009 pair --name dev</code>：配对时输入一次密码，之后不再需要。</p>
+
+<div class="tasks">
+<section class="task">
+<div>
+<h3>终端和后台任务</h3>
+<p>交互式 shell 是持久的：断开后会话还在被控机上运行，默认保留 30 分钟，重连时回放你错过的输出。被控机是 Windows 时，shell 是 PowerShell。</p>
+</div>
+<div>
+<pre><code>remohop dev shell
+remohop dev shell -c 'make test' --cwd src/app --timeout 10m
+remohop dev spawn --name build make -j8
+remohop dev logs -f build</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>文件</h3>
+<p>远程路径以 <code>:</code> 开头。8 MiB 及以上的文件中断后，重新执行同一条命令会接着传。挂载在 Linux 上用 FUSE，在 macOS 和 Windows 上用系统自带的 WebDAV 客户端。</p>
+</div>
+<div>
+<pre><code>remohop dev cp ./build.tar.gz :/tmp/
+remohop dev cp -rp :project .
+remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site
+remohop dev mount :~/src/app ~/mnt/app</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>端口转发和 VPN</h3>
+<p>转发相当于 <code>ssh -L</code> 和 <code>ssh -R</code>，也能转发 UDP。VPN 在会话里建立一条 IPv4 链路（本机 <code>10.77.0.2</code>，被控机 <code>10.77.0.1</code>）。两端都是 Linux 是测试过的组合；macOS 客户端和 Windows 的 Wintun 网卡都只在托管 CI 机器上验证过，还没在真实网络里长期用过。</p>
+</div>
+<div>
+<pre><code>remohop dev forward -b 18080:8080
+remohop dev forward -b --udp 5353:53
+remohop dev forward -R 9000:3000
+sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>屏幕和远程桌面</h3>
+<p><code>desktop</code> 在本机浏览器里打开查看器，用 H.264 或 AV1 传输，可以录制成 MP4。被控机需要装有带编码器的 ffmpeg。在一台只有 CPU 的 4 核虚拟机上实测，H.264 的端到端延迟约 20 ms（720p）和 31 ms（1080p）。</p>
+</div>
+<div>
+<pre><code>remohop dev desktop --max-height 1080 --fps 30
+remohop dev desktop --codec h264 --record meeting.mp4
+remohop dev screenshot -o /tmp/screen.png
+remohop dev click 412 230</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>剪贴板</h3>
+<p>双向同步文本和图片。经过的内容会记进本机的历史，可以按编号取回或重新发送。</p>
+</div>
+<div>
+<pre><code>remohop dev clip sync
+remohop dev clip get -o shot.png
+remohop clip history -n 5
+remohop dev clip history send 2</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>串口和 USB</h3>
+<p>把远程机器的串口变成本机的虚拟串口，任何终端程序都能打开（本机需要是 Linux 或 macOS）。USB/IP 要求两端都是 Linux 且有 root 权限，目前只在模拟环境里测试过。</p>
+</div>
+<div>
+<pre><code>remohop dev serial -b ttyUSB0 115200 --local /tmp/board
+picocom /tmp/board
+sudo remohop dev usb attach -b 1-2</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>AI 代理</h3>
+<p><code>remohop mcp</code> 是一个 stdio 方式的 MCP 服务器，提供 28 个工具（执行命令、读写文件、转发端口、截图、点击和输入）。它只使用你事先保存的配对，不接受密码参数。<!--src-->仓库里另有六个 Agent Skills。<!--/src--><!--nosrc-->另有六个 Agent Skills，会随源码一起公开。<!--/nosrc--></p>
+</div>
+<div>
+<pre><code>claude mcp add remohop -- remohop mcp
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>被控端说了算</h3>
+<p>被控机的主人可以逐项关掉功能、要求每次登录都在本机确认、改用一次性密码，并查看审计日志。改动立即生效，对已经连上的会话也一样。</p>
+</div>
+<div>
+<pre><code>remohop config feature input off
+remohop config ask on
+remohop config otp on
+remohop log</code></pre>
+</div>
+</section>
+</div>
+
+<h2 id="web">在浏览器里用：<code>remohop web</code></h2>
+<p><code>remohop web</code> 在本机启动一个浏览器客户端，里面有远程桌面、终端、文件、剪贴板和系统信息。默认只监听 <code>127.0.0.1</code>，地址里带一个猜不到的令牌。Android 和 iOS 应用就是把这个网关放进了应用进程里，见<a href="{{L:apps}}">移动应用</a>。</p>
+<figure class="shot">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="remohop web 的“Desktop”标签页：页面中间显示远程 Linux 机器的屏幕，上面有两个终端窗口，一个列出项目文件，一个定时显示负载和磁盘用量；页面上方显示被控机名称 studio 和连接路径 direct。">
+</picture>
+<figcaption>桌面标签页的实际截图：Chromium 通过 <code>remohop web</code> 连接同一台机器回环地址上的 Linux 被控端（Xvfb 虚拟显示器，1280×720）。截图里是英文界面，网页客户端也可以切换为简体中文。</figcaption>
+</figure>
+<figure class="shot">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-terminal-640.avif 640w, /assets/img/web-terminal-1120.avif 1120w, /assets/img/web-terminal-2240.avif 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-terminal-640.webp 640w, /assets/img/web-terminal-1120.webp 1120w, /assets/img/web-terminal-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<img src="/assets/img/web-terminal-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="remohop web 的“Terminal”标签页：一个名为 main 的持久终端会话，里面执行了 ls -l、uname 和 df 命令。">
+</picture>
+<figcaption>终端标签页，同一次会话。</figcaption>
+</figure>
+<p class="note warn">浏览器没法自己打洞，也不会说 RemoHop 的 QUIC 会话，所以 <code>remohop web</code> 这个进程才是真正的客户端：屏幕、按键、文件和你在页面里输入的主机密码，它都看得到。只使用你自己控制的网关。</p>
+
+<h2 id="how">连接是怎么建立的</h2>
+<div class="diagram" tabindex="0" role="group" aria-label="连接示意图，可横向滚动">
+<svg viewBox="0 0 760 320" role="img" aria-labelledby="dg-t dg-d">
+<title id="dg-t">RemoHop 连接示意图</title>
+<desc id="dg-d">控制端和被控机之间通过 UDP 打洞建立直连的 QUIC 会话，端到端加密。两者各自与汇合服务器交换信令。汇合服务器上的中继默认关闭，只有打洞失败时才使用，并且只转发密文。</desc>
+<rect class="box" x="20" y="36" width="220" height="118" rx="6"/>
+<text class="h" x="36" y="62">控制端（你的机器）</text>
+<text class="m" x="36" y="86">remohop &lt;ID&gt; shell / desktop</text>
+<text class="m" x="36" y="106">remohop web · remohop mcp</text>
+<text class="l" x="36" y="130">或 Android、iOS 应用</text>
+<rect class="box" x="520" y="36" width="220" height="118" rx="6"/>
+<text class="h" x="536" y="62">被控机</text>
+<text class="m" x="536" y="86">remohop host</text>
+<text class="l" x="536" y="110">shell、文件、转发、桌面、</text>
+<text class="l" x="536" y="128">剪贴板、VPN、串口、USB</text>
+<path class="direct" d="M252 95H508"/>
+<path class="head" d="M242 95l12-7v14zM518 95l-12-7v14z"/>
+<text class="a" x="380" y="80" text-anchor="middle">UDP 打洞 + QUIC（TLS 1.3）</text>
+<text class="l" x="380" y="116" text-anchor="middle">端到端加密 · 默认直连</text>
+<rect class="box srv" x="270" y="222" width="220" height="78" rx="6"/>
+<text class="h" x="286" y="248">汇合服务器</text>
+<text class="m" x="286" y="270">remohop signal</text>
+<text class="l" x="286" y="289">只知道谁在哪里，读不到会话</text>
+<path class="sig" d="M60 154V262H270M700 154V262H490"/>
+<text class="l" x="74" y="282">信令：查询 ID</text>
+<text class="l" x="686" y="282" text-anchor="end">信令：注册 ID 和地址</text>
+<path class="relay" d="M240 138C300 138 340 172 340 222M520 138C460 138 420 172 420 222"/>
+<text class="l" x="508" y="190">中继（默认关闭）：打洞</text>
+<text class="l" x="508" y="207">失败时才用，只转发密文</text>
+</svg>
+</div>
+<ol>
+<li>被控机向汇合服务器注册，得到自己的 9 位 ID。</li>
+<li>客户端向汇合服务器查询这个 ID，服务器把双方的候选地址互相告知。</li>
+<li>双方向对方的候选地址发探测包，在各自的 NAT 上打洞，客户端在第一条有应答的路径上建立 QUIC 连接。</li>
+<li>两端在这条连接上用密码做认证密钥交换（CPace）。中间人，包括汇合服务器，没法完成这一步。</li>
+</ol>
+<p>打洞不一定成功：双方都在对称型 NAT 之后时就打不通。这时如果服务器的运营者开启了中继（<code>remohop signal --relay</code>，默认关闭），会话改走中继；中继转发的仍是同一条加密会话，只是更慢，并且有带宽上限（每个会话默认 8 Mbit/s）。<code>remohop dev ping</code> 会告诉你当前走的是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>。没有中继可用时，连接会在大约一秒内失败并给出诊断信息。</p>
+<p>只放行 HTTPS 的网络（CI 运行器、企业网络）可以走服务器的 websocket 桥。经过桥没法打洞，所以这类会话一定走中继，内容照样是密文。能直接访问被控机时可以完全不用服务器：<code>remohop host --no-signal --listen :21118</code>，然后用地址代替 ID。</p>
+
+<h2 id="security">安全，用大白话说</h2>
+<ul>
+<li><strong>内容只有两端能读。</strong>会话跑在 QUIC 里，内层是 TLS 1.3。汇合服务器和中继看到的都是密文。</li>
+<li><strong>密码不上线。</strong>登录用的是 CPace 密钥交换，并且和这一条连接绑定。密码本身从不发送，截获了一次失败的登录也没法离线猜密码。</li>
+<li><strong>在线猜密码有限速。</strong>同一个来源连错三次起锁定 10 秒，之后每次翻倍，最长 10 分钟。临时密码是 8 个随机字符，约 40 比特。</li>
+<li><strong>主机密钥首次登录时固定。</strong>之后主机换了密钥，客户端会在发送任何登录信息之前拒绝连接。</li>
+<li><strong>配对代替密码。</strong>配对后客户端保存一个绑定到本机身份的 256 位随机令牌，被控机随时可以用 <code>remohop host revoke</code> 撤销。</li>
+</ul>
+<p>也要说清楚它不保护什么：登录成功的客户端，在被控端允许的功能范围内，能做运行 <code>remohop host</code> 的那个用户能做的一切，功能开关以下没有更细的权限模型。汇合服务器看得到元数据：哪些 ID 在线、它们的公网地址、什么时候互相连接。<a href="{{L:security}}">安全模型</a>一页有完整说明。</p>
+
+<h2 id="platforms">平台支持</h2>
+<p id="pf-cap">Linux 是参考平台；macOS 和 Windows 由托管运行器上的自动化测试覆盖，没有人在实体机上逐项验证过。</p>
+<div class="table-wrap wide" tabindex="0" role="region" aria-labelledby="pf-cap">
+<table>
+<thead>
+<tr><th scope="col"></th><th scope="col">Linux</th><th scope="col">macOS</th><th scope="col">Windows</th></tr>
+</thead>
+<tbody>
+<tr><th scope="row">shell</th><td>PTY</td><td>PTY</td><td>ConPTY，命令在 PowerShell 中运行</td></tr>
+<tr><th scope="row">文件、转发、剪贴板、截图</th><td>支持</td><td>支持</td><td>支持；Windows 客户端下载不支持续传</td></tr>
+<tr><th scope="row">挂载</th><td>FUSE</td><td>系统自带的 WebDAV</td><td>WebDAV 盘符；未实际运行过</td></tr>
+<tr><th scope="row">远程桌面（被控端）</th><td>X11；不支持原生 Wayland</td><td>需要“屏幕录制”和“辅助功能”权限；只在托管虚拟机上验证</td><td>ddagrab 采集；输入未实际运行过</td></tr>
+<tr><th scope="row">VPN</th><td>支持（TUN）</td><td>客户端（utun），只在托管虚拟机上验证</td><td>客户端（需自备 Wintun 驱动）；未验证</td></tr>
+<tr><th scope="row">USB/IP</th><td>支持；只在模拟环境测试过</td><td>不支持</td><td>不支持</td></tr>
+<tr><th scope="row">系统服务</th><td>systemd</td><td>launchd</td><td>Windows 服务；看不到桌面</td></tr>
+</tbody>
+</table>
+</div>
+<p>Android 和 iOS 上有控制端应用，都还没有商店版本，见<a href="{{L:apps}}">移动应用</a>。</p>
+
+<h2 id="install">安装</h2>
+<!--src-->
+<p>目前没有可下载的发布版本，需要用 <code>go.mod</code> 里指定的 Go 版本（1.26）从源码编译。得到的是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。</p>
+<pre><code>git clone {{REPO}}
+cd RemoHop
+make build        <span class="c"># 生成 bin/remohop（CGO_ENABLED=0）</span>
+make cross        <span class="c"># 可选：linux、macOS、Windows 各架构，输出到 dist/</span></code></pre>
+<p>仓库里已经有 <code>.deb</code>、<code>.rpm</code> 的打包配置和一个推送 <code>v*</code> 标签时触发的发布工作流，但它还没有运行过，程序也没有做代码签名。发布之后，压缩包和 <code>SHA256SUMS</code> 会出现在 <a href="{{REPO}}/releases">GitHub Releases</a>，这一节到时会换成下载链接。</p>
+<!--/src-->
+<!--nosrc-->
+<p>目前没有可下载的发布版本，程序也还没有做代码签名。各平台应用上架后，这一节会换成下载链接，源码也会在那时以 AGPL-3.0 公开。得到的会是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
+<!--/nosrc-->
+<p>接下来怎么配置服务器、启动被控机和配对，见<a href="{{L:docs}}">快速开始</a>。</p>
+
+<h2 id="license"><!--src-->开源与商业授权<!--/src--><!--nosrc-->许可证与商业授权<!--/nosrc--></h2>
+<p>RemoHop 采用双许可。<!--src-->所有人都可以按 GNU AGPL-3.0 使用、修改和再分发，包括商用。<!--/src--><!--nosrc-->源码将在各平台应用上架后以 GNU AGPL-3.0 公开，届时所有人都可以使用、修改和再分发，包括商用。<!--/nosrc-->要注意 AGPL 的网络条款：如果你把<strong>修改过的</strong> <code>remohop signal</code> 或 <code>remohop web</code> 提供给别人使用，就必须向这些用户提供修改后的源代码；运行未修改的 RemoHop 没有额外义务。AGPL 不适合的场景，可以向 Readori 购买商业授权：<a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。详见<a href="{{L:licensing}}">许可证</a>。</p>
+
+<h2 id="status">状态与限制</h2>
+<ul>
+<li>没有发布版本，没有代码签名，没有内置默认服务器。</li>
+<li>没有经过独立的安全审计。</li>
+<li>NAT 穿透测试用的是 Linux 网络命名空间。真实的家用路由器和 IPv6 路径没有测试过。</li>
+<li>实体 Mac 上的一切、Windows 的 WebDAV 挂载和图形输入、除一台 macOS 虚拟机里的 VideoToolbox 以外的 GPU 编码器、4K 60 fps，都没有测试过。</li>
+<li>串口用伪终端和 picocom 验证过，没有用过真实的 UART。USB/IP 没有在真实内核上运行过。</li>
+<li>iOS 应用只在 CI 的模拟器里运行过，Android 应用没有在真机上测试过。</li>
+<li>被控端重启后，shell 会话不会保留。</li>
+<li>把移动设备作为被控机，尚未实现。</li>
+</ul>
+<p>以上内容来自文档中的<a href="{{L:docs/platforms}}">平台支持与限制</a>一页，以那里的版本为准。遇到问题请看<a href="{{L:support}}">支持</a>。</p>

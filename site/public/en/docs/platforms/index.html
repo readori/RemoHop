@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Platform support and limitations | RemoHop</title>
+<meta name="description" content="Linux is the reference platform. macOS and Windows are tested by automated runs on hosted runners, not by a person on a physical desktop. The repository&#x27;s…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/platforms/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/platforms/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/platforms/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/platforms/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Platform support and limitations | RemoHop">
+<meta property="og:description" content="Linux is the reference platform. macOS and Windows are tested by automated runs on hosted runners, not by a person on a physical desktop. The repository&#x27;s…">
+<meta property="og:url" content="https://remohop.com/en/docs/platforms/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/platforms/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="platform-support-and-limitations">Platform support and limitations</h1>
+<h2 id="platform-support">Platform support</h2>
+<p>Linux is the reference platform. macOS and Windows are tested by automated runs on hosted runners, not by a person on a physical desktop. The repository's own CI (<code>.github/workflows/ci.yml</code>) runs the tests, including the NAT lab, on Linux only and cross-compiles for macOS and Windows; the macOS and Windows results below come from separate test runs on GitHub-hosted macOS and Windows runners.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Linux / macOS / Windows">
+<table>
+<thead><tr><th scope="col"></th><th scope="col">Linux</th><th scope="col">macOS</th><th scope="col">Windows</th></tr></thead>
+<tbody>
+<tr><td>Automated tests (hosted runners)</td><td>all pass, including the NAT lab, systemd service, USB/IP with the real kernel, SMTP accounts and a Cloudflare tunnel</td><td>all pass, including service install, WebDAV mount, utun VPN, remote desktop and input</td><td>all pass, including service install, WebDAV mount (Windows 11), SendInput, screenshots, remote desktop, Wintun VPN and unattended access</td></tr>
+<tr><td>Shell</td><td>PTY</td><td>PTY</td><td>ConPTY; commands in PowerShell</td></tr>
+<tr><td>Files, forwards, clipboard, screenshot</td><td>yes</td><td>yes</td><td>yes; resumable downloads are off on Windows clients</td></tr>
+<tr><td>Mount</td><td>FUSE (or <code>--webdav</code> with davfs2)</td><td>WebDAV (built in); macFUSE optional, untested</td><td>WebDAV on a drive letter; verified on a hosted Windows 11 runner</td></tr>
+<tr><td>Remote desktop (host)</td><td>X11</td><td>AVFoundation capture, VideoToolbox or software H.264/AV1 (verified on a hosted macOS VM); input with the Accessibility permission (capture needs Screen Recording)</td><td>ddagrab capture, gdigrab fallback without a GPU (the fallback is verified on hosted runners)</td></tr>
+<tr><td>GUI input</td><td>X11</td><td>Quartz events (CoreGraphics via purego, no cgo); host needs the Accessibility permission; verified on a hosted macOS VM, not on a physical Mac</td><td>SendInput; verified on hosted Windows runners</td></tr>
+<tr><td>VPN</td><td>yes (TUN)</td><td>client (utun) verified on a hosted macOS VM, <code>--exit</code> not run on a real network; cannot forward as a host</td><td>controlling side (Wintun, you supply the DLL), adapter verified on a hosted runner; cannot forward as a host</td></tr>
+<tr><td>Serial (virtual port on this side)</td><td>yes</td><td>yes</td><td>remote side only</td></tr>
+<tr><td>USB/IP</td><td>yes (verified with the real kernel on a hosted runner)</td><td>no</td><td>no</td></tr>
+<tr><td>Service</td><td>systemd</td><td>launchd</td><td>Windows service; sees the console, sign-in and lock screens only with <code>--unattended</code> (verified on a hosted runner)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="status-and-limitations">Status and limitations</h2>
+<ul>
+<li><strong>NAT traversal can fail.</strong> Two symmetric NATs, or a symmetric NAT facing a port-restricted one, cannot be punched; the connection fails in about a second with a diagnostic unless a relay is available. NATs that track unsolicited inbound packets are handled by low-TTL priming on Linux hosts over IPv4.</li>
+<li><strong>IPv6 paths and real consumer NAT hardware are not tested.</strong> The NAT tests use Linux network namespaces.</li>
+<li><strong>Remote desktop.</strong> Measured glass-to-glass in a browser on a CPU-only 4-core VM: H.264 at about 20 ms (720p) and 31 ms (1080p), against about 50 ms and 61 to 227 ms for software AV1. Hardware encoders are preferred. Of those, VideoToolbox (macOS) is verified: on a GitHub-hosted Apple Silicon macOS VM (one 1024x768 display at scale 1) the host picks it, and the decoded picture, pointer and click input, view-only and two viewers at once are checked there, as are libx264 and SVT-AV1 on macOS. Retina and multi-monitor Macs, the Lock control on macOS and physical Macs are not tested. NVENC, QSV, VAAPI, AMF and Media Foundation are untested, and 4K at 60 fps was not tested. When AV1 is forced or chosen in software, SVT-AV1 2.2 to 3.0 has an upstream bug in its real-time presets (small changes not shown until the next key frame), so RemoHop uses libaom on those hosts and says so. Input blocking and privacy blackout are reported as unsupported on X11 hosts. Native Wayland capture is not supported.</li>
+<li><strong>Serial</strong> was verified with pseudo-terminals and picocom; no real UART was available. <strong>USB/IP</strong> was verified with the real kernel on a hosted runner (a dummy_hcd mass-storage gadget), not with physical USB devices.</li>
+<li><strong>The browser client</strong> was verified in headless Chromium against a real host.</li>
+<li><strong>Shell sessions</strong> survive client disconnects for the keep-alive period. They do not survive a restart of the host.</li>
+<li><strong>Packaging and releases.</strong> <code>packaging/</code> holds the nfpm configuration (.deb, .rpm, .apk), the install scripts, systemd units, a launchd template, the rendezvous-server Dockerfile and templates for Homebrew, Scoop, winget, the AUR and Nix. The <code>v*</code> tag release workflow has not run yet, no release has been published, and Windows binaries are unsigned. <code>remohop service install</code> is the supported way to run the host at boot.</li>
+<li><strong>Not implemented:</strong> running a mobile device (Android or iOS) as a controlled host.</li>
+<li><strong>Untested on real hardware:</strong> anything on a physical Mac (the macOS VPN client, desktop host and input are verified on a hosted VM only), Windows WebDAV mounts, USB/IP on a real kernel, GPU encoders other than VideoToolbox in that VM, the iOS app on a device (it runs in the Simulator in CI), the Android app (no real-device test).</li>
+<li><strong>Accounts</strong> are hosted by the rendezvous server and need the operator to switch them on. A server can withhold the newest log entries from a device; see <a href="/en/docs/security/#accounts">security.md</a>.</li>
+<li><strong>License:</strong> AGPL-3.0, with a commercial license available; see <a href="/en/licensing/">License</a>.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/platforms.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

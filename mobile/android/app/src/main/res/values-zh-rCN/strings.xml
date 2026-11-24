@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified Chinese. Every translatable string in values/strings.xml is
+     here too (lint fails on a missing one); Lang.kt maps any zh-* locale to
+     these. -->
+<resources>
+    <string name="settings">RemoHop 设置</string>
+    <string name="gateway_failed">RemoHop 无法启动：%1$s</string>
+    <string name="choose_files">选择要上传的文件</string>
+    <string name="downloading">正在下载 %1$s…</string>
+    <string name="download_failed">下载失败：%1$s</string>
+    <string name="saved">已保存。</string>
+
+    <string name="rendezvous_heading">汇合服务器</string>
+    <string name="rendezvous_hint">汇合服务器负责凭 9 位 ID 把这部手机介绍给你的被控端。RemoHop 不提供默认服务器：请用 `remohop signal` 自行搭建。没有汇合服务器时，仍可通过地址（host:port）连接。</string>
+    <string name="rendezvous_pin">服务器密钥（可选，由 remohop signal 显示）</string>
+    <string name="relay">找不到直连路径时允许中继连接（仍为端到端加密）</string>
+    <string name="device_heading">本设备</string>
+    <string name="device_name">向被控端显示的设备名称（可选）</string>
+    <string name="save">保存</string>
+    <string name="saved_settings">设置已保存。</string>
+    <string name="identity_heading">身份</string>
+    <string name="identity_hint">被控端会固定这把密钥。要免密码登录，请复制下面的密钥行，在被控端上运行 `remohop authorize \"LINE\"`。</string>
+    <string name="copy_key">复制密钥行</string>
+    <string name="copied">已复制。</string>
+    <string name="pair_heading">与被控端配对</string>
+    <string name="pair_hint">用被控端的密码登录一次，被控端会给这部手机发一个令牌，以后连接就不再需要密码。连接时勾选“将此网关与被控端配对”也可以。</string>
+    <string name="pair_target">被控端 ID、名称或 host:port</string>
+    <string name="pair_password">被控端密码（只用一次，不会保存）</string>
+    <string name="pair_alias">给这台被控端起个名字（可选）</string>
+    <string name="pair">配对</string>
+    <string name="cancel">取消</string>
+    <string name="pairing">正在连接…被控端可能需要其主人批准。</string>
+    <string name="paired">已与 %1$s 配对（被控端密钥 %2$s）。</string>
+    <string name="hosts_heading">已保存的被控端</string>
+    <string name="refresh">刷新</string>
+    <string name="no_hosts">还没有保存的被控端。</string>
+    <string name="forget">移除</string>
+    <string name="forget_confirm">移除 %1$s？这部手机上保存的固定密钥和配对令牌都会被删除。</string>
+    <string name="privacy_note">RemoHop 只与你连接的被控端以及你在这里设置的汇合服务器通信。它保存的一切（身份、配对、设置）都留在本应用的私有存储中。应用在 127.0.0.1 上运行一个本地网关，只有持有每次启动时随机生成的令牌的页面才能使用它。</string>
+    <string name="language_heading">语言</string>
+    <string name="lang_system">跟随系统</string>
+
+    <string name="forget_host">移除 %1$s</string>
+    <string name="login_pairing">配对</string>
+    <string name="login_key">密钥</string>
+    <string name="login_password">密码</string>
+    <string name="presence_online">在线</string>
+    <string name="presence_offline">离线</string>
+    <string name="presence_unknown">ID 不存在</string>
+    <string name="presence_not_checked">未检查</string>
+    <string name="presence_rate_limited">查询受限</string>
+    <string name="presence_error">检查失败</string>
+    <string name="pair_err_bad_password">密码错误。</string>
+    <string name="pair_err_unknown_id">没有这个 ID 的被控端。</string>
+    <string name="pair_err_host_offline">该被控端不在线。</string>
+    <string name="pair_err_no_path">找不到通往被控端的直连路径。</string>
+    <string name="pair_err_no_rendezvous">尚未设置汇合服务器：请在上方填写，或用地址（host:port）配对。</string>
+    <string name="pair_err_host_key_changed">被控端的身份密钥与首次连接时不同，可能有人在冒充它。</string>
+    <string name="pair_err_denied">被控端的主人拒绝了配对，或没有及时响应。</string>
+    <string name="pair_err_locked_out">密码错误次数过多，被控端已暂时拒绝这部手机。请稍后再试。</string>
+    <string name="pair_err_password_required">请输入被控端的密码。</string>
+    <string name="pair_err_timeout">连接超时。</string>
+    <string name="pair_err_canceled">已取消。</string>
+</resources>

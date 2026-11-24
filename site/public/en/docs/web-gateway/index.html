@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Browser client | RemoHop</title>
+<meta name="description" content="remohop web serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine:">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/web-gateway/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/web-gateway/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/web-gateway/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/web-gateway/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Browser client | RemoHop">
+<meta property="og:description" content="remohop web serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine:">
+<meta property="og:url" content="https://remohop.com/en/docs/web-gateway/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/web-gateway/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="browser-client">Browser client</h1>
+<p><code>remohop web</code> serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine:</p>
+<pre tabindex="0"><code class="language-bash">remohop web
+remohop web --target dev</code></pre>
+<p>The page is in English or Simplified Chinese: it follows the browser's language (Chinese for any <code>zh-*</code>), and the 中文 / English switch in its header changes it at once and is remembered in that browser. <code>?lang=zh</code> or <code>?lang=en</code> in the address also picks it.</p>
+<p>By default it listens on <code>127.0.0.1</code> and opens a URL containing an unguessable token, which is the login. A browser cannot speak the P2P session itself, so this process is the client and sees everything you do in the page. Any non-loopback <code>--listen</code> address requires <code>--tls-cert</code>, <code>--tls-key</code> and <code>--password-file</code>; a shared gateway should use <code>--no-saved</code>. See <a href="/en/docs/security/#browser-gateway">security.md</a>.</p>
+<h2 id="exposing-it-through-cloudflare-tunnel">Exposing it through Cloudflare Tunnel</h2>
+<p>To use <code>remohop web</code> from outside your network, keep it on a fixed loopback port, point <code>cloudflared</code> at it and put a Cloudflare Access policy in front. <code>--public-url</code> tells the gateway the https address browsers use, so it accepts the <code>Host</code> and <code>Origin</code> headers the tunnel passes through. Unit tests simulate tunnelled requests against the gateway; it has not been tried with a real Cloudflare tunnel.</p>
+<pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
+        --public-url https://remohop.example.com --no-open --no-saved
+cloudflared tunnel run --url http://127.0.0.1:8470 &lt;tunnel-name&gt;</code></pre>
+<p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the <code>CF-Connecting-IP</code> header Cloudflare sets.</p>
+<p>Programs (not browsers) can skip the login call and send <code>Authorization: Bearer &lt;gateway password&gt;</code> on every request. This suits a proxy that injects the header so the program never sees the password, for example next to Cloudflare Access service-token headers. Such requests share one gateway session and need no cookie, CSRF token or Origin; failures count against the login rate limit.</p>
+<ul>
+<li>In Cloudflare Zero Trust, create an Access application for the hostname and allow only your own identity or domain.</li>
+<li>Keep <code>remohop web</code>'s own login on (<code>--password-file</code>). Access sits in front, but the gateway still sees everything in the page.</li>
+<li>The leg between the browser and the gateway passes through Cloudflare, which terminates TLS. Cloudflare can see the screen, keystrokes, files and any host password typed into the page. Do this only if you accept that.</li>
+<li>Add <code>--no-saved</code> for shared use. Otherwise everyone who logs in can use the gateway's saved pairings.</li>
+<li>Cloudflare Tunnel carries HTTP(S) only. The rendezvous server itself uses UDP; its websocket bridge, for machines where only HTTPS gets out, can go through a tunnel (see <a href="/en/docs/self-hosting/#networks-that-allow-only-https-websocket-bridge">Networks that allow only HTTPS</a>).</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/web-gateway.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

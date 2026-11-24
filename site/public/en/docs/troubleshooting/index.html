@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Troubleshooting | RemoHop</title>
+<meta name="description" content="This page covers the errors remohop prints when connecting to a host, how to read remohop &lt;ID&gt; ping and remohop status, NAT traversal and the relay, and the…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/troubleshooting/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Troubleshooting | RemoHop">
+<meta property="og:description" content="This page covers the errors remohop prints when connecting to a host, how to read remohop &lt;ID&gt; ping and remohop status, NAT traversal and the relay, and the…">
+<meta property="og:url" content="https://remohop.com/en/docs/troubleshooting/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="troubleshooting">Troubleshooting</h1>
+<p>This page covers the errors <code>remohop</code> prints when connecting to a host, how to read <code>remohop &lt;ID&gt; ping</code> and <code>remohop status</code>, NAT traversal and the relay, and the features with platform requirements: services, mounts, VPN, serial and USB, the screen and GUI input, the browser gateway and ffmpeg. Messages are quoted as the program prints them; <code>&lt;ID&gt;</code> stands for the 9-digit ID and <code>dev</code> for an alias.</p>
+<p>Exit status: <code>remohop</code> exits with 255 when it cannot connect or the connection fails. For <code>shell -c</code>, it exits with the remote command's status, 124 when <code>--timeout</code> expires, and 130 when interrupted locally.</p>
+<h2 id="debugging-first">Debugging first</h2>
+<p>Run the failing command with <code>-v</code>, or set <code>REMOHOP_DEBUG=1</code>, to get debug logs on stderr:</p>
+<pre tabindex="0"><code class="language-bash">remohop -v 276941009 info</code></pre>
+<p>On the host, three commands show what it is doing:</p>
+<pre tabindex="0"><code class="language-bash">remohop status
+remohop log 20
+remohop service status</code></pre>
+<ul>
+<li><code>remohop status</code> shows whether the host daemon runs, its name and ID (or the reason it has none), the password mode, the listen address, features that are switched off, the approval mode and live sessions with their path. Add <code>--show-password</code> to print a temporary password; a fixed password is never shown.</li>
+<li><code>remohop log</code> shows the audit log: logins accepted and refused with the reason, approval decisions and feature use.</li>
+<li><code>remohop service status</code> and <code>remohop service logs -f</code> cover a host installed with <code>remohop service install</code>.</li>
+</ul>
+<p><code>remohop doctor</code> puts the network situation on one page, on either side: the rendezvous server (does it answer over UDP, which NAT type), the addresses this machine offers to peers, a running Tailscale and what it changes, the mesh network (<code>remohop net status</code>, <a href="/en/docs/net/">net.md</a>) and VPN tunnels, followed by advice. <code>--offline</code> skips contacting the server.</p>
+<p>On the client, <code>remohop devices</code> shows each saved host, whether the rendezvous server sees it online (hosts saved by address show <code>not checked</code>), and the background commands running to it. <code>remohop ps</code> lists every background command on this machine.</p>
+<h2 id="reading-remohop-id-ping">Reading <code>remohop &lt;ID&gt; ping</code></h2>
+<pre tabindex="0"><code>PING 127.0.0.1:47301 over direct path 0.0.0.0:41009 -&gt; 127.0.0.1:47301 (peer-to-peer, no relay)
+reply from 127.0.0.1:47301: seq=0 time=0.14 ms
+1 probes, rtt min/avg/max = 0.14/0.14/0.14 ms
+the host calls itself "labhost"
+the host sees this machine as 127.0.0.1:41009</code></pre>
+<p>The first line names the path:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Path / Meaning">
+<table>
+<thead><tr><th scope="col">Path</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>lan</code></td><td>direct to the host's private address on the same network</td></tr>
+<tr><td><code>direct</code></td><td>direct to the host's own public address, or to a HOST:PORT you gave</td></tr>
+<tr><td><code>punched</code></td><td>through NAT mappings opened by UDP hole punching</td></tr>
+<tr><td><code>relayed</code></td><td>no direct path exists and the rendezvous server passes the packets</td></tr>
+</tbody>
+</table>
+</div>
+<p>The first three are peer to peer. A relayed session is as encrypted and authenticated as any other, but slower and subject to the relay's bandwidth cap. It is announced on stderr when it is set up (<code>REMOHOP_QUIET=1</code> silences the notice). <code>the host calls itself</code> shows the name set with <code>remohop config set name</code> on the host, if any.</p>
+<h2 id="connection-errors">Connection errors</h2>
+<h3 id="target-and-rendezvous">Target and rendezvous</h3>
+<p><strong><code>no rendezvous server configured: pass --signal HOST[:PORT], set REMOHOP_SIGNAL, or run </code>remohop config set signal HOST[:PORT]<code>(you can run your own with</code>remohop signal<code>)</code></strong></p>
+<p>You used an ID, but this machine has no rendezvous server, and there is no built-in default. Set one with <code>remohop config set signal sig.example.net</code>, or connect by address, for example <code>remohop 192.168.1.5:21118 info</code>, with the host started as <code>remohop host --no-signal --listen :21118</code>.</p>
+<p><strong><code>no host with ID 276 941 009 is known to the rendezvous server ... (check the ID)</code></strong></p>
+<p>Check the digits (IDs are printed with spaces; both forms work) and check that both machines use the same server. A host installed as a service has a different ID from a <code>remohop host</code> started by hand on the same machine, and <code>remohop key gen</code> on a host gives it a new ID.</p>
+<p><strong><code>host 276 941 009 is offline: it is not connected to the rendezvous server ...</code></strong></p>
+<p>The ID exists, but the host is not registered right now. On the host, run <code>remohop status</code>; while it cannot register it shows the reason in the ID line, and the daemon keeps retrying.</p>
+<p><strong><code>host ... is registered with the rendezvous server but did not answer; try again</code></strong></p>
+<p>Usually transient. Try again, and check <code>remohop status</code> on the host if it persists.</p>
+<p><strong><code>rendezvous server ... unreachable: ...</code></strong> or <strong><code>rendezvous server key ... does not match the pinned key</code></strong></p>
+<p>Check that the server's two UDP ports are open to the internet. If the key differs, confirm that the server was replaced, then update the pin with <code>remohop config set signal-pin KEY</code> or remove it with <code>remohop config unset signal-pin</code>.</p>
+<p><strong><code>unknown target "x": expected a 9-digit ID, a saved alias (see </code>remohop peers<code>) or HOST:PORT</code></strong></p>
+<p>List saved names with <code>remohop peers</code> or <code>remohop devices</code>.</p>
+<p><strong><code>no remohop host answered at &lt;address&gt;</code></strong></p>
+<p>Nothing answered at a HOST:PORT target. Check the address, the port given to <code>--listen</code>, and firewalls for UDP.</p>
+<h3 id="credentials-and-approval">Credentials and approval</h3>
+<p><strong><code>no credential for this host (...): no password given and no saved pairing; ...</code></strong></p>
+<p>Run <code>remohop &lt;ID&gt; pair</code> once in a terminal and type the password. Scripts and agents cannot answer a prompt, so they need a pairing or an authorised key first.</p>
+<p><strong><code>login to &lt;ID&gt; failed: wrong password (or the connection is being intercepted)</code></strong></p>
+<p>Check the current password on the host with <code>remohop status --show-password</code> or <code>remohop otp</code>. A temporary password changes every time the host restarts, and after every login when <code>remohop config otp on</code> is set. A fixed password is never displayed; set a new one with <code>remohop passwd</code> if it is forgotten.</p>
+<p><strong><code>login to &lt;ID&gt; refused: locked out after too many failed attempts; retry in 10s</code></strong></p>
+<p>The lockout starts at 10 seconds after the third consecutive failure from your address and doubles on each further failure, up to 10 minutes. The count clears after 30 minutes without attempts. <code>remohop log</code> on the host shows who else has been trying.</p>
+<p><strong><code>remohop: waiting for approval on the host…</code></strong> then <strong><code>login to &lt;ID&gt; refused: the connection was not approved at the host (denied, or nobody answered in time)</code></strong></p>
+<p>The host has <code>remohop config ask on</code>. Someone has to answer at the host, in the terminal where <code>remohop host</code> runs or from any terminal of the same user:</p>
+<pre tabindex="0"><code class="language-bash">remohop host approve
+remohop host approve 1</code></pre>
+<p>The first lists waiting connections (with the client's identity and name), the second approves one; <code>remohop host deny N</code> refuses. A host running as a service has no terminal, so use <code>remohop host approve</code> there.</p>
+<p><strong><code>login to &lt;ID&gt; failed: the saved pairing was not accepted ...</code></strong> or <strong><code>... the host no longer accepts the saved pairing; ...</code></strong></p>
+<p>The pairing was revoked or replaced, the host's state was reset, or this machine's identity changed (<code>remohop key gen</code>, <code>key import</code> or <code>key clear</code>). Pair again with <code>remohop --password PW 276941009 pair --name dev</code>.</p>
+<p><strong><code>login to &lt;ID&gt; failed: the host has not authorised this machine's key; ...</code></strong></p>
+<p>This machine logs in with its key (<code>remohop peers trust</code> was used), but the host has no authorisation for it, or it was revoked. Run <code>remohop key export</code> here and <code>remohop authorize "LINE"</code> on the host again.</p>
+<p><strong><code>the host is busy with other logins; try again in a moment</code></strong></p>
+<p>Too many logins are in progress on the host. Try again.</p>
+<p><strong><code>host identity has changed: ... If the host was reinstalled, run </code>remohop peers forget &lt;target&gt;<code> and connect again</code></strong></p>
+<p>The host presented a different identity key than the one pinned earlier: it was reinstalled, its identity was replaced with <code>remohop key gen</code> or <code>key import</code>, you now reach a different instance (for example an installed service where a hand-started host used to answer), or someone is impersonating it. If you know the change is legitimate, run <code>remohop peers forget &lt;target&gt;</code> and connect again. See <a href="/en/docs/security/#host-identity-and-key-pinning">security.md</a>.</p>
+<h3 id="features-switched-off">Features switched off</h3>
+<p><strong><code>remote refused "exec": the host does not allow exec (feature "shell" is switched off; its owner can allow it with </code>remohop config feature shell on<code>)</code></strong></p>
+<p>The host's owner switched that feature off. <code>remohop status</code> on the host lists what is not allowed. Only the owner can change it, on the host, for example <code>remohop config feature serial on</code>. The features are <code>shell</code>, <code>file</code>, <code>forward</code>, <code>clip</code>, <code>screen</code>, <code>input</code>, <code>info</code>, <code>vpn</code>, <code>serial</code> and <code>usb</code>. Agents should report this message and not retry.</p>
+<h3 id="no-direct-path">No direct path</h3>
+<p><strong><code>could not connect to &lt;ID&gt;: &lt;explanation&gt;: no direct path to the peer</code></strong></p>
+<p>Both machines found each other through the rendezvous server, but no UDP packet got through in either direction. When both NATs look punchable the client has already retried once on a fresh socket. The explanation names the NAT types detected on each side:</p>
+<ul>
+<li><code>both sides are behind symmetric NATs, which cannot be hole-punched ...</code>: each NAT picks a new port per destination. This case fails fast, in about a second.</li>
+<li><code>... behind a symmetric NAT and the other side's NAT only accepts packets from ports it has sent to (port-restricted) ...</code>: the same problem in one direction.</li>
+<li><code>no probe got through although both NATs look punchable. Likely causes: a firewall on either side that blocks UDP, or a NAT that keeps state for unsolicited inbound packets ...</code>: check host firewalls and the router. Linux hosts send low-TTL priming probes over IPv4 to get through NATs of the second kind.</li>
+<li><code>no probe got through in either direction; a firewall may be blocking UDP, or a NAT on the path is not punchable</code>: UDP is blocked somewhere, often on a corporate or hotel network.</li>
+</ul>
+<p>What to do, in order of reliability:</p>
+<ol>
+<li>Forward a UDP port on the host's router and connect by address, which skips the rendezvous server and punching. On the host run <code>remohop host --listen :21118</code>; from the client, <code>remohop 203.0.113.7:21118 info</code>.</li>
+<li>Use IPv6, or put one side on a different network such as a phone hotspot.</li>
+<li>Use a relay. This needs the operator of the rendezvous server to run <code>remohop signal --relay</code>; nothing changes on the clients.</li>
+</ol>
+<p>These messages concern the relay:</p>
+<ul>
+<li><code>... (the rendezvous server offers a relay, but relaying is turned off on this machine)</code>: you set <code>remohop config relay off</code> or <code>REMOHOP_RELAY=0</code>. Turn it on with <code>remohop config relay on</code> if you accept a relayed session.</li>
+<li><code>...; the relay could not be used either: ...</code>: each relayed session uses its own UDP port on the server, which must be reachable too; ask the operator to check the server's firewall.</li>
+<li><code>... rendezvous server: this network already has N relayed sessions on this server ...</code>: a public server caps concurrent relayed sessions per address (<code>--relay-per-source</code>), counting both ends. Close another relayed session (a forward, a shell) first. A session closed normally frees its slot at once; one whose client crashed is freed after about 30 seconds.</li>
+<li><code>... this server relays only for devices of an account on it ...</code>: the server runs <code>--relay-for accounts</code>. Log in with <code>remohop login EMAIL</code>, or run your own server.</li>
+<li><code>... this server's relay budget for the month is used up ...</code>: the operator's monthly budget (<code>--relay-monthly-gb</code>) is spent. It resets on the 1st, UTC.</li>
+<li><code>... the relay of this server is not available for this connection</code>: the operator's deny list names your address or a key.</li>
+</ul>
+<p>A relayed connection prints <code>no direct path to &lt;ID&gt;: connected through the rendezvous server's relay (still end-to-end encrypted, but slower)</code>. It does not later switch to a direct path; reconnect after the network changes. The relay's per-session cap is 8000 kbit/s by default (<code>remohop signal --relay-kbps</code>). Every new command dials again. The first one to a host that cannot be punched spends up to about 12 seconds trying, and only then uses the relay. After that, <code>remohop</code> remembers for 10 minutes that this host needed the relay from the same pair of public addresses (<code>relay-hints.json</code> in the config directory), so the next commands go to the relay at once. A change of network on either side brings punching back.</p>
+<h3 id="only-https-gets-out-websocket-bridge">Only HTTPS gets out (websocket bridge)</h3>
+<p>Where UDP is blocked, <code>rendezvous server ... unreachable</code> is the usual symptom. If the server operator runs the websocket bridge (<code>remohop signal --ws-listen</code>), set <code>remohop config set signal-ws wss://HOST/remohop/v1/udp</code>. <code>remohop</code> then falls back to it after 4 seconds without a UDP answer, and <code>REMOHOP_TRANSPORT=ws</code> skips the wait. <code>remohop -v &lt;ID&gt; ping</code> logs the fallback, and the ping line reads <code>relayed path (websocket)</code>.</p>
+<ul>
+<li><strong><code>websocket endpoint answered HTTP/1.1 403 Forbidden (refused: behind Cloudflare Access ...)</code></strong>: Cloudflare Access rejected the request. Set <code>remohop config set signal-ws-access-id ID</code> and put the secret in the file named by <code>signal-ws-access-secret-file</code> (or <code>REMOHOP_SIGNAL_WS_ACCESS_SECRET</code>).</li>
+<li><strong><code>... answered HTTP/1.1 404 ...</code></strong>: wrong path. The default is <code>/remohop/v1/udp</code>, or whatever <code>--ws-path</code> says on the server.</li>
+<li><strong><code>... answered HTTP/1.1 502/503/530 ...</code></strong>: the tunnel is up but <code>remohop signal</code> is not listening on the <code>--ws-listen</code> address that <code>cloudflared</code>'s ingress points at, or the bridge is full (<code>--ws-max-conns</code>, 32 per address).</li>
+<li><strong><code>proxy HOST:PORT refused to connect to ...: 407 Proxy Authentication Required</code></strong>: put the credentials in the proxy URL, <code>HTTPS_PROXY=http://USER:PASSWORD@proxy:3128</code>. Only <code>http://</code> and <code>https://</code> proxies with CONNECT are supported. <code>NO_PROXY</code> is honoured, so check it does not list the bridge's host.</li>
+<li><strong><code>could not connect to &lt;ID&gt;: this machine reaches the rendezvous server only through its websocket bridge, and the server does not relay</code></strong>: bridged connections always need the relay. The operator must add <code>--relay</code>.</li>
+<li><strong><code>... which needs the relay, but relaying is turned off on this machine</code></strong>: <code>remohop config relay on</code> (or unset <code>REMOHOP_RELAY=0</code>).</li>
+<li><strong>A host behind the same firewall</strong> registers through the bridge too (log line <code>registered with the rendezvous server through its websocket bridge</code>; <code>remohop host status</code> says <code>over its websocket bridge</code>). Clients then always reach it through the relay.</li>
+<li><strong><code>REMOHOP_TRANSPORT must be auto, udp or ws</code></strong> / <strong><code>transport ws needs the server's websocket bridge</code></strong>: fix the variable or set <code>signal-ws</code>.</li>
+</ul>
+<h3 id="host-side">Host side</h3>
+<p><strong><code>host: already running (pid N); see </code>remohop host status``</strong>: a host daemon is already running for this config directory.</p>
+<p><strong><code>host: &lt;error&gt;</code> with <code>(or use --no-signal to serve direct connections only)</code></strong>: the host could not use its rendezvous server. Fix the address, or start with <code>--no-signal</code>.</p>
+<p><strong><code>password too short: need at least 8 characters (not counting spaces and dashes)</code></strong>: a fixed password must have at least 8 characters.</p>
+<p><strong><code>host: the host has no temporary password (password mode: fixed)</code></strong>: <code>remohop otp</code> only applies to a temporary password.</p>
+<h2 id="running-your-own-rendezvous-server">Running your own rendezvous server</h2>
+<p>For the setup, see <a href="/en/docs/self-hosting/">Self-hosting</a> (<a href="/docs/self-hosting/">中文</a>). Common problems:</p>
+<ul>
+<li><strong>Clients say <code>rendezvous server ... unreachable</code> but the process runs:</strong> UDP <code>21116</code> and <code>21117</code> must be open in two places, the machine's firewall and the cloud provider's security list (Oracle Cloud security list, AWS security group). <code>remohop signal --print-firewall [same flags]</code> prints the machine-side commands. Test from outside, not from the VM itself.</li>
+<li><strong>Relayed sessions fail with "full" or <code>the relay could not be used either</code>:</strong> the relay ports are used up or not reachable. With <code>--relay-ports LO-HI</code> open exactly that range (UDP) in both firewalls and keep <code>--relay-max</code> at most the size of the range. Without <code>--relay-ports</code>, a relay needs all of 1024-65535/udp open.</li>
+<li><strong>The server refuses connections on a small VM:</strong> <code>--max-conns</code> is sized to the available memory (about 6400 on 1 GB) and the server refuses rather than run out of memory. A systemd unit installed with <code>remohop service install --role signal</code> has <code>MemoryMax=512M</code>, and the limit follows it. Raise <code>--max-conns</code> only if you have the memory (about 70 KB per connection).</li>
+<li><strong><code>remohop service install --role signal</code> fails:</strong> it needs Linux with systemd and root. Elsewhere run <code>remohop signal</code> yourself, or adapt the unit that <code>remohop service print</code> shows. It also refuses a binary under <code>/home</code>, <code>/root</code>, <code>/tmp</code> or <code>/var/tmp</code>: the unit's sandbox (ProtectHome, PrivateTmp) hides those, and the service would fail with <code>203/EXEC</code>. Install the binary first (<code>sudo install -m 755 remohop /usr/local/bin/remohop</code>) and run that one.</li>
+<li><strong>Where is the server's public key?</strong> <code>sudo remohop signal --show-key --data /var/lib/remohop-signal</code> for the installed service, or <code>remohop signal --show-key</code> for the default data directory. Clients pin it with <code>remohop config set signal-pin KEY</code>.</li>
+<li><strong>Cloudflare Tunnel in front of the server does not work:</strong> it carries HTTP(S) only. The rendezvous server needs UDP reachable directly. Only the websocket bridge (<code>--ws-listen 127.0.0.1:PORT</code>) goes through a tunnel, with an ingress rule <code>service: http://127.0.0.1:PORT</code>.</li>
+<li><strong>The websocket bridge log shows every client as 127.0.0.1, or bridged clients hit "too many connections from this address":</strong> add <code>--ws-real-ip-header CF-Connecting-IP</code> when the bridge sits behind <code>cloudflared</code>.</li>
+<li><strong>Bridged clients register but cannot connect to anyone:</strong> the bridge needs <code>--relay</code>, and the relay ports must be open as usual.</li>
+<li><strong>Clients built with a baked-in server</strong> (<code>-X github.com/readori/RemoHop/internal/dial.DefaultSignal=...</code>) can still be overridden with <code>--signal</code>, <code>REMOHOP_SIGNAL</code> or <code>remohop config set signal</code>.</li>
+</ul>
+<h2 id="accounts">Accounts</h2>
+<p>Accounts are optional and need a rendezvous server started with <code>--accounts</code> (see <code>remohop help signal</code>). Background: <a href="/en/docs/security/#accounts">security.md</a>.</p>
+<ul>
+<li><strong><code>remohop login</code> says the server does not offer accounts, or fails at once:</strong> the operator has not enabled <code>--accounts</code>, or the address you gave is outside the server's allowed domains or invite list. Ask the operator.</li>
+<li><strong>No mail arrives:</strong> check the spam folder, and ask the operator to check the server's SMTP settings and log. Codes have 8 digits, last 10 minutes and work once. Five wrong codes burn the code and lock the address for 15 minutes. Requests are also rate limited.</li>
+<li><strong><code>joining an existing account needs its fingerprint confirmed ...</code>:</strong> without a terminal, pass <code>--account-fingerprint FP</code> with the value <code>remohop account</code> shows on a device already in the account.</li>
+<li><strong><code>the account on the rendezvous server has fingerprint X, not Y: not joining it</code>:</strong> the account you are logging in to is not the one you meant. Do not continue until you know why. A malicious server could present a different account.</li>
+<li><strong><code>this device is waiting to be approved: on another device of the account run </code>remohop account approve ...``:</strong> run that command on a device already in the account, with the complete 20-digit fingerprint. A prefix is refused. <code>remohop account</code> on the existing device lists waiting devices. <code>remohop login</code> waits 10 minutes by default (<code>--wait</code>, <code>--no-wait</code>).</li>
+<li><strong><code>no device with identity ... is waiting to join the account</code>:</strong> the fingerprint is wrong, or the request was rejected or has expired. Run <code>remohop login</code> again on the new device and copy the fingerprint it prints.</li>
+<li><strong><code>the rendezvous server sent an account log that does not extend the one this device ...</code> and similar <code>refusing it</code> errors:</strong> this device has verified a longer or different log than the server now sends. Treat it as a server problem or an attack. Do not log in again blindly; check with the server's operator.</li>
+<li><strong><code>this device is logged in as X; run </code>remohop logout<code> first</code>:</strong> one account per device.</li>
+<li><strong>A host with <code>account-trust on</code> still refuses another device of the account:</strong> <code>remohop account sync</code> on the host refreshes the list now (a running <code>remohop host</code> does it every minute). Check that the device is a member (<code>remohop account</code>) and that <code>remohop host paired</code> shows it as <code>account:NAME</code>. A device you revoked with <code>remohop host revoke</code> stays out until you turn <code>account-trust</code> off and on again. A host that could not reach the server for 7 days trusts no account device.</li>
+<li><strong>A removed device can still log in for a while:</strong> hosts apply a removal at their next refresh, about a minute when they can reach the server. A server can delay it. <code>remohop config account-trust off</code> on the host takes effect at once.</li>
+</ul>
+<h2 id="running-as-a-service">Running as a service</h2>
+<p><code>remohop service install</code> writes a systemd unit, a launchd job or a Windows service. Common surprises:</p>
+<ul>
+<li><strong>The service is a separate instance.</strong> It has its own identity, ID, password and pairings. Read them with <code>remohop status</code> (add <code>--show-password</code>). For a system-wide service, point <code>remohop</code> at its state directory, for example <code>sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop status</code> on Linux.</li>
+<li><strong>No screen.</strong> A system-wide service on Linux and a Windows service (session 0) cannot see the desktop: shell, files and forwards work; screenshots, GUI input and the remote desktop do not. Use a per-user service (<code>remohop service install --user</code>) or start <code>remohop host</code> inside the desktop session. On Windows, <code>remohop service install --unattended</code> gives the service the console session instead, sign-in, lock and UAC screens included (read <a href="/en/docs/security/#windows-unattended-access">security.md</a> first); Ctrl+Alt+Del then also needs the <code>SoftwareSASGeneration</code> policy (see <code>remohop service --help</code>).</li>
+<li><strong>Linux without systemd</strong> (containers, OpenRC): install fails with an explanation. <code>remohop service print</code> shows the unit so you can adapt it.</li>
+<li><strong>Per-user service does not start at boot on Linux:</strong> install with <code>--linger</code>.</li>
+<li><strong>Windows:</strong> install from an elevated prompt.</li>
+<li><strong>VPN on a service host:</strong> a Linux system service runs as root, which the VPN needs on the host side.</li>
+</ul>
+<p><code>remohop passwd</code> changes the fixed password of a running host, including a service instance, without a restart.</p>
+<h2 id="background-commands">Background commands</h2>
+<p>Port forwards, mounts, serial ports, clipboard syncs and VPN tunnels started with <code>-b</code> keep running after the command returns:</p>
+<pre tabindex="0"><code class="language-bash">remohop ps
+remohop forward
+remohop unforward 18080
+remohop stop --all</code></pre>
+<p><code>remohop forward</code> lists running forwards and <code>remohop unforward PORT</code> stops one; a process holding other forwards keeps them. <code>remohop serial</code>, <code>remohop vpn</code> and <code>remohop usb</code> list their own kind. Remote background jobs (<code>remohop &lt;ID&gt; spawn</code>) run on the host: use <code>remohop &lt;ID&gt; jobs</code>, and <code>remohop &lt;ID&gt; jobs rm --exited</code> to remove finished ones with their logs.</p>
+<p>Interactive shell sessions stay on the host for <code>term-keep</code> (30 minutes by default; <code>remohop config set term-keep 2h</code> on the host, read when the host starts, and <code>REMOHOP_SHELL_KEEPALIVE</code> overrides it). List and end them with <code>remohop &lt;ID&gt; shell ls</code> and <code>remohop &lt;ID&gt; shell kill NAME</code>. They do not survive a restart of the host.</p>
+<h2 id="files">Files</h2>
+<ul>
+<li><strong>Interrupted copies.</strong> <code>cp</code> and <code>sync</code> keep the data of an interrupted file of 8 MiB or more in a hidden <code>.&lt;name&gt;.remohop-partial-&lt;id&gt;</code> file next to the destination. Running the same command again continues from it if the source is unchanged; the next successful copy removes it. <code>--no-resume</code> starts over. Resumable downloads are off on Windows clients.</li>
+<li><strong>Permissions differ after a copy.</strong> <code>cp</code> and <code>sync</code> apply the receiving side's umask. Use <code>cp -p</code> or <code>sync --perms</code> to copy permission bits exactly.</li>
+<li><strong><code>send</code> did not overwrite.</strong> By design: a taken name is saved as <code>name (1).ext</code>. Set <code>REMOHOP_DOWNLOADS_DIR</code> in the host's environment to change the folder.</li>
+</ul>
+<h2 id="mounts">Mounts</h2>
+<p>The mount method depends on this machine's OS: FUSE on Linux, the system's WebDAV client on macOS and Windows. <code>--webdav</code> and <code>--fuse</code> override the default. A mount runs in the background; <code>remohop ps</code> shows it and <code>remohop umount &lt;dir | drive&gt;</code> stops it. If the session drops, operations fail while remohop reconnects (2 minutes by default; <code>-o reconnect=DUR</code> changes it), then it unmounts.</p>
+<h3 id="fuse-mount">FUSE mount</h3>
+<ul>
+<li>Linux, regular user: <code>/dev/fuse</code> must be accessible and the <code>fusermount3</code> helper (package <code>fuse3</code>) installed. Otherwise: <code>mounting as a regular user needs the fusermount3 (or fusermount) helper: install fuse3, or run as root</code>.</li>
+<li>Linux, root: the mount is made directly.</li>
+<li><code>-o allow_other</code> needs <code>user_allow_other</code> in <code>/etc/fuse.conf</code>.</li>
+<li>macOS: <code>--fuse</code> uses macFUSE if installed; untested.</li>
+</ul>
+<p>If <code>remohop umount &lt;dir&gt;</code> reports <code>process N did not exit</code>, try <code>remohop stop &lt;PID&gt;</code>, then <code>kill &lt;PID&gt;</code>, then check <code>/proc/mounts</code> and remove a leftover mount with <code>fusermount3 -u &lt;dir&gt;</code> (or <code>umount &lt;dir&gt;</code> as root).</p>
+<h3 id="webdav-mount">WebDAV mount</h3>
+<ul>
+<li><strong>Linux with <code>--webdav</code>:</strong> <code>--webdav needs davfs2 (mount.davfs) on Linux: install it, or use </code>-o nomount<code> and point any WebDAV client at the printed URL, or drop --webdav to use FUSE</code>.</li>
+<li><strong>macOS:</strong> uses <code>mount_webdav</code> on an existing directory. Errors from it are passed through as <code>mount_webdav: ...</code>.</li>
+<li><strong>Windows:</strong> the target is a drive letter (<code>Z:</code>) or <code>*</code> for a free one. The WebClient service must be available:
+<ul>
+<li><code>the WebClient service (Windows' WebDAV redirector) is not installed ...</code>: on Windows Server, run <code>Install-WindowsFeature WebDAV-Redirector</code> from an elevated PowerShell and restart.</li>
+<li><code>the WebClient service ... is disabled ...</code>: run <code>sc config WebClient start= demand</code>, then <code>net start WebClient</code>, from an elevated prompt.</li>
+<li>Files above the redirector's <code>FileSizeLimitInBytes</code> (50 MB by default) will not open; remohop prints the limit when it mounts. Use <code>remohop cp</code> for bigger files.</li>
+<li>Windows mounts have not been run by the automated tests.</li>
+</ul></li>
+<li><strong>Any OS:</strong> <code>remohop &lt;ID&gt; mount -f -o nomount :/srv/www</code> prints a loopback URL for any WebDAV client and mounts nothing.</li>
+</ul>
+<h2 id="vpn">VPN</h2>
+<p><code>remohop &lt;ID&gt; vpn up</code> is tested with Linux on both ends. A Windows client (Wintun) and a macOS client (utun) are implemented. The macOS client is verified by automated tests on a hosted macOS VM (utun interface, routes including <code>--route</code>, packets both ways, clean-up, clean-up after a killed process, and <code>remohop host</code> plus <code>vpn up</code> on one Mac); <code>--exit</code> on macOS has not been run on a real network and nothing has been run on a physical Mac. The Windows end-to-end test is opt-in and not verified. Windows and macOS hosts cannot forward for <code>--route</code> or <code>--exit</code>:</p>
+<ul>
+<li><strong><code>... needs the right to create network interfaces and change routes (root, or the CAP_NET_ADMIN capability) ...</code></strong>: run with <code>sudo</code>, or grant the binary the capability once with <code>sudo setcap cap_net_admin,cap_net_raw+ep $(command -v remohop)</code>. A host needs it too; a Linux system service (<code>sudo remohop service install --system</code>) runs as root.</li>
+<li><strong><code>the VPN on Windows needs the Wintun driver (wintun.dll), which remohop does not include and never downloads by itself ...</code></strong>: download Wintun 0.14.1 from https://www.wintun.net, check the zip's SHA-256 (<code>07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51</code>), and copy <code>wintun\bin\&lt;arch&gt;\wintun.dll</code> next to <code>remohop.exe</code>, into the remohop config directory, or into the directory named by <code>REMOHOP_WINTUN_DIR</code>. If the message ends with <code>Found, but not the Wintun ... build remohop loads</code>, the DLL on disk has a different hash (another version, wrong architecture or modified); <code>remohop</code> refuses it on purpose. Run <code>remohop</code> as Administrator.</li>
+<li><strong><code>this kernel has no TUN support (/dev/net/tun is missing; load the </code>tun<code> module)</code></strong>: run <code>sudo modprobe tun</code>.</li>
+<li><strong><code>the host does not allow routes beyond the host's own networks (its owner can allow it with </code>remohop config vpn-exit on<code>)</code></strong>, and the same for <code>--exit</code>: the host's owner has to run <code>remohop config vpn-exit on</code>. Routes to the host's directly attached networks work without it.</li>
+<li><strong><code>remote refused "vpn": ...</code></strong>: the host switched the <code>vpn</code> feature off.</li>
+<li><strong><code>a tunnel to dev is already up (pid N)</code></strong>: one tunnel per host. <code>remohop dev vpn down</code> stops it; <code>remohop vpn</code> lists tunnels.</li>
+<li><strong><code>route ... overlaps ..., which is reserved for the tunnels themselves</code></strong>: the tunnels use <code>10.77.0.0/16</code>; pick a route outside it.</li>
+<li><strong><code>a macOS host cannot forward for VPN clients yet</code></strong>: a macOS host can only be reached itself through the tunnel.</li>
+<li><strong><code>N tunnel(s) of a killed remohop left settings behind; run any remohop command as root to remove them</code></strong>: a <code>remohop</code> process was killed outright. Any <code>remohop</code> command run with the same privilege cleans up.</li>
+<li><strong>The tunnel stopped:</strong> <code>the session to the host was lost; the tunnel is down</code>. Start it again; everything it set up has been removed.</li>
+<li><strong>With <code>--exit</code>, DNS still uses local resolvers:</strong> DNS goes through the tunnel only where systemd-resolved is in use.</li>
+</ul>
+<h2 id="serial-ports-and-usb">Serial ports and USB</h2>
+<p><strong>Serial.</strong></p>
+<ul>
+<li>The virtual port needs Linux or macOS on this side. It appears in the <code>serial/</code> directory of the remohop config directory unless you give <code>--local PATH</code>.</li>
+<li>PORT can be a path, a short name or a <code>/dev/serial/by-id</code> name as shown by <code>remohop &lt;ID&gt; serial list</code>. The port is opened exclusively on the host, so another program holding it there makes the open fail.</li>
+<li><code>remote refused "serial"</code>: the host switched the <code>serial</code> feature off.</li>
+<li><code>remohop serial</code> lists active virtual ports and <code>remohop unserial PATH</code> closes one.</li>
+</ul>
+<p><strong>USB.</strong> USB/IP needs Linux and root on both sides; it has been run against the real kernel only in CI, with a virtual device:</p>
+<ul>
+<li><code>attaching a USB device needs root on this machine: run with sudo</code>.</li>
+<li><code>kernel module vhci-hcd is not loaded on this machine ...</code>: run <code>sudo modprobe vhci-hcd</code>. The host needs <code>usbip-host</code> (<code>sudo modprobe usbip-host</code>); missing modules are reported by name and side.</li>
+<li>A device must be allowed on the host first with <code>remohop usb allow BUSID</code>; keyboards, mice, storage and hubs need <code>--force</code>, and hubs are never exported. <code>remohop usb allowed</code> lists what is allowed.</li>
+<li><code>remohop usb release BUSID</code> on the host recovers a device after a crash.</li>
+<li><code>remohop usb</code> lists attached devices on this machine and <code>sudo remohop usb detach N|BUSID</code> detaches one.</li>
+</ul>
+<h2 id="screen-gui-input-and-desktop">Screen, GUI input and desktop</h2>
+<p><code>screenshot</code>, <code>desktop</code>, <code>click</code>, <code>move</code>, <code>type</code>, <code>press</code> and <code>scroll</code> need a display on the host. The host reports the reason from its side, for example:</p>
+<pre tabindex="0"><code>remohop: click: no display available on the host: DISPLAY is not set; X display :0: dial unix /tmp/.X11-unix/X0: connect: connection refused; ...; input needs a running X11 session</code></pre>
+<ul>
+<li><strong>Linux:</strong> the host must run inside the logged-in X11 session: start <code>remohop host</code> from a terminal in that session, or install a per-user service. Native Wayland capture is not supported.</li>
+<li><strong>Windows:</strong> the host must run in the interactive session, not as the Windows service.</li>
+<li><strong>macOS:</strong> the host needs the Screen Recording permission for capture and the Accessibility permission for input (System Settings &gt; Privacy &amp; Security); without Accessibility the desktop is view-only and the input commands fail with the reason. See <a href="#platform-notes">Platform notes</a>.</li>
+<li><strong>Clicks land in the wrong place.</strong> Coordinates are pixels of the full-size screenshot of the selected display. If you measured them in a downscaled image, pass <code>--scale-from WxH</code>. With <code>screenshot -R X,Y,W,H</code>, add X and Y back. Use the same <code>-d</code> display for the screenshot and the click.</li>
+<li><strong>Input refused.</strong> The <code>input</code> feature is off on the host, or <code>REMOHOP_DESKTOP_VIEW_ONLY=1</code> is set there.</li>
+<li><strong>"Block input" and "blackout" are unavailable in the viewer</strong> on X11 hosts. That is reported by the host, not a fault.</li>
+<li><strong>Clipboard.</strong> A host without a system clipboard uses an in-memory one. <code>remohop &lt;ID&gt; clip status</code> names the backend. X11 needs <code>xclip</code> or <code>xsel</code>; Wayland needs <code>wl-clipboard</code>.</li>
+</ul>
+<h3 id="recording">Recording</h3>
+<ul>
+<li><code>remohop: desktop: recording: FILE already exists (use --force to replace it)</code>: add <code>--force</code> or choose another name.</li>
+<li>Recording starts when the viewer page connects. If the stream changes size or codec, recording continues in <code>FILE-2.mp4</code>, <code>FILE-3.mp4</code> and so on. Files are fragmented MP4, so a recording survives <code>remohop</code> being killed.</li>
+</ul>
+<h3 id="audio">Audio</h3>
+<p><code>remohop &lt;ID&gt; desktop --audio</code> (or the page's Audio button) forwards the host's audio output. It is off unless asked for. When it cannot work, the error comes from the host and says what to do:</p>
+<ul>
+<li><strong><code>cannot capture the host's audio output (...)</code></strong> on Linux: the host's <code>remohop</code> cannot reach a PulseAudio or PipeWire server. Run <code>remohop host</code> inside the logged-in desktop session, or make <code>XDG_RUNTIME_DIR</code> or <code>PULSE_SERVER</code> point at the user's sound server (a host started from systemd or ssh without them tries <code>/run/user/UID/pulse/native</code>). PipeWire needs its <code>pipewire-pulse</code> service. <code>REMOHOP_DESKTOP_AUDIO_SOURCE=NAME</code> on the host picks another source; <code>pactl list short sources</code> lists them (what is played is the <code>.monitor</code> of an output). The host's ffmpeg needs libpulse and libopus (<code>ffmpeg -devices | grep pulse</code>, <code>ffmpeg -encoders | grep opus</code>).</li>
+<li><strong><code>this Mac has no loopback audio device</code></strong>: macOS cannot record its own output. Install a loopback driver such as BlackHole (<code>brew install blackhole-2ch</code>), create a Multi-Output Device containing your speakers and BlackHole in Audio MIDI Setup, make it the sound output, and allow <code>remohop</code> (or the terminal it runs in) under Privacy &amp; Security &gt; Microphone, because macOS treats loopback devices as microphones. remohop only picks devices whose names look like loopbacks (BlackHole, Loopback, Soundflower, iShowU); <code>REMOHOP_DESKTOP_AUDIO_SOURCE</code> names another by name or index. Not verified on a real Mac.</li>
+<li><strong><code>this machine has no audio loopback device ffmpeg can record</code></strong> on Windows: install the free <code>virtual-audio-capturer</code> driver (screen-capture-recorder), or enable "Stereo Mix" (Sound settings &gt; Recording &gt; show disabled devices) if the sound card offers it, or use an ffmpeg build with WASAPI loopback. <code>REMOHOP_DESKTOP_AUDIO_SOURCE</code> names a DirectShow audio device. Not verified on a real Windows machine.</li>
+<li><strong><code>audio forwarding is switched off on this host (REMOHOP_DESKTOP_AUDIO=off)</code></strong>, or <code>the host does not allow desktop.audio (feature "screen" is switched off ...)</code>: the owner turned it off, either audio alone or all screen access.</li>
+<li><strong>The Audio button says "click the page to start".</strong> The browser starts sound only after a click or key press on the page; do either.</li>
+<li><strong>Crackling, drift or lagging sound.</strong> The page keeps sound a fixed delay behind capture (a jitter buffer of at least 40 ms, more on a jittery link, and at least the video's own latency so lips match). The Stats overlay shows buffer, delay and skew; frequent underruns mean the link or the browser tab is starved. Background tabs throttle audio scheduling.</li>
+<li>Nothing is heard when nothing plays on the host. If the host's default output changes while audio runs, switch Audio off and on again to capture the new one.</li>
+</ul>
+<h3 id="monitors">Monitors</h3>
+<ul>
+<li>The monitor menu appears when the host reports two or more monitors. <strong>All monitors</strong> is one picture of the virtual desktop; the pointer maps onto the whole picture. On Linux that is the whole X screen, so monitors that are not touching leave the desktop background between them; on Windows it is a GDI capture of the bounding box (black gaps), which uses more CPU than the per-monitor Desktop Duplication capture. <strong>macOS has no all-monitors view</strong> (the host says <code>not available on macOS hosts: AVFoundation captures one display at a time</code>); pick one monitor. <code>remohop &lt;ID&gt; desktop</code> prints the host's monitors with their size and position.</li>
+<li>Linux monitor lists come from RandR 1.5. An X server without it (some VNC servers) offers only the whole screen.</li>
+<li>Clicks land on the wrong monitor after the host's display layout changed: reconnect the page, which reads the layout again.</li>
+</ul>
+<h3 id="files-1">Files</h3>
+<p>Dropping a file on the viewer page (or the Upload button) copies it to the host user's Downloads folder, or to <code>--upload-dir</code>.</p>
+<ul>
+<li><code>the host does not allow fs.put (feature "file" is switched off ...)</code>: the host's <code>file</code> feature is off; the owner can enable it with <code>remohop config feature file on</code>.</li>
+<li><code>this is a view-only session: files cannot be uploaded</code>: restart without <code>--view-only</code> (and with <code>input</code> allowed on the host).</li>
+<li>Folders are not accepted by the page: zip them first. Existing names are never overwritten: the new file becomes <code>name (1).ext</code>. Characters Windows forbids in file names are replaced by <code>_</code>.</li>
+<li><strong>Copy and paste of files is not supported.</strong> The page passes Ctrl+V to the remote machine; the remote clipboard carries text and images only. Drop or upload, then open the Downloads folder on the remote machine.</li>
+</ul>
+<h3 id="measuring">Measuring</h3>
+<p><code>remohop &lt;ID&gt; desktop --bench</code> prints frame rate, bitrate and capture-to-received latency without a browser; add <code>--audio</code> to include audio and <code>--json</code> for scripts. Latency is host capture clock to arrival, so it excludes the browser's decode and draw (the Stats overlay's <code>latency</code> includes them) and, with x11grab, up to one frame period before the grab. <code>n/a</code> means the host's capture device has no wall-clock timestamps (macOS and Windows capture devices may not). A run with nonzero <code>encoder restarts</code> or many drops is the host or the link being overloaded.</p>
+<h2 id="ffmpeg-and-encoders">ffmpeg and encoders</h2>
+<p><code>desktop</code> needs ffmpeg on the host, with an H.264 or AV1 encoder. <code>remohop &lt;ID&gt; desktop --no-open --json</code> lists the encoders the host found (for example <code>"av1": "libsvtav1", "h264": "libx264"</code>); the codec is chosen when the page connects and tells the host what the browser can decode.</p>
+<ul>
+<li><strong>Which codec is used.</strong> AV1 when the host has a GPU AV1 encoder; otherwise H.264, hardware-encoded where available (NVENC, QSV, VAAPI, AMF, VideoToolbox, Media Foundation), else libx264. Software AV1 is used only when the browser decodes only AV1, or with <code>--codec av1</code>. <code>--encoder NAME</code> forces one ffmpeg encoder.</li>
+<li><strong><code>ffmpeg not found on the host; ...</code></strong> followed by an install hint: install ffmpeg (6.0 or newer is recommended), or set <code>REMOHOP_FFMPEG=/path/to/ffmpeg</code> on the host.</li>
+<li><strong><code>ffmpeg at &lt;path&gt; has no &lt;name&gt; encoder</code></strong>: the encoder given with <code>--encoder</code> is not in this build.</li>
+<li><strong>No usable encoder:</strong> install an ffmpeg build with libx264, or with libsvtav1 or libaom for AV1. Of the hardware encoders only VideoToolbox (macOS) is verified, on a hosted Apple Silicon VM; the others are untested. For VAAPI on a non-default device set <code>REMOHOP_VAAPI_DEVICE</code> on the host.</li>
+<li><strong>A notice about SVT-AV1</strong> (only when AV1 runs in software): SVT-AV1 2.2 to 3.0 loses small screen updates in its real-time presets. On those hosts (Ubuntu 26.04 ships 2.3) RemoHop uses libaom instead and says so; without libaom it runs SVT-AV1 at a slow preset and warns to expect a low frame rate. H.264, SVT-AV1 1.7 or 3.1 and newer, or a GPU encoder avoid this.</li>
+<li><strong>Low frame rate or high latency.</strong> Software encoding is CPU-bound. Leave the codec on its default (H.264 on a CPU-only host), or lower the load with <code>--max-height 1080</code>, <code>--fps 30</code> or <code>--scale 0.5</code>. A relayed session is also capped by the relay's bandwidth limit.</li>
+</ul>
+<p>The viewer decodes with WebCodecs and needs a browser that supports it.</p>
+<h2 id="browser-gateway">Browser gateway</h2>
+<ul>
+<li><strong><code>remohop: web: refusing to listen on a non-loopback address without --tls-cert/--tls-key and --password-file ...</code></strong>: by design. Provide all three, or keep the default loopback listener.</li>
+<li><strong>404 on the gateway address:</strong> the token in the URL is the login; open the full URL that <code>remohop web</code> printed.</li>
+<li><strong>The page cannot use a saved host:</strong> the gateway runs with <code>--no-saved</code>, or under a different config directory from the one that holds the pairing.</li>
+<li><strong>A tab shows the host's refusal:</strong> the host switched that feature off.</li>
+</ul>
+<h3 id="through-cloudflare-tunnel">Through Cloudflare Tunnel</h3>
+<ul>
+<li><strong><code>remohop web</code> answers 403 or the page does not load through the tunnel:</strong> start it with <code>--public-url https://YOUR-HOSTNAME</code> (exactly the hostname in the browser, https, no path) and keep <code>cloudflared</code> pointed at the loopback port. Do not rewrite the <code>Host</code> header in <code>cloudflared</code>; the gateway checks it against <code>--public-url</code>. <code>--public-url</code> requires a loopback <code>--listen</code> and <code>--password-file</code>.</li>
+<li><strong>Cloudflare Access blocks you:</strong> that is the Access policy, not <code>remohop web</code>. The gateway has its own login as well (<code>--password-file</code>).</li>
+<li><strong>The rendezvous server cannot be put behind the tunnel:</strong> see <a href="#running-your-own-rendezvous-server">Running your own rendezvous server</a>.</li>
+</ul>
+<h2 id="mobile-apps">Mobile apps</h2>
+<ul>
+<li>The Android and iOS apps are controllers only. A phone cannot be controlled with them.</li>
+<li>There are no store releases. See <a href="/en/docs/mobile-apps/">Mobile apps</a>. Build Android with <code>mobile/android/build.sh</code> (Go, JDK 17+, <code>ANDROID_HOME</code>, an NDK) and iOS with <code>mobile/ios/build-xcframework.sh</code> on macOS, then Xcode.</li>
+<li>The iOS app has only run in the iOS Simulator in CI and the Android app has had no real-device test, so expect rough edges and report them.</li>
+</ul>
+<h2 id="platform-notes">Platform notes</h2>
+<p>Linux is the reference platform. macOS and Windows are tested by automated runs on hosted runners, not on physical desktops.</p>
+<p><strong>Windows hosts</strong></p>
+<ul>
+<li><code>shell -c</code>, <code>spawn</code> and the interactive shell use PowerShell (<code>pwsh.exe</code>, else <code>powershell.exe</code>; <code>REMOHOP_SHELL</code> on the host pins one). Write commands in PowerShell syntax: <code>remohop dev shell -c 'Get-ChildItem'</code>. <code>remohop dev info</code> tells you the OS first.</li>
+<li>Piped stdin is read with <code>$input</code>; <code>cat</code> is <code>Get-Content</code> there and does not read stdin.</li>
+<li>A job killed on a Windows host reports exit code 1.</li>
+<li>Audio forwarding (WASAPI loopback, <code>virtual-audio-capturer</code> or Stereo Mix), the monitor list, input on monitors other than the primary, and the all-monitors view (GDI capture of the virtual desktop) are implemented and unit-tested only for their geometry; none has run on a real Windows machine.</li>
+<li>GUI input uses SendInput and has not been run by a test. The VPN client needs the Wintun driver (see <a href="#vpn">VPN</a>); a Windows host cannot forward for <code>--route</code> or <code>--exit</code>. Mounts on a Windows client use WebDAV on a drive letter and have not been run by a test. Resumable downloads are off on Windows clients. Serial ports on a Windows host work as the remote side.</li>
+</ul>
+<p><strong>macOS</strong></p>
+<ul>
+<li>Mounts use the built-in WebDAV client; macFUSE is optional and untested.</li>
+<li>GUI input is implemented with Quartz events and needs the Accessibility permission on the host; pointer moves and clicks through a desktop session are verified on a hosted macOS VM, not on a physical Mac. If <code>remohop</code> reports that macOS has not granted the Accessibility permission, open System Settings &gt; Privacy &amp; Security &gt; Accessibility, enable <code>remohop</code> (or, when it runs inside Terminal, iTerm or a launchd agent, that app or the agent's program), then restart <code>remohop host</code>. Screen capture needs Screen Recording in the same place. Without the permission macOS drops the events silently, so the desktop looks view-only.</li>
+<li>The VPN client (utun) is verified on a hosted macOS VM, see <a href="#vpn">VPN</a>; <code>--exit</code> has not been run on a real network. A macOS host cannot forward for VPN clients.</li>
+<li>Audio forwarding needs a loopback device (BlackHole or similar), see <a href="#audio">Audio</a>; there is no all-monitors view; neither is verified on a real Mac.</li>
+<li>Remote desktop host: capture uses AVFoundation and needs the Screen Recording permission; without it the picture shows only the desktop background, and the viewer says so. Verified on a GitHub-hosted Apple Silicon macOS VM (one 1024x768 display at scale 1): VideoToolbox H.264 (the default there), libx264 and SVT-AV1, the decoded picture, input, view-only, and two viewers at once. Not tested: Retina and multi-monitor Macs, the Lock control (it puts the display to sleep), physical Macs.</li>
+<li>macOS gives the screen to one capture at a time: a second capture started while one runs gets no frames. All sessions of a macOS host therefore share one capture. If that shared capture misbehaves on some Mac, <code>REMOHOP_MAC_DIRECT_CAPTURE=1</code> in the host's environment gives each session its own capture again (on the Mac this was measured on, only one viewer at a time then gets a picture).</li>
+<li><strong><code>ffmpeg delivered no video within 15s of starting</code></strong> or <strong><code>screen capture delivered no picture</code></strong>: the capture started but produced nothing. Check the Screen Recording permission and that a user is logged in to the desktop.</li>
+<li>A launchd service writes its logs to files; <code>remohop service logs</code> shows them.</li>
+</ul>
+<h2 id="still-stuck">Still stuck</h2>
+<p>Collect the output of <code>remohop -v &lt;command&gt;</code> on the client and <code>remohop status</code>, <code>remohop log</code> and <code>remohop config</code> on the host (remove secrets), and note the operating systems and network setup on both sides. For security questions, see <a href="/en/docs/security/">security.md</a>.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/troubleshooting.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

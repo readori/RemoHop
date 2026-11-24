@@ -1,0 +1,6 @@
+# Golden files and scripts must keep LF endings on every platform.
+* text=auto eol=lf
+*.png binary
+# Windows batch files need CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf

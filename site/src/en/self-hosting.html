@@ -1,0 +1,73 @@
+<h1>Self-hosting the rendezvous server</h1>
+<p>RemoHop has no built-in default server. The rendezvous server (<code>remohop signal</code>) lets two machines find each other: it assigns IDs, tracks presence and passes candidate addresses. It is light enough for the smallest VM you can rent. Session content does not pass through it unless you turn the relay on.</p>
+
+<h2 id="size">How big a machine</h2>
+<p>Measured figures, from <code>remohop help signal</code> and from measurement, not guarantees: about 17 MB of memory when idle, about 70 KB per online host, about 85 MB with 1000 hosts. An Oracle Cloud Always Free instance with 1 OCPU and 1 GB is enough. The relay uses roughly 1% of a CPU core per 10 Mbit/s.</p>
+
+<h2 id="run">Run it</h2>
+<pre><code>remohop signal --relay --relay-ports 40000-40099
+remohop signal --print-firewall --relay --relay-ports 40000-40099
+remohop signal --show-key</code></pre>
+<ul>
+<li><code>--relay</code> turns the relay on. It is off by default because it is the only feature that really uses the server's bandwidth.</li>
+<li><code>--relay-ports LO-HI</code> confines relay ports to a range, so the firewall only has to open that range. Without it each session uses a random high port.</li>
+<li><code>--max-conns N</code> caps open connections. The default is estimated from available memory: about 6400 on a 1 GB machine, at most 50000.</li>
+<li><code>--print-firewall</code> only prints the commands that would open the ports. It runs nothing.</li>
+</ul>
+<p>To install it as a hardened systemd service (Linux only, needs root):</p>
+<pre><code>sudo install -m 755 remohop /usr/local/bin/remohop
+sudo /usr/local/bin/remohop service install --role signal --relay --relay-ports 40000-40099
+remohop service status --role signal
+sudo remohop signal --show-key --data /var/lib/remohop-signal</code></pre>
+<p class="note">UDP <code>21116</code>, <code>21117</code> and the relay range must be open in <strong>two</strong> places: the machine's own firewall, and the cloud provider's security list (Oracle Cloud's security list, an AWS security group, and so on). Cloudflare Tunnel does not forward UDP, so the rendezvous server itself cannot sit behind a tunnel.</p>
+
+<h2 id="clients">Point clients at it</h2>
+<pre><code>remohop config set signal HOST:PORT
+remohop config set signal-pin KEY</code></pre>
+<!--src-->
+<p>You can also compile the address and key into the binary, so that the <code>remohop</code> you hand out has a default server:</p>
+<pre><code>go build -ldflags "-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:PORT \
+  -X github.com/readori/RemoHop/internal/dial.DefaultSignalPin=KEY" -o remohop ./cmd/remohop</code></pre>
+<!--/src-->
+
+<h2 id="ws">Networks that let only HTTPS out: the websocket bridge</h2>
+<p>CI runners, cloud containers and corporate networks often block UDP. The server can also serve a websocket bridge, and clients and hosts fall back to it automatically when UDP rendezvous has not answered within 4 seconds:</p>
+<pre><code>remohop signal --relay --relay-ports 40000-40099 \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
+<pre><code>remohop config set signal relay.example.com:21116
+remohop config set signal-ws wss://relay.example.com/remohop/v1/udp</code></pre>
+<p>Hole punching is impossible through the bridge, so these sessions always use the relay, which must be on. Encryption, the password exchange and server key pinning are exactly as over UDP: the bridge and any proxy in front of it see QUIC ciphertext only. The bridge has been tested end to end in network namespaces, but not yet through a real Cloudflare tunnel.</p>
+
+<h2 id="public">Offering a relay to the public</h2>
+<p>If you offer the relay to people you do not know, for example as the default server of your own build of <code>remohop</code>, give it access controls and a traffic budget. The rendezvous service stays open to everyone and keeps its own per-address rate limits; only the relay is restricted. For an Oracle Cloud free instance with 10 TB of outbound traffic a month:</p>
+<pre><code>sudo remohop service install --role signal --relay --relay-ports 40000-40099 -- \
+    --relay-kbps 2000 --relay-per-source 2 --relay-monthly-gb 8000 \
+    --relay-deny /etc/remohop/relay-deny \
+    --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Flags for a public relay">
+<table>
+<thead><tr><th scope="col">Flag</th><th scope="col">What it does</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>--relay-kbps 2000</code></th><td>Per-session cap for anonymous sessions (2 Mbit/s). Traffic over the cap is paced, not cut off.</td></tr>
+<tr><th scope="row"><code>--relay-per-source 2</code></th><td>At most two relayed sessions at a time per address (an IPv6 address counts by its /64). Both peers count. A slot is freed as soon as the session closes.</td></tr>
+<tr><th scope="row"><code>--relay-monthly-gb 8000</code></th><td>Monthly relay budget, per UTC calendar month. At 80% anonymous sessions get half their rate. At 100% new anonymous sessions are refused. At 110% all new sessions are refused. The count survives restarts.</td></tr>
+<tr><th scope="row"><code>--relay-deny FILE</code></th><td>No relay for the addresses, networks and identity keys listed. Listed keys also cannot register as hosts. The file is re-read within 10 seconds of a change.</td></tr>
+</tbody>
+</table>
+</div>
+<p>With accounts on (<code>--accounts</code>, which needs SMTP), <code>--relay-account-kbps</code> gives verified account members a higher rate, and <code>--relay-for accounts</code> relays only for them. Membership is proven by a signature; a claim by the client counts for nothing.</p>
+<p>To see usage: <code>sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8000</code>. Once an hour the log has a <code>relay summary</code> line with session counts, bytes and refusals by reason. It contains no addresses.</p>
+
+<h2 id="visible">What an operator can and cannot see</h2>
+<p>The server never sees session content, cannot learn passwords and cannot join a session. It does see metadata:</p>
+<ul>
+<li><strong>Rendezvous:</strong> each host's public identity key, its 9-digit ID, its public address while online, and when it was last seen. For each introduction, which address asked for which ID.</li>
+<li><strong>Relay:</strong> both peers' addresses, and the start time, duration and byte count of each relayed session.</li>
+<li><strong>Websocket bridge:</strong> the client's address, when it connected and how many bytes it carried.</li>
+<li><strong>Accounts:</strong> a hash of each email address, the devices' public identity keys and names, and the signed membership log. Login codes are mailed and never stored.</li>
+</ul>
+<p>What the server logs by default: hosts going online and offline (ID and address), relay sessions starting and ending (both addresses, tier, rate, duration, bytes), websocket connections opening and closing, account logins, and the hourly summary. Logs go to the systemd journal. Set a retention period you can defend, for example <code>MaxRetentionSec=14day</code> in <code>/etc/systemd/journald.conf</code>, and state it in your privacy notice.</p>
+<p>The <a href="{{E:docs/public-server}}">public server</a> reference document has a privacy notice template you can adapt. This site's own <a href="{{L:privacy}}">privacy policy</a> follows it.</p>
+
+<h2 id="agpl">Operators and the AGPL</h2>
+<p>Running an unmodified <code>remohop signal</code> adds no obligation. If you modify it and let other people use it, section 13 of the AGPL-3.0 requires you to offer those users the source of your modified version. If you would rather not publish your changes, a <a href="{{L:licensing}}">commercial license</a> is available.</p>

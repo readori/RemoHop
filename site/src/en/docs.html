@@ -1,0 +1,74 @@
+<h1>Quick start</h1>
+<p>This page covers the five steps from nothing to a first connection. For the full syntax of a command, run <code>remohop help &lt;command&gt;</code>. Everything else is in the documentation, one page per topic, <a href="#more">listed below</a>.</p>
+<p>The walkthrough assumes three machines: a small server with a public address for the rendezvous server (<code>sig.example.net</code> below), the host you want to control, and your own workstation. On a LAN you can <a href="#direct">skip the server</a>.</p>
+
+<!--src-->
+<h2 id="build">1. Build</h2>
+<p>There are no published downloads yet. Build with the Go version named in <code>go.mod</code> (1.26):</p>
+<pre><code>git clone {{REPO}}
+cd RemoHop
+make build</code></pre>
+<p>This writes <code>bin/remohop</code>, built with <code>CGO_ENABLED=0</code>. Put it on the <code>PATH</code> of every machine. A plain <code>go build -o remohop ./cmd/remohop</code> works too.</p>
+<!--/src-->
+<!--nosrc-->
+<h2 id="build">1. Get remohop</h2>
+<p>There are no published downloads yet. Once the apps are out, this step will say where to download RemoHop, and the source will be published under the AGPL-3.0 at the same time. Questions in the meantime: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
+<p>The steps below assume the <code>remohop</code> program is on the <code>PATH</code> of every machine.</p>
+<!--/nosrc-->
+
+<h2 id="signal">2. Run a rendezvous server</h2>
+<p>On a machine with a public IP, open UDP ports <code>21116</code> and <code>21117</code>, then run:</p>
+<pre><code>remohop signal</code></pre>
+<p>The server prints its public key on start. Clients can pin it with <code>remohop config set signal-pin KEY</code>. To relay sessions that cannot connect directly, start it with <code>remohop signal --relay</code> instead. For a long-running server, see <a href="{{L:self-hosting}}">Self-hosting</a>.</p>
+
+<h2 id="host">3. Start the host</h2>
+<pre><code>remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> runs in the foreground and prints the ID and the temporary password. To start at boot, install it as a service:</p>
+<pre><code>remohop service install
+remohop status --show-password</code></pre>
+<p>This writes a systemd unit (Linux), a launchd job (macOS) or a Windows service. The service has its own identity, ID and password; it is not the same instance as an <code>remohop host</code> you start by hand. A system-wide service and the Windows service cannot see the desktop session, so use the per-user service when you need screenshots or remote desktop.</p>
+<p>For a fixed password run <code>remohop passwd</code>. It asks without echo and never prints the password again.</p>
+
+<h2 id="connect">4. Connect and pair</h2>
+<pre><code>remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> shows the path to the host. The first connection needs the password, so it prompts.</li>
+<li><code>pair --name dev</code> asks for the password once, then stores a pairing token bound to this machine's identity and saves the alias <code>dev</code>.</li>
+<li>After that, <code>remohop dev ...</code> needs no password. <code>remohop devices</code> lists saved hosts and whether they are online.</li>
+</ul>
+
+<h2 id="use">5. Use it</h2>
+<pre><code>remohop dev shell                       <span class="c"># persistent terminal; press Enter then ~. to detach</span>
+remohop dev cp ./build.tar.gz :/tmp/    <span class="c"># remote paths start with a colon</span>
+remohop dev forward -b 18080:8080       <span class="c"># remote port 8080 on local port 18080</span>
+remohop dev desktop                     <span class="c"># view and control the remote screen in a browser</span>
+remohop web --target dev                <span class="c"># browser client: desktop, terminal, files, clipboard</span></code></pre>
+
+<h2 id="direct">Without a server: LAN or public IP</h2>
+<p>If you can reach the host by address, you need no rendezvous server. On the host:</p>
+<pre><code>remohop host --no-signal --listen :21118</code></pre>
+<p>On the client, use the address in place of the ID. A password is still required:</p>
+<pre><code>remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+
+<h2 id="agents">For AI agents</h2>
+<p>Pair first, then add the MCP server to the agent's host program. With Claude Code:</p>
+<pre><code>claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>For clients that read an <code>mcpServers</code> configuration, such as Cursor:</p>
+<pre><code>{
+  "mcpServers": {
+    "remohop": { "command": "remohop", "args": ["mcp"] }
+  }
+}</code></pre>
+<p>An agent acts on the remote machine with the privileges of the user who runs the host. Pair only the machines you want an agent to reach, switch off features it does not need (for example <code>remohop config feature input off</code>), and revoke the pairing with <code>remohop host revoke</code> when you are done.</p>
+
+<h2 id="more">Full documentation</h2>
+<p>The user guide has one page per topic, the same in English and Chinese; the in-depth references are in English. When something fails, start with <a href="{{E:docs/troubleshooting}}">troubleshooting</a>.</p>
+{{GUIDES}}
+<!--src-->
+<p>Installing the Agent Skills, and the full list of the 28 MCP tools: <a href="{{REPO}}/blob/main/skills/README.md">skills/README.md</a> in the repository.</p>
+<!--/src-->

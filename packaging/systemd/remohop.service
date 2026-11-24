@@ -1,0 +1,24 @@
+# System-wide RemoHop host. Not enabled by the package; to use it:
+#   sudo systemctl enable --now remohop.service
+# Its identity and password live in /var/lib/remohop; address it with
+#   sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop status
+[Unit]
+Description=RemoHop host (remote control)
+Documentation=https://github.com/readori/RemoHop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/remohop host
+Restart=on-failure
+RestartSec=5
+# Shell jobs run in their own sessions and survive a restart of the host.
+KillMode=process
+Environment=REMOHOP_CONFIG_DIR=/var/lib/remohop
+StateDirectory=remohop
+StateDirectoryMode=0700
+Environment=HOME=/root
+
+[Install]
+WantedBy=multi-user.target

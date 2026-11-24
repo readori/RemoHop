@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>平台支持与限制 | RemoHop</title>
+<meta name="description" content="Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测试覆盖，没有人在实体桌面机上逐项验证过。仓库自带的 CI（.github/workflows/ci.yml）只在 Linux 上运行测试（包括 NAT 实验环境），并为 macOS 和 Windows 交叉编译；下表中 macOS…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/platforms/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/platforms/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/platforms/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/platforms/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="平台支持与限制 | RemoHop">
+<meta property="og:description" content="Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测试覆盖，没有人在实体桌面机上逐项验证过。仓库自带的 CI（.github/workflows/ci.yml）只在 Linux 上运行测试（包括 NAT 实验环境），并为 macOS 和 Windows 交叉编译；下表中 macOS…">
+<meta property="og:url" content="https://remohop.com/docs/platforms/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/platforms/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="平台支持与限制">平台支持与限制</h1>
+<h2 id="平台支持">平台支持</h2>
+<p>Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测试覆盖，没有人在实体桌面机上逐项验证过。仓库自带的 CI（<code>.github/workflows/ci.yml</code>）只在 Linux 上运行测试（包括 NAT 实验环境），并为 macOS 和 Windows 交叉编译；下表中 macOS 和 Windows 的结果来自在 GitHub 托管的 macOS 和 Windows 运行器上单独进行的测试。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Linux / macOS / Windows">
+<table>
+<thead><tr><th scope="col"></th><th scope="col">Linux</th><th scope="col">macOS</th><th scope="col">Windows</th></tr></thead>
+<tbody>
+<tr><td>自动化测试（托管运行器）</td><td>全部通过，包括 NAT 实验环境、systemd 服务、真实内核上的 USB/IP、SMTP 账号和 Cloudflare 隧道</td><td>全部通过，包括服务安装、WebDAV 挂载、utun VPN、远程桌面和输入</td><td>全部通过，包括服务安装、WebDAV 挂载（Windows 11）、SendInput、截图、远程桌面、Wintun VPN 和无人值守访问</td></tr>
+<tr><td>shell</td><td>PTY</td><td>PTY</td><td>ConPTY；命令在 PowerShell 中运行</td></tr>
+<tr><td>文件、转发、剪贴板、截图</td><td>支持</td><td>支持</td><td>支持；Windows 客户端上下载不支持续传</td></tr>
+<tr><td>挂载</td><td>FUSE（或配合 davfs2 用 <code>--webdav</code>）</td><td>WebDAV（系统自带）；macFUSE 可选，未测试</td><td>以盘符方式 WebDAV 挂载；已在托管的 Windows 11 运行器上验证</td></tr>
+<tr><td>远程桌面（被控端）</td><td>X11</td><td>AVFoundation 采集，VideoToolbox 或软件 H.264/AV1（已在托管的 macOS 虚拟机上验证）；有“辅助功能”权限时可输入（需要“屏幕录制”权限才能采集）</td><td>ddagrab 采集，无 GPU 时回退到 gdigrab（回退路径已在托管运行器上验证）</td></tr>
+<tr><td>图形界面输入</td><td>X11</td><td>Quartz 事件（CoreGraphics，经 purego 加载，无 cgo）；被控机需要“辅助功能”权限；已在托管的 macOS 虚拟机上验证，未在实体 Mac 上测试</td><td>SendInput；已在托管的 Windows 运行器上验证</td></tr>
+<tr><td>VPN</td><td>支持（TUN）</td><td>客户端（utun）已在托管的 macOS 虚拟机上验证，<code>--exit</code> 未在真实网络上运行；作为被控端不能转发</td><td>控制端（Wintun，需自备 DLL），网卡已在托管运行器上验证；不能作为转发主机</td></tr>
+<tr><td>串口（本机虚拟串口）</td><td>支持</td><td>支持</td><td>只能作为远程一侧</td></tr>
+<tr><td>USB/IP</td><td>支持（已在托管运行器上用真实内核验证）</td><td>不支持</td><td>不支持</td></tr>
+<tr><td>系统服务</td><td>systemd</td><td>launchd</td><td>Windows 服务；只有开启 <code>--unattended</code> 时才能看到控制台、登录界面和锁屏（已在托管运行器上验证）</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="状态与限制">状态与限制</h2>
+<ul>
+<li><strong>NAT 穿透可能失败。</strong> 双方都是对称型 NAT，或一方对称型、另一方端口受限型时无法打洞；没有中继可用时，连接会在大约一秒内失败并给出诊断信息。对于会记录未请求入站包的 NAT，Linux 被控机在 IPv4 上用低 TTL 预热包来应对。</li>
+<li><strong>IPv6 路径和真实的家用路由器未经测试。</strong> NAT 测试使用的是 Linux 网络命名空间。</li>
+<li><strong>远程桌面。</strong> 在一台只有 CPU 的 4 核虚拟机上，于浏览器中测得的端到端延迟：H.264 约 20 ms（720p）和 31 ms（1080p），软件 AV1 分别约 50 ms 和 61 到 227 ms。硬件编码器优先使用。其中 VideoToolbox（macOS）已验证：在 GitHub 托管的 Apple Silicon macOS 虚拟机（单显示器，1024x768，缩放 1）上，被控端会选用它，解码出的画面、指针和点击输入、只读模式以及两个观看者同时观看都在那里检查过，macOS 上的 libx264 和 SVT-AV1 也是如此。Retina 和多显示器的 Mac、macOS 上的锁屏控制以及实体 Mac 没有测试。NVENC、QSV、VAAPI、AMF 和 Media Foundation 未经测试；4K 60 fps 没有测试过。强制或选用软件 AV1 时，SVT-AV1 2.2 到 3.0 的实时预设有一个上游缺陷（屏幕上的小改动要到下一个关键帧才显示），在这些主机上 RemoHop 改用 libaom 并给出说明。在 X11 被控机上，输入屏蔽和隐私黑屏会报告为不支持。不支持原生 Wayland 采集。</li>
+<li><strong>串口</strong>用伪终端和 picocom 验证过，没有真实的 UART 可用。<strong>USB/IP</strong> 已在托管运行器上用真实内核（dummy_hcd 虚拟 U 盘）验证，没有在实体 USB 设备上测试过。</li>
+<li><strong>浏览器客户端</strong>在无头 Chromium 中对接真实的被控端验证过。</li>
+<li><strong>shell 会话</strong>在客户端断开后会保留一段时间。被控端重启后会话不会保留。</li>
+<li><strong>打包与发布。</strong> <code>packaging/</code> 中有 nfpm 配置（.deb、.rpm、.apk）、安装脚本、systemd 单元、launchd 模板、汇合服务器的 Dockerfile，以及 Homebrew、Scoop、winget、AUR 和 Nix 的模板。推送 <code>v*</code> 标签触发的发布工作流还没有运行过，尚无已发布的版本，Windows 二进制也未签名。让被控端开机自启的受支持方式是 <code>remohop service install</code>。</li>
+<li><strong>尚未实现：</strong> 把移动设备（Android 或 iOS）作为被控机。</li>
+<li><strong>未在真实硬件上测试：</strong> 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器、设备上的 iOS 应用（它在 CI 的模拟器中运行）、Android 应用（没有真机测试）。</li>
+<li><strong>账号</strong>由汇合服务器托管，需要运营者开启；服务器可以对设备隐瞒最新的日志条目，见 <a href="/en/docs/security/#accounts">security.md</a>。</li>
+<li><strong>许可证：</strong> AGPL-3.0，另提供商业授权，见<a href="/licensing/">许可证</a>。</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/platforms.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

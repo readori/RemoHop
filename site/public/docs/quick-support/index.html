@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>快速协助 | RemoHop</title>
+<meta name="description" content="用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/quick-support/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/quick-support/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/quick-support/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/quick-support/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="快速协助 | RemoHop">
+<meta property="og:description" content="用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。">
+<meta property="og:url" content="https://remohop.com/docs/quick-support/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/quick-support/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="快速协助">快速协助</h1>
+<p>用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="就绪 / 有人请求连接">
+<table>
+<thead><tr><th scope="col">就绪</th><th scope="col">有人请求连接</th></tr></thead>
+<tbody>
+<tr><td><img src="/assets/docs/quick-ready-zh.png?v=ea16866101" alt="快速协助窗口，显示 ID 和密码" width="480" height="1014" loading="lazy" decoding="async"></td><td><img src="/assets/docs/quick-request-zh.png?v=f21b525658" alt="带有“允许”和“拒绝”的连接请求" width="480" height="1294" loading="lazy" decoding="async"></td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="系统 / 对方打开的文件 / make quick 的产物">
+<table>
+<thead><tr><th scope="col">系统</th><th scope="col">对方打开的文件</th><th scope="col"><code>make quick</code> 的产物</th></tr></thead>
+<tbody>
+<tr><td>Windows 10/11</td><td><code>RemoHop.exe</code></td><td><code>dist/quick/windows-amd64/RemoHop.exe</code>（以及 <code>windows-arm64</code>）</td></tr>
+<tr><td>macOS 12 及以上</td><td><code>RemoHop.app</code></td><td><code>dist/quick/macos/RemoHop.app</code>（通用二进制）</td></tr>
+<tr><td>Linux，或任何终端</td><td><code>remohop quick</code></td><td><code>dist/quick/linux-*/remohop-quick</code></td></tr>
+</tbody>
+</table>
+</div>
+<p><code>RemoHop.exe</code> 和 <code>RemoHop.app</code> 与 <code>remohop</code> 是同一个程序；不带参数启动时运行的就是 <code>remohop quick</code>。</p>
+<p>坐在电脑前的人会看到：</p>
+<ul>
+<li><strong>大字显示的 ID 和临时密码</strong>，带“复制”按钮和“换一个新密码”。密码每次启动都会更换；这台电脑的 ID 保持不变。</li>
+<li><strong>每个连接都要询问。</strong> 只有正确的密码还不够：每次登录都要等对方点“允许”，60 秒内没有答复就会被拒绝。请求里会显示对方自称的名称、设备密钥（对方身份密钥的指纹）和地址。在 Windows 和 macOS 上，同一个问题还会以系统对话框的形式弹到最前面，窗口被挡住时也不会错过；在哪一处回答都可以。</li>
+<li><strong>当前连接的人</strong>，每个都有“断开”按钮；以及<strong>停止共享</strong>，它会结束所有会话并退出。关闭窗口同样会停止共享。</li>
+<li><strong>三个开关</strong>，决定被允许的协助者除了看屏幕之外还能做什么：使用鼠标和键盘（开）、传输文件和使用剪贴板（开）、运行命令和访问网络，即终端、端口转发、VPN、串口、USB（关）。开关立即生效，对已经连接的协助者也一样。</li>
+<li><strong>用平常话说明的连接状态：</strong> 是否已在服务器注册、是否仍在尝试，以及协助者是直接连接还是经由中继。</li>
+</ul>
+<p>窗口语言跟随系统（中文或英文），也可以在窗口右上角切换；切换后的选择下次启动时仍然有效，系统弹出的连接确认对话框也使用同一语言。<code>--lang zh|en</code> 优先于以上两者。</p>
+<p>你作为协助者照常连接：<code>remohop &lt;ID&gt; desktop</code>、浏览器客户端（<code>remohop web</code>）或手机应用，使用对方念给你的密码。</p>
+<p><strong>汇合服务器。</strong> 内置了服务器的构建（<code>-X .../internal/dial.DefaultSignal=HOST:PORT</code>，见<a href="/docs/self-hosting/">自建汇合服务器</a>）无需任何设置。否则窗口会在首次启动时询问服务器地址并保存（与 <code>remohop config set signal</code> 是同一项设置）。要把这个构建参数传给 <code>make quick</code>：<code>EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick</code>。</p>
+<p><strong>无论 <code>remohop config</code> 怎么设置，快速协助的被控端都只允许：</strong> 每次登录都要批准，包括已配对的客户端和已授权的密钥；只接受本次运行的临时密码（忽略固定的 <code>host-password</code>）；不签发新的配对；只开放窗口里勾选的功能。用 <code>remohop config feature</code> 关闭的功能仍然关闭。它和 <code>remohop host</code> 使用同一个身份，所以一台电脑只有一个 ID；如果那里已经有被控端在运行（系统服务，或终端里的 <code>remohop host</code>），窗口会说明这一点，而不是再启动一份。快速协助运行期间再次启动 RemoHop，会把它的窗口重新调出来。</p>
+<p><strong>窗口的工作方式和保护措施。</strong> RemoHop 不使用原生界面库（保持纯 Go、无 cgo），所以窗口是进程自己在 <code>127.0.0.1</code> 上提供的一个页面：在 Windows 上用 Microsoft Edge 的应用窗口打开，在其他系统上用默认浏览器打开（<code>--browser</code> 强制使用默认浏览器，<code>--no-open</code> 只打印地址）。别的机器访问不到它；地址里带有 128 位随机令牌；<code>Host</code> 或 <code>Origin</code> 不对的请求会被拒绝（防 DNS 重绑定和跨站请求）；每个操作都是携带第二个密钥的 JSON 请求。等待批准的客户端还没有会话，因此无法移动那台电脑的鼠标：没有人能批准自己。而已经被允许、并且可以使用鼠标的协助者，可以点击屏幕上的任何东西，包括这个窗口；这正是“允许远程控制”的含义，也是“鼠标和键盘”开关存在的原因。</p>
+<p>需要了解的限制：</p>
+<ul>
+<li><strong>Windows：</strong> <code>RemoHop.exe</code> 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。</li>
+<li><strong>macOS：</strong> 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 &gt; 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。这里构建出的 <code>RemoHop.app</code> 没有签名；签名和公证见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a>。</li>
+<li>页面及其服务器在 Linux 上用真实浏览器测试过。围绕它们的 Windows 和 macOS 部分（Edge 应用窗口、系统对话框、<code>.app</code> 包）能够编译，并做了结构检查，但尚未在这两个系统上实际运行。</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/quick-support.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<h1>Support and contact</h1>
+<p>RemoHop is published by Readori. Write to us, or find us on Telegram:</p>
+<p><a class="btn primary" href="mailto:{{EMAIL}}">{{EMAIL}}</a> <a class="btn" href="{{TELEGRAM}}" rel="noopener">Telegram: @remohop</a></p>
+<p>Write in English or Chinese. Use email for security reports and anything with logs attached. A small team maintains this project, and there is no guaranteed response time.</p>
+
+<h2 id="first">Check these first</h2>
+<ul>
+<li>The <a href="{{E:docs/troubleshooting}}">troubleshooting guide</a> explains errors one by one: cannot connect, password refused, no direct path, mounts, VPN, a black remote desktop, ffmpeg and encoders.</li>
+<li><code>remohop &lt;ID&gt; ping</code> shows whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. Most connection problems show their cause there.</li>
+<li>Put <code>-v</code> before any command (or set <code>REMOHOP_DEBUG=1</code>) to get debug logging on stderr.</li>
+<li><a href="{{L:features}}#status">Status and limits</a> on the Features page lists the platforms and features known to be untested.</li>
+</ul>
+
+<h2 id="report">What to include in a report</h2>
+<ol>
+<li>The output of <code>remohop -v &lt;the failing command&gt;</code> on the client.</li>
+<li>The output of <code>remohop status</code>, <code>remohop log</code> and <code>remohop config</code> on the host.</li>
+<li><!--nosrc-->The output of <!--/nosrc--><code>remohop version</code><!--src-->, or the commit you built from<!--/src-->.</li>
+<li>The operating system and version on both sides. For the mobile apps, the device model and OS version.</li>
+<li>The network on both sides: home broadband, office network, mobile data, any proxy, and whose rendezvous server you use.</li>
+<li>What you expected to happen and what happened.</li>
+</ol>
+<p class="note warn"><strong>Remove secrets before you send.</strong> Do not send us passwords, pairing tokens, the contents of <code>identity.key</code>, the token in a gateway URL, or a Cloudflare Access secret. You may also redact IDs and public IP addresses if you prefer.</p>
+
+<h2 id="security">Security issues</h2>
+<p>If you find a vulnerability, please do <strong>not</strong> disclose it in a public issue or forum. Write to <a href="mailto:{{EMAIL}}?subject=RemoHop%20security">{{EMAIL}}</a> with “security” in the subject. Include the affected version or commit, steps to reproduce, and the impact as you see it. We will reply to confirm receipt and agree a disclosure date with you once there is a fix. The security model is described on the <a href="{{L:security}}">Security</a> page.</p>
+
+<h2 id="other">Other matters</h2>
+<dl>
+<dt>Commercial licensing</dt>
+<dd>Write to <a href="mailto:{{EMAIL}}?subject=RemoHop%20commercial%20license">{{EMAIL}}</a> and describe your use. See <a href="{{L:licensing}}">Licensing</a>.</dd>
+<dt>Privacy and data deletion</dt>
+<dd>See the <a href="{{L:privacy}}">privacy policy</a>. The apps and the software send us no data. To delete an account on a Readori server, run <code>remohop account delete --yes</code> or write to us.</dd>
+<dt>Abuse reports</dt>
+<dd>If someone is abusing a server operated by Readori, send us the time (with time zone) and the IP addresses or IDs involved.</dd>
+<!--src-->
+<dt>Contributing</dt>
+<dd>See <a href="{{REPO}}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a> in the repository. A Contributor License Agreement must be signed before a change can be merged.</dd>
+<!--/src-->
+</dl>

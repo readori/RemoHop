@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same ref supersedes the run still in progress.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: fmt, vet and race tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # The integration tests drive FUSE mounts, an X display, the clipboard
+      # and the AV1 encoder, so they need these tools on the runner.
+      - name: Install integration test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fuse3 xvfb xclip xsel ffmpeg
+
+      # The AV1 tests depend on encoder behaviour that differs between
+      # releases, so record what this runner has.
+      - name: Encoder versions
+        run: |
+          ffmpeg -hide_banner -version | head -1
+          dpkg -l | grep -i -E 'svtav1|libaom|librav1e' | awk '{print $2, $3}'
+          lsb_release -ds
+
+      - name: gofmt
+        run: make fmt-check
+
+      - name: go vet
+        run: make vet
+
+      - name: go test -race
+        run: make race
+
+  # The real binary across two Linux-kernel NATs in network namespaces: a
+  # session only works if hole punching does.
+  natlab:
+    name: NAT traversal end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install lab dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iproute2 iptables fuse3 curl python3
+
+      - name: Run the NAT lab
+        run: sudo env "PATH=$PATH" "HOME=$HOME" test/natlab/natlab.sh all
+
+  cross:
+    name: build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - linux/amd64
+          - linux/arm64
+          - darwin/amd64
+          - darwin/arm64
+          - windows/amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-compile ${{ matrix.target }}
+        run: make cross CROSS_TARGETS="${{ matrix.target }}"

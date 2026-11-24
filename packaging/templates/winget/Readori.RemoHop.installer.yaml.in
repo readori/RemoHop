@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
+PackageIdentifier: @WINGET_PUBLISHER@.RemoHop
+PackageVersion: @VERSION_NOV@
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+- RelativeFilePath: remohop.exe
+  PortableCommandAlias: remohop
+Commands:
+- remohop
+ReleaseDate: @RELEASE_DATE@
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/@REPO@/releases/download/@TAG@/remohop_windows_amd64.zip
+  InstallerSha256: @SHA_WINDOWS_AMD64_UPPER@
+- Architecture: arm64
+  InstallerUrl: https://github.com/@REPO@/releases/download/@TAG@/remohop_windows_arm64.zip
+  InstallerSha256: @SHA_WINDOWS_ARM64_UPPER@
+ManifestType: installer
+ManifestVersion: 1.9.0

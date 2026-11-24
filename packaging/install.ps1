@@ -1,0 +1,141 @@
+<#
+.SYNOPSIS
+  Install the remohop binary from a RemoHop GitHub release (Windows 10/11, amd64 or arm64).
+
+.DESCRIPTION
+  Downloads remohop_windows_<arch>.zip and SHA256SUMS from the release, checks the zip
+  against SHA256SUMS, checks SHA256SUMS' signature when cosign is installed, and copies
+  remohop.exe to -BinDir. No administrator rights needed: the default directory is
+  %LOCALAPPDATA%\Programs\RemoHop, and your USER (not machine) PATH gets that directory
+  unless you pass -NoPath. Nothing else is touched. Release binaries are not code-signed
+  yet, so SmartScreen may warn the first time remohop.exe runs.
+
+  Read it before you run it:
+    Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
+    Get-Content install.ps1 | more
+    powershell -ExecutionPolicy Bypass -File .\install.ps1
+
+.PARAMETER Version   Release tag such as v1.2.3 (default: the latest release).
+.PARAMETER BinDir    Install directory (default: $env:LOCALAPPDATA\Programs\RemoHop).
+.PARAMETER Repo      GitHub repository, OWNER/NAME (default: readori/RemoHop).
+.PARAMETER Verify    auto (default: verify with cosign if installed, else say so),
+                     require (fail without a valid signature) or off.
+.PARAMETER BaseUrl   Directory holding the assets, instead of GitHub (a mirror or a test server).
+.PARAMETER NoPath    Do not add BinDir to the user PATH.
+
+  Trust: the checksum alone only detects a damaged download, since SHA256SUMS comes from
+  the same place as the zip. The signature ties SHA256SUMS to this repository's release
+  workflow (cosign keyless); install cosign and use -Verify require for that guarantee.
+#>
+[CmdletBinding()]
+param(
+  [string]$Version = $env:VERSION,
+  [string]$BinDir = $env:BINDIR,
+  [string]$Repo = $(if ($env:REPO) { $env:REPO } else { 'readori/RemoHop' }),
+  [ValidateSet('auto', 'require', 'off')][string]$Verify = $(if ($env:VERIFY) { $env:VERIFY } else { 'auto' }),
+  [string]$BaseUrl = $env:BASE_URL,
+  [switch]$NoPath
+)
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is much faster without the progress bar
+
+function Fail($msg) { Write-Error "install.ps1: $msg"; exit 1 }
+
+if ($Repo -notmatch '^[\w.-]+/[\w.-]+$') { Fail 'Repo must be OWNER/NAME' }
+if ($PSVersionTable.PSVersion.Major -ge 6 -and -not $IsWindows) { Fail 'this script is for Windows; on Linux and macOS use install.sh' }
+
+# PROCESSOR_ARCHITEW6432 is set when a 32-bit PowerShell runs on a 64-bit system.
+$procArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+switch ($procArch) {
+  'AMD64' { $arch = 'amd64' }
+  'ARM64' { $arch = 'arm64' }
+  default { Fail "unsupported architecture $procArch" }
+}
+$asset = "remohop_windows_$arch.zip"
+
+if ($BaseUrl) {
+  $base = $BaseUrl.TrimEnd('/')
+} elseif ($Version) {
+  if ($Version -match '^\d') { $Version = "v$Version" }
+  if ($Version -notmatch '^v\d') { Fail 'Version must look like v1.2.3' }
+  $base = "https://github.com/$Repo/releases/download/$Version"
+} else {
+  $base = "https://github.com/$Repo/releases/latest/download"
+}
+if (-not $BinDir) { $BinDir = Join-Path $env:LOCALAPPDATA 'Programs\RemoHop' }
+
+# Older Windows PowerShell defaults to TLS 1.0/1.1, which GitHub refuses.
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("remohop-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tmp | Out-Null
+try {
+  Write-Host "Downloading $asset from $base"
+  try { Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile (Join-Path $tmp $asset) }
+  catch { Fail "download failed: $base/$asset ($($_.Exception.Message))" }
+  try { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile (Join-Path $tmp 'SHA256SUMS') }
+  catch { Fail "download failed: $base/SHA256SUMS ($($_.Exception.Message))" }
+
+  # 1. The signature on SHA256SUMS (who made this list).
+  $sigOk = $false
+  if ($Verify -ne 'off') {
+    $cosign = Get-Command cosign -ErrorAction SilentlyContinue
+    if ($cosign) {
+      $bundle = Join-Path $tmp 'SHA256SUMS.sigstore.json'
+      try { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS.sigstore.json" -OutFile $bundle }
+      catch { Fail "download failed: $base/SHA256SUMS.sigstore.json (use -Verify off to skip the signature check)" }
+      $repoRe = [Regex]::Escape($Repo)
+      $identity = "^https://github\.com/$repoRe/\.github/workflows/release\.yml@refs/tags/v.+`$"
+      $out = & $cosign.Source verify-blob --bundle $bundle --certificate-identity-regexp $identity `
+        --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' (Join-Path $tmp 'SHA256SUMS') 2>&1
+      if ($LASTEXITCODE -ne 0) { $out | ForEach-Object { Write-Host $_ }; Fail 'the signature of SHA256SUMS is not valid; nothing was installed' }
+      $sigOk = $true
+      Write-Host "Signature OK (cosign: $Repo release workflow)"
+    } elseif ($Verify -eq 'require') {
+      Fail '-Verify require, but cosign is not installed'
+    } else {
+      Write-Warning 'cosign is not installed: the signature was NOT checked (the checksum below only detects a damaged download).'
+    }
+  }
+
+  # 2. The zip against SHA256SUMS (is this the file that was listed).
+  $want = $null
+  foreach ($line in Get-Content (Join-Path $tmp 'SHA256SUMS')) {
+    $parts = $line -split '\s+', 2
+    if ($parts.Count -eq 2 -and ($parts[1].TrimStart('*') -eq $asset)) { $want = $parts[0].ToLowerInvariant(); break }
+  }
+  if (-not $want) { Fail "$asset is not listed in SHA256SUMS" }
+  $got = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $tmp $asset)).Hash.ToLowerInvariant()
+  if ($got -ne $want) { Fail "checksum mismatch for $asset (expected $want, got $got); nothing was installed" }
+  Write-Host 'Checksum OK'
+
+  Expand-Archive -Path (Join-Path $tmp $asset) -DestinationPath (Join-Path $tmp 'x') -Force
+  $exe = Join-Path $tmp 'x\remohop.exe'
+  if (-not (Test-Path $exe)) { Fail 'the zip has no remohop.exe' }
+
+  New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+  $target = Join-Path $BinDir 'remohop.exe'
+  # A running remohop.exe cannot be overwritten; move it aside (deleted on the next install).
+  if (Test-Path $target) {
+    $old = "$target.old"
+    Remove-Item $old -Force -ErrorAction SilentlyContinue
+    Move-Item $target $old -Force
+  }
+  Copy-Item $exe $target -Force
+  Write-Host "Installed $target"
+  & $target version
+
+  if (-not $NoPath) {
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $entries = @($userPath -split ';' | Where-Object { $_ })
+    if ($entries -notcontains $BinDir) {
+      [Environment]::SetEnvironmentVariable('Path', (($entries + $BinDir) -join ';'), 'User')
+      Write-Host "Added $BinDir to your user PATH. Open a new terminal to use 'remohop'."
+    }
+  }
+  if ($sigOk) { Write-Host 'Verified: checksum and signature.' } else { Write-Host 'Verified: checksum only.' }
+  Write-Host 'Next: remohop host   (or, from an elevated prompt: remohop service install). See README.txt in the zip for the Windows notes.'
+}
+finally {
+  Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+}
