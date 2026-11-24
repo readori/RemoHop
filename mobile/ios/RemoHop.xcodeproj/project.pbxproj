@@ -23,6 +23,10 @@
 		5D0E5D0E000000000000001C /* remohop-mobile.js in Resources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000000D /* remohop-mobile.js */; };
 		5D0E5D0E000000000000003C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000003D /* InfoPlist.strings */; };
 		5D0E5D0E000000000000001D /* Remohopcore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000000E /* Remohopcore.xcframework */; };
+		5D0E5D0E0000000000000041 /* SettingsScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000040 /* SettingsScreens.swift */; };
+		5D0E5D0E0000000000000043 /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000042 /* Diagnostics.swift */; };
+		5D0E5D0E0000000000000045 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000044 /* AppInfo.swift */; };
+		5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000046 /* AppInfoTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +60,10 @@
 		5D0E5D0E000000000000000E /* Remohopcore.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Remohopcore.xcframework; path = build/Remohopcore.xcframework; sourceTree = SOURCE_ROOT; };
 		5D0E5D0E000000000000000F /* RemoHop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RemoHop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5D0E5D0E0000000000000010 /* RemoHopTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemoHopTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5D0E5D0E0000000000000040 /* SettingsScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScreens.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000042 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000044 /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000046 /* AppInfoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfoTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +97,9 @@
 				5D0E5D0E0000000000000007 /* SettingsView.swift */,
 				5D0E5D0E0000000000000008 /* DownloadSaver.swift */,
 				5D0E5D0E000000000000003B /* L10n.swift */,
+				5D0E5D0E0000000000000044 /* AppInfo.swift */,
+				5D0E5D0E0000000000000042 /* Diagnostics.swift */,
+				5D0E5D0E0000000000000040 /* SettingsScreens.swift */,
 				5D0E5D0E0000000000000009 /* Assets.xcassets */,
 				5D0E5D0E000000000000000A /* Info.plist */,
 				5D0E5D0E000000000000003D /* InfoPlist.strings */,
@@ -102,6 +113,7 @@
 				5D0E5D0E000000000000000B /* GatewayURLsTests.swift */,
 				5D0E5D0E000000000000000C /* BridgeTests.swift */,
 				5D0E5D0E0000000000000038 /* GatewayE2ETests.swift */,
+				5D0E5D0E0000000000000046 /* AppInfoTests.swift */,
 			);
 			path = RemoHopTests;
 			sourceTree = "<group>";
@@ -253,6 +265,9 @@
 				5D0E5D0E0000000000000017 /* SettingsView.swift in Sources */,
 				5D0E5D0E0000000000000018 /* DownloadSaver.swift in Sources */,
 				5D0E5D0E000000000000003A /* L10n.swift in Sources */,
+				5D0E5D0E0000000000000045 /* AppInfo.swift in Sources */,
+				5D0E5D0E0000000000000043 /* Diagnostics.swift in Sources */,
+				5D0E5D0E0000000000000041 /* SettingsScreens.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -263,6 +278,7 @@
 				5D0E5D0E0000000000000019 /* GatewayURLsTests.swift in Sources */,
 				5D0E5D0E000000000000001A /* BridgeTests.swift in Sources */,
 				5D0E5D0E0000000000000039 /* GatewayE2ETests.swift in Sources */,
+				5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

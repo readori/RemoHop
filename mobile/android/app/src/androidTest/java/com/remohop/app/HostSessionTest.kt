@@ -370,7 +370,27 @@ class HostSessionTest {
         waitFor(s, settled, "the desktop tab settles (picture or an error message)", 30, "document.getElementById('d-msg').textContent")
         val outcome = if (ok(s, "!!(window.remohopMobile&&remohopMobile._desk&&remohopMobile._desk.hello)")) "desktop streaming" else text(s, "document.getElementById('d-msg').textContent").take(120)
         assertTrue("the page still fits the screen width", ok(s, "document.documentElement.scrollWidth<=innerWidth+1"))
+        fullscreen(s)
         return outcome
+    }
+
+    /** Full screen on the desktop tab can always be left: by the floating button, and by the system back key. */
+    private fun fullscreen(s: ActivityScenario<MainActivity>) {
+        val isFs = "!!(window.remohopMobile&&remohopMobile._fullscreen())"
+        val restored = "!remohopMobile._fullscreen()&&document.getElementById('d-stage').style.position===''&&!document.getElementById('workspace').hidden"
+        click(s, "d-fs")
+        waitFor(s, isFs, "the toolbar button enters full screen", 10)
+        assertTrue(
+            "full screen shows the floating exit button",
+            ok(s, "(function(){var b=document.getElementById('d-exitfs');return !!b&&getComputedStyle(b).display!=='none'&&b.getBoundingClientRect().width>=40})()")
+        )
+        click(s, "d-exitfs")
+        waitFor(s, restored, "the floating button leaves full screen and restores the layout", 10)
+        click(s, "d-fs")
+        waitFor(s, isFs, "full screen again", 10)
+        inst.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        waitFor(s, restored, "the back key leaves full screen (and the app stays in front)", 10)
+        assertTrue("the app is still in front after back left full screen", hasFocus(s))
     }
 
     private fun sessionUsable(s: ActivityScenario<MainActivity>, cfg: Config, a: Int, b: Int, label: String) {

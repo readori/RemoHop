@@ -27,6 +27,8 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     @Published var fullscreen = false
     @Published var showSettings = false
+    /// The Settings page to open on (the page asked for one), or nil.
+    @Published var settingsPage: SettingsPage?
 
     init() {
         ensureGateway()

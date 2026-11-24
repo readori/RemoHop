@@ -13,9 +13,10 @@ struct ContentView: View {
             if let url = model.gatewayURL {
                 GatewayWebView(url: url, loadID: model.loadID, lang: lang, model: model)
                     // The web view handles the keyboard itself (the page
-                    // follows the visual viewport); full screen also covers
-                    // the status bar and home indicator areas.
-                    .ignoresSafeArea(model.fullscreen ? .all : .keyboard)
+                    // follows the visual viewport) and draws under the status
+                    // bar and home indicator, padding with the safe-area
+                    // insets (viewport-fit=cover in app mode).
+                    .ignoresSafeArea()
             } else if let error = model.error {
                 VStack(spacing: 16) {
                     Text(L("RemoHop could not start: %@", error)).multilineTextAlignment(.center)
@@ -30,7 +31,7 @@ struct ContentView: View {
         .statusBarHidden(model.fullscreen)
         .persistentSystemOverlays(model.fullscreen ? .hidden : .automatic)
         .sheet(isPresented: $model.showSettings) {
-            SettingsView()
+            SettingsView(initialPage: model.settingsPage)
         }
     }
 }

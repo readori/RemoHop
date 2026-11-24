@@ -12,6 +12,10 @@ interface BridgeHost {
     fun keyboard(show: Boolean)
     fun haptic()
     fun openSettings()
+    /** Opens Settings on one of its pages ("privacy", "about", ...). */
+    fun openSettings(page: String) = openSettings()
+    /** Something the page reported for the diagnostic log (kept only while the user has it on). */
+    fun diagLog(text: String) {}
 }
 
 /**
@@ -50,7 +54,12 @@ class Bridge(private val host: BridgeHost, private val origin: String) {
                 "state" -> { host.setState(args.optBoolean("keepScreenOn"), args.optBoolean("fullscreen")); null }
                 "keyboard" -> { host.keyboard(args.optBoolean("show")); null }
                 "haptic" -> { host.haptic(); null }
-                "openSettings" -> { host.openSettings(); null }
+                "openSettings" -> {
+                    val page = args.optString("page")
+                    if (page in SETTINGS_PAGES) host.openSettings(page) else host.openSettings()
+                    null
+                }
+                "log" -> { host.diagLog(args.optString("text").take(MAX_LOG)); null }
                 "ready" -> null
                 else -> "unknown method"
             }
@@ -66,6 +75,12 @@ class Bridge(private val host: BridgeHost, private val origin: String) {
     companion object {
         /** Clipboard text larger than this is refused (the remote side caps it too). */
         const val MAX_CLIP = 1 shl 20
+
+        /** A page's diagnostic message is cut to this many characters. */
+        const val MAX_LOG = 2000
+
+        /** Settings pages the page may open directly. */
+        val SETTINGS_PAGES = setOf("privacy", "about", "diagnostics", "rendezvous")
 
         /** The page's answer to remohopMobile.back(), as evaluateJavascript returns it. */
         fun backHandled(jsResult: String?): Boolean = jsResult == "\"handled\""

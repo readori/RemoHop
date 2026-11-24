@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rh_bg">#0f1524</color>
+    <color name="rh_surface">#172034</color>
+    <color name="rh_text">#e5eafa</color>
+    <color name="rh_muted">#aebad5</color>
+    <color name="rh_accent">#a9b9ff</color>
+    <color name="rh_divider">#33405a</color>
+    <color name="rh_err">#ffa9b6</color>
+    <color name="rh_ok">#abf0cb</color>
+    <color name="rh_bar_top">#172034</color>
+</resources>

@@ -42,6 +42,19 @@
             android:exported="false"
             android:label="@string/settings"
             android:parentActivityName=".MainActivity"
-            android:theme="@style/Theme.RemoHop.Settings" />
+            android:theme="@style/Theme.RemoHop.Settings"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- Hands the diagnostic report the user chose to share to the mail or
+             share target (res/xml/file_paths.xml: that file only). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

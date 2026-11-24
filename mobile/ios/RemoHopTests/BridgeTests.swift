@@ -13,6 +13,8 @@ final class BridgeTests: XCTestCase {
         func keyboard(show: Bool) { calls.append("keyboard:\(show)") }
         func haptic() { calls.append("haptic") }
         func openSettings() { calls.append("settings") }
+        func openSettings(page: String) { calls.append("settings:\(page)") }
+        func diagLog(_ text: String) { calls.append("log:\(text.count):\(text.prefix(12))") }
     }
 
     func testClipboardRoundTrip() throws {
@@ -51,6 +53,19 @@ final class BridgeTests: XCTestCase {
         _ = b.handle(body: ["method": "haptic"], sourceOrigin: origin, isMainFrame: true)
         _ = b.handle(body: ["method": "openSettings"], sourceOrigin: origin, isMainFrame: true)
         XCTAssertEqual(h.calls, ["state:true,false", "keyboard:true", "haptic", "settings"])
+    }
+
+    func testSettingsPagesAndDiagnosticLog() {
+        let h = FakeHost(), b = Bridge(host: h, origin: origin)
+        _ = b.handle(body: ["method": "openSettings", "args": ["page": "privacy"]], sourceOrigin: origin, isMainFrame: true)
+        _ = b.handle(body: ["method": "openSettings", "args": ["page": "../../evil"]], sourceOrigin: origin, isMainFrame: true)
+        _ = b.handle(body: ["method": "log", "args": ["text": "page error: x"]], sourceOrigin: origin, isMainFrame: true)
+        let r = b.handle(body: ["method": "log", "args": ["text": String(repeating: "y", count: 5000)]], sourceOrigin: origin, isMainFrame: true)
+        XCTAssertNotNil(try? r?.get())
+        XCTAssertEqual(h.calls, ["settings:privacy", "settings", "log:13:page error: ", "log:\(Bridge.maxLog):yyyyyyyyyyyy"])
+        XCTAssertEqual(SettingsPage(bridge: "about"), .about)
+        XCTAssertNil(SettingsPage(bridge: "pair"))
+        XCTAssertNil(SettingsPage(bridge: nil))
     }
 
     func testBadInput() {

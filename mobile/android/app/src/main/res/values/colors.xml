@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The cobalt design system of the website and the web console (style.css). -->
+<resources>
+    <color name="rh_bg">#f6f7fb</color>
+    <color name="rh_surface">#ffffff</color>
+    <color name="rh_text">#141c30</color>
+    <color name="rh_muted">#566178</color>
+    <color name="rh_accent">#2546d8</color>
+    <color name="rh_divider">#dce1ec</color>
+    <color name="rh_err">#a72336</color>
+    <color name="rh_ok">#07664d</color>
+    <!-- The page's top bar and background, behind the system bars. -->
+    <color name="rh_bar_top">#ffffff</color>
+</resources>

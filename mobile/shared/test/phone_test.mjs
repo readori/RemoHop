@@ -291,6 +291,22 @@ async function harnessTests(b) {
   check(st.length && st[st.length - 1].fullscreen === true && st[st.length - 1].keepScreenOn === true, 'full screen asks the app to hide the system bars', st);
   const fsRect = await p.eval('(() => { const r = document.getElementById("d-stage").getBoundingClientRect(); return {w: r.width, top: r.top}; })()');
   check(fsRect.w === 390 && fsRect.top === 0, 'full screen stage fills the width', fsRect);
+  // The floating exit button: visible on top of the picture, and a tap leaves full screen.
+  const exitHit = await p.eval(`(() => { const b = document.getElementById('d-exitfs'); if (!b || getComputedStyle(b).display === 'none') return 'hidden';
+    const r = b.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top === b || b.contains(top) ? 'on top' : 'covered by ' + (top && (top.id || top.tagName)); })()`);
+  check(exitHit === 'on top', 'full screen shows a floating exit button on top', exitHit);
+  const eb = await p.eval('(() => { const r = document.getElementById("d-exitfs").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()');
+  await p.touch('touchStart', [eb]); await p.touch('touchEnd', []);
+  await sleep(80);
+  st = await states();
+  check(st[st.length - 1].fullscreen === false && await p.eval('document.getElementById("d-stage").style.position') === '' &&
+    await p.eval('getComputedStyle(document.getElementById("d-exitfs")).display') === 'none', 'the exit button leaves full screen and restores the layout', st);
+  await p.eval('window.__native.length = 0; [...document.querySelectorAll("#sdm-bar button")].find(b => b.getAttribute("aria-label") === "Full screen").click()');
+  await sleep(50);
+  st = await states();
+  check(st.length && st[st.length - 1].fullscreen === true, 'the key bar\'s full screen button is near its start and enters full screen', st);
+  check(await p.eval('[...document.querySelectorAll("#sdm-bar button")].findIndex(b => b.getAttribute("aria-label") === "Full screen")') <= 2, 'full screen key is among the first in the bar');
   check(await p.eval('remohopMobile.back()') === 'handled', 'back leaves full screen');
   st = await states();
   check(st[st.length - 1].fullscreen === false, 'leaving full screen restores the bars', st);
@@ -391,6 +407,20 @@ async function gatewayTests(b) {
   await sleep(1500);
   check(await p.eval('document.documentElement.scrollWidth <= innerWidth'), 'desktop tab fits the phone width');
   await p.shot('gateway-desktop');
+  // Full screen on the real page: the toolbar button enters it, the page's
+  // floating exit button is on top and leaves it, the layout comes back.
+  const stageBefore = await p.eval('JSON.stringify(document.getElementById("d-stage").getBoundingClientRect())');
+  await p.eval('document.getElementById("d-fs").click()');
+  await sleep(100);
+  check(await p.eval('remohopMobile._fullscreen() && document.getElementById("d-stage").getBoundingClientRect().top === 0'), 'gateway page: full screen covers the screen');
+  const gExit = await p.eval(`(() => { const b = document.getElementById('d-exitfs'); const r = b.getBoundingClientRect();
+    if (getComputedStyle(b).display === 'none' || r.width < 40) return null; const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return t === b ? [r.left + r.width / 2, r.top + r.height / 2] : null; })()`);
+  check(!!gExit, 'gateway page: the exit button shows on top of the picture');
+  if (gExit) { await p.touch('touchStart', [gExit]); await p.touch('touchEnd', []); }
+  await sleep(300);
+  check(await p.eval('!remohopMobile._fullscreen()') && await p.eval('JSON.stringify(document.getElementById("d-stage").getBoundingClientRect())') === stageBefore,
+    'gateway page: the exit button leaves full screen and restores the layout');
   // The app's language setting reaches the running page without a reload.
   check(await p.eval('document.getElementById("langsw").hidden'), 'the page\'s own language switch is hidden in the app');
   check(await p.eval('remohopMobile.setLang("zh")') === 'zh', 'remohopMobile.setLang switches to Chinese');

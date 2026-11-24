@@ -10,6 +10,15 @@ protocol BridgeHost: AnyObject {
     func keyboard(show: Bool)
     func haptic()
     func openSettings()
+    /// Opens Settings on one of its pages ("privacy", "about", ...).
+    func openSettings(page: String)
+    /// Something the page reported for the diagnostic log (kept only while the user has it on).
+    func diagLog(_ text: String)
+}
+
+extension BridgeHost {
+    func openSettings(page: String) { openSettings() }
+    func diagLog(_ text: String) {}
 }
 
 struct BridgeError: Error, Equatable {
@@ -24,6 +33,10 @@ struct BridgeError: Error, Equatable {
 final class Bridge {
     /// Clipboard text larger than this is refused.
     static let maxClip = 1 << 20
+    /// A page's diagnostic message is cut to this many characters.
+    static let maxLog = 2000
+    /// Settings pages the page may open directly.
+    static let settingsPages: Set<String> = ["privacy", "about", "diagnostics", "rendezvous"]
 
     let origin: String
     private weak var host: BridgeHost?
@@ -59,7 +72,9 @@ final class Bridge {
         case "haptic":
             host.haptic()
         case "openSettings":
-            host.openSettings()
+            if let page = args["page"] as? String, Self.settingsPages.contains(page) { host.openSettings(page: page) } else { host.openSettings() }
+        case "log":
+            host.diagLog(String((args["text"] as? String ?? "").prefix(Self.maxLog)))
         case "ready":
             break
         default:

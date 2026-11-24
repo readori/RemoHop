@@ -604,6 +604,8 @@
       return b;
     };
     kbdBtn = mk('\u2328', ['m.kbd'], toggleKeyboard);
+    // Full screen next to the keyboard: the far end of the bar is off screen.
+    mk('⛶', ['m.fs'], () => setFullscreen(!fullscreen), 'fs');
     mk('Esc', 'Escape', () => press('Escape'));
     mk('Tab', 'Tab', () => press('Tab'));
     for (const [label, code] of [['Ctrl', 'ControlLeft'], ['Alt', 'AltLeft'], ['Shift', 'ShiftLeft'], ['Win', 'MetaLeft']]) {
@@ -624,7 +626,6 @@
     mk({k: 'm.paste'}, ['m.paste.aria'], pasteToRemote);
     mk({k: 'm.copy'}, ['m.copy.aria'], copyFromRemote);
     mk('1:1', ['m.zoom'], resetZoom);
-    mk('⛶', ['m.fs'], () => setFullscreen(!fullscreen), 'fs');
     document.body.appendChild(bar);
   }
 
@@ -701,14 +702,66 @@
   // ---- full screen: the app hides the system bars; the stage fills the
   // screen above the key bar. (Element full screen is unreliable in
   // WebViews.) ----
+  let exitBtn = null, exitDragged = false, dimTimer = 0;
   function setupFullscreen() {
     // On window in the capture phase, so it runs before desktop.js's own
-    // handler on the button.
+    // handlers on the buttons.
     window.addEventListener('click', e => {
-      if (!e.target || !e.target.closest || !e.target.closest('#d-fs')) return;
+      const t = e.target && e.target.closest && e.target.closest('#d-fs, #d-exitfs');
+      if (!t) return;
       e.stopImmediatePropagation(); e.preventDefault();
-      setFullscreen(!fullscreen);
+      if (t.id === 'd-exitfs') {
+        if (exitDragged) { exitDragged = false; return; }
+        setFullscreen(false);
+      } else setFullscreen(!fullscreen);
     }, true);
+    // The floating exit button: the page's #d-exitfs (or one of our own on
+    // an older page). Always on top of the picture, dimmed after a moment,
+    // and draggable out of the way.
+    exitBtn = $('d-exitfs');
+    if (!exitBtn) {
+      exitBtn = document.createElement('button');
+      exitBtn.type = 'button'; exitBtn.id = 'd-exitfs'; exitBtn.textContent = '✕';
+      stage.appendChild(exitBtn);
+    }
+    i18n().sayAttr(exitBtn, 'aria-label', 'm.exitfs');
+    css(exitBtn, {position: 'absolute', zIndex: '5', width: '44px', height: '44px', minHeight: '44px', padding: '0', border: '0',
+      borderRadius: '22px', background: 'rgba(16,20,32,.6)', color: '#fff', display: 'none', alignItems: 'center',
+      justifyContent: 'center', touchAction: 'none', transition: 'opacity .3s', top: 'calc(env(safe-area-inset-top, 0px) + 10px)',
+      right: 'calc(env(safe-area-inset-right, 0px) + 10px)', left: 'auto'});
+    let drag = null;
+    exitBtn.addEventListener('pointerdown', e => {
+      wake();
+      const r = exitBtn.getBoundingClientRect();
+      drag = {id: e.pointerId, x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false};
+      try { exitBtn.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+    });
+    exitBtn.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < SLOP) return;
+      drag.moved = true;
+      const sr = stage.getBoundingClientRect(), w = exitBtn.offsetWidth, h = exitBtn.offsetHeight;
+      const x = Math.min(Math.max(e.clientX - drag.dx - sr.left, 4), sr.width - w - 4);
+      const y = Math.min(Math.max(e.clientY - drag.dy - sr.top, 4), sr.height - h - 4);
+      css(exitBtn, {left: x + 'px', top: y + 'px', right: 'auto'});
+    });
+    const end = e => { if (drag && e.pointerId === drag.id) { exitDragged = drag.moved; drag = null; wake(); } };
+    exitBtn.addEventListener('pointerup', end);
+    exitBtn.addEventListener('pointercancel', end);
+  }
+  function wake() {
+    if (!exitBtn) return;
+    exitBtn.style.opacity = '1';
+    clearTimeout(dimTimer);
+    dimTimer = setTimeout(() => { if (exitBtn) exitBtn.style.opacity = '.4'; }, 3000);
+  }
+  function showExit(on) {
+    if (!exitBtn) return;
+    exitBtn.style.display = on ? 'flex' : 'none';
+    if (on) {
+      css(exitBtn, {top: 'calc(env(safe-area-inset-top, 0px) + 10px)', right: 'calc(env(safe-area-inset-right, 0px) + 10px)', left: 'auto'});
+      wake();
+    }
   }
   function sizeFullscreen() {
     const h = window.innerHeight - (bar && !bar.hidden ? bar.offsetHeight : 0);
@@ -720,6 +773,7 @@
     fullscreen = on;
     if (on) sizeFullscreen();
     else for (const p of ['position', 'left', 'top', 'width', 'height', 'zIndex', 'borderRadius', 'alignItems', 'overflow']) stage.style[p] = '';
+    showExit(on);
     resetZoom();
     const b = $('d-fs');
     if (b) i18n().say(b, on ? 'm.exitfs' : 'm.fs.btn');
@@ -1027,6 +1081,7 @@
     _zoom: zoom,
     _sendText: sendText,
     _setFullscreen: on => setFullscreen(on),
+    _fullscreen: () => fullscreen,
     _toggleKeyboard: () => toggleKeyboard(),
   };
 })();

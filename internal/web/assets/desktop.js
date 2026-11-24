@@ -221,15 +221,37 @@
     for (const c of ['Delete', 'AltLeft', 'ControlLeft']) send({type: 'key', code: c, down: false});
     canvas.focus();
   });
+  // Full screen: the Fullscreen API where the browser has it for any
+  // element; otherwise (iPhone Safari) the stage covers the window. Either
+  // way the stage shows a floating exit button (#d-exitfs), so a touch
+  // screen without an Esc key can always get out.
+  const pseudoOn = () => $('d-stage').classList.contains('pseudo-fs');
+  function pseudoFs(on) {
+    $('d-stage').classList.toggle('pseudo-fs', on);
+    document.documentElement.classList.toggle('pseudo-fs', on);
+    SD.say($('d-fs'), on ? 'd.exitfs' : 'd.fs');
+    layout();
+  }
+  function exitFs() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (pseudoOn()) pseudoFs(false);
+  }
   $('d-fs').addEventListener('click', async () => {
-    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
-    await $('d-stage').requestFullscreen();
+    if (document.fullscreenElement || pseudoOn()) { exitFs(); return; }
+    const st = $('d-stage');
+    try {
+      if (!st.requestFullscreen) throw new Error('no element full screen');
+      await st.requestFullscreen();
+    } catch (e) { pseudoFs(true); canvas.focus({preventScroll: true}); return; }
     if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {});
     canvas.focus();
   });
+  $('d-exitfs').addEventListener('click', exitFs);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && pseudoOn() && document.activeElement !== canvas) pseudoFs(false); });
+  document.addEventListener('fullscreenchange', () => SD.say($('d-fs'), document.fullscreenElement ? 'd.exitfs' : 'd.fs'));
 
   SD.tabs.desktop = {
     show(c) { conn = c; $('d-viewonly').checked = viewOnly; layout(); open(); },
-    hide() { gen++; close(true); hello = null; },
+    hide() { gen++; close(true); hello = null; if (pseudoOn()) pseudoFs(false); },
   };
 })();

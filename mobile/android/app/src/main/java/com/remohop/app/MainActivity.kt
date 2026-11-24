@@ -75,6 +75,7 @@ class MainActivity : Activity(), BridgeHost {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this)
         setContentView(root)
+        applyBarColors()
         // Edge to edge (enforced from Android 15): pad for the system bars,
         // and for the keyboard so the page resizes above it.
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
@@ -82,6 +83,7 @@ class MainActivity : Activity(), BridgeHost {
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             if (fullscreen) v.setPadding(0, 0, 0, ime.bottom)
             else v.setPadding(bars.left, bars.top, bars.right, max(bars.bottom, ime.bottom))
+            barsBackground?.top = if (fullscreen) 0 else bars.top
             WindowInsetsCompat.CONSUMED
         }
         newWebView()
@@ -119,8 +121,25 @@ class MainActivity : Activity(), BridgeHost {
         web.evaluateJavascript("window.remohopMobile&&remohopMobile.setLang(${JSONObject.quote(lang)})", null)
     }
 
+    private var barsBackground: BarsBackground? = null
+
+    /**
+     * The status bar area shows the page's top bar colour and the rest the
+     * page colour, with status bar icons that read on it, in light and dark.
+     */
+    private fun applyBarColors() {
+        val top = barsBackground?.top ?: 0
+        barsBackground = BarsBackground(getColor(R.color.rh_bar_top), getColor(R.color.rh_bg)).also { it.top = top; root.background = it }
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, root).apply {
+            isAppearanceLightStatusBars = !night
+            isAppearanceLightNavigationBars = !night
+        }
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        applyBarColors()
         syncLang()
     }
 
@@ -148,6 +167,11 @@ class MainActivity : Activity(), BridgeHost {
             safeBrowsingEnabled = false // would send URLs to Google; the page is local
             mediaPlaybackRequiresUserGesture = true
             textZoom = 100
+            // No page zoom: the page is laid out for the phone, and the
+            // remote desktop zooms itself (pinch in remohop-mobile.js).
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
         }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -162,6 +186,7 @@ class MainActivity : Activity(), BridgeHost {
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                Diag.log("web renderer gone (crashed: ${detail.didCrash()})")
                 // The renderer died (or was killed for memory): start over
                 // with a fresh WebView on the same gateway.
                 view.destroy()
@@ -185,8 +210,12 @@ class MainActivity : Activity(), BridgeHost {
                 }
             }
 
-            // Console messages name their source URL, which carries the token.
-            override fun onConsoleMessage(message: ConsoleMessage): Boolean = true
+            // Console messages name their source URL, which carries the token:
+            // only an error's text goes to the diagnostic log (the core redacts it).
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) Diag.logPage("console: " + message.message())
+                return true
+            }
             override fun onPermissionRequest(request: PermissionRequest) = request.deny()
             override fun onGeolocationPermissionsShowPrompt(o: String?, cb: GeolocationPermissions.Callback) = cb.invoke(o, false, false)
         }
@@ -315,6 +344,11 @@ class MainActivity : Activity(), BridgeHost {
     }
 
     override fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
+
+    override fun openSettings(page: String) =
+        startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, page))
+
+    override fun diagLog(text: String) = Diag.logPage(text)
 
     companion object {
         private const val REQ_FILES = 1

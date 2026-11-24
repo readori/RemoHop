@@ -1,0 +1,91 @@
+package com.remohop.app
+
+import org.json.JSONObject
+
+/**
+ * Facts about the app for the About, Privacy and Diagnostics screens:
+ * links (per language), the app's part of a diagnostic report, sizes.
+ * Plain JVM code, unit tested without a device.
+ */
+object AppInfo {
+    const val SUPPORT_EMAIL = "admin@remohop.com"
+    const val TELEGRAM = "https://t.me/remohop"
+    const val WEBSITE = "https://remohop.com"
+    const val SOURCE_CODE = "https://github.com/readori/RemoHop"
+    const val LICENSING = "https://github.com/readori/RemoHop/blob/main/LICENSING.md"
+    const val THIRD_PARTY = "https://github.com/readori/RemoHop/blob/main/packaging/third_party_licenses.sh"
+
+    /** The privacy policy in the app's language ("zh" or "en"). */
+    fun privacyPolicy(lang: String) = if (lang == Lang.ZH) "https://remohop.com/privacy/" else "https://remohop.com/en/privacy/"
+
+    /** The terms of use in the app's language. */
+    fun terms(lang: String) = if (lang == Lang.ZH) "https://remohop.com/terms/" else "https://remohop.com/en/terms/"
+
+    /**
+     * The app's part of a diagnostic report, as the JSON object the core's
+     * diagnosticsExport takes. No secrets: versions, OS, model, language.
+     */
+    fun reportInfo(version: String, build: Int, release: String, sdk: Int, device: String, language: String): String =
+        JSONObject()
+            .put("app_version", version)
+            .put("build", build.toString())
+            .put("platform", "Android")
+            .put("os", "$release (API $sdk)")
+            .put("device", device)
+            .put("language", language)
+            .toString()
+
+    /** A human size: "0 KB", "12 KB", "1.4 MB". */
+    fun size(bytes: Long): String =
+        if (bytes < 1024 * 1024) "${(bytes + 1023) / 1024} KB" else String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1024.0 / 1024.0)
+
+    /** The first two groups of a fingerprint, for a row's value. */
+    fun shortFingerprint(fp: String): String {
+        val parts = fp.split(':')
+        return if (parts.size > 2) parts.take(2).joinToString(":") + "…" else fp
+    }
+
+    /** The project's NOTICE (kept with the app as its attribution). */
+    const val NOTICE = """RemoHop
+Copyright (C) 2026 Readori
+https://github.com/readori/RemoHop
+
+This product is RemoHop, or is based on RemoHop, a peer-to-peer remote control project by Readori, licensed under the GNU Affero General Public License, version 3 (AGPL-3.0-only), with the additional terms in LICENSING.md ("Additional terms under section 7").
+
+本产品是 RemoHop 或基于 RemoHop 开发。RemoHop 是 Readori 的点对点远程控制开源项目，按 GNU Affero 通用公共许可证第 3 版（AGPL-3.0-only）授权，并附有 LICENSING.md 中“依据第 7 条的附加条款”。
+
+Works based on RemoHop must keep this notice. See LICENSING.md.
+基于 RemoHop 的作品必须保留本声明，详见 LICENSING.md。"""
+}
+
+/**
+ * What a rendezvous server check found. The core's check (from the
+ * connect-fix branch) reports one of these codes; [RendezvousCheck.run] is
+ * the one place that calls it.
+ */
+enum class RendezvousStatus {
+    OK, WRONG_PROTOCOL, UNREACHABLE, KEY_MISMATCH, FAILED;
+
+    companion object {
+        fun of(code: String): RendezvousStatus = when (code) {
+            "ok" -> OK
+            "wrong_protocol", "signal_wrong_protocol", "signal_is_host", "is_host" -> WRONG_PROTOCOL
+            "unreachable", "rendezvous_unreachable", "timeout" -> UNREACHABLE
+            "key_mismatch", "pin_mismatch" -> KEY_MISMATCH
+            else -> FAILED
+        }
+    }
+}
+
+/**
+ * The core's rendezvous server check. It comes from the connect-fix
+ * branch; until it is merged [AVAILABLE] is false and Settings hides the
+ * Test row. Wiring it is this one place, e.g.
+ * `RendezvousStatus.of(JSONObject(Remohopcore.checkRendezvous(server, key)).optString("status"))`.
+ */
+object RendezvousCheck {
+    const val AVAILABLE = false
+
+    @Suppress("UNUSED_PARAMETER")
+    fun run(server: String, key: String): RendezvousStatus? = null
+}

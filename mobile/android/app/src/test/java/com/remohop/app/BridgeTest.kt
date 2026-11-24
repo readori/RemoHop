@@ -20,6 +20,8 @@ class BridgeTest {
         override fun keyboard(show: Boolean) { calls += "keyboard:$show" }
         override fun haptic() { calls += "haptic" }
         override fun openSettings() { calls += "settings" }
+        override fun openSettings(page: String) { calls += "settings:$page" }
+        override fun diagLog(text: String) { calls += "log:${text.length}:${text.take(12)}" }
     }
 
     private fun call(host: FakeHost, msg: String, src: String? = origin, main: Boolean = true): JSONObject? {
@@ -62,6 +64,16 @@ class BridgeTest {
         call(h, """{"id":6,"method":"haptic"}""")
         call(h, """{"id":9,"method":"openSettings"}""")
         assertEquals(listOf("state:true,false", "keyboard:true", "haptic", "settings"), h.calls)
+    }
+
+    @Test fun settingsPagesAndDiagnosticLog() {
+        val h = FakeHost()
+        call(h, """{"id":1,"method":"openSettings","args":{"page":"privacy"}}""")
+        call(h, """{"id":2,"method":"openSettings","args":{"page":"../../evil"}}""")
+        call(h, """{"id":3,"method":"log","args":{"text":"page error: x"}}""")
+        val long = call(h, JSONObject().put("id", 4).put("method", "log").put("args", JSONObject().put("text", "y".repeat(5000))).toString())!!
+        assertTrue(long.has("result"))
+        assertEquals(listOf("settings:privacy", "settings", "log:13:page error: ", "log:${Bridge.MAX_LOG}:yyyyyyyyyyyy"), h.calls)
     }
 
     @Test fun badInput() {
