@@ -55,6 +55,7 @@ make_zip() { # out.zip dir files...
 
 stage_common() { # dir
 	cp LICENSE "$1/LICENSE"
+	cp NOTICE "$1/NOTICE"
 	cp "$LICENSES" "$1/THIRD_PARTY_LICENSES.txt"
 	find "$1" -exec touch -d "@$SOURCE_DATE_EPOCH" {} +
 }
@@ -89,7 +90,7 @@ step_package() {
 		stage="$(mktemp -d)"
 		cp "dist/remohop-linux-$a" "$stage/remohop"; chmod 755 "$stage/remohop"
 		stage_common "$stage"
-		make_tar "$OUT/remohop_linux_$a.tar.gz" "$stage" remohop LICENSE THIRD_PARTY_LICENSES.txt
+		make_tar "$OUT/remohop_linux_$a.tar.gz" "$stage" remohop LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 		rm -rf "$stage"
 	done
 	for a in $WINDOWS_ARCHES; do
@@ -98,7 +99,7 @@ step_package() {
 		cp "dist/remohop-windows-$a.exe" "$stage/remohop.exe"
 		cp packaging/windows/README.txt "$stage/README.txt"
 		stage_common "$stage"
-		make_zip "$OUT/remohop_windows_$a.zip" "$stage" remohop.exe README.txt LICENSE THIRD_PARTY_LICENSES.txt
+		make_zip "$OUT/remohop_windows_$a.zip" "$stage" remohop.exe README.txt LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 		rm -rf "$stage"
 	done
 
@@ -130,7 +131,7 @@ step_darwin() {
 	local stage; stage="$(mktemp -d)"
 	cp "$bin" "$stage/remohop"; chmod 755 "$stage/remohop"
 	stage_common "$stage"
-	make_tar "$OUT/remohop_darwin_universal.tar.gz" "$stage" remohop LICENSE THIRD_PARTY_LICENSES.txt
+	make_tar "$OUT/remohop_darwin_universal.tar.gz" "$stage" remohop LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 	rm -rf "$stage"
 }
 

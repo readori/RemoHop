@@ -26,6 +26,8 @@ contents:
     dst: /usr/bin/remohop
   - src: LICENSE
     dst: /usr/share/doc/remohop/LICENSE
+  - src: NOTICE
+    dst: /usr/share/doc/remohop/NOTICE
   - src: packaging/stage/THIRD_PARTY_LICENSES.txt
     dst: /usr/share/doc/remohop/THIRD_PARTY_LICENSES.txt
     file_info:

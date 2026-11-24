@@ -29,7 +29,7 @@ class Remohop < Formula
 
   def install
     bin.install "remohop"
-    doc.install "LICENSE", "THIRD_PARTY_LICENSES.txt"
+    doc.install "LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.txt"
   end
 
   def caveats
