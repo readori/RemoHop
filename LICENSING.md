@@ -86,7 +86,7 @@ your changes, or to distribute it through a store whose terms conflict with
 the AGPL, a commercial license is available from the copyright holder,
 readori.
 
-For commercial licensing, write to <support@readori.com> and describe how you
+For commercial licensing, write to <admin@remohop.com> and describe how you
 plan to use RemoHop.
 
 ## Contributions

@@ -29,4 +29,4 @@ RemoHop 让你在 iPhone 或 iPad 上操作自己的电脑。它是开源远程�
 • 会话期间应用需要保持在前台。
 • 应用支持简体中文和英文，可在设置里切换。
 
-支持：support@readori.com · Telegram：t.me/remohop
+支持：admin@remohop.com · Telegram：t.me/remohop
