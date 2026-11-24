@@ -132,9 +132,12 @@ scoop install remohop</code></pre>
 <p class="platforms">Arch Linux · command line</p>
 </article>
 <article class="panel">
-<p class="chip wait">Coming soon</p>
+<p class="chip">Available</p>
 <h3>Docker</h3>
 <p class="platforms">linux/amd64 · linux/arm64 · rendezvous server</p>
+<pre tabindex="0"><code>docker run -d --name remohop-signal --restart unless-stopped \
+  -p 21116:21116/udp -p 21117:21117/udp -v remohop-signal:/data \
+  ghcr.io/readori/remohop-signal:latest</code></pre>
 </article>
 </div>
 
