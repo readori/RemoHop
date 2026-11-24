@@ -162,7 +162,7 @@
     const h = stats.host || {}, tr = SD.t;
     $('d-hud').textContent = `${hello.width}×${hello.height} ${hello.codec}\n${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'}\n` +
       `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
-      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), n: h.dropped || 0}) + '\n' + t(viewOnly ? 'd.hud.viewonly' : 'd.hud.input');
+      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), n: h.dropped || 0}) + '\n' + tr(viewOnly ? 'd.hud.viewonly' : 'd.hud.input');
   }, 500);
 
   // ---- input ----
