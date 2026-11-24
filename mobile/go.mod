@@ -4,7 +4,7 @@
 // it sits in.
 module github.com/readori/RemoHop/mobile
 
-go 1.26.0
+go 1.26.11
 
 require github.com/readori/RemoHop v0.0.0
 

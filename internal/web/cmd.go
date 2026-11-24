@@ -21,8 +21,8 @@ import (
 )
 
 const usage = `usage: remohop web [--listen ADDR] [--tls-cert FILE --tls-key FILE]
-               [--password-file FILE] [--public-url URL] [--no-open]
-               [--target ID] [--no-saved]
+               [--password-file FILE] [--api-token-file FILE]
+               [--public-url URL] [--no-open] [--target ID] [--no-saved]
 
 Serve a browser client (remote desktop, terminal, files, clipboard, info)
 from this machine.
@@ -45,6 +45,10 @@ Flags:
   --tls-key FILE         PEM private key
   --password-file FILE   the gateway password (at least 8 characters), read
                          from this file (mode 600); visitors must log in
+  --api-token-file FILE  allow programs to authenticate with
+                         "Authorization: Bearer <token>", the token read from
+                         this file (mode 600); off unless given; needs
+                         --password-file (see "Programs" below)
   --public-url URL       the https:// address browsers use when a TLS
                          reverse proxy or tunnel forwards to this gateway
                          (see "Behind Cloudflare Tunnel" below); needs a
@@ -72,12 +76,20 @@ Put a Cloudflare Access policy in front of the hostname as well. The login
 rate limiter keys on the CF-Connecting-IP header for requests that arrive
 through the public address.
 
-Programs (not browsers) can skip the login call and send the gateway
-password on every request as "Authorization: Bearer <password>", for
-example through a proxy that injects the header so the program never sees
-the password. Such requests share one gateway session, need no cookie, CSRF
-token or Origin, and failures count against the login rate limit. This
-needs --password-file.
+Programs: with --api-token-file, a program (not a browser) can skip the
+login call and send the token on every request as "Authorization: Bearer
+<token>", for example through a proxy that injects the header so the
+program never sees the token. Such requests share one gateway session and
+need no cookie, CSRF token or Origin, and failures count against the login
+rate limit. Without --api-token-file the header is not accepted. A bearer
+request that carries what browsers send (Origin, Sec-Fetch-*, cookies) is
+held to the browser checks: same origin, and the CSRF token for changes; a
+bearer WebSocket with an Origin must be same-origin. If a proxy injects the
+token, scope that rule to program traffic only (a separate hostname or
+path, or the program's own service-token identity), never to browsers.
+Gateways that used the gateway password as the bearer before this flag
+existed keep working with --api-token-file pointing at the password file;
+a separate token is better.
 
 Anyone who logs in to a gateway can use ITS saved pairings (the peers in its
 config directory, REMOHOP_CONFIG_DIR). A shared gateway should run with an empty
@@ -107,6 +119,7 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	cert := fs.String("tls-cert", "", "")
 	key := fs.String("tls-key", "", "")
 	pwFile := fs.String("password-file", "", "")
+	apiFile := fs.String("api-token-file", "", "")
 	noOpen := fs.Bool("no-open", false, "")
 	target := fs.String("target", "", "")
 	noSaved := fs.Bool("no-saved", false, "")
@@ -119,7 +132,7 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 		env.Errorf("web: unexpected argument %q", fs.Arg(0))
 		return cli.ExitUsage
 	}
-	srv, err := New(Config{Listen: *listen, TLSCert: *cert, TLSKey: *key, PasswordFile: *pwFile,
+	srv, err := New(Config{Listen: *listen, TLSCert: *cert, TLSKey: *key, PasswordFile: *pwFile, APITokenFile: *apiFile,
 		Target: cli.NormalizeTarget(*target), NoSaved: *noSaved, PublicURL: *publicURL})
 	if err != nil {
 		env.Errorf("web: %v", err)

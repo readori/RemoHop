@@ -79,19 +79,33 @@ func serveDesktop(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.Raw
 	}
 	// A host whose owner turned the input feature off still lets the
 	// client watch; it just cannot drive.
-	if !hostd.Allowed(c, perm.Input) {
-		opts.ViewOnly = true
-	}
+	hostOff := !hostd.Allowed(c, perm.Input)
 	if opts.Probe {
-		return serveProbe(ctx, s, opts)
+		return serveProbe(ctx, s, opts, hostOff)
 	}
-	h, err := newHostSession(ctx, s, opts)
+	h, err := newHostSession(ctx, s, opts, hostOff)
 	if err != nil {
 		writeFatal(s, err)
 		return err
 	}
+	// The owner can switch input off (and on again) while the session
+	// runs: it applies to this open stream at once, not just to the next.
+	stop := watchInput(c, h.setHostInput)
+	defer stop()
+	h.setHostInput(hostd.Allowed(c, perm.Input)) // a change before the watch began
 	return h.run()
 }
+
+// watchInput calls fn whenever the host's owner allows or stops allowing
+// keyboard and mouse control for the session behind c, until stop is
+// called. A variable so tests can drive it.
+var watchInput = func(c *peer.Conn, fn func(allowed bool)) (stop func()) {
+	return hostd.WatchFeature(c, perm.Input, fn)
+}
+
+// hostInputOff is the reason a session has no input when the host's owner
+// switched the input feature off.
+const hostInputOff = "the host's owner switched keyboard and mouse control off (feature \"input\")"
 
 func writeFatal(s peer.Stream, err error) {
 	s.SetWriteDeadline(time.Now().Add(2 * time.Second))
@@ -100,19 +114,22 @@ func writeFatal(s peer.Stream, err error) {
 }
 
 // inputRefusal says why a session may not send input ("" if it may): the
-// client asked for view-only, or the host's owner switched input off.
-func inputRefusal(opts Options) string {
+// client asked for view-only, or the host's owner switched input off (with
+// the input feature, hostOff, or for the whole host with hostViewOnlyEnv).
+func inputRefusal(opts Options, hostOff bool) string {
 	switch {
 	case opts.ViewOnly:
 		return "view-only session"
 	case inject.ViewOnly():
 		return "the host only allows viewing (" + hostViewOnlyEnv + ")"
+	case hostOff:
+		return hostInputOff
 	}
 	return ""
 }
 
 // serveProbe answers a probe: what the host would offer, without capturing.
-func serveProbe(ctx context.Context, s peer.Stream, opts Options) error {
+func serveProbe(ctx context.Context, s peer.Stream, opts Options, hostOff bool) error {
 	info := HostInfo{OS: runtime.GOOS, Encoders: map[string]string{}}
 	ffmpeg, err := ffmpegPath()
 	if err == nil {
@@ -120,7 +137,7 @@ func serveProbe(ctx context.Context, s peer.Stream, opts Options) error {
 		if spec, err = discoverCapture(0, opts.FPS); err == nil {
 			info.ScreenWidth, info.ScreenHeight = spec.width, spec.height
 			info.Displays, info.Warning = spec.displays, spec.warning
-			info.InputError = inputRefusal(opts)
+			info.InputError = inputRefusal(opts, hostOff)
 			if info.InputError == "" {
 				if inj, ierr := newInjector(spec); ierr != nil {
 					info.InputError = ierr.Error()
@@ -220,10 +237,23 @@ type hostSession struct {
 	ffmpeg string
 	enc    *encoder
 	spec   captureSpec
-	injMu  sync.Mutex // serialises injection with teardown
-	inj    injector
-	inErr  string
 	start  time.Time
+
+	// Input. The host's owner can take it away and give it back while
+	// the session runs (setHostInput): injMu serialises every injection
+	// with that and with teardown, and guards the fields below it.
+	injMu   sync.Mutex
+	inj     injector // nil while the session has no input
+	inErr   string   // why inj is nil
+	hostOff bool     // the owner switched input off
+	// viewOnly is what the client asked for when it opened the session.
+	viewOnly bool
+	// inputOff mirrors hostOff without the lock, so that text being
+	// typed stops between characters when input is switched off.
+	inputOff atomic.Bool
+	// inputChanged tells run to bring input back (an injector needs the
+	// capture area, which run owns) and to announce the change.
+	inputChanged chan struct{}
 
 	frames chan encFrame
 	exits  chan encExit
@@ -263,7 +293,7 @@ type hostSession struct {
 	lastStatsAt time.Time
 }
 
-func newHostSession(ctx context.Context, s peer.Stream, opts Options) (*hostSession, error) {
+func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff bool) (*hostSession, error) {
 	ffmpeg, err := ffmpegPath()
 	if err != nil {
 		return nil, err
@@ -280,7 +310,12 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options) (*hostSess
 		ctl:    make(chan Control, 256),
 		wdone:  make(chan struct{}),
 		fps:    opts.FPS,
+
+		viewOnly:     opts.ViewOnly,
+		hostOff:      hostOff,
+		inputChanged: make(chan struct{}, 1),
 	}
+	h.inputOff.Store(hostOff)
 	h.enc, err = selectEncoder(ctx, ffmpeg, encRequest{forced: opts.Encoder, codec: opts.Codec, decode: opts.Decode})
 	if err != nil {
 		return nil, err
@@ -290,7 +325,7 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options) (*hostSess
 	// Room for a full window of video at the highest frame rate a config
 	// change can select, plus control traffic.
 	h.out = make(chan []byte, int(maxFPS*window.Seconds())*2+32)
-	if h.inErr = inputRefusal(opts); h.inErr == "" {
+	if h.inErr = inputRefusal(opts, hostOff); h.inErr == "" {
 		inj, err := newInjector(spec)
 		if err != nil {
 			h.inErr = err.Error()
@@ -299,6 +334,69 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options) (*hostSess
 		}
 	}
 	return h, nil
+}
+
+// setHostInput applies the host owner's input switch to the running
+// session. Switching it off takes effect before setHostInput returns:
+// every key and button the client holds is released and nothing it sends
+// afterwards is injected. The picture keeps coming; run then tells the
+// client, with a new Hello, that the session is view-only. Switching it
+// back on gives the session input again (unless the client asked for
+// view-only), once run has set it up.
+func (h *hostSession) setHostInput(allowed bool) {
+	h.inputOff.Store(!allowed)
+	h.injMu.Lock()
+	changed := h.hostOff == allowed
+	h.hostOff = !allowed
+	if !allowed {
+		if h.inj != nil {
+			h.inj.close() // lets go of everything held
+			h.inj = nil
+		}
+		if h.inErr == "" || changed {
+			h.inErr = inputRefusal(h.opts0(), true)
+		}
+	}
+	h.injMu.Unlock()
+	if changed {
+		select {
+		case h.inputChanged <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// opts0 is the options the session was opened with, as far as input is
+// concerned (run owns h.opts; ViewOnly never changes).
+func (h *hostSession) opts0() Options { return Options{ViewOnly: h.viewOnly} }
+
+// onInputChanged runs on run's goroutine after the owner switched input
+// on or off: it brings input back if it is allowed again and restarts the
+// encoder, so that the client gets a Hello saying what it may do now
+// (before the next key frame, as every Hello is).
+func (h *hostSession) onInputChanged(now time.Time) {
+	h.injMu.Lock()
+	want := !h.hostOff && h.inj == nil
+	h.injMu.Unlock()
+	if want {
+		var inj injector
+		reason := inputRefusal(h.opts0(), false)
+		if reason == "" {
+			var err error
+			if inj, err = newInjector(h.spec); err != nil {
+				reason = err.Error()
+			}
+		}
+		h.injMu.Lock()
+		if !h.hostOff && h.inj == nil {
+			h.inj, h.inErr, inj = inj, reason, nil
+		}
+		h.injMu.Unlock()
+		if inj != nil {
+			inj.close() // switched off again meanwhile
+		}
+	}
+	h.scheduleRestart(now)
 }
 
 // outputPixels estimates the encoded frame size, for the automatic bitrate.
@@ -531,14 +629,14 @@ func (h *hostSession) run() error {
 		h.stopEncoder()
 		h.cancel()
 		<-h.wdone
+		// readControl may still deliver an event until the stream is
+		// closed; injMu orders it before or after this release.
+		h.injMu.Lock()
 		if h.inj != nil {
-			// readControl may still deliver an event until the stream
-			// is closed; injMu orders it before or after this release.
-			h.injMu.Lock()
 			h.inj.close()
 			h.inj = nil
-			h.injMu.Unlock()
 		}
+		h.injMu.Unlock()
 	}()
 	if err := h.startEncoder(); err != nil {
 		h.fatal(err)
@@ -550,9 +648,11 @@ func (h *hostSession) run() error {
 	for {
 		select {
 		case <-h.ctx.Done():
-			return h.ctx.Err()
+			return h.ended()
 		case <-h.wdone:
 			return h.werr
+		case <-h.inputChanged:
+			h.onInputChanged(time.Now())
 		case f := <-h.frames:
 			if f.gen == h.gen {
 				h.onFrame(f)
@@ -584,6 +684,21 @@ func (h *hostSession) run() error {
 			}
 		}
 	}
+}
+
+// ended is run's answer to its context ending. When that is because the
+// host's owner switched the screen off for this session (the dispatcher
+// cancels the stream's context with a perm.WithdrawnError), the client is
+// told so before the stream closes.
+func (h *hostSession) ended() error {
+	w, ok := perm.Withdrawn(context.Cause(h.ctx))
+	if !ok {
+		return h.ctx.Err()
+	}
+	h.stopEncoder()
+	<-h.wdone // the writer has stopped: the stream is ours
+	writeFatal(h.s, w)
+	return w
 }
 
 // classify inspects one frame from the encoder: whether a decoder can start
@@ -705,12 +820,15 @@ func putFrameHead(b []byte, typ byte, n int) {
 }
 
 func (h *hostSession) sendHello() bool {
+	h.injMu.Lock()
+	input, inErr := h.inj != nil, h.inErr
+	h.injMu.Unlock()
 	hello := Hello{
 		FPS: h.fps, Bitrate: h.bitrate, Encoder: h.enc.name, Hardware: h.enc.hw,
 		ScreenWidth: h.spec.width, ScreenHeight: h.spec.height,
-		Input: h.inj != nil, InputError: h.inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning),
+		Input: input, InputError: inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning),
 		Display: h.opts.Display, Displays: h.spec.displays, AllDisplays: h.spec.all,
-		Unsupported: unsupportedControls(h.inErr),
+		Unsupported: unsupportedControls(inErr),
 		Generation:  h.gen,
 	}
 	if h.enc.codec == codecH264 {
@@ -1110,7 +1228,10 @@ func (h *hostSession) reply(c Control, err error) {
 // pointer and key events. All of them need the session to be allowed input:
 // a view-only client, or a host whose owner switched input off, gets none.
 func (h *hostSession) hostControl(c Control) error {
-	if reason := unsupportedControls(h.inErr)[c.Type]; reason != "" {
+	h.injMu.Lock()
+	reason := unsupportedControls(h.inErr)[c.Type]
+	h.injMu.Unlock()
+	if reason != "" {
 		return errors.New(reason)
 	}
 	switch c.Type {
@@ -1121,9 +1242,18 @@ func (h *hostSession) hostControl(c Control) error {
 		h.injMu.Lock()
 		defer h.injMu.Unlock()
 		if h.inj == nil {
+			if h.inErr != "" {
+				return errors.New("input is off for this session: " + h.inErr)
+			}
 			return errors.New("the session has ended")
 		}
-		return h.inj.typeText(c.Text)
+		// Typing a long text takes a while; switching input off stops it
+		// between characters.
+		err := h.inj.typeText(c.Text, h.inputOff.Load)
+		if err == nil && h.inputOff.Load() {
+			err = errors.New("typing stopped: " + hostInputOff)
+		}
+		return err
 	case ctlLock:
 		ctx, cancel := context.WithTimeout(h.ctx, 15*time.Second)
 		defer cancel()

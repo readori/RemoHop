@@ -110,7 +110,7 @@ func (n *Node) setupDNS(v *view) []string {
 		return []string{"DNS: mesh names are in " + hostsPath()}
 	}
 	writeHosts(nil) // a block left by an earlier hosts-mode run
-	if note, ok := sysSplitDNS(n.dev.Name(), v.self.Addr4); ok {
+	if note, ok := sysSplitDNS(n.dev.Name(), v.self.Addr4); ok || note != "" {
 		return []string{note}
 	}
 	return []string{fmt.Sprintf("DNS: this system has no per-interface DNS that remohop uses (systemd-resolved); names like %s "+

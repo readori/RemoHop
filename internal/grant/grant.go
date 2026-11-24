@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/readori/RemoHop/internal/perm"
@@ -111,8 +112,19 @@ func (g *Grant) Inactive(now time.Time) error {
 	return nil
 }
 
-// Rules parses the grant's allow list.
-func (g *Grant) Rules() (*Rules, error) { return Parse(g.Allow, g.Commands) }
+// Rules parses the grant's allow list. Every Rules of the same credential
+// (name, token and roots) shares one Scope, pinned the first time the
+// grant is loaded: re-reading the grants file does not re-pin its roots.
+func (g *Grant) Rules() (*Rules, error) {
+	r, err := Parse(g.Allow, g.Commands)
+	if err != nil {
+		return nil, err
+	}
+	key := strings.Join([]string{g.Name, g.TokenID, strings.Join(r.ReadRoots, "\x00"), strings.Join(r.WriteRoots, "\x00"),
+		fmt.Sprint(r.ReadAll, r.WriteAll)}, "\x01")
+	r.scope = sharedScope(key, r)
+	return r, nil
+}
 
 // ShellMode says how much of the shell feature a grant allows.
 type ShellMode int
@@ -141,6 +153,9 @@ type Rules struct {
 	ReadRoots, WriteRoots []string
 	// Input allows keyboard and mouse control.
 	Input bool
+
+	scope     *Scope
+	scopeOnce sync.Once
 }
 
 // Items is the allow-list vocabulary, for help texts and errors.

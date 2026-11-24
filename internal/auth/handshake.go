@@ -483,6 +483,14 @@ type Server struct {
 	// Password returns the password currently accepted (normalised), or ""
 	// when password logins are disabled.
 	Password func() string
+	// PasswordGen, if set, is used instead of Password. It also returns
+	// the password's generation: a number, never 0, that the host changes
+	// whenever it replaces the password (0 for a password it never
+	// replaces). A login that proves this password reports the generation
+	// in Result.PasswordGen, so that the host can check, when it finally
+	// accepts the login, that the password is still the one in force, and
+	// spend it if it is single-use.
+	PasswordGen func() (pw string, gen uint64)
 	// AltPassword, if set and returning a non-empty password different
 	// from Password's, is accepted as well (see "Two passwords" above).
 	AltPassword func() string
@@ -512,6 +520,10 @@ type Result struct {
 	ClientKey ed25519.PublicKey
 	// AltPassword is true when a password login matched AltPassword.
 	AltPassword bool
+	// PasswordGen is the generation of the password a password login
+	// proved, as Server.PasswordGen gave it; 0 for AltPassword and for
+	// other kinds of login.
+	PasswordGen uint64
 	// ClientName is the name the client gave itself, cleaned; empty if
 	// it gave none.
 	ClientName string
@@ -526,8 +538,11 @@ type Result struct {
 // Approver is called by Complete once the client has proven its credential
 // and before it is welcomed. It may take as long as a person needs:
 // announce tells the client that it has to wait (call it at most once, and
-// only if the answer is not immediate). A non-nil error refuses the client
-// with CodeDenied.
+// only if the answer is not immediate). A non-nil error refuses the client:
+// with its code if it is an *Error, otherwise with CodeDenied. It is the
+// host's last word before the client is welcomed, so it is also where the
+// host makes its final admission checks (a one-time password still unspent,
+// a session limit not reached).
 type Approver func(res *Result, announce func() error) error
 
 func (s *Server) limiter() *Limiter {
@@ -649,15 +664,19 @@ func (s *Server) Complete(ctx context.Context, rw io.ReadWriter, hello *Hello, b
 		}
 		return s.welcome(rw, res, approve)
 	case KindPassword:
-		if s.Password != nil {
+		var gen uint64
+		if s.PasswordGen != nil {
+			secret, gen = s.PasswordGen()
+		} else if s.Password != nil {
 			secret = s.Password()
 		}
 		if s.AltPassword != nil {
 			altSecret = s.AltPassword()
 		}
 		if secret == "" {
-			secret, altSecret = altSecret, ""
+			secret, altSecret, gen = altSecret, "", 0
 		}
+		res.PasswordGen = gen
 		if secret == "" {
 			return reject(&Error{Code: CodeNoPassword})
 		}
@@ -719,7 +738,7 @@ func (s *Server) Complete(ctx context.Context, rw io.ReadWriter, hello *Hello, b
 	}
 	if fin.Alt && altKey != nil {
 		key, msgB = altKey, altB
-		res.AltPassword = true
+		res.AltPassword, res.PasswordGen = true, 0
 	}
 	if !hmac.Equal(fin.Confirm, confirmTag(key, "client", ad, h.MsgA, msgB)) {
 		return nil, &Error{Code: CodeAuthFailed}
@@ -744,7 +763,10 @@ func (s *Server) welcome(rw io.ReadWriter, res *Result, approve Approver) (*Resu
 	if approve != nil {
 		announce := func() error { return writeMsg(rw, reply{V: Version, OK: true, Wait: true}) }
 		if err := approve(res, announce); err != nil {
-			e := &Error{Code: CodeDenied}
+			e, ok := errors.AsType[*Error](err)
+			if !ok {
+				e = &Error{Code: CodeDenied}
+			}
 			Reject(rw, e)
 			return nil, e
 		}

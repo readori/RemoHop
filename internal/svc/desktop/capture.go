@@ -43,8 +43,9 @@ type captureSpec struct {
 // injector delivers input events on the host.
 type injector interface {
 	inject(ev InputEvent) error
-	// typeText types text as if on the keyboard, any Unicode.
-	typeText(text string) error
+	// typeText types text as if on the keyboard, any Unicode. It stops
+	// early, without an error, once stop reports true.
+	typeText(text string, stop func() bool) error
 	// retarget aims pointer coordinates at a newly selected capture area.
 	retarget(spec captureSpec)
 	// close releases everything still held down and frees resources.

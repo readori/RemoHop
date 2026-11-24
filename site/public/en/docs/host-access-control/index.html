@@ -63,7 +63,7 @@ remohop config otp on</code></pre>
 <tr><td>VPN routing</td><td><code>remohop config vpn-exit on</code></td><td>let VPN clients reach networks beyond the host's own LAN, and use the host as an exit; off by default</td></tr>
 <tr><td>Approval</td><td><code>remohop config ask on</code></td><td>every password login waits for a yes at the host: answer in the <code>remohop host</code> terminal, or with <code>remohop host approve N</code> / <code>remohop host deny N</code></td></tr>
 <tr><td>Approval for known clients</td><td><code>remohop config ask-paired on</code></td><td>with <code>ask on</code>, paired clients and authorised keys need approval too</td></tr>
-<tr><td>One-time password</td><td><code>remohop config otp on</code></td><td>the temporary password is replaced after each login; <code>remohop otp</code> prints the current one, <code>remohop otp new</code> replaces it</td></tr>
+<tr><td>One-time password</td><td><code>remohop config otp on</code></td><td>the temporary password is replaced after each login, and only one of several logins presenting it at once gets in; a denied, unanswered or abandoned login does not use it up; <code>remohop otp</code> prints the current one, <code>remohop otp new</code> replaces it</td></tr>
 <tr><td>Fixed password</td><td><code>remohop passwd</code></td><td>set or (<code>--clear</code>) remove it; <code>remohop status</code> never prints a fixed password</td></tr>
 <tr><td>Pairings</td><td><code>remohop host paired</code>, <code>remohop host revoke NAME</code></td><td>list and remove paired clients and authorised keys</td></tr>
 <tr><td>USB devices</td><td><code>remohop usb allow BUSID</code>, <code>remohop usb allowed</code></td><td>allow each device before a client may attach it</td></tr>
@@ -78,6 +78,25 @@ remohop config otp on</code></pre>
 remohop authorize "remohop-key ... laptop"
 remohop peers trust 276941009 "remohop-key ... host"</code></pre>
 <p>The first and third commands run on the client, the second on the host. <code>remohop key export --private FILE</code> and <code>remohop key import FILE --yes</code> move an identity to another machine; <code>remohop key gen --yes</code> replaces it. <a href="/en/docs/security/">security.md</a> explains what each control protects against.</p>
+<h2 id="what-a-switch-does-to-sessions-already-connected">What a switch does to sessions already connected</h2>
+<p>Switching a feature off refuses new requests for it at once, and also ends what connected clients already have open with it. The host notices a change made with <code>remohop config</code> within a quarter of a second; the switches of the <a href="/en/docs/quick-support/">quick-support window</a> apply before the click returns. A stream that does not end by itself is cut half a second later.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Feature off / What is already open">
+<table>
+<thead><tr><th scope="col">Feature off</th><th scope="col">What is already open</th></tr></thead>
+<tbody>
+<tr><td><code>input</code></td><td>An open remote desktop keeps showing the screen. The host lets go of every key and mouse button the helper holds, ignores the helper's keyboard and mouse from then on (also "type text", lock screen and the other host controls) and tells the viewer, which shows the session as view-only. Switched back on, the same desktop session can control again. Input commands still running (<code>remohop &lt;ID&gt; type</code>, <code>click</code>, ...) end.</td></tr>
+<tr><td><code>screen</code></td><td>Remote desktop, desktop audio and screenshots end; the viewer says the host's owner switched the screen off.</td></tr>
+<tr><td><code>shell</code></td><td>A running command (<code>remohop &lt;ID&gt; shell -c ...</code>) is killed with its process group. An attached terminal is ended (its shell is hung up, not kept for re-attaching) after a notice in the terminal. Terminals that were already detached and background jobs (<code>spawn</code>) keep running on the host, as they do when a client disconnects, but no client can reach them until <code>shell</code> is on again.</td></tr>
+<tr><td><code>file</code></td><td>File sessions (browsing, <code>mount</code>) and transfers in progress end. An interrupted upload does not install the file.</td></tr>
+<tr><td><code>clip</code></td><td>Clipboard streams end.</td></tr>
+<tr><td><code>forward</code></td><td>Forwarded connections are cut, reverse-forward listeners on the host are closed, UDP forwards and wake requests end.</td></tr>
+<tr><td><code>vpn</code></td><td>The tunnel ends.</td></tr>
+<tr><td><code>serial</code>, <code>usb</code></td><td>Serial ports are closed and attached USB devices are given back to the host.</td></tr>
+<tr><td><code>info</code></td><td>System information requests end.</td></tr>
+</tbody>
+</table>
+</div>
+<p>The same happens to a session that logged in with a grant when the grant stops allowing a service. Turning a feature on again does not reopen anything: the client opens it again (the desktop's keyboard and mouse are the exception above).</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/host-access-control.md">Source file (GitHub)</a></p>
 </div>
 </main>

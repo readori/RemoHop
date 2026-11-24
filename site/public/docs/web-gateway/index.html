@@ -62,7 +62,6 @@ remohop web --target dev</code></pre>
         --public-url https://remohop.example.com --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 &lt;隧道名&gt;</code></pre>
 <p><code>--public-url</code> 要求回环监听地址和 <code>--password-file</code>。经公网地址来的请求，登录限速按 Cloudflare 填写的 <code>CF-Connecting-IP</code> 区分访客。</p>
-<p>程序客户端（不是浏览器）可以不调用登录接口，在每个请求里带 <code>Authorization: Bearer &lt;网关密码&gt;</code>。这适合由代理注入请求头、程序本身看不到密码的场景，例如在 Cloudflare Access 服务令牌之外再注入网关密码。这类请求共用一个网关会话，不需要 Cookie、CSRF 令牌和 Origin，失败次数计入登录限速。</p>
 <ul>
 <li>在 Cloudflare Zero Trust 里为这个主机名创建 Access 应用，只允许你自己的身份或域。</li>
 <li>保留 <code>remohop web</code> 自己的登录（<code>--password-file</code>）。Access 挡在前面，但网关仍然能看到页面里的一切。</li>
@@ -70,6 +69,14 @@ cloudflared tunnel run --url http://127.0.0.1:8470 &lt;隧道名&gt;</code></pre
 <li>供多人使用时加上 <code>--no-saved</code>，否则任何登录网关的人都能使用网关里保存的配对。</li>
 <li>Cloudflare Tunnel 只转发 HTTP(S)。汇合服务器本身使用 UDP；它为只能用 HTTPS 出网的机器提供的 websocket 桥可以走隧道（见<a href="/docs/self-hosting/#只允许-https-出网的网络websocket-桥">只允许 HTTPS 出网的网络</a>）。</li>
 </ul>
+<h2 id="程序客户端bearer-令牌">程序客户端（Bearer 令牌）</h2>
+<p>程序接入默认关闭。用 <code>--api-token-file FILE</code> 启动网关（文件权限 600，至少 8 个字符，需要同时有 <code>--password-file</code>）后，程序客户端（不是浏览器）可以不调用登录接口，在每个请求里带 <code>Authorization: Bearer &lt;令牌&gt;</code>。这适合由代理注入请求头、程序本身看不到令牌的场景，例如在 Cloudflare Access 服务令牌之外再注入这个令牌。这类请求共用一个网关会话，不需要 Cookie、CSRF 令牌和 Origin，失败次数计入登录限速。没有 <code>--api-token-file</code> 时，Bearer 请求会得到 <code>bearer_disabled</code> 错误。</p>
+<pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
+        --api-token-file /etc/remohop/web-api-token \
+        --public-url https://remohop.example.com --no-open --no-saved</code></pre>
+<p>网关无法知道 <code>Authorization</code> 头是谁加上的。因此，带有浏览器特征（<code>Origin</code>、<code>Sec-Fetch-Site</code> 或 <code>Sec-Fetch-Mode</code>、Cookie）的 Bearer 请求同样要通过浏览器检查：来自其他站点的请求被拒绝，改变状态的调用需要带上 <code>POST api/v1/session</code> 返回的 CSRF 令牌，带 <code>Origin</code> 的 WebSocket 和下载必须来自网关自己的地址。会保存 Cookie 的程序（例如带着 Cloudflare 的 <code>CF_Authorization</code>）要么不把 Cookie 发给网关，要么同时发送 CSRF 令牌。</p>
+<p><strong>如果由代理注入令牌，只对程序流量注入。</strong> 不要给到达这个主机名的所有请求都加上这个头：那样浏览器会被代理自动登录，上面的检查就成了恶意网页与网关之间唯一的屏障（不发送 <code>Origin</code> 和 <code>Sec-Fetch-*</code> 的旧浏览器不在保护范围内）。给程序单独的主机名或路径，只在那里、只对程序的身份注入（在 Cloudflare 中，用匹配服务令牌的规则，而不是放行你浏览器的 Access 策略）。浏览器继续使用登录页面。</p>
+<p><strong>迁移。</strong> 在 <code>--api-token-file</code> 出现之前，只要有 <code>--password-file</code>，网关就把网关密码当作 Bearer 令牌接受。这样的部署在加上 <code>--api-token-file</code> 之前无法使用（程序会收到 <code>bearer_disabled</code>）。把它指向密码文件可以让旧令牌继续有效；更好的做法是生成新令牌，更新注入它的代理规则，网关密码只留给浏览器使用。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/web-gateway.md">源文件（GitHub）</a></p>
 </div>
 </main>

@@ -21,7 +21,12 @@ What the person at the computer gets:
 - **The ID and a temporary password, large,** with Copy buttons and "Create a new password". The password is new on every start; the ID stays the same for the computer.
 - **A question for every connection.** The right password is not enough: each login waits until they press Allow, and is refused after 60 seconds without an answer. The request shows the name the other side gave itself, its device key (the fingerprint of its identity key) and its address. On Windows and macOS the same question also appears as a system dialog on top of everything else, so it is not missed when the window is buried; either place answers.
 - **Who is connected,** each with a Disconnect button, and **Stop sharing**, which ends every session and quits. Closing the window stops sharing too.
-- **Three switches** for what an allowed helper may do besides seeing the screen: use the mouse and keyboard (on), transfer files and use the clipboard (on), run commands and reach the network: terminal, port forwarding, VPN, serial, USB (off). They apply at once, also to a helper who is already connected.
+- **Three switches** for what an allowed helper may do besides seeing the screen: use the mouse and keyboard (on), transfer files and use the clipboard (on), run commands and reach the network: terminal, port forwarding, VPN, serial, USB (off). They apply at once, also to a helper who is already connected, and the helper cannot open again what is switched off:
+  - *Mouse and keyboard* off: the helper keeps seeing the screen. Any key or button the helper is holding is let go, nothing the helper types or clicks reaches the computer any more, and the helper's viewer switches to view-only, told so by this computer. Ticked again, the helper can take control in the same session.
+  - *Files and clipboard* off: file transfers in progress stop (a file that was still arriving is not saved), and file browsing and clipboard sharing end.
+  - *Commands and network* off: running commands are stopped, an open terminal is closed, forwarded connections and the VPN are cut, serial ports and USB devices are released. Background jobs the helper started (`spawn`) keep running; Stop sharing does not end them either.
+
+  The details for each kind of access are in [Host access control](host-access-control.md#what-a-switch-does-to-sessions-already-connected).
 - **The state of the connection in plain words:** registered with the server or not, still trying, and whether helpers come directly or through the relay.
 
 The window follows the system language (Chinese or English) and can be switched in its corner; the choice is remembered for the next start and also applies to the system's connection dialogs. `--lang zh|en` overrides both.

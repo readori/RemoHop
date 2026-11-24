@@ -10,10 +10,10 @@
 #       --build-arg VERSION=v1.2.3 -t ghcr.io/OWNER/remohop-signal:v1.2.3 --push .
 # Run: see packaging/docker/README.md and packaging/docker/compose.yaml.
 
-# The toolchain version comes from go.mod's `go` line at build time (GOTOOLCHAIN=auto
-# downloads the exact one if the image is older). For fully pinned builds, pass a digest:
-#   --build-arg GO_IMAGE=golang:1.26-bookworm@sha256:<digest>
-ARG GO_IMAGE=golang:1.26-bookworm
+# The image's Go matches go.mod's `go` line (a patched release: see `govulncheck` in CI).
+# If the image were older, GOTOOLCHAIN=auto would download the exact version. For fully
+# pinned builds, pass a digest: --build-arg GO_IMAGE=golang:1.26.11-bookworm@sha256:<digest>
+ARG GO_IMAGE=golang:1.26.11-bookworm
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
 ARG TARGETOS=linux
@@ -45,6 +45,7 @@ COPY --from=build /out/healthcheck /healthcheck
 # The server key and the ID table live here. A named volume copies this ownership.
 COPY --from=build --chown=65532:65532 /out/data /data
 COPY LICENSE /LICENSE
+COPY NOTICE /NOTICE
 ENV REMOHOP_CONFIG_DIR=/data
 VOLUME /data
 USER 65532:65532

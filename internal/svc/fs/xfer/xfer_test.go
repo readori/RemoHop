@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/readori/RemoHop/internal/cli"
+	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/peer/peertest"
 	"github.com/readori/RemoHop/internal/svc/fs/rfs"
@@ -920,7 +921,7 @@ func partials(t *testing.T, dir, base string) []string {
 // session once cut bytes have crossed it.
 func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 	t.Helper()
-	conn, _ := peertest.Pair(t)
+	conn := testPair(t)
 	ctx := context.Background()
 	c, err := rfs.NewClient(ctx, conn)
 	if err != nil {
@@ -938,9 +939,21 @@ func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 	}
 }
 
+// hostGuard, if set, is attached to the host side of every testPair: the
+// sessions then stand on a grant.
+var hostGuard grant.Guard
+
+func testPair(t *testing.T) *peer.Conn {
+	conn, host := peertest.Pair(t)
+	if hostGuard != nil {
+		grant.Attach(host, hostGuard)
+	}
+	return conn
+}
+
 func copyWith(t *testing.T, src, dst Path, o CopyOptions) *Progress {
 	t.Helper()
-	conn, _ := peertest.Pair(t)
+	conn := testPair(t)
 	ctx := context.Background()
 	c, err := rfs.NewClient(ctx, conn)
 	if err != nil {

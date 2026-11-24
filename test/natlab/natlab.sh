@@ -11,7 +11,11 @@
 #
 # Neither LAN can reach the other, so a session only works if hole punching
 # does. Needs root, iproute2 and iptables. It touches nothing outside the
-# sd-* namespaces and removes them on exit.
+# sd-* namespaces and removes them on exit; after every mode it checks that
+# the root namespace (interfaces, routes, rules, firewall, forwarding,
+# systemd-resolved's DNS settings, /etc/hosts, /etc/resolv.conf) is exactly
+# as it was, since a process inside a namespace can still reach host-global
+# state through shared files and the system bus (see root_snapshot).
 #
 # Usage: sudo test/natlab/natlab.sh [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|all]
 #
@@ -76,12 +80,18 @@ stop_all() {
 
 teardown() {
 	stop_all
+	local n l
 	for n in "${NS[@]}"; do
 		ip netns del "$n" 2>/dev/null || true
-		# resolv.conf files the mesh test gives its namespaces
-		rm -f "/etc/netns/$n/resolv.conf"; rmdir "/etc/netns/$n" 2>/dev/null || true
+		# resolv.conf and hosts files the mesh test gives its namespaces
+		rm -f "/etc/netns/$n/resolv.conf" "/etc/netns/$n/hosts"; rmdir "/etc/netns/$n" 2>/dev/null || true
 	done
 	rmdir /etc/netns 2>/dev/null || true
+	# A veth end that link() or test_tailnet created in the root namespace
+	# and an interrupted run did not move yet. Only these exact names.
+	for l in $(ip -o link show | awk -F': ' '{print $2}' | sed 's/@.*//' | grep -E '^[xy]-(sd-[A-Za-z0-9]+-[a-z0-9]+|ts)$' || true); do
+		ip link del "$l" 2>/dev/null || true
+	done
 }
 cleanup() { teardown; if [ -n "${NATLAB_KEEP:-}" ]; then echo "natlab: kept $LAB"; else rm -rf "$LAB"; fi; }
 trap cleanup EXIT
@@ -92,6 +102,37 @@ for tool in ip iptables go; do
 done
 
 (cd "$ROOT" && CGO_ENABLED=0 go build -o "$REMOHOP" ./cmd/remohop)
+
+# root_snapshot: the host-global state that nothing in the lab may change.
+# Everything the lab does happens inside the sd-* namespaces, but some state
+# is shared with the root namespace even from there: files under /etc (the
+# hosts file, resolv.conf unless /etc/netns/NS has one), and services on the
+# system bus. systemd-resolved is the dangerous one: `resolvectl dns remohop0`
+# in a namespace sends the interface's index, which resolved applies to the
+# root-namespace interface with that number (on a CI runner: index 2, eth0,
+# the runner's uplink, which then loses DNS and with it GitHub).
+root_snapshot() {
+	echo '# interfaces'; ip -o link show | awk -F': ' '{print $2}' | sed 's/@.*//' | sort
+	echo '# routes'; ip route show table all | grep -Ev '^(local|broadcast|multicast) |^(ff00|fe80)::|proto ra' | sort
+	echo '# rules'; ip rule
+	echo '# firewall'; iptables-save 2>/dev/null | grep -v '^#' | sed 's/\[[0-9]*:[0-9]*\]//' || true
+	echo '# forwarding'; cat /proc/sys/net/ipv4/ip_forward
+	if command -v resolvectl >/dev/null && resolvectl status >/dev/null 2>&1; then
+		echo '# systemd-resolved'; resolvectl dns; resolvectl domain; resolvectl default-route 2>/dev/null || true
+	fi
+	echo '# /etc/hosts'; cat /etc/hosts
+	echo '# /etc/resolv.conf'; cat /etc/resolv.conf 2>/dev/null || true
+}
+root_snapshot >"$LAB/root.before"
+
+root_same() { # mode
+	root_snapshot >"$LAB/root.after"
+	if diff -u "$LAB/root.before" "$LAB/root.after" >"$LAB/root.diff"; then
+		ok "$1: the root namespace and the host's DNS settings are exactly as before"
+	else
+		fail "$1: changed the root namespace or host-global files"; sed 's/^/         /' "$LAB/root.diff" | head -40
+	fi
+}
 # The lab's namespaces have no way to whatever proxy this machine uses.
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy
 
@@ -635,7 +676,11 @@ mesh_lab_up() {
 }
 
 ns_of() { case $1 in alpha) echo sd-host ;; bravo) echo sd-cli ;; charlie) echo sd-c3 ;; esac; }
-dev() { local d=$1; shift; ip netns exec "$(ns_of "$d")" env REMOHOP_CONFIG_DIR="$LAB/cfg-$d" REMOHOP_SIGNAL=$SIGNAL "$@"; }
+# Each device gets its own hosts file, /etc/netns/NS/hosts (which `ip netns
+# exec` also mounts over /etc/hosts there), so net-dns hosts never writes the
+# machine's /etc/hosts. net-dns auto (the default, alpha and bravo) must leave
+# systemd-resolved alone from inside a namespace: see root_snapshot.
+dev() { local d=$1 ns; shift; ns=$(ns_of "$d"); ip netns exec "$ns" env REMOHOP_CONFIG_DIR="$LAB/cfg-$d" REMOHOP_SIGNAL=$SIGNAL REMOHOP_HOSTS_FILE="/etc/netns/$ns/hosts" "$@"; }
 dremohop() { local d=$1; shift; dev "$d" "$REMOHOP" "$@"; }
 
 # icmp_ping DEVICE NAME: resolve NAME there and ping it (raw ICMP) once a
@@ -686,7 +731,8 @@ test_mesh() {
 	local d i code fp afp out A B C
 	declare -A HOSTPID
 	for d in alpha bravo charlie; do
-		mkdir -p "$LAB/cfg-$d"
+		mkdir -p "$LAB/cfg-$d" "/etc/netns/$(ns_of $d)"
+		printf '127.0.0.1\tlocalhost\n' >"/etc/netns/$(ns_of $d)/hosts"
 		dremohop $d config set name $d
 		dev $d "$REMOHOP" -v host --signal $SIGNAL >"$LAB/host-$d.log" 2>&1 </dev/null &
 		HOSTPID[$d]=$!
@@ -714,10 +760,19 @@ test_mesh() {
 	ip netns exec sd-host iptables -A FORWARD -j ACCEPT; ip netns exec sd-host iptables -D FORWARD -j ACCEPT
 	ip netns exec sd-host iptables -t nat -A POSTROUTING -j ACCEPT; ip netns exec sd-host iptables -t nat -D POSTROUTING -j ACCEPT
 	for d in alpha bravo charlie; do snapshot "$(ns_of $d)" >"$LAB/$d.before"; done
-	for d in alpha bravo charlie; do dremohop $d net up >"$LAB/up-$d.txt" 2>&1 || true; done
+	dremohop alpha net up >"$LAB/up-alpha.txt" 2>&1 || true
+	dremohop bravo net up >"$LAB/up-bravo.txt" 2>&1 || true
+	dremohop charlie net up --dns hosts >"$LAB/up-charlie.txt" 2>&1 || true
 	for d in alpha bravo charlie; do
 		if wait_net $d; then ok "$d: net up as $(net_json $d fqdn) $(net_json $d addr4)"; else fail "$d: net up"; cat "$LAB/up-$d.txt"; dremohop $d net status; return; fi
 	done
+	if pgrep -x systemd-resolve >/dev/null && command -v resolvectl >/dev/null; then
+		if dremohop alpha net status | grep -q 'systemd-resolved left alone'; then ok "net-dns auto in a namespace: systemd-resolved (root namespace) left alone, and says so"; else fail "net-dns auto touched or did not report systemd-resolved"; dremohop alpha net status | sed 's/^/         /'; fi
+	else
+		echo "   skip  net-dns auto next to systemd-resolved (not running here; root_same still checks the rest)"
+	fi
+	for i in $(seq 1 50); do grep -q 'charlie.remohop' /etc/netns/sd-c3/hosts && grep -q 'alpha.remohop' /etc/netns/sd-c3/hosts && break; sleep 0.1; done
+	if grep -q "^$(net_json alpha addr4)[[:space:]]alpha.remohop" /etc/netns/sd-c3/hosts; then ok "net-dns hosts: charlie's own hosts file has the mesh names"; else fail "net-dns hosts block"; sed 's/^/         /' /etc/netns/sd-c3/hosts; fi
 	if dremohop bravo net peers | grep -q ' up '; then fail "links exist before any traffic"; else ok "no links before traffic (they come up on demand)"; fi
 	A=$(net_json alpha addr4); B=$(net_json bravo addr4); C=$(net_json charlie addr4)
 	case "$A $B $C" in "10.78."*" 10.78."*" 10.78."*) ok "addresses from 10.78.0.0/16: $A $B $C" ;; *) fail "addresses $A $B $C" ;; esac
@@ -791,19 +846,19 @@ test_mesh() {
 
 	for d in alpha bravo charlie; do check "$d: net down" dremohop $d net down; done
 	sleep 0.5
+	if ! grep -q 'remohop' /etc/netns/sd-c3/hosts; then ok "net-dns hosts: net down removed the block"; else fail "hosts block left after net down"; sed 's/^/         /' /etc/netns/sd-c3/hosts; fi
 	for d in alpha bravo charlie; do same "$d: interfaces, routes, firewall and forwarding exactly as before" "$LAB/$d.before" "$(ns_of $d)"; done
 }
 
+run() { # mode: the test, its namespaces gone, then the root namespace compared
+	"test_$1"
+	teardown
+	root_same "$1"
+}
+
 case "$MODE" in
-	cone) test_cone ;;
-	symmetric) test_symmetric ;;
-	permissive) test_permissive ;;
-	relay) test_relay ;;
-	wsrelay) test_wsrelay ;;
-	vpn) test_vpn ;;
-	mesh) test_mesh ;;
-	tailnet) test_tailnet ;;
-	all) test_cone; test_symmetric; test_permissive; test_relay; test_wsrelay; test_tailnet; test_mesh ;;
+	cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet) run "$MODE" ;;
+	all) for m in cone symmetric permissive relay wsrelay tailnet mesh; do run $m; done ;;
 	*) echo "usage: $0 [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|all]" >&2; exit 2 ;;
 esac
 

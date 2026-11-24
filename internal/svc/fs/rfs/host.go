@@ -2,6 +2,7 @@ package rfs
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -45,8 +46,11 @@ func Handlers() map[string]peer.Handler {
 // the host user's home directory and relative paths are relative to it;
 // nothing else is interpreted (no "~user", no environment variables, no
 // lexical cleaning that could change what a ".." after a symlink means).
-// The host serves with the user's own privileges, so no further confinement
-// applies: a client may name any path that user may access.
+// The host serves with the user's own privileges: a client with full access
+// may name any path that user may access. A session on a grant is confined
+// to the grant's roots: the guard decides whether it may act on the path,
+// and placeFor where the operation happens (below a pinned root, through
+// its os.Root handle).
 func resolve(p string) (string, error) {
 	if strings.IndexByte(p, 0) >= 0 {
 		return "", syscall.EINVAL
@@ -70,6 +74,7 @@ type hfile struct {
 	f      *os.File
 	dir    bool
 	append bool
+	at     string     // the host path a directory was opened at, for its entries' links
 	mu     sync.Mutex // serialises directory reads
 }
 
@@ -79,9 +84,17 @@ type hsession struct {
 	handles map[uint64]*hfile
 	next    uint64
 	// guard is the session's grant, nil for full access; ctx is the
-	// stream's, for approvals the guard may wait for.
+	// stream's, for approvals the guard may wait for. scope is the
+	// grant's file scope as it was when the stream started: if the grant
+	// is reissued meanwhile, the stream's operations are refused.
 	guard grant.Guard
+	scope *grant.Scope
 	ctx   context.Context
+}
+
+// place maps p to where an operation acts (see placeFor).
+func (s *hsession) place(p string, a grant.Access, follow bool) (loc, error) {
+	return placeFor(s.guard, s.scope, p, a, follow)
 }
 
 func (s *hsession) add(hf *hfile) (uint64, error) {
@@ -129,6 +142,12 @@ func serveControl(ctx context.Context, c *peer.Conn, st peer.Stream, raw json.Ra
 	}
 	sess := &hsession{handles: map[uint64]*hfile{}, guard: grant.Of(c), ctx: ctx}
 	defer sess.closeAll()
+	if sess.guard != nil {
+		var err error
+		if sess.scope, err = scopeOf(sess.guard); err != nil {
+			return err
+		}
+	}
 
 	var (
 		wmu sync.Mutex
@@ -303,6 +322,13 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 	if err != nil {
 		return nil, nil, err
 	}
+	var p2 string
+	switch op {
+	case opRename, opLink, opSymlink:
+		if p2, err = resolve(r.Path2); err != nil {
+			return nil, nil, err
+		}
+	}
 	if s.guard != nil {
 		if name, a, ok := opAccess(op, r); ok {
 			if err := guarded(s.ctx, s.guard, name, a, p); err != nil {
@@ -312,33 +338,38 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		switch op {
 		case opRename, opLink, opSymlink:
 			// The second path is created (or replaced) too.
-			p2, err := resolve(r.Path2)
-			if err != nil {
-				return nil, nil, err
-			}
 			if err := guarded(s.ctx, s.guard, "create", grant.Write, p2); err != nil {
 				return nil, nil, err
 			}
 		}
 	}
+	// The guard has allowed the operation on p; l is where it happens.
+	// Under a grant that is below a pinned root, through its handle.
+	var l loc
+	if _, a, ok := opAccess(op, r); ok {
+		if l, err = s.place(p, a, followsLink(op, r)); err != nil {
+			return nil, nil, err
+		}
+		defer l.release()
+	}
 	switch op {
 	case opStat, opLstat:
 		var fi fs.FileInfo
 		if op == opStat {
-			fi, err = os.Stat(p)
+			fi, err = l.stat()
 		} else {
-			fi, err = os.Lstat(p)
+			fi, err = l.lstat()
 		}
 		if err != nil {
 			return nil, nil, err
 		}
 		a := attrFromInfo(fi)
 		if op == opLstat && fi.Mode()&fs.ModeSymlink != 0 {
-			a.Target, _ = os.Readlink(p)
+			a.Target, _ = l.readlink()
 		}
 		return &reply{Attr: &a}, nil, nil
 	case opOpenDir:
-		f, err := os.Open(p)
+		f, err := l.open(os.O_RDONLY, 0)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -351,7 +382,7 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 			f.Close()
 			return nil, nil, errNotDir
 		}
-		hf := &hfile{f: f, dir: true}
+		hf := &hfile{f: f, dir: true, at: p}
 		h, err := s.add(hf)
 		if err != nil {
 			f.Close()
@@ -363,7 +394,7 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		if err != nil {
 			return nil, nil, err
 		}
-		f, err := os.OpenFile(p, flags, ModeFromUnix(r.Mode)&(fs.ModePerm|fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky))
+		f, err := l.open(flags, ModeFromUnix(r.Mode)&(fs.ModePerm|fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -380,77 +411,85 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		a := attrFromInfo(fi)
 		return &reply{Handle: h, Attr: &a}, nil, nil
 	case opMkdir:
-		m := ModeFromUnix(r.Mode & 0o7777)
-		if r.All {
-			return nil, nil, os.MkdirAll(p, m)
-		}
-		return nil, nil, os.Mkdir(p, m)
+		return nil, nil, l.mkdir(ModeFromUnix(r.Mode&0o7777), r.All)
 	case opRemove:
-		switch r.Kind {
-		case removeAny:
-			return nil, nil, os.Remove(p)
-		case removeFile:
-			return nil, nil, unlink(p)
-		case removeDir:
-			return nil, nil, rmdir(p)
-		case removeAll:
-			return nil, nil, os.RemoveAll(p)
-		}
-		return nil, nil, syscall.EINVAL
+		return nil, nil, l.remove(r.Kind)
 	case opRename:
-		p2, err := resolve(r.Path2)
+		l2, err := s.place(p2, grant.Write, false)
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, nil, rename(p, p2, r.Flags)
+		defer l2.release()
+		return nil, nil, renameLoc(l, l2, r.Flags)
 	case opSymlink:
 		// Path is the link target, stored verbatim; Path2 the new link.
-		p2, err := resolve(r.Path2)
-		if err != nil {
-			return nil, nil, err
-		}
 		if strings.IndexByte(r.Path, 0) >= 0 {
 			return nil, nil, syscall.EINVAL
 		}
-		return nil, nil, os.Symlink(r.Path, p2)
+		l2, err := s.place(p2, grant.Write, false)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer l2.release()
+		return nil, nil, l2.symlink(r.Path)
 	case opReadlink:
-		t, err := os.Readlink(p)
+		t, err := l.readlink()
 		if err != nil {
 			return nil, nil, err
 		}
 		return &reply{Str: t}, nil, nil
 	case opLink:
-		p2, err := resolve(r.Path2)
+		l2, err := s.place(p2, grant.Write, false)
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, nil, os.Link(p, p2)
+		defer l2.release()
+		return nil, nil, linkLoc(l, l2)
 	case opChmod:
-		return nil, nil, os.Chmod(p, ModeFromUnix(r.Mode&0o7777))
+		return nil, nil, l.chmod(ModeFromUnix(r.Mode & 0o7777))
 	case opTruncate:
 		if r.Size < 0 {
 			return nil, nil, syscall.EINVAL
 		}
-		return nil, nil, os.Truncate(p, r.Size)
+		return nil, nil, l.truncate(r.Size)
 	case opUtimes:
-		return nil, nil, utimes(p, r.Atime, r.Mtime, r.NoFollow)
+		return nil, nil, l.utimes(r.Atime, r.Mtime, r.NoFollow)
 	case opStatFS:
-		sf, err := statFS(p)
+		sf, err := l.statFS()
 		if err != nil {
 			return nil, nil, err
 		}
 		return &reply{StatFS: sf}, nil, nil
 	case opReadFile:
-		return readSmall(p, r.N)
+		return readSmall(l, r.N)
 	case opWriteFile:
-		a, err := writeAtomic(p, putReq{Mode: r.Mode, Mtime: r.Mtime, NoFollow: r.NoFollow, Sync: r.Sync, Unique: r.Unique}, nil,
-			func(w io.Writer) error { _, err := w.Write(data); return err })
+		a, err := writeAtomic(l, putReq{Mode: r.Mode, Mtime: r.Mtime, NoFollow: r.NoFollow, Sync: r.Sync, Unique: r.Unique},
+			writeOpts{restricted: s.guard != nil}, func(w io.Writer) error { _, err := w.Write(data); return err })
 		if err != nil {
 			return nil, nil, err
 		}
 		return &reply{Attr: a}, nil, nil
+	case opPartial:
+		// The name a resumable upload of p with this key uses (see
+		// partialFileName); the client looks at that file, then
+		// uploads with the key.
+		if !canLock {
+			return nil, nil, syscall.ENOTSUP
+		}
+		if !validPartialKey(r.Kind) {
+			return nil, nil, syscall.EINVAL
+		}
+		base := filepath.Base(p)
+		if base == "" || base == "." || base == string(filepath.Separator) {
+			return nil, nil, syscall.EISDIR
+		}
+		var id string
+		if s.scope != nil {
+			id = s.scope.ID()
+		}
+		return &reply{Str: filepath.Join(filepath.Dir(p), partialFileName(id, base, r.Kind))}, nil, nil
 	case opHash:
-		f, err := os.Open(p)
+		f, err := l.open(os.O_RDONLY, 0)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -497,11 +536,23 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		if err := guarded(s.ctx, s.guard, "downloads", grant.Write, d); err != nil {
 			return nil, nil, err
 		}
-		if err := os.MkdirAll(d, 0o755); err != nil {
+		dl, err := s.place(d, grant.Write, true)
+		if err != nil {
+			return nil, nil, err
+		}
+		defer dl.release()
+		if err := dl.mkdir(0o755, true); err != nil {
 			return nil, nil, err
 		}
 		return &reply{Str: d}, nil, nil
 	case opRealpath:
+		if l.confined() {
+			// Resolved by the scope, below the root; it must exist.
+			if _, err := l.stat(); err != nil {
+				return nil, nil, err
+			}
+			return &reply{Str: l.path()}, nil, nil
+		}
 		rp, err := filepath.EvalSymlinks(p)
 		if err != nil {
 			return nil, nil, err
@@ -513,6 +564,23 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		return &reply{Str: rp}, nil, nil
 	}
 	return nil, nil, syscall.ENOSYS
+}
+
+// followsLink says whether an operation follows a symbolic link at its
+// path (and so acts on the link's target) or acts on the link itself.
+func followsLink(op byte, r *request) bool {
+	switch op {
+	case opLstat, opReadlink, opRemove, opRename, opLink, opMkdir, opPartial:
+		return false
+	case opUtimes:
+		return !r.NoFollow
+	case opWriteFile:
+		return !r.NoFollow && !r.Unique
+	case opOpen:
+		// O_CREAT|O_EXCL fails on any existing entry, links included.
+		return !(r.Flags&wCreate != 0 && r.Flags&wExcl != 0)
+	}
+	return true
 }
 
 // readDir returns the next batch of a directory handle, with each entry's
@@ -532,7 +600,6 @@ func (s *hsession) readDir(h uint64, hf *hfile) (*reply, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	dir := hf.f.Name()
 	out := make([]Attr, 0, len(ents))
 	for _, e := range ents {
 		fi, err := e.Info()
@@ -541,7 +608,12 @@ func (s *hsession) readDir(h uint64, hf *hfile) (*reply, []byte, error) {
 		}
 		a := attrFromInfo(fi)
 		if fi.Mode()&fs.ModeSymlink != 0 {
-			a.Target, _ = os.Readlink(filepath.Join(dir, e.Name()))
+			// Resolved afresh (not followed): under a grant, through
+			// the root.
+			if l, err := s.place(filepath.Join(hf.at, e.Name()), grant.Read, false); err == nil {
+				a.Target, _ = l.readlink()
+				l.release()
+			}
 		}
 		out = append(out, a)
 	}
@@ -599,11 +671,11 @@ func wireFlags(f int) int {
 
 // readSmall reads a whole file of at most max bytes, or reports TooBig with
 // its attributes so the client switches to a bulk stream.
-func readSmall(p string, max int) (*reply, []byte, error) {
+func readSmall(l loc, max int) (*reply, []byte, error) {
 	if max <= 0 || max > SmallFile {
 		max = SmallFile
 	}
-	f, err := os.Open(p)
+	f, err := l.open(os.O_RDONLY, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -632,81 +704,91 @@ func readSmall(p string, max int) (*reply, []byte, error) {
 	return &reply{Attr: &a}, buf[:n], nil
 }
 
+// writeOpts are writeAtomic's settings beyond the client's request.
+type writeOpts struct {
+	// restricted: the session stands on a grant. It cannot name partial
+	// files itself (only by key, see partialFileName).
+	restricted bool
+	// scopeID binds partial file names to the grant credential.
+	scopeID string
+	// abort, if set, breaks the transfer feeding fill: a newer upload
+	// resuming the same partial file calls it to take the file over.
+	abort func()
+	// verify, if set, is asked before the file is installed: the
+	// session's grant must still be the one the upload started under.
+	verify func() error
+}
+
 // writeAtomic writes a file through a temporary file in the destination
 // directory and renames it into place, so readers see either the old or the
 // complete new content. Without NoFollow a destination that is a symlink is
 // resolved and its target replaced, as an editor saving through a link
 // would; with NoFollow the link itself is replaced.
 //
-// abort, if set, breaks the transfer feeding fill: a newer upload resuming
-// the same partial file calls it to take the file over.
-func writeAtomic(p string, o putReq, abort func(), fill func(io.Writer) error) (*Attr, error) {
-	if !o.NoFollow && !o.Unique {
-		if rp, err := filepath.EvalSymlinks(p); err == nil {
-			p = rp
+// Everything after resolving the destination happens through a handle on
+// its directory (an os.Root, below the grant root for a granted session):
+// the temporary or partial file is created, checked, timed and renamed by
+// name in that directory, never by a path that a link swapped in meanwhile
+// could redirect.
+func writeAtomic(dst loc, o putReq, wo writeOpts, fill func(io.Writer) error) (*Attr, error) {
+	if !dst.confined() && !o.NoFollow && !o.Unique {
+		// Under a grant the scope resolved the link already (to a
+		// target inside the root, or refused).
+		if rp, err := filepath.EvalSymlinks(dst.path()); err == nil {
+			dst = plainLoc(rp)
 		}
 	}
+	if (o.Partial != "" || o.PartialKey != "") && !canLock {
+		// Checked before anything is created: without file locks a
+		// partial file cannot be shared safely, so there are none.
+		return nil, syscall.ENOTSUP
+	}
+	d, base, err := dst.openDir()
+	if err != nil {
+		return nil, err
+	}
+	defer d.Close()
 	// A new file gets 0666 minus the host user's umask, as any program
 	// creating it would; an explicit mode from the client is applied
 	// exactly (the client decides whether to preserve modes).
 	mode := 0o666 &^ Umask()
 	if o.Mode != 0 {
 		mode = ModeFromUnix(o.Mode & 0o7777)
-	} else if fi, err := os.Stat(p); err == nil && fi.Mode().IsRegular() && !o.Unique {
-		mode = fi.Mode() & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky)
+	} else if !o.Unique {
+		fi, err := d.Stat(base)
+		if err != nil && !dst.confined() {
+			fi, err = os.Stat(dst.path()) // a link leading out of the directory
+		}
+		if err == nil && fi.Mode().IsRegular() {
+			mode = fi.Mode() & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky)
+		}
 	}
-	dir, base := filepath.Split(p)
-	if dir == "" {
-		dir = "."
-	}
-	if base == "" {
+	if fi, err := d.Lstat(base); err == nil && fi.IsDir() && !o.Unique {
 		return nil, syscall.EISDIR
-	}
-	if fi, err := os.Lstat(p); err == nil && fi.IsDir() && !o.Unique {
-		return nil, syscall.EISDIR
-	}
-	if o.Partial != "" && !canLock {
-		// Checked before anything is created: without file locks a
-		// partial file cannot be shared safely, so there are none.
-		return nil, syscall.ENOTSUP
 	}
 	var tmp *os.File
+	var tmpName string
 	keep := false // a partial file survives failures, a temporary one does not
-	if o.Partial != "" {
-		pp, err := resolve(o.Partial)
+	if o.Partial != "" || o.PartialKey != "" {
+		name, err := partialFor(dst, base, o, wo)
 		if err != nil {
 			return nil, err
 		}
-		// The partial file must sit in the destination's directory. The
-		// client names that directory as it knows it, which may reach
-		// it through symlinks (macOS: /var -> /private/var) that the
-		// destination path above has had resolved; compare the
-		// directories themselves, not their spelling.
-		pdir, pbase := filepath.Split(pp)
-		if pdir == "" {
-			pdir = "."
-		}
-		if !sameDir(pdir, dir) || !strings.HasPrefix(pbase, PartialPrefix(base)) {
-			return nil, syscall.EINVAL
-		}
-		release := claimPartial(pp, abort)
+		release := claimPartial(filepath.Join(filepath.Dir(dst.path()), name), wo.abort)
 		defer release()
-		if tmp, err = openPartial(pp, o.Off); err != nil {
+		if tmp, err = openPartial(d, name, o.Off); err != nil {
 			return nil, err
 		}
-		keep = true
-	} else {
-		var err error
-		if tmp, err = os.CreateTemp(dir, "."+truncName(base)+".remohop-*"); err != nil {
-			return nil, err
-		}
+		tmpName, keep = name, true
+	} else if tmp, tmpName, err = createTemp(d, base); err != nil {
+		return nil, err
 	}
 	ok := false
 	defer func() {
 		if !ok {
 			tmp.Close()
 			if !keep {
-				os.Remove(tmp.Name())
+				d.Remove(tmpName)
 			}
 		}
 	}()
@@ -733,33 +815,96 @@ func writeAtomic(p string, o putReq, abort func(), fill func(io.Writer) error) (
 	// A partial file (only where files can be locked, so not on Windows)
 	// is installed while still open, and so still locked: a concurrent
 	// resumer must not grab it between close and rename.
-	if o.Mtime != nil {
-		t := time.Unix(0, *o.Mtime)
-		if err := os.Chtimes(tmp.Name(), t, t); err != nil {
+	if wo.verify != nil {
+		if err := wo.verify(); err != nil {
 			return nil, err
 		}
 	}
-	fi, err := os.Lstat(tmp.Name())
+	if o.Mtime != nil {
+		t := time.Unix(0, *o.Mtime)
+		if err := d.Chtimes(tmpName, t, t); err != nil {
+			return nil, err
+		}
+	}
+	fi, err := d.Lstat(tmpName)
 	if err != nil {
 		return nil, err
 	}
-	final := p
+	final := base
 	if o.Unique {
-		final, err = installUnique(tmp.Name(), p)
+		final, err = installUnique(d, tmpName, base)
 	} else {
-		err = replaceFile(tmp.Name(), p)
+		err = replaceFile(d, tmpName, base)
 	}
 	if err != nil {
-		return nil, err
+		return nil, rootErr(err)
 	}
 	ok = true
 	tmp.Close()
-	if o.Partial != "" || fi.Size() >= resumeMin {
-		removeStalePartials(dir, base)
+	if keep || fi.Size() >= resumeMin {
+		removeStalePartials(d, base)
 	}
 	a := attrFromInfo(fi)
-	a.Name = filepath.Base(final)
+	a.Name = final
 	return &a, nil
+}
+
+// partialFor decides the partial file an upload resumes into: by key, the
+// host's own name for it (partialFileName); without one, the client's name
+// (older clients), which must sit next to the destination and carry its
+// prefix, and which only a session with full access may give.
+func partialFor(dst loc, base string, o putReq, wo writeOpts) (string, error) {
+	if o.PartialKey != "" {
+		if !validPartialKey(o.PartialKey) {
+			return "", syscall.EINVAL
+		}
+		name := partialFileName(wo.scopeID, base, o.PartialKey)
+		if o.Partial != "" {
+			pp, err := resolve(o.Partial)
+			if err != nil {
+				return "", err
+			}
+			if filepath.Base(pp) != name || !sameDir(filepath.Dir(pp), filepath.Dir(dst.path())) {
+				return "", syscall.EINVAL
+			}
+		}
+		return name, nil
+	}
+	if wo.restricted {
+		// Not resumable: the client uploads normally instead.
+		return "", syscall.ENOTSUP
+	}
+	pp, err := resolve(o.Partial)
+	if err != nil {
+		return "", err
+	}
+	// The client names the directory as it knows it, which may reach it
+	// through symlinks (macOS: /var -> /private/var) that the destination
+	// path above has had resolved; compare the directories themselves,
+	// not their spelling.
+	pdir, pbase := filepath.Split(pp)
+	if pdir == "" {
+		pdir = "."
+	}
+	if !sameDir(pdir, filepath.Dir(dst.path())) || !strings.HasPrefix(pbase, PartialPrefix(base)) {
+		return "", syscall.EINVAL
+	}
+	return pbase, nil
+}
+
+// createTemp creates a new temporary file for base in directory d.
+func createTemp(d *os.Root, base string) (*os.File, string, error) {
+	var b [8]byte
+	for range 10000 {
+		rand.Read(b[:])
+		name := "." + truncName(base) + ".remohop-" + hex.EncodeToString(b[:])
+		f, err := d.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		return f, name, err
+	}
+	return nil, "", syscall.EEXIST
 }
 
 // sameDir reports whether two paths name the same directory.
@@ -775,14 +920,14 @@ func sameDir(a, b string) bool {
 	return err == nil && fa.IsDir() && os.SameFile(fa, fb)
 }
 
-// replaceFile renames tmp (closed) onto dst. Windows refuses to replace a
-// read-only file, which a file copied with its mode can well be; the
-// attribute is cleared and the rename retried.
-func replaceFile(tmp, dst string) error {
-	err := os.Rename(tmp, dst)
+// replaceFile renames tmp (closed) onto dst, both names in d. Windows
+// refuses to replace a read-only file, which a file copied with its mode
+// can well be; the attribute is cleared and the rename retried.
+func replaceFile(d *os.Root, tmp, dst string) error {
+	err := d.Rename(tmp, dst)
 	if err != nil && runtime.GOOS == "windows" && errors.Is(err, fs.ErrPermission) {
-		if os.Chmod(dst, 0o666) == nil {
-			err = os.Rename(tmp, dst)
+		if d.Chmod(dst, 0o666) == nil {
+			err = d.Rename(tmp, dst)
 		}
 	}
 	return err
@@ -797,10 +942,16 @@ func PartialPrefix(base string) string { return "." + truncName(base) + ".remoho
 // installs of files this large look for stale partial files to remove.
 const resumeMin = 8 << 20
 
-// removeStalePartials removes the partial files of a destination, except
-// any that a transfer in progress holds locked.
-func removeStalePartials(dir, base string) {
-	ents, err := os.ReadDir(dir)
+// removeStalePartials removes the partial files of destination base in
+// directory d, except any that a transfer in progress holds locked. Only
+// regular files are touched, opened through d, never a link's target.
+func removeStalePartials(d *os.Root, base string) {
+	df, err := d.Open(".")
+	if err != nil {
+		return
+	}
+	ents, err := df.ReadDir(-1)
+	df.Close()
 	if err != nil {
 		return
 	}
@@ -809,17 +960,43 @@ func removeStalePartials(dir, base string) {
 		if !strings.HasPrefix(e.Name(), pre) || !e.Type().IsRegular() {
 			continue
 		}
-		p := filepath.Join(dir, e.Name())
-		f, err := os.OpenFile(p, os.O_RDWR, 0)
+		f, err := openRegular(d, e.Name(), os.O_RDWR)
 		if err != nil {
 			continue
 		}
 		// Removed while locked, so no transfer can pick it up in between.
 		if lockFile(f) == nil {
-			os.Remove(p)
+			d.Remove(e.Name())
 		}
 		f.Close()
 	}
+}
+
+// openRegular opens name in d, which must be a regular file with a single
+// link, not a symbolic link to one: what is opened is checked against the
+// directory entry after opening, so a link swapped in is noticed.
+func openRegular(d *os.Root, name string, flag int) (*os.File, error) {
+	if fi, err := d.Lstat(name); err == nil && !fi.Mode().IsRegular() {
+		return nil, syscall.EINVAL
+	}
+	f, err := d.OpenFile(name, flag, 0o600)
+	if err != nil {
+		if isEscape(err) {
+			err = syscall.EINVAL
+		}
+		return nil, err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, err
+	}
+	li, err := d.Lstat(name)
+	if err != nil || !li.Mode().IsRegular() || !fi.Mode().IsRegular() || !os.SameFile(fi, li) || linkCount(fi) != 1 {
+		f.Close()
+		return nil, syscall.EINVAL
+	}
+	return f, nil
 }
 
 // partialHolders tracks the uploads writing partial files, so that a new
@@ -864,15 +1041,17 @@ func claimPartial(p string, abort func()) (release func()) {
 	}
 }
 
-// openPartial opens (or creates) a partial file for resuming at off: it
-// must hold at least off bytes, which are kept; anything after is cut. The
-// file is locked for as long as it is open, so two transfers never write
-// one partial file (the second gets EBUSY and should not resume).
-func openPartial(p string, off int64) (*os.File, error) {
+// openPartial opens (or creates) partial file name in directory d for
+// resuming at off: it must be a regular file with a single link (never a
+// symbolic or hard link to a file elsewhere) holding at least off bytes,
+// which are kept; anything after is cut. The file is locked for as long as
+// it is open, so two transfers never write one partial file (the second
+// gets EBUSY and should not resume).
+func openPartial(d *os.Root, name string, off int64) (*os.File, error) {
 	if off < 0 {
 		return nil, syscall.EINVAL
 	}
-	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE, 0o600)
+	f, err := openRegular(d, name, os.O_RDWR|os.O_CREATE)
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +1066,7 @@ func openPartial(p string, off int64) (*os.File, error) {
 	if err != nil {
 		return fail(err)
 	}
-	if !fi.Mode().IsRegular() || fi.Size() < off {
+	if fi.Size() < off {
 		return fail(syscall.EINVAL)
 	}
 	if err := f.Truncate(off); err != nil {
@@ -917,23 +1096,23 @@ func UniqueName(base string, i int) string {
 	return fmt.Sprintf("%s (%d)%s", stem, i, ext)
 }
 
-// installUnique moves tmp to the first free UniqueName of p. A hard link is
-// atomic and fails if the name exists, so concurrent installs never
-// collide and nothing is replaced; where links are unsupported a name is
-// reserved with O_EXCL and the file renamed over the reservation.
-func installUnique(tmp, p string) (string, error) {
-	dir, base := filepath.Split(p)
+// installUnique moves tmp to the first free UniqueName of base, both
+// names in d, and returns the name. A hard link is atomic and fails if the
+// name exists, so concurrent installs never collide and nothing is
+// replaced; where links are unsupported a name is reserved with O_EXCL and
+// the file renamed over the reservation.
+func installUnique(d *os.Root, tmp, base string) (string, error) {
 	for i := 0; i < 10000; i++ {
-		cand := filepath.Join(dir, UniqueName(base, i))
-		err := os.Link(tmp, cand)
+		cand := UniqueName(base, i)
+		err := d.Link(tmp, cand)
 		if err == nil {
-			os.Remove(tmp)
+			d.Remove(tmp)
 			return cand, nil
 		}
 		if errors.Is(err, fs.ErrExist) {
 			continue
 		}
-		f, err := os.OpenFile(cand, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		f, err := d.OpenFile(cand, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if errors.Is(err, fs.ErrExist) {
 			continue
 		}
@@ -941,8 +1120,8 @@ func installUnique(tmp, p string) (string, error) {
 			return "", err
 		}
 		f.Close()
-		if err := os.Rename(tmp, cand); err != nil {
-			os.Remove(cand)
+		if err := d.Rename(tmp, cand); err != nil {
+			d.Remove(cand)
 			return "", err
 		}
 		return cand, nil
@@ -977,10 +1156,16 @@ func serveGet(ctx context.Context, c *peer.Conn, st peer.Stream, raw json.RawMes
 	if err != nil {
 		return sendStatus(st, nil, err)
 	}
-	if err := guarded(ctx, grant.Of(c), "download", grant.Read, p); err != nil {
+	g := grant.Of(c)
+	if err := guarded(ctx, g, "download", grant.Read, p); err != nil {
 		return sendStatus(st, nil, err)
 	}
-	f, err := os.Open(p)
+	l, err := placeFor(g, nil, p, grant.Read, true)
+	if err != nil {
+		return sendStatus(st, nil, err)
+	}
+	defer l.release()
+	f, err := l.open(os.O_RDONLY, 0)
 	if err != nil {
 		return sendStatus(st, nil, err)
 	}
@@ -1036,8 +1221,29 @@ func servePut(ctx context.Context, c *peer.Conn, st peer.Stream, raw json.RawMes
 	if err != nil {
 		return sendStatus(st, nil, err)
 	}
-	if err := guarded(ctx, grant.Of(c), "upload", grant.Write, p); err != nil {
+	g := grant.Of(c)
+	if err := guarded(ctx, g, "upload", grant.Write, p); err != nil {
 		return sendStatus(st, nil, err)
+	}
+	// The scope is taken once: the partial file's name is bound to it,
+	// and the file is installed only if the grant is still the same.
+	scope, err := scopeOf(g)
+	if err != nil {
+		return sendStatus(st, nil, err)
+	}
+	dst, err := placeFor(g, scope, p, grant.Write, !r.NoFollow && !r.Unique)
+	if err != nil {
+		return sendStatus(st, nil, err)
+	}
+	defer dst.release()
+	wo := writeOpts{restricted: g != nil, abort: st.Reset}
+	if scope != nil {
+		wo.scopeID = scope.ID()
+		wo.verify = func() error {
+			l, err := placeFor(g, scope, p, grant.Write, !r.NoFollow && !r.Unique)
+			l.release()
+			return err
+		}
 	}
 	// Nothing is created on disk until the client's first frame arrives:
 	// a client that gives up (or a session that dies) before sending any
@@ -1051,7 +1257,7 @@ func servePut(ctx context.Context, c *peer.Conn, st peer.Stream, raw json.RawMes
 	}
 	pending := true
 	committed := false
-	a, err := writeAtomic(p, r, st.Reset, func(w io.Writer) error {
+	a, err := writeAtomic(dst, r, wo, func(w io.Writer) error {
 		for {
 			if !pending {
 				var err error

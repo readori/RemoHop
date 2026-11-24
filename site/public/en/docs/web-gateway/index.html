@@ -62,7 +62,6 @@ remohop web --target dev</code></pre>
         --public-url https://remohop.example.com --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 &lt;tunnel-name&gt;</code></pre>
 <p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the <code>CF-Connecting-IP</code> header Cloudflare sets.</p>
-<p>Programs (not browsers) can skip the login call and send <code>Authorization: Bearer &lt;gateway password&gt;</code> on every request. This suits a proxy that injects the header so the program never sees the password, for example next to Cloudflare Access service-token headers. Such requests share one gateway session and need no cookie, CSRF token or Origin; failures count against the login rate limit.</p>
 <ul>
 <li>In Cloudflare Zero Trust, create an Access application for the hostname and allow only your own identity or domain.</li>
 <li>Keep <code>remohop web</code>'s own login on (<code>--password-file</code>). Access sits in front, but the gateway still sees everything in the page.</li>
@@ -70,6 +69,14 @@ cloudflared tunnel run --url http://127.0.0.1:8470 &lt;tunnel-name&gt;</code></p
 <li>Add <code>--no-saved</code> for shared use. Otherwise everyone who logs in can use the gateway's saved pairings.</li>
 <li>Cloudflare Tunnel carries HTTP(S) only. The rendezvous server itself uses UDP; its websocket bridge, for machines where only HTTPS gets out, can go through a tunnel (see <a href="/en/docs/self-hosting/#networks-that-allow-only-https-websocket-bridge">Networks that allow only HTTPS</a>).</li>
 </ul>
+<h2 id="programs-bearer-tokens">Programs (bearer tokens)</h2>
+<p>Program access is off by default. Start the gateway with <code>--api-token-file FILE</code> (mode 600, at least 8 characters; needs <code>--password-file</code>) and programs (not browsers) can skip the login call and send <code>Authorization: Bearer &lt;token&gt;</code> on every request. This suits a proxy that injects the header so the program never sees the token, for example next to Cloudflare Access service-token headers. Such requests share one gateway session and need no cookie, CSRF token or Origin; failures count against the login rate limit. Without <code>--api-token-file</code> a bearer request is answered with <code>bearer_disabled</code>.</p>
+<pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
+        --api-token-file /etc/remohop/web-api-token \
+        --public-url https://remohop.example.com --no-open --no-saved</code></pre>
+<p>The gateway cannot see who added an <code>Authorization</code> header. A bearer request that carries what browsers send (<code>Origin</code>, <code>Sec-Fetch-Site</code> or <code>Sec-Fetch-Mode</code>, cookies) therefore gets the browser checks as well: it is refused if it comes from another site, a state-changing call needs the CSRF token from <code>POST api/v1/session</code>, and a WebSocket or download with an <code>Origin</code> must come from the gateway's own address. A program that keeps cookies (for example Cloudflare's <code>CF_Authorization</code>) either drops them for the gateway or sends the CSRF token too.</p>
+<p><strong>If a proxy injects the token, scope it to program traffic only.</strong> Do not add the header to everything that reaches the hostname: browsers would then be logged in by the proxy, and the checks above are the only thing between a hostile page and your gateway (old browsers that send no <code>Origin</code> or <code>Sec-Fetch-*</code> headers are not covered by them). Give programs their own hostname or path and inject the header only there, and only for the program's identity (in Cloudflare, a rule that matches the service token, not the Access policy that lets your browser in). Browsers keep using the login form.</p>
+<p><strong>Migrating.</strong> Before <code>--api-token-file</code> existed, the gateway accepted the gateway password as the bearer token whenever it had <code>--password-file</code>. Such a deployment stops working (its programs get <code>bearer_disabled</code>) until you add <code>--api-token-file</code>. Pointing it at the password file keeps the old token working; better, create a new token, update the proxy rule that injects it, and keep the password for browsers.</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/web-gateway.md">Source file (GitHub)</a></p>
 </div>
 </main>

@@ -63,7 +63,10 @@ func isLoopbackAddr(addr string) (bool, error) {
 
 // loadPassword reads the gateway password file: the whole content minus
 // trailing line breaks.
-func loadPassword(path string) ([]byte, error) {
+func loadPassword(path string) ([]byte, error) { return loadSecret(path, "the gateway password") }
+
+// loadSecret reads what (a password or token) from a private file.
+func loadSecret(path, what string) ([]byte, error) {
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -80,7 +83,7 @@ func loadPassword(path string) ([]byte, error) {
 	}
 	b = []byte(strings.TrimRight(string(b), "\r\n"))
 	if len(b) < minPasswordLen {
-		return nil, fmt.Errorf("the gateway password in %s must be at least %d characters", path, minPasswordLen)
+		return nil, fmt.Errorf("%s in %s must be at least %d characters", what, path, minPasswordLen)
 	}
 	return b, nil
 }
@@ -166,6 +169,31 @@ func (m *hostMatcher) ok(hostport string) bool {
 
 // sameOrigin reports whether the Origin header names this very server: same
 // scheme and the (already validated) Host.
+// crossSite reports whether a browser says r comes from another site: an
+// Origin header that is not the gateway's own, or a Sec-Fetch-Site other
+// than same-origin (or none: the user typed the address). A request with
+// neither header says nothing, and is not refused here.
+func crossSite(r *http.Request, tls bool) bool {
+	if r.Header.Get("Origin") != "" && !sameOrigin(r, tls) {
+		return true
+	}
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "", "same-origin", "none":
+		return false
+	}
+	return true
+}
+
+// fromBrowser reports whether r carries what browsers send and plain
+// programs do not: Origin, Sec-Fetch-* or cookies. A gateway that accepts
+// Authorization: Bearer cannot tell who added that header (a reverse
+// proxy may inject it into every request), so a bearer request that looks
+// like a browser's gets the browser checks as well.
+func fromBrowser(r *http.Request) bool {
+	h := r.Header
+	return h.Get("Origin") != "" || h.Get("Sec-Fetch-Site") != "" || h.Get("Sec-Fetch-Mode") != "" || h.Get("Cookie") != ""
+}
+
 func sameOrigin(r *http.Request, tls bool) bool {
 	o := r.Header.Get("Origin")
 	if o == "" || o == "null" {

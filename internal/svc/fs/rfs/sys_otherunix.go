@@ -2,8 +2,13 @@
 
 package rfs
 
-import "syscall"
+import (
+	"os"
+	"syscall"
+)
 
 func statTimes(st *syscall.Stat_t) (atime, ctime int64) { return 0, 0 }
 
 func statFS(string) (*StatFS, error) { return nil, syscall.ENOSYS }
+
+func fstatFS(*os.File) (*StatFS, error) { return nil, syscall.ENOSYS }

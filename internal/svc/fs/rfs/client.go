@@ -423,6 +423,21 @@ func (c *Client) DownloadsDir(ctx context.Context) (string, error) {
 	return r.rep.Str, nil
 }
 
+// PartialPath returns the host's partial file for a resumable upload to
+// name, for key (1-64 letters, digits, '-' or '_', identifying the source:
+// a different key gets a different file). The host derives the name from
+// the key, the destination and the session's grant, so a partial file is
+// only ever resumed by an upload of the same source to the same place under
+// the same credential. Hosts that predate this answer ENOSYS; hosts that
+// cannot resume at all (no file locks) ENOTSUP.
+func (c *Client) PartialPath(ctx context.Context, name, key string) (string, error) {
+	r, err := c.call(ctx, opPartial, "partial", name, &request{Path: name, Kind: key}, nil)
+	if err != nil {
+		return "", err
+	}
+	return r.rep.Str, nil
+}
+
 // Realpath resolves name to an absolute host path without symlinks.
 func (c *Client) Realpath(ctx context.Context, name string) (string, error) {
 	r, err := c.call(ctx, opRealpath, "realpath", name, &request{Path: name}, nil)
@@ -517,6 +532,11 @@ type PutOptions struct {
 	// it; ENOTSUP that the host cannot resume (upload normally then).
 	Partial string
 	Offset  int64
+	// PartialKey, when set, says Partial is the name PartialPath returned
+	// for this key: the host then checks that, and uses its own name for
+	// the partial file. Hosts refuse client-chosen partial names
+	// (ENOTSUP) for sessions on a grant.
+	PartialKey string
 }
 
 func (o PutOptions) mode() uint32 {
@@ -557,7 +577,7 @@ func (c *Client) Put(ctx context.Context, name string, data []byte, o PutOptions
 func (c *Client) Upload(ctx context.Context, name string, r io.Reader, o PutOptions) (*FileInfo, error) {
 	st, err := c.conn.Open(ctx, ServicePut, putReq{
 		Path: name, Mode: o.mode(), Mtime: timePtr(o.ModTime), NoFollow: o.NoFollow, Sync: o.Sync,
-		Unique: o.Unique, Partial: o.Partial, Off: o.Offset,
+		Unique: o.Unique, Partial: o.Partial, Off: o.Offset, PartialKey: o.PartialKey,
 	})
 	if err != nil {
 		return nil, &fs.PathError{Op: "upload", Path: name, Err: err}

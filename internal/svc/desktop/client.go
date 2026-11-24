@@ -63,6 +63,9 @@ type Session struct {
 	localDrops  uint64
 	lastKeyReq  time.Time
 	viewOnly    bool
+	// hostNoInput: the latest Hello says the host takes no input (the
+	// host's owner can withdraw it, and give it back, mid-session).
+	hostNoInput bool
 	nextID      uint32
 	waiting     map[uint32]chan Reply
 
@@ -234,8 +237,8 @@ func (s *Session) call(ctx context.Context, c Control) error {
 }
 
 // SetViewOnly switches input off or back on at run time. It cannot switch
-// input on for a session that was opened view-only or that the host
-// restricts: see Hello.Input.
+// input on for a session that was opened view-only or while the host
+// takes no input: see Hello.Input.
 func (s *Session) SetViewOnly(on bool) {
 	s.mu.Lock()
 	s.viewOnly = on || s.opts.ViewOnly
@@ -245,11 +248,13 @@ func (s *Session) SetViewOnly(on bool) {
 	}
 }
 
-// ViewOnly reports whether the session currently refuses to send input.
+// ViewOnly reports whether the session currently refuses to send input:
+// it was asked to, or the host said (in its latest Hello) that it takes no
+// input, for instance because its owner switched keyboard and mouse off.
 func (s *Session) ViewOnly() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.viewOnly
+	return s.viewOnly || s.hostNoInput
 }
 
 // ErrViewOnly is returned by SendInput on a session without input.
@@ -464,6 +469,7 @@ func (s *Session) readLoop(first chan<- error) {
 			}
 			s.mu.Lock()
 			s.hello = h
+			s.hostNoInput = !h.Input
 			s.mu.Unlock()
 			if !gotHello {
 				gotHello = true

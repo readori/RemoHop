@@ -4,10 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 )
 
 // Refusal is an action a grant does not allow. Its text is meant for the
@@ -142,113 +140,4 @@ func (a Access) String() string {
 		return "files:read"
 	}
 	return "files:write"
-}
-
-// CheckPath decides whether the rules allow access to host path p (an
-// absolute path, as the file service resolved it). Symbolic links are
-// resolved first, both for the path itself and for its parent directory
-// (an operation on a link acts on one or the other), and both results
-// must lie under an allowed root, so a link cannot lead out of a root.
-// Paths with ".." components are refused when roots apply.
-//
-// The check happens before the operation, so a link swapped in between by
-// another process on the host is not caught: roots confine what the agent
-// asks for, not what other software on the host does at the same moment.
-func (r *Rules) CheckPath(p string, a Access) error {
-	if r.WriteAll || (a != Write && r.ReadAll) {
-		return nil
-	}
-	roots := r.WriteRoots
-	if a != Write {
-		roots = append(slices.Clone(r.ReadRoots), r.WriteRoots...)
-	}
-	if len(roots) == 0 {
-		if a == Write {
-			return errors.New("the grant allows no file changes")
-		}
-		return errors.New("the grant allows no file access")
-	}
-	if !filepath.IsAbs(p) {
-		return fmt.Errorf("%s is not an absolute path", p)
-	}
-	if slices.Contains(strings.FieldsFunc(filepath.ToSlash(p), func(c rune) bool { return c == '/' }), "..") {
-		return errors.New("paths with .. are not allowed under this grant")
-	}
-	p = filepath.Clean(p)
-	follow, err := RealPath(p)
-	if err != nil {
-		return err
-	}
-	parent, err := RealPath(filepath.Dir(p))
-	if err != nil {
-		return err
-	}
-	nofollow := filepath.Join(parent, filepath.Base(p))
-	if filepath.Dir(p) == p { // a volume root
-		nofollow = follow
-	}
-	var real []string
-	for _, root := range roots {
-		rr, err := RealPath(root)
-		if err != nil {
-			continue
-		}
-		real = append(real, rr)
-		if within(follow, rr) && within(nofollow, rr) {
-			return nil
-		}
-	}
-	if a == Meta {
-		// Ancestors of a root may be looked at, not into.
-		for _, rr := range real {
-			if within(rr, follow) && within(rr, nofollow) {
-				return nil
-			}
-		}
-	}
-	where := "readable"
-	if a == Write {
-		where = "writable"
-	}
-	shown := p
-	if follow != p {
-		shown = p + " (" + follow + ")"
-	}
-	return fmt.Errorf("%s is outside the %s roots: %s", shown, where, strings.Join(roots, ", "))
-}
-
-// within reports whether p is root or below it. Both are clean absolute
-// paths; on Windows filepath.Rel compares case-insensitively.
-func within(p, root string) bool {
-	rel, err := filepath.Rel(root, p)
-	if err != nil {
-		return false
-	}
-	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
-}
-
-// RealPath resolves the symbolic links in p as far as p exists, and
-// appends the components that do not exist yet unchanged.
-func RealPath(p string) (string, error) {
-	p = filepath.Clean(p)
-	cur := p
-	var rest []string
-	for {
-		r, err := filepath.EvalSymlinks(cur)
-		if err == nil {
-			if !filepath.IsAbs(r) {
-				r = filepath.Join(filepath.Dir(cur), r)
-			}
-			return filepath.Join(append([]string{r}, rest...)...), nil
-		}
-		if !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR) {
-			return "", err
-		}
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			return p, nil
-		}
-		rest = append([]string{filepath.Base(cur)}, rest...)
-		cur = parent
-	}
 }

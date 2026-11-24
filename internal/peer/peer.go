@@ -9,7 +9,8 @@
 //
 // Establishing the session (rendezvous, UDP hole punching, the password
 // handshake) is not this package's job: internal/dial and internal/hostd do
-// that and hand a ready Mux to NewConn.
+// that and hand a ready Mux to NewConn (or to New, then Start once the
+// session is set up).
 package peer
 
 import (
@@ -86,10 +87,24 @@ type Handler func(ctx context.Context, c *Conn, s Stream, req json.RawMessage) e
 type Registry struct {
 	mu sync.RWMutex
 	m  map[string]Handler
+
+	// base and wrap, when set, make the registry a view of base (Wrapped).
+	base *Registry
+	wrap func(name string, h Handler) Handler
 }
 
 // NewRegistry returns an empty registry.
 func NewRegistry() *Registry { return &Registry{m: map[string]Handler{}} }
+
+// Wrapped returns a registry that serves r's services with each handler
+// passed through wrap when a stream asks for it, so a host can put the same
+// logic around every service (internal/hostd ends a stream whose feature
+// is switched off). Services registered on r later are served too; those
+// registered on the returned registry itself are served as they are and
+// take precedence.
+func (r *Registry) Wrapped(wrap func(name string, h Handler) Handler) *Registry {
+	return &Registry{m: map[string]Handler{}, base: r, wrap: wrap}
+}
 
 // Handle registers h under name, replacing any previous handler.
 func (r *Registry) Handle(name string, h Handler) {
@@ -100,16 +115,31 @@ func (r *Registry) Handle(name string, h Handler) {
 
 func (r *Registry) lookup(name string) Handler {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-	return r.m[name]
+	h := r.m[name]
+	r.mu.RUnlock()
+	if h == nil && r.base != nil {
+		if h = r.base.lookup(name); h != nil {
+			h = r.wrap(name, h)
+		}
+	}
+	return h
 }
 
 // Names lists the registered services, sorted.
 func (r *Registry) Names() []string {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-	out := make([]string, 0, len(r.m))
+	seen := make(map[string]bool, len(r.m))
 	for k := range r.m {
+		seen[k] = true
+	}
+	r.mu.RUnlock()
+	if r.base != nil {
+		for _, k := range r.base.Names() {
+			seen[k] = true
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
 		out = append(out, k)
 	}
 	sort.Strings(out)
@@ -157,6 +187,7 @@ type Conn struct {
 	dgrams datagramMux
 
 	closeOnce sync.Once
+	startOnce sync.Once
 
 	// Inbound stream handlers still running, so that a host shutting down
 	// can let them finish their cleanup (WaitHandlers).
@@ -166,11 +197,27 @@ type Conn struct {
 }
 
 // NewConn wraps an already authenticated mux and starts serving inbound
-// streams.
+// streams: New followed by Start. Use it where nothing about the session
+// has to be in place before the remote side's first stream is served.
 func NewConn(m Mux, opts Options) *Conn {
-	c := &Conn{mux: m, opts: opts, local: map[string]Handler{}}
-	go c.acceptLoop()
+	c := New(m, opts)
+	c.Start()
 	return c
+}
+
+// New wraps an already authenticated mux without serving anything yet.
+// Streams the remote side opens wait (in the transport's flow control)
+// until Start, so a host can attach everything its services rely on
+// (SetValue: the session, its grant guard) and admit the session before
+// the first of them is handled. The caller must call Start or Close.
+func New(m Mux, opts Options) *Conn {
+	return &Conn{mux: m, opts: opts, local: map[string]Handler{}}
+}
+
+// Start begins serving the streams the remote side opens. Calls after the
+// first do nothing.
+func (c *Conn) Start() {
+	c.startOnce.Do(func() { go c.acceptLoop() })
 }
 
 // Role reports which end of the session this is.

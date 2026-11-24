@@ -48,3 +48,11 @@ func hostIDs() (uid, gid uint32) { return 0, 0 }
 func Umask() fs.FileMode { return 0 }
 
 func statFS(string) (*StatFS, error) { return nil, syscall.ENOSYS }
+
+func fstatFS(*os.File) (*StatFS, error) { return nil, syscall.ENOSYS }
+
+// oNonblock: opening is never blocking here.
+const oNonblock = 0
+
+// linkCount is the number of hard links of a file; Windows reports none.
+func linkCount(fs.FileInfo) uint64 { return 1 }

@@ -26,6 +26,15 @@
 // token in a header, and WebSockets and downloads authenticate with
 // single-use tickets bought through such a request.
 //
+// Programs: with --api-token-file (and a password), a client may instead
+// send "Authorization: Bearer <token>" on every request. That mode is off
+// unless asked for. A browser never adds the header by itself, but a
+// reverse proxy may inject it into all traffic, browsers' included, so a
+// bearer request that carries browser signals (Origin, Sec-Fetch-*,
+// cookies) must still be same-origin and, if it changes state, carry the
+// CSRF token; a bearer WebSocket or download with an Origin must be
+// same-origin.
+//
 // # API
 //
 // JSON under /api/v1/ (relative to the token path on loopback):
@@ -86,6 +95,13 @@ type Config struct {
 	TLSCert, TLSKey string
 	// PasswordFile holds the gateway password (at least 8 characters).
 	PasswordFile string
+	// APITokenFile, if set, enables program access: a request may
+	// authenticate with "Authorization: Bearer <token>", the token read
+	// from this file, instead of logging in. Requires PasswordFile. It may
+	// be the password file itself (the gateway's behaviour before the
+	// mode had to be enabled), but a separate token keeps an injected
+	// program credential from also being the browser login.
+	APITokenFile string
 	// Target pre-fills the connect form.
 	Target string
 	// ConfigDir is the remohop config directory (identity, saved peers);
@@ -127,12 +143,15 @@ type Server struct {
 	token  string // loopback mode: path prefix
 	pwHash [sha256.Size]byte
 	havePW bool
-	useTLS bool
-	hosts  *hostMatcher
-	public *hostMatcher // PublicURL's host, or nil
-	apiSID string       // the session shared by bearer-authenticated clients
-	pubURL string
-	lim    *limiter
+	// apiHash is the bearer token's (haveAPI: --api-token-file given).
+	apiHash [sha256.Size]byte
+	haveAPI bool
+	useTLS  bool
+	hosts   *hostMatcher
+	public  *hostMatcher // PublicURL's host, or nil
+	apiSID  string       // the session shared by bearer-authenticated clients
+	pubURL  string
+	lim     *limiter
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -166,6 +185,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if !loop && (cfg.TLSCert == "" || cfg.PasswordFile == "") {
 		return nil, errNoTLSPassword
+	}
+	if cfg.APITokenFile != "" && cfg.PasswordFile == "" {
+		return nil, errors.New("--api-token-file needs --password-file: program access is for gateways that have a login")
 	}
 	var pub *hostMatcher
 	if cfg.PublicURL != "" {
@@ -234,6 +256,14 @@ func New(cfg Config) (*Server, error) {
 		}
 		s.pwHash = sha256.Sum256(pw)
 		s.havePW = true
+		if cfg.APITokenFile != "" {
+			tok, err := loadSecret(cfg.APITokenFile, "the API token")
+			if err != nil {
+				return nil, err
+			}
+			s.apiHash = sha256.Sum256(tok)
+			s.haveAPI = true
+		}
 	} else {
 		s.token = randToken(16)
 	}
@@ -465,25 +495,45 @@ func (s *Server) sessionFromRequest(r *http.Request) *webSession {
 	return s.lookupSession(r.Header.Get(hdrSession))
 }
 
-var errLoginRequired = &apiError{Status: http.StatusUnauthorized, Code: "login_required", Message: "log in first"}
+var (
+	errLoginRequired = &apiError{Status: http.StatusUnauthorized, Code: "login_required", Message: "log in first"}
+	errBearerOff     = &apiError{Status: http.StatusUnauthorized, Code: "bearer_disabled",
+		Message: "this gateway does not accept Authorization: Bearer; start it with --api-token-file to allow program access"}
+	errCrossSite = &apiError{Status: http.StatusForbidden, Code: "bad_origin", Message: "cross-site request refused"}
+	errBadCSRF   = &apiError{Status: http.StatusForbidden, Code: "bad_csrf", Message: "missing or wrong CSRF token"}
+)
+
+// noSession is the error for a request without a session: log in, or,
+// for a program sending a bearer token to a gateway that does not take
+// them, how to turn program access on.
+func (s *Server) noSession(r *http.Request) *apiError {
+	if s.passwordMode() && !s.haveAPI && strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") {
+		return errBearerOff
+	}
+	return errLoginRequired
+}
 
 // authenticate checks a JSON API request: the session, and for anything but
-// GET the CSRF token and, if the browser sent an Origin, that it is ours.
+// GET the CSRF token and, if the browser says where it comes from, that it
+// is this gateway. A bearer request is a program's, except when it carries
+// browser signals: then it is held to the same checks (see fromBrowser).
 func (s *Server) authenticate(r *http.Request) (*webSession, *apiError) {
-	if ws, aerr, ok := s.bearerSession(r); ok {
-		return ws, aerr
-	}
-	ws := s.sessionFromRequest(r)
-	if ws == nil {
-		return nil, errLoginRequired
-	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		if o := r.Header.Get("Origin"); o != "" && !sameOrigin(r, s.secure(r)) {
-			return nil, &apiError{Status: http.StatusForbidden, Code: "bad_origin", Message: "cross-site request refused"}
+	ws, aerr, bearer := s.bearerSession(r)
+	if bearer {
+		if aerr != nil {
+			return nil, aerr
 		}
-		if !ctEqual(r.Header.Get(hdrCSRF), ws.csrf) {
-			return nil, &apiError{Status: http.StatusForbidden, Code: "bad_csrf", Message: "missing or wrong CSRF token"}
+		if !fromBrowser(r) {
+			return ws, nil
 		}
+	} else if ws = s.sessionFromRequest(r); ws == nil {
+		return nil, s.noSession(r)
+	}
+	if crossSite(r, s.secure(r)) {
+		return nil, errCrossSite
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead && !ctEqual(r.Header.Get(hdrCSRF), ws.csrf) {
+		return nil, errBadCSRF
 	}
 	return ws, nil
 }
@@ -492,8 +542,8 @@ func (s *Server) authenticate(r *http.Request) (*webSession, *apiError) {
 // same-origin when the browser says where it comes from, and JSON only,
 // which a cross-site form cannot send.
 func (s *Server) checkUnauth(r *http.Request) *apiError {
-	if o := r.Header.Get("Origin"); o != "" && !sameOrigin(r, s.secure(r)) {
-		return &apiError{Status: http.StatusForbidden, Code: "bad_origin", Message: "cross-site request refused"}
+	if crossSite(r, s.secure(r)) {
+		return errCrossSite
 	}
 	if ct := r.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
 		return &apiError{Status: http.StatusUnsupportedMediaType, Code: "bad_content_type", Message: "send application/json"}
@@ -544,7 +594,7 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			ws, aerr = s.sessionFromRequest(r), nil
 			if ws == nil {
-				aerr = errLoginRequired
+				aerr = s.noSession(r)
 			}
 		}
 		if aerr != nil {
@@ -705,10 +755,15 @@ func (s *Server) handleTicket(w http.ResponseWriter, r *http.Request, ws *webSes
 // Origin when the browser sends one (always, for WebSockets).
 func (s *Server) ticketAuth(w http.ResponseWriter, r *http.Request, purpose string, needOrigin bool) *webSession {
 	if bw, aerr, ok := s.bearerSession(r); ok {
-		// A browser cannot attach an Authorization header to a WebSocket
-		// or a cross-site navigation, so no Origin check is needed.
 		if aerr != nil {
 			writeErr(w, aerr)
+			return nil
+		}
+		// A program's WebSocket library may send no Origin, but one that
+		// is sent must be ours: a proxy injecting the bearer header into
+		// a browser's cross-site WebSocket must not make it pass.
+		if crossSite(r, s.secure(r)) {
+			writeErr(w, errCrossSite)
 			return nil
 		}
 		if ws := s.redeemTicket(r.URL.Query().Get("t"), purpose); ws == bw {
@@ -717,18 +772,18 @@ func (s *Server) ticketAuth(w http.ResponseWriter, r *http.Request, purpose stri
 		writeErr(w, errLoginRequired)
 		return nil
 	}
-	if needOrigin && !sameOrigin(r, s.secure(r)) || r.Header.Get("Origin") != "" && !sameOrigin(r, s.secure(r)) {
-		writeErr(w, &apiError{Status: http.StatusForbidden, Code: "bad_origin", Message: "cross-site request refused"})
+	if needOrigin && !sameOrigin(r, s.secure(r)) || crossSite(r, s.secure(r)) {
+		writeErr(w, errCrossSite)
 		return nil
 	}
 	ws := s.redeemTicket(r.URL.Query().Get("t"), purpose)
 	if ws == nil {
-		writeErr(w, errLoginRequired)
+		writeErr(w, s.noSession(r))
 		return nil
 	}
 	if s.passwordMode() {
 		if cw := s.sessionFromRequest(r); cw != ws {
-			writeErr(w, errLoginRequired)
+			writeErr(w, s.noSession(r))
 			return nil
 		}
 	}
@@ -793,18 +848,21 @@ func parsePublicURL(raw string) (*hostMatcher, error) {
 	return newHostMatcher(port, true, h), nil
 }
 
-// bearerSession authenticates a non-browser client that sends the gateway
-// password as "Authorization: Bearer <password>" on every request (for
-// example through a proxy that injects the header, so the client never
-// handles the password itself). ok reports whether the request carried such
-// a header at all. Such clients share one gateway session, so host
-// connections persist across their requests. Cross-site request forgery
-// needs a browser to attach credentials on its own, which it never does
-// for an Authorization header, so these requests skip the CSRF and Origin
-// checks. Failures count against the login rate limiter.
+// bearerSession authenticates a program that sends the API token
+// (--api-token-file) as "Authorization: Bearer <token>" on every request,
+// for example through a proxy that injects the header so the program never
+// handles the token itself. ok reports whether the request carried such a
+// header and the gateway takes them (otherwise the header is ignored and
+// the request needs a browser session). Such clients share one gateway
+// session, so host connections persist across their requests. A browser
+// never attaches an Authorization header on its own, so a program's
+// requests need no CSRF token or Origin; but a proxy may inject the header
+// into browser traffic too, so callers still apply the browser checks to
+// bearer requests that carry browser signals (fromBrowser). Failures count
+// against the login rate limiter.
 func (s *Server) bearerSession(r *http.Request) (ws *webSession, aerr *apiError, ok bool) {
 	tok, found := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-	if !found || !s.passwordMode() {
+	if !found || !s.passwordMode() || !s.haveAPI {
 		return nil, nil, false
 	}
 	src := s.clientKey(r)
@@ -812,10 +870,10 @@ func (s *Server) bearerSession(r *http.Request) (ws *webSession, aerr *apiError,
 		return nil, &apiError{Status: http.StatusTooManyRequests, Code: "locked_out",
 			Message: fmt.Sprintf("too many failed logins; try again in %d seconds", int(wait.Seconds())+1)}, true
 	}
-	if !passwordMatches(s.pwHash, strings.TrimSpace(tok)) {
+	if !passwordMatches(s.apiHash, strings.TrimSpace(tok)) {
 		s.lim.fail(src)
 		s.log.Warn("gateway bearer login failed", "from", src)
-		return nil, &apiError{Status: http.StatusUnauthorized, Code: "bad_password", Message: "wrong gateway password"}, true
+		return nil, &apiError{Status: http.StatusUnauthorized, Code: "bad_password", Message: "wrong API token"}, true
 	}
 	s.lim.success(src)
 	s.mu.Lock()

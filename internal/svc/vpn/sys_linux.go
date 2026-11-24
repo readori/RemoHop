@@ -240,6 +240,10 @@ func linuxClientRoutes(st *state, dev string, o clientRouting) (notes []string, 
 		}
 	}
 	if len(o.dns) > 0 {
+		if ok, why := ResolvedSharesNetns(); !ok {
+			notes = append(notes, "DNS still uses this machine's current resolvers ("+why+")")
+			return notes, nil
+		}
 		if _, err := exec.LookPath("resolvectl"); err == nil {
 			args := []string{"resolvectl", "dns", dev}
 			for _, d := range o.dns {

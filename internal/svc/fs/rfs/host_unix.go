@@ -82,3 +82,14 @@ var processUmask = func() fs.FileMode {
 
 // Umask is this process's file creation mask.
 func Umask() fs.FileMode { return processUmask }
+
+// oNonblock keeps an open from waiting on a FIFO.
+const oNonblock = syscall.O_NONBLOCK
+
+// linkCount is the number of hard links of a file.
+func linkCount(fi fs.FileInfo) uint64 {
+	if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+		return uint64(st.Nlink)
+	}
+	return 1
+}

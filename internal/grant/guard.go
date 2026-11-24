@@ -2,14 +2,19 @@ package grant
 
 import (
 	"context"
+	"io/fs"
 
 	"github.com/readori/RemoHop/internal/peer"
 )
 
 // Guard is what a host service asks before it acts for a session that
-// stands on a grant. The host daemon attaches one to every such session;
-// sessions with full access have none (Of returns nil), and services then
-// skip the checks entirely.
+// stands on a grant. The host daemon attaches one to every such session,
+// and marks every session with full access as such (AttachFull); for those
+// Of returns nil, and services then skip the checks entirely.
+//
+// A host-side session with neither (one whose setup did not finish, or a
+// service reached by some path that never set it up) does not get full
+// access: Of returns a guard that refuses everything.
 //
 // Every method that can refuse returns an error whose text is meant for
 // the client: usually a *Refusal, or the owner's denial of an approval.
@@ -26,6 +31,11 @@ type Guard interface {
 	// File is asked before a file operation on host path p. op names the
 	// operation for the audit log ("open", "remove", ...).
 	File(ctx context.Context, op string, a Access, p string) error
+	// FileScope is the grant's file scope: the pinned roots the file
+	// service does its I/O through once File has allowed an operation.
+	// It is the same Scope for as long as the grant's credential stays
+	// the same, so a service can tell a reissued grant apart.
+	FileScope() (*Scope, error)
 	// Log records an action that needs no permission of its own in the
 	// audit log (for example killing a background job).
 	Log(action string, kv ...string)
@@ -46,16 +56,68 @@ type Recorder interface {
 
 type guardKey struct{}
 
+// fullAccess marks a session that stands on no grant.
+type fullAccess struct{}
+
 // Attach makes g the guard of c. The host daemon calls it before the
 // session serves its first stream.
 func Attach(c *peer.Conn, g Guard) { c.SetValue(guardKey{}, g) }
 
+// AttachFull records that c stands on no grant: Of(c) is nil and services
+// do not restrict it. The host daemon calls it, instead of Attach, before a
+// session with full access serves its first stream.
+func AttachFull(c *peer.Conn) { c.SetValue(guardKey{}, fullAccess{}) }
+
 // Of returns the guard of c, or nil if the session is not under a grant.
+// For the host side of a session that was given neither a guard nor
+// AttachFull it returns a guard that refuses everything: missing grant
+// state never means full access. The controlling side of a session (a
+// client serving callbacks from its host) is not restricted.
 func Of(c *peer.Conn) Guard {
 	if c == nil {
 		return nil
 	}
 	v, _ := c.Value(guardKey{})
-	g, _ := v.(Guard)
-	return g
+	switch g := v.(type) {
+	case Guard:
+		return g
+	case fullAccess:
+		return nil
+	}
+	if c.Role() == peer.RoleHost {
+		return unset{}
+	}
+	return nil
 }
+
+// unset is the guard of a host session whose grant state was never set.
+type unset struct{}
+
+// unsetName is no valid grant name (ValidName), so nothing keyed by a
+// grant's name (the terminals a grant started, say) matches it.
+const unsetName = "(no grant state)"
+
+// ErrNoGrantState is what the guard of a host session without grant state
+// answers to everything.
+var ErrNoGrantState error = noGrantState{}
+
+type noGrantState struct{}
+
+func (noGrantState) Error() string {
+	return "refused: the host never set up this session's permissions"
+}
+
+// Is makes it match fs.ErrPermission, like a Refusal.
+func (noGrantState) Is(target error) bool { return target == fs.ErrPermission }
+
+func (unset) refuse() error { return ErrNoGrantState }
+
+func (unset) Name() string { return unsetName }
+func (u unset) Command(context.Context, string, string, bool, []string) error {
+	return u.refuse()
+}
+func (u unset) Terminal(context.Context, string) error             { return u.refuse() }
+func (u unset) File(context.Context, string, Access, string) error { return u.refuse() }
+func (unset) Log(string, ...string)                                {}
+func (unset) Record(string, string, int, int) Recorder             { return nil }
+func (u unset) FileScope() (*Scope, error)                         { return nil, u.refuse() }

@@ -300,15 +300,36 @@ func (h *Host) activeGrant(name string) (*grantEntry, error) {
 	return e, nil
 }
 
+// grantFor returns the grant called name if a holder of the credential
+// tokenID may use it now: the grant is active and is still the one that
+// credential was issued for. Reissuing a grant under the same name gives
+// it a new credential, so the new grant's rules never apply to sessions on
+// the old one.
+func (h *Host) grantFor(name, tokenID string) (*grantEntry, error) {
+	e, err := h.activeGrant(name)
+	if err == nil && e.g.TokenID != tokenID {
+		// The cache may be behind a reissue that a coarse file-system
+		// clock hid from it (a new credential that looks unknown), so
+		// look once more before deciding.
+		h.grants.invalidate()
+		if e, err = h.activeGrant(name); err == nil && e.g.TokenID != tokenID {
+			err = fmt.Errorf("grant %s was reissued; the old credential no longer works", name)
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
 // grantLogin decides whether a client presenting a grant's credential may
-// log in now: the grant exists, is active, and has a session to spare.
+// log in now: the grant exists, is active, is the one the credential was
+// issued for, and has a session to spare. admit checks all of it again
+// before the session is let in.
 func (h *Host) grantLogin(res *auth.Result) error {
-	e, err := h.activeGrant(res.Grant)
+	e, err := h.grantFor(res.Grant, res.TokenID)
 	if err != nil {
 		return err
-	}
-	if e.g.TokenID != res.TokenID {
-		return fmt.Errorf("grant %s was reissued; the old credential no longer works", res.Grant)
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -332,20 +353,6 @@ func (h *Host) grantFullLocked(name string, max int) error {
 	return nil
 }
 
-// admitGrant is serveConn's final check, with h.mu held, before a granted
-// session joins the live ones: logins that raced past grantLogin together
-// do not exceed the limit.
-func (h *Host) admitGrantLocked(s *Session) error {
-	if s.grant == "" {
-		return nil
-	}
-	e, ok := h.grants.get(h.dir, s.grant)
-	if !ok {
-		return fmt.Errorf("grant %s was revoked", s.grant)
-	}
-	return h.grantFullLocked(s.grant, e.g.MaxSessions)
-}
-
 // enforceGrants closes granted sessions whose grant has expired, been
 // revoked, reissued or suspended, and returns how many it closed.
 func (h *Host) enforceGrants() int {
@@ -355,11 +362,7 @@ func (h *Host) enforceGrants() int {
 		if s.grant == "" {
 			continue
 		}
-		e, err := h.activeGrant(s.grant)
-		if err == nil && e.g.TokenID != s.currentTokenID() {
-			err = fmt.Errorf("grant %s was reissued", s.grant)
-		}
-		if err != nil {
+		if _, err := h.grantFor(s.grant, s.currentTokenID()); err != nil {
 			h.log.Info("closing granted session", "grant", s.grant, "from", s.Remote, "reason", err)
 			h.audit.add("grant-end", s.fields("reason", err.Error())...)
 			s.conn.CloseWithReason(err.Error())
@@ -388,18 +391,32 @@ func (h *Host) endGrantSessions(all bool, reason string) int {
 // session with full access.
 func (s *Session) Grant() string { return s.grant }
 
+// activeGrant returns the session's grant if the session may still use
+// it: active, and still the grant its credential was issued for (grantFor).
+// Every permission check of a granted session goes through it. Otherwise
+// the session is over: it is closed, and the error says why to whoever
+// asked.
+func (s *Session) activeGrant() (*grantEntry, error) {
+	e, err := s.host.grantFor(s.grant, s.currentTokenID())
+	if err != nil {
+		go s.conn.CloseWithReason(err.Error())
+		return nil, err
+	}
+	return e, nil
+}
+
 // grantAllowsFeature is Allowed's answer for granted sessions.
 func (s *Session) grantAllowsFeature(f perm.Feature) bool {
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	return err == nil && e.rules.AllowsFeature(f)
 }
 
 // authorizeGrant is authorize's check for a granted session.
 func (s *Session) authorizeGrant(service string, f perm.Feature) error {
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil {
-		// The session is over; say why on this stream and end it.
-		go s.conn.CloseWithReason(err.Error())
+		// The session is over (activeGrant ends it); say why on this
+		// stream.
 		return err
 	}
 	if f == perm.Always {
@@ -433,7 +450,7 @@ func (g sessionGuard) refuse(kind string, err error, kv ...string) error {
 
 func (g sessionGuard) Command(ctx context.Context, kind, command string, tty bool, env []string) error {
 	s := g.s
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil {
 		return g.refuse(kind, err, "command", command)
 	}
@@ -458,7 +475,7 @@ func (g sessionGuard) Command(ctx context.Context, kind, command string, tty boo
 
 func (g sessionGuard) Terminal(ctx context.Context, session string) error {
 	s := g.s
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil {
 		return g.refuse("terminal", err, "session", session)
 	}
@@ -474,7 +491,7 @@ func (g sessionGuard) Terminal(ctx context.Context, session string) error {
 
 func (g sessionGuard) File(ctx context.Context, op string, a grant.Access, p string) error {
 	s := g.s
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil {
 		return g.refuse("file", err, "op", op, "path", p)
 	}
@@ -492,13 +509,21 @@ func (g sessionGuard) File(ctx context.Context, op string, a grant.Access, p str
 	return nil
 }
 
+func (g sessionGuard) FileScope() (*grant.Scope, error) {
+	e, err := g.s.host.activeGrant(g.s.grant)
+	if err != nil {
+		return nil, err
+	}
+	return e.rules.Scope(), nil
+}
+
 func (g sessionGuard) Log(action string, kv ...string) {
 	g.s.host.audit.add("grant-action", g.s.fields(append([]string{"kind", action}, kv...)...)...)
 }
 
 func (g sessionGuard) Record(kind, title string, cols, rows int) grant.Recorder {
 	s := g.s
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil || !e.g.Record {
 		return nil
 	}

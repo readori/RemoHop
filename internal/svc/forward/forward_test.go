@@ -21,6 +21,7 @@ import (
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/peer/peertest"
 	"github.com/readori/RemoHop/internal/svc/forward"
+	"syscall"
 )
 
 func TestParseSpec(t *testing.T) {
@@ -407,15 +408,19 @@ func TestReverseRefusedTargetAndBindError(t *testing.T) {
 	}
 	defer f.Close()
 	c, err := net.Dial("tcp", f.Addr().String())
-	if err != nil {
+	switch {
+	case errors.Is(err, syscall.ECONNRESET):
+		// Dropped so quickly that the reset beat connect's return: also a drop.
+	case err != nil:
 		t.Fatal(err)
-	}
-	defer c.Close()
-	c.SetReadDeadline(time.Now().Add(10 * time.Second))
-	if _, err := c.Read(make([]byte, 1)); err == nil {
-		t.Fatal("expected the host-side connection to be dropped")
-	} else if ne, ok := err.(net.Error); ok && ne.Timeout() {
-		t.Fatal("host-side connection not closed")
+	default:
+		defer c.Close()
+		c.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if _, err := c.Read(make([]byte, 1)); err == nil {
+			t.Fatal("expected the host-side connection to be dropped")
+		} else if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			t.Fatal("host-side connection not closed")
+		}
 	}
 
 	// Binding a port that is taken fails with the host's error.

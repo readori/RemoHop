@@ -97,10 +97,19 @@ func checkPrefixFree(p netip.Prefix) error {
 }
 
 // sysSplitDNS sends queries for .remohop to the responder through
-// systemd-resolved's per-link settings, which go away with the link.
+// systemd-resolved's per-link settings, which go away with the link. A
+// note with false means split DNS was possible in principle but is unsafe
+// here.
 func sysSplitDNS(dev string, server netip.Addr) (string, bool) {
 	if _, err := exec.LookPath("resolvectl"); err != nil {
 		return "", false
+	}
+	// Never from another network namespace than resolved's: the setting
+	// would go to the host interface with the same index (see
+	// vpn.ResolvedSharesNetns), typically its uplink, and stay there.
+	if ok, why := vpn.ResolvedSharesNetns(); !ok {
+		return fmt.Sprintf("DNS: systemd-resolved left alone (%s); names like *.%s are answered at %s:53, "+
+			"or use `remohop config set net-dns hosts`", why, Domain, server), false
 	}
 	if vpn.Command("resolvectl", "dns", dev, server.String()) != nil {
 		return "", false
