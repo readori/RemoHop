@@ -68,7 +68,7 @@ APP_STORE = "https://apps.apple.com/app/id6838609056"
 GOOGLE_PLAY = "https://play.google.com/store/apps/details?id=com.remohop.app"
 
 
-EMAIL = "admin@remohop.com"
+EMAIL = "info@remohop.com"
 TELEGRAM = "https://t.me/remohop"
 UPDATED = "2026-11-24"
 
@@ -152,9 +152,9 @@ PAGES = {
     ),
     "support": (
         "支持与联系",
-        "通过 admin@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。",
+        "通过 info@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。",
         "Support and contact",
-        "Contact RemoHop at admin@remohop.com: what to include in a report, where the troubleshooting guide is, and how to report a security issue privately.",
+        "Contact RemoHop at info@remohop.com: what to include in a report, where the troubleshooting guide is, and how to report a security issue privately.",
     ),
 }
 

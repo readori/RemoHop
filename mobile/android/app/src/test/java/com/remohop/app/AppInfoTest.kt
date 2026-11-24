@@ -11,7 +11,7 @@ class AppInfoTest {
         assertEquals("https://remohop.com/en/privacy/", AppInfo.privacyPolicy(Lang.EN))
         assertEquals("https://remohop.com/terms/", AppInfo.terms(Lang.ZH))
         assertEquals("https://remohop.com/en/terms/", AppInfo.terms(Lang.EN))
-        assertEquals("admin@remohop.com", AppInfo.SUPPORT_EMAIL)
+        assertEquals("info@remohop.com", AppInfo.SUPPORT_EMAIL)
         assertTrue(AppInfo.NOTICE.contains("AGPL-3.0-only") && AppInfo.NOTICE.contains("LICENSING.md"))
     }
 

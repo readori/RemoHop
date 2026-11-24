@@ -12,7 +12,7 @@ copyright holder distribute your contribution under both licenses. You keep
 the copyright in your work.
 
 Pull requests from authors without a signed CLA cannot be merged. To sign the
-CLA, or before you start on a larger change, write to <admin@remohop.com>.
+CLA, or before you start on a larger change, write to <info@remohop.com>.
 
 ## Before you send a change
 
@@ -32,4 +32,4 @@ Build and test commands are described in [docs/en/building.md](docs/en/building.
 - Treat every message from a peer as untrusted, on both the host and the
   client side.
 - Report security problems privately to the maintainers at
-  <admin@remohop.com>, not in a public issue.
+  <info@remohop.com>, not in a public issue.
