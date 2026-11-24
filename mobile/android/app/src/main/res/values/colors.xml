@@ -38,6 +38,6 @@
     <color name="md_surface_dim">#DBD9E0</color>
     <color name="md_surface_bright">#FBF8FF</color>
     <!-- The web page's top bar and background behind the main window's system bars. -->
-    <color name="rh_bar_top">#ffffff</color>
-    <color name="rh_bg">#f6f7fb</color>
+    <color name="rh_bar_top">#fbf8ff</color>
+    <color name="rh_bg">#fbf8ff</color>
 </resources>
