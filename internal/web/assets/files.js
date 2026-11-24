@@ -72,10 +72,9 @@
 
   async function rename(e) {
     const t = SD.t;
-    const r = await SD.ask({title: t('f.rename'), message: t('f.rename.msg', {name: e.display}), input: {value: e.name, label: t('f.rename.input')},
-      buttons: [{label: t('cancel'), value: false}, {label: t('f.rename'), value: true, primary: true}]});
-    if (r.value !== true || !r.text || r.text === e.name) return;
-    try { await SD.json('POST', 'files/rename', {c: conn, from: join(dir, e.name), to: join(dir, r.text)}); await list(dir); }
+    const text = await SD.prompt({title: t('f.rename'), message: t('f.rename.msg', {name: e.display}), value: e.name, label: t('f.rename.input'), okLabel: t('f.rename')});
+    if (!text || text === e.name) return;
+    try { await SD.json('POST', 'files/rename', {c: conn, from: join(dir, e.name), to: join(dir, text)}); await list(dir); }
     catch (er) { SD.showErr('f-err', er); }
   }
 
@@ -83,12 +82,12 @@
     let recursive = false;
     const t = SD.t;
     const msg = t(e.dir ? 'f.delete.dir' : 'f.delete.file', {name: e.display});
-    if (!await SD.confirm(t('f.delete'), msg, t('f.delete'))) return;
+    if (!await SD.confirm(t('f.delete'), msg, t('f.delete'), {destructive: true})) return;
     try {
       try { await SD.json('POST', 'files/delete', {c: conn, path: join(dir, e.name)}); }
       catch (er) {
         if (e.dir && er.code === 'not_empty') {
-          if (!await SD.confirm(t('f.notempty.title'), t('f.notempty.msg', {name: e.display}), t('f.notempty.ok'))) return;
+          if (!await SD.confirm(t('f.notempty.title'), t('f.notempty.msg', {name: e.display}), t('f.notempty.ok'), {destructive: true})) return;
           recursive = true;
           await SD.json('POST', 'files/delete', {c: conn, path: join(dir, e.name), recursive});
         } else throw er;
@@ -99,10 +98,9 @@
 
   async function mkdir() {
     const t = SD.t;
-    const r = await SD.ask({title: t('f.mkdir'), input: {value: '', label: t('f.mkdir.input')},
-      buttons: [{label: t('cancel'), value: false}, {label: t('f.create'), value: true, primary: true}]});
-    if (r.value !== true || !r.text) return;
-    try { await SD.json('POST', 'files/mkdir', {c: conn, path: join(dir, r.text)}); await list(dir); }
+    const text = await SD.prompt({title: t('f.mkdir'), value: '', label: t('f.mkdir.input'), okLabel: t('f.create')});
+    if (!text) return;
+    try { await SD.json('POST', 'files/mkdir', {c: conn, path: join(dir, text)}); await list(dir); }
     catch (er) { SD.showErr('f-err', er); }
   }
 

@@ -278,7 +278,7 @@
   $('t-sessions').addEventListener('change', () => open($('t-sessions').value, false));
   $('t-kill').addEventListener('click', async () => {
     const n = $('t-sessions').value || sessionName; if (!n) return;
-    if (!await SD.confirm(SD.t('t.kill.title'), SD.t('t.kill.msg', {name: n}), SD.t('t.kill.ok'))) return;
+    if (!await SD.confirm(SD.t('t.kill.title'), SD.t('t.kill.msg', {name: n}), SD.t('t.kill.ok'), {destructive: true})) return;
     try { await SD.json('POST', 'term/kill', {c: conn, name: n}); } catch (e) { SD.showErr('t-err', e); }
     closeWS(); if (view) view.term.reset();
     const l = await loadSessions();

@@ -67,6 +67,8 @@ class SettingsActivity : AppCompatActivity() {
     private var fingerprint = ""
     private var hosts = JSONArray()
     private var rendezvousStatus: RendezvousStatus? = null
+    /** The key the saved server presented in the last check (offered when none is saved). */
+    private var rendezvousKey = ""
     private var diagFormat = "txt"
 
     override fun attachBaseContext(newBase: Context) {
@@ -205,7 +207,7 @@ class SettingsActivity : AppCompatActivity() {
             PAGE_DIAGNOSTICS -> diagnostics(col)
             PAGE_PRIVACY -> privacy(col)
             PAGE_ABOUT -> about(col)
-            else -> main(col)
+            else -> stack.last().takeIf { it.startsWith(PAGE_HOST) }?.let { hostDetail(col, it.removePrefix(PAGE_HOST)) } ?: main(col)
         }
         content?.let { root.removeView(it) }
         content = scroll
@@ -308,7 +310,7 @@ class SettingsActivity : AppCompatActivity() {
                     signal = s.optString("signal"); pin = s.optString("signal-pin")
                     relay = s.optString("relay", "on") != "off"; name = s.optString("name")
                 }
-                if (key == "signal" || key == "signal-pin") rendezvousStatus = null
+                if (key == "signal" || key == "signal-pin") { rendezvousStatus = null; rendezvousKey = "" }
                 Diag.log("setting $key changed")
                 snack(R.string.saved_short)
                 after()
@@ -330,11 +332,15 @@ class SettingsActivity : AppCompatActivity() {
             val row = testRow
             if (RendezvousCheck.AVAILABLE && row != null && signal.isNotEmpty()) {
                 row.summary(getString(R.string.checking))
-                val s = signal
-                val p = pin
                 bg.execute {
-                    val r = RendezvousCheck.run(s, p)
-                    ui { rendezvousStatus = r; row.summary(statusText(r)) }
+                    val r = RendezvousCheck.check()
+                    ui {
+                        rendezvousStatus = r?.status
+                        row.summary(statusText(r?.status))
+                        val k = r?.key.orEmpty()
+                        // Offer the presented key once it is known (the page is built again to show it).
+                        if (k != rendezvousKey) { rendezvousKey = k; if (stack.lastOrNull() == PAGE_RENDEZVOUS && pin.isBlank() && k.isNotEmpty()) show() }
+                    }
                 }
             }
         }
@@ -349,6 +355,23 @@ class SettingsActivity : AppCompatActivity() {
         }
         if (RendezvousCheck.AVAILABLE) {
             testRow = ui.row(c, getString(R.string.test_connection), summary = rendezvousStatus?.let { statusText(it) } ?: "", icon = R.drawable.ic_s_network) { check() }
+        }
+        // No key: the first connection trusts whichever server answers (trust
+        // on first use). Say so, and offer the key the server presented.
+        if (signal.isNotEmpty() && pin.isBlank()) {
+            val w = ui.section(col, null)
+            val warn = ui.row(w, getString(R.string.rv_no_key_title), summary = getString(R.string.rv_no_key_msg), icon = R.drawable.ic_info)
+            warn.summary.maxLines = 6
+            if (rendezvousStatus == RendezvousStatus.OK && rendezvousKey.isNotEmpty()) {
+                val use = ui.row(w, getString(R.string.rv_use_key), summary = rendezvousKey, icon = R.drawable.ic_s_key) {
+                    val k = rendezvousKey
+                    key.editText?.setText(k)
+                    commit("signal-pin", k, key) { snack(R.string.rv_key_used); show() }
+                }
+                use.title.setTextColor(ui.color(M.attr.colorPrimary))
+                use.summary.typeface = android.graphics.Typeface.MONOSPACE
+                use.summary.setTextIsSelectable(false)
+            }
         }
         val r = ui.section(col, null)
         ui.switchRow(r, getString(R.string.relay_short), relay) { on -> commit("relay", if (on) "on" else "off", null) }
@@ -414,25 +437,29 @@ class SettingsActivity : AppCompatActivity() {
         else -> l
     }
 
+    private fun hostList(): List<SavedHost> = (0 until hosts.length()).map { SavedHost.of(hosts.getJSONObject(it)) }
+
+    private fun kindSub(h: SavedHost) = getString(when (h.kind) {
+        SavedHost.Kind.PAIRED -> R.string.host_paired_sub
+        SavedHost.Kind.KEY -> R.string.host_key_sub
+        SavedHost.Kind.RECENT -> R.string.host_recent_sub
+    })
+
     private fun savedHosts(col: LinearLayout) {
         pageTitle(R.string.hosts_heading)
         info = getString(R.string.hosts_heading) to listOf("" to getString(R.string.info_hosts))
         val c = ui.section(col, null)
-        if (hosts.length() == 0) {
+        val list = hostList()
+        if (list.isEmpty()) {
             // Empty state: what it means, and the next step.
             ui.text(c, getString(R.string.no_hosts))
         }
-        for (i in 0 until hosts.length()) {
-            val d = hosts.getJSONObject(i)
-            val target = d.optString("target")
-            val alias = d.optString("alias")
-            val label = alias.ifEmpty { target }
-            val p = d.optString("presence")
-            val sum = listOfNotNull(target.takeIf { alias.isNotEmpty() }, login(d.optString("login")),
-                presence(p).takeIf { p != "not_checked" && p.isNotEmpty() }).joinToString(" · ")
-            val row = ui.row(c, label, summary = sum, icon = R.drawable.ic_s_host) { hostActions(target, alias, label) }
-            row.view.contentDescription = "$label, $sum"
-            row.view.setOnLongClickListener { hostActions(target, alias, label); true }
+        for (h in list) {
+            // Every row opens the host's page: name, address, status, Connect, Forget.
+            val sum = listOfNotNull(h.target.takeIf { h.alias.isNotEmpty() }, kindSub(h),
+                presence(h.presence).takeIf { h.presence != "not_checked" && h.presence.isNotEmpty() }).joinToString(" · ")
+            val row = ui.row(c, h.label, summary = sum, icon = R.drawable.ic_s_host, chevron = true) { open(PAGE_HOST + h.target) }
+            row.view.contentDescription = "${h.label}, $sum"
         }
         ui.row(ui.section(col, null), getString(R.string.pair_heading), icon = R.drawable.ic_s_link, chevron = true) { open(PAGE_PAIR) }
     }
@@ -443,44 +470,98 @@ class SettingsActivity : AppCompatActivity() {
             val list = runCatching { JSONArray(Remohopcore.devicesJSON(online)) }
             ui {
                 list.onSuccess { hosts = it }.onFailure { snack(it.message ?: "") }
-                if (stack.lastOrNull() == PAGE_HOSTS || stack.isEmpty()) show()
+                val top = stack.lastOrNull()
+                if (top == PAGE_HOSTS || top == null || top.startsWith(PAGE_HOST)) show()
             }
         }
     }
 
-    /** What can be done with a saved host: rename it, or forget it. */
-    private fun hostActions(target: String, alias: String, label: String) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(label)
-            .setItems(arrayOf(getString(R.string.rename), getString(R.string.forget))) { _, i ->
-                if (i == 0) rename(target, alias) else forget(target, label)
+    /** One saved host: its name (saved when the field is left), ID or address, status, Connect and Forget. */
+    private fun hostDetail(col: LinearLayout, target: String) {
+        val h = hostList().firstOrNull { it.target == target }
+        if (h == null) {
+            // Forgotten meanwhile: back to the list.
+            stack.removeAt(stack.size - 1)
+            savedHosts(col)
+            return
+        }
+        toolbar.title = h.label
+        title = h.label
+        info = h.label to listOf(getString(R.string.pair_alias) to getString(R.string.info_host_name),
+            getString(R.string.host_forget) to getString(R.string.info_host_forget))
+        val c = ui.section(col, null)
+        lateinit var f: TextInputLayout
+        f = ui.field(c, getString(R.string.pair_alias), h.alias, h.target, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) { v ->
+            val name = v.trim()
+            if (name == h.alias) { f.error = null; return@field }
+            bg.execute {
+                val err = runCatching { Remohopcore.setAlias(target, name) }.exceptionOrNull()
+                ui {
+                    if (err != null) { f.error = getString(R.string.host_name_invalid); return@ui }
+                    f.error = null
+                    Diag.log("saved host renamed")
+                    PendingPage.peersChanged()
+                    snack(R.string.saved_short)
+                    bg.execute {
+                        val list = runCatching { JSONArray(Remohopcore.devicesJSON(false)) }.getOrNull()
+                        ui {
+                            if (list != null) hosts = list
+                            if (stack.lastOrNull() == PAGE_HOST + target) { toolbar.title = name.ifEmpty { target }; title = toolbar.title }
+                        }
+                    }
+                }
             }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
-    private fun rename(target: String, alias: String) {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(ui.dp(8), ui.dp(8), ui.dp(8), 0) }
-        val f = ui.field(box, getString(R.string.pair_alias), alias, target) {}
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.rename)
-            .setView(box)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.save) { _, _ ->
-                val name = f.editText?.text.toString().trim()
-                bg.execute { runCatching { Remohopcore.setAlias(target, name) }; ui { refreshHosts(false) } }
-            }
-            .show()
+        }
+        f.counterMaxLength = 63
+        f.isCounterEnabled = true
+        val d = ui.section(col, null)
+        val idLabel = getString(if (h.isId) R.string.host_id else R.string.host_address)
+        val idRow = ui.row(d, idLabel, summary = h.target, icon = R.drawable.ic_copy) {
+            getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(idLabel, h.target))
+            if (Build.VERSION.SDK_INT < 33) snack(R.string.copied)
+        }
+        idRow.view.contentDescription = getString(R.string.host_copy, h.target)
+        ui.row(d, getString(R.string.host_status), summary = getString(when (h.kind) {
+            SavedHost.Kind.PAIRED -> R.string.host_status_paired
+            SavedHost.Kind.KEY -> R.string.host_status_key
+            SavedHost.Kind.RECENT -> R.string.host_status_recent
+        }), icon = R.drawable.ic_s_key)
+        if (h.lastSeen > 0) {
+            val whenText = android.text.format.DateUtils.getRelativeDateTimeString(this, h.lastSeen * 1000,
+                android.text.format.DateUtils.MINUTE_IN_MILLIS, android.text.format.DateUtils.WEEK_IN_MILLIS, 0).toString()
+            ui.row(d, getString(R.string.host_last_seen), summary = whenText, icon = R.drawable.ic_refresh)
+        }
+        if (h.presence.isNotEmpty() && h.presence != "not_checked") {
+            ui.row(d, getString(R.string.host_online), summary = presence(h.presence), icon = R.drawable.ic_s_network)
+        }
+        val a = ui.section(col, null)
+        val connect = ui.row(a, getString(R.string.host_connect), icon = R.drawable.ic_s_link) {
+            // The page connects (a paired host) or asks for the password (a recent one).
+            PendingPage.connect(target)
+            finish()
+        }
+        connect.title.setTextColor(ui.color(M.attr.colorPrimary))
+        ui.row(a, getString(R.string.host_forget), icon = R.drawable.ic_delete, danger = true) { forget(target, h.label) }
     }
 
     private fun forget(target: String, label: String) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle(getString(R.string.forget_host, label))
-            .setMessage(getString(R.string.forget_confirm, label))
+        val d = MaterialAlertDialogBuilder(this)
+            .setTitle(getString(R.string.host_forget_title, label))
+            .setMessage(R.string.host_forget_msg)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.forget) { _, _ ->
-                bg.execute { runCatching { Remohopcore.forget(target) }; ui { refreshHosts(false) } }
+                bg.execute {
+                    runCatching { Remohopcore.forget(target) }
+                    ui {
+                        Diag.log("saved host forgotten")
+                        if (stack.lastOrNull() == PAGE_HOST + target) stack.removeAt(stack.size - 1)
+                        PendingPage.peersChanged()
+                        refreshHosts(false)
+                    }
+                }
             }.show()
+        // Destructive: the confirming text button in the error colour (M3).
+        d.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(ui.color(M.attr.colorError))
     }
 
     /** A pairing failure in the app's words where its code is known (Chinese); else the core's message. */
@@ -627,8 +708,12 @@ class SettingsActivity : AppCompatActivity() {
         ui.row(c, getString(R.string.privacy_on_device), icon = R.drawable.ic_s_device)
         ui.row(c, getString(R.string.privacy_e2e), icon = R.drawable.ic_s_key)
         ui.row(c, getString(R.string.privacy_diag), icon = R.drawable.ic_s_diag)
-        ui.row(ui.section(col, null), getString(R.string.privacy_policy), icon = R.drawable.ic_open) {
+        val l = ui.section(col, null)
+        ui.row(l, getString(R.string.privacy_policy), icon = R.drawable.ic_open) {
             Diag.open(this, AppInfo.privacyPolicy(Lang.effective(this)))
+        }
+        ui.row(l, getString(R.string.privacy_questions), summary = AppInfo.PRIVACY_EMAIL, icon = R.drawable.ic_mail) {
+            Diag.open(this, "mailto:" + AppInfo.PRIVACY_EMAIL)
         }
     }
 
@@ -651,7 +736,7 @@ class SettingsActivity : AppCompatActivity() {
                 .show()
         }
         c = ui.section(col, getString(R.string.about_contact))
-        ui.row(c, AppInfo.SUPPORT_EMAIL, icon = R.drawable.ic_mail) { Diag.open(this, "mailto:" + AppInfo.SUPPORT_EMAIL) }
+        ui.row(c, AppInfo.CONTACT_EMAIL, icon = R.drawable.ic_mail) { Diag.open(this, "mailto:" + AppInfo.CONTACT_EMAIL) }
         ui.row(c, getString(R.string.about_telegram), icon = R.drawable.ic_send) { Diag.open(this, AppInfo.TELEGRAM) }
         c = ui.section(col, null)
         ui.row(c, getString(R.string.about_terms), icon = R.drawable.ic_doc) { Diag.open(this, AppInfo.terms(lang)) }
@@ -671,6 +756,8 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_DIAGNOSTICS = "diagnostics"
         const val PAGE_PRIVACY = "privacy"
         const val PAGE_ABOUT = "about"
+        /** A saved host's page: this prefix and its target. */
+        const val PAGE_HOST = "host:"
 
         /** Pages the web page may open directly. */
         val DIRECT_PAGES = setOf(PAGE_PRIVACY, PAGE_ABOUT, PAGE_DIAGNOSTICS, PAGE_RENDEZVOUS)

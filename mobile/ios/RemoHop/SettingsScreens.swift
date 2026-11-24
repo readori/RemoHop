@@ -94,6 +94,31 @@ struct RendezvousView: View {
             if !m.fieldError.isEmpty {
                 Section { Label(m.fieldError, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }
             }
+            // No key: the first connection trusts whichever server answers
+            // (trust on first use). Say so, and offer the key it presented.
+            if !m.signal.isEmpty && m.pin.trimmingCharacters(in: .whitespaces).isEmpty {
+                Section {
+                    Label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L("No server key set")).font(.subheadline.weight(.semibold))
+                            Text(markdown: L("Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key that `remohop signal` printed, or use the one this server presented after comparing it."))
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "exclamationmark.shield").foregroundStyle(.orange)
+                    }
+                    if m.rendezvousStatus == .ok && !m.rendezvousKey.isEmpty {
+                        Button { m.useServerKey() } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L("Use this key"))
+                                Text(verbatim: m.rendezvousKey).font(.system(.footnote, design: .monospaced)).foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        .accessibilityHint(Text(m.rendezvousKey))
+                    }
+                }
+            }
             if RendezvousCheck.available && !m.signal.isEmpty {
                 Section {
                     Button { m.checkRendezvous() } label: {
@@ -233,8 +258,7 @@ struct IdentityView: View {
 @MainActor
 struct SavedHostsView: View {
     @ObservedObject var m: SettingsModel
-    @State private var renaming: SavedHost?
-    @State private var newName = ""
+    @State private var forgetting: SavedHost?
 
     init(m: SettingsModel) { self.m = m }
 
@@ -246,23 +270,21 @@ struct SavedHostsView: View {
                 }
             }
             Section {
+                // Every row opens the host's page: name, address, status, Connect, Forget.
                 ForEach(m.hosts) { h in
-                    HStack(spacing: 12) {
-                        Image(systemName: "desktopcomputer").foregroundStyle(.tint).frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(h.label)
-                            Text(h.detail).font(.footnote).foregroundStyle(.secondary)
+                    NavigationLink(value: SavedHostRef(target: h.target)) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "desktopcomputer").foregroundStyle(.tint).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(h.label)
+                                Text(h.detail).font(.footnote).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if h.presence == "online" { Circle().fill(.green).frame(width: 8, height: 8).accessibilityLabel(L10n.presence("online")) }
                         }
-                        Spacer()
-                        if h.presence == "online" { Circle().fill(.green).frame(width: 8, height: 8).accessibilityLabel(L10n.presence("online")) }
                     }
                     .swipeActions {
-                        Button(L("Forget"), role: .destructive) { m.forget(h.target) }
-                        Button(L("Rename")) { newName = h.alias; renaming = h }.tint(.indigo)
-                    }
-                    .contextMenu {
-                        Button { newName = h.alias; renaming = h } label: { Label(L("Rename"), systemImage: "pencil") }
-                        Button(role: .destructive) { m.forget(h.target) } label: { Label(L("Forget"), systemImage: "trash") }
+                        Button(L("Forget"), role: .destructive) { forgetting = h }
                     }
                 }
             }
@@ -274,12 +296,11 @@ struct SavedHostsView: View {
         .navigationTitle(L("Saved hosts"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { m.loadHosts(online: true) }
-        .alert(L("Rename"), isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField(L("Name"), text: $newName)
-            Button(L("Save")) { if let h = renaming { m.rename(h.target, newName) } }
+        .alert(L("Forget %@?", forgetting?.label ?? ""), isPresented: Binding(get: { forgetting != nil }, set: { if !$0 { forgetting = nil } })) {
             Button(L("Cancel"), role: .cancel) {}
+            Button(L("Forget"), role: .destructive) { if let h = forgetting { m.forget(h.target) } }
         } message: {
-            Text(renaming?.target ?? "")
+            Text(L("Its saved pairing and key are deleted from this device, and any open session to it ends. To connect again you will need its password."))
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -288,8 +309,122 @@ struct SavedHostsView: View {
                         .accessibilityLabel(L("Check which are online"))
                 }
                 InfoButton(title: L("Saved hosts"), items: [
-                    InfoItem(title: "", text: L("Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Swipe left to rename or forget one; pull down to check which are online.")),
+                    InfoItem(title: "", text: L("Hosts this device has connected to or paired with. Tap one to rename it, connect to it or forget it; pull down to check which are online.")),
                 ])
+            }
+        }
+    }
+}
+
+/// One saved host: its name (saved when the field is left), its ID or
+/// address (tap to copy), how it logs in, when it was last connected, and
+/// Connect and Forget.
+@MainActor
+struct SavedHostDetailView: View {
+    @ObservedObject var m: SettingsModel
+    let target: String
+    let connect: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var loaded = false
+    @State private var error = ""
+    @State private var saved = false
+    @State private var copied = false
+    @State private var confirmForget = false
+    @FocusState private var focused: Bool
+
+    init(m: SettingsModel, target: String, connect: @escaping (String) -> Void) {
+        self.m = m
+        self.target = target
+        self.connect = connect
+    }
+
+    private var host: SavedHost? { m.hosts.first { $0.target == target } }
+
+    var body: some View {
+        let h = host ?? SavedHost(target: target, alias: "", login: "", presence: "")
+        Form {
+            Section {
+                HStack {
+                    TextField(L("Name"), text: $name, prompt: Text(verbatim: h.target))
+                        .focused($focused)
+                        .submitLabel(.done)
+                        .autocorrectionDisabled()
+                        .onSubmit { save() }
+                    SavedMark(shown: saved)
+                }
+            } header: {
+                Text(L("Name"))
+            } footer: {
+                if !error.isEmpty { Text(error).foregroundStyle(.red) }
+            }
+            Section {
+                Button {
+                    UIPasteboard.general.string = h.target
+                    copied = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } label: {
+                    HStack {
+                        LabeledContent(h.isID ? L("ID") : L("Address")) {
+                            Text(verbatim: h.target).font(.body.monospacedDigit()).textSelection(.enabled)
+                        }
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc").foregroundStyle(copied ? Color.green : Color.accentColor)
+                    }
+                }
+                .foregroundStyle(.primary)
+                .accessibilityLabel(L("Copy") + " " + h.target)
+                LabeledContent(L("Status")) { Text(h.status).multilineTextAlignment(.trailing) }
+                if let d = h.lastSeen {
+                    LabeledContent(L("Last connected")) {
+                        Text(d, format: .relative(presentation: .named))
+                    }
+                }
+                if !h.presence.isEmpty && h.presence != "not_checked" {
+                    LabeledContent(L("Online status"), value: L10n.presence(h.presence))
+                }
+            }
+            Section {
+                Button { save(); connect(h.target) } label: { Label(L("Connect"), systemImage: "play.fill") }
+            }
+            Section {
+                Button(role: .destructive) { confirmForget = true } label: { Label(L("Forget this computer"), systemImage: "trash") }
+            }
+        }
+        .navigationTitle(h.label)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                InfoButton(title: h.label, items: [
+                    InfoItem(title: L("Name"), text: L("Shown instead of the ID or address, and usable in place of it when you connect. Leave it empty to show the ID or address.")),
+                    InfoItem(title: L("Forget this computer"), text: L("Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.")),
+                ])
+            }
+        }
+        .confirmationDialog(L("Forget %@?", h.label), isPresented: $confirmForget, titleVisibility: .visible) {
+            Button(L("Forget this computer"), role: .destructive) {
+                m.forget(target)
+                dismiss()
+            }
+            Button(L("Cancel"), role: .cancel) {}
+        } message: {
+            Text(L("Its saved pairing and key are deleted from this device, and any open session to it ends. To connect again you will need its password."))
+        }
+        .onAppear {
+            if !loaded { name = h.alias; loaded = true }
+        }
+        .onChange(of: focused) { f in if !f { save() } }
+        .onDisappear { save() }
+        .animation(.default, value: saved)
+    }
+
+    private func save() {
+        let n = name.trimmingCharacters(in: .whitespaces)
+        guard let h = host, n != h.alias else { return }
+        m.rename(target, n) { err in
+            error = err ?? ""
+            if err == nil {
+                saved = true
+                Task { try? await Task.sleep(nanoseconds: 2_000_000_000); saved = false }
             }
         }
     }
@@ -431,6 +566,13 @@ struct PrivacyView: View {
                 Button { Presenter.open(AppInfo.privacyPolicy(L10n.effective)) } label: {
                     Label(L("Privacy policy"), systemImage: "hand.raised")
                 }
+                Button { Presenter.open(URL(string: "mailto:" + AppInfo.privacyEmail)!) } label: {
+                    LabeledContent {
+                        Text(verbatim: AppInfo.privacyEmail)
+                    } label: {
+                        Label(L("Privacy questions"), systemImage: "envelope")
+                    }
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -480,7 +622,7 @@ struct AboutView: View {
                 Button { showNotice = true } label: { Label(L("Open-source notices"), systemImage: "text.book.closed") }
             }
             Section(L("Contact")) {
-                link(AppInfo.supportEmail, "envelope", URL(string: "mailto:" + AppInfo.supportEmail)!)
+                link(AppInfo.contactEmail, "envelope", URL(string: "mailto:" + AppInfo.contactEmail)!)
                 link(L("Telegram"), "paperplane", AppInfo.telegram)
             }
             Section {

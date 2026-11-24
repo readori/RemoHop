@@ -24,6 +24,66 @@ class BridgeTest {
         override fun diagLog(text: String) { calls += "log:${text.length}:${text.take(12)}" }
         var pending: ((Boolean) -> Unit)? = null
         override fun ensureGateway(done: (Boolean) -> Unit) { calls += "ensure"; pending = done }
+        val dialogs = mutableListOf<DialogRequest>()
+        var dialogDone: ((DialogAnswer) -> Unit)? = null
+        override fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) { dialogs += request; dialogDone = done }
+    }
+
+    /** The page's confirmations become native dialogs, answered with the user's choice. */
+    @Test fun confirmDialog() {
+        val h = FakeHost()
+        var out: String? = null
+        val b = Bridge(h, origin)
+        val msg = """{"id":5,"method":"confirm","args":{"title":"Disconnect from lab?","message":"The desktop ends.","confirm":"Disconnect","cancel":"Cancel","destructive":true}}"""
+        b.handle(msg, "http://127.0.0.1:5001", true) { out = it }
+        b.handle(msg, origin, false) { out = it }
+        assertTrue(h.dialogs.isEmpty())
+        b.handle(msg, origin, true) { out = it }
+        assertNull("answered before the user chose", out)
+        val d = h.dialogs.single()
+        assertEquals(DialogRequest("confirm", "Disconnect from lab?", "The desktop ends.", "Disconnect", "Cancel", true, "", "", emptyList()), d)
+        h.dialogDone!!(DialogAnswer.Confirmed())
+        assertEquals(5, JSONObject(out!!).getInt("id"))
+        assertTrue(JSONObject(out!!).getJSONObject("result").getBoolean("ok"))
+        b.handle(msg, origin, true) { out = it }
+        h.dialogDone!!(DialogAnswer.Cancelled)
+        assertFalse(JSONObject(out!!).getJSONObject("result").getBoolean("ok"))
+    }
+
+    @Test fun promptAndActionDialogs() {
+        val h = FakeHost()
+        var out: String? = null
+        val b = Bridge(h, origin)
+        b.handle("""{"id":1,"method":"prompt","args":{"title":"Rename","value":"lab","placeholder":"10.0.0.2:21118","confirm":"Save","cancel":"Cancel"}}""", origin, true) { out = it }
+        assertEquals("lab", h.dialogs.last().value)
+        h.dialogDone!!(DialogAnswer.Confirmed("Office PC"))
+        val p = JSONObject(out!!).getJSONObject("result")
+        assertTrue(p.getBoolean("ok"))
+        assertEquals("Office PC", p.getString("text"))
+        b.handle("""{"id":2,"method":"actions","args":{"title":"lab","cancel":"Cancel","actions":[{"label":"Rename"},{"label":"Forget this computer","destructive":true},{"label":" "}]}}""", origin, true) { out = it }
+        assertEquals(listOf(DialogRequest.Action("Rename", false), DialogRequest.Action("Forget this computer", true)), h.dialogs.last().actions)
+        h.dialogDone!!(DialogAnswer.Picked(1))
+        assertEquals(1, JSONObject(out!!).getJSONObject("result").getInt("index"))
+        b.handle("""{"id":3,"method":"actions","args":{"title":"lab","cancel":"Cancel","actions":[{"label":"Rename"}]}}""", origin, true) { out = it }
+        h.dialogDone!!(DialogAnswer.Cancelled)
+        assertEquals(-1, JSONObject(out!!).getJSONObject("result").getInt("index"))
+    }
+
+    /** Requests that cannot make a sensible dialog are refused without showing one; long text is cut. */
+    @Test fun badDialogs() {
+        val h = FakeHost()
+        for (m in listOf(
+            """{"id":1,"method":"confirm","args":{"title":"x","cancel":"Cancel"}}""",
+            """{"id":1,"method":"confirm","args":{"confirm":"OK","cancel":"Cancel"}}""",
+            """{"id":1,"method":"actions","args":{"title":"x","cancel":"Cancel","actions":[]}}""",
+            """{"id":1,"method":"prompt","args":{"title":"x","confirm":"OK"}}""",
+        )) assertEquals(m, "bad dialog", call(h, m)!!.getString("error"))
+        assertTrue(h.dialogs.isEmpty())
+        val acts = org.json.JSONArray()
+        repeat(20) { acts.put(JSONObject().put("label", "a$it")) }
+        call(h, JSONObject().put("id", 9).put("method", "actions").put("args", JSONObject().put("title", "t".repeat(5000)).put("cancel", "Cancel").put("actions", acts)).toString())
+        assertEquals(DialogRequest.MAX_TITLE, h.dialogs.last().title.length)
+        assertEquals(DialogRequest.MAX_ACTIONS, h.dialogs.last().actions.size)
     }
 
     /** The page's "gateway.ensure" is answered once the app has checked the gateway. */

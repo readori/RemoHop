@@ -70,6 +70,7 @@ struct GatewayWebView: UIViewRepresentable {
             if #available(iOS 16.4, *) { web.isInspectable = true }
             #endif
             self.web = web
+            model.runOnPage = { [weak web] js in web?.evaluateJavaScript(js, completionHandler: nil) }
             return web
         }
 
@@ -178,6 +179,60 @@ struct GatewayWebView: UIViewRepresentable {
         func diagLog(_ text: String) { Diag.logPage(text) }
 
         func ensureGateway(done: @escaping @MainActor (Bool) -> Void) { model.ensureGateway(done: done) }
+
+        func showDialog(_ request: DialogRequest, done: @escaping @MainActor (DialogAnswer) -> Void) {
+            NativeDialog.present(request, done: done)
+        }
+    }
+}
+
+/// The page's dialogs as the system's own (HIG): an alert with a Cancel
+/// and a confirming button (red when it ends something) for a
+/// confirmation, an alert with a text field for a prompt, and an action
+/// sheet for a few actions. Each answers exactly once.
+@MainActor
+enum NativeDialog {
+    static func present(_ r: DialogRequest, done: @escaping @MainActor (DialogAnswer) -> Void) {
+        var answered = false
+        let finish: @MainActor (DialogAnswer) -> Void = { a in
+            if answered { return }
+            answered = true
+            done(a)
+        }
+        let title = r.title.isEmpty ? nil : r.title, message = r.message.isEmpty ? nil : r.message
+        let ac: UIAlertController
+        switch r.kind {
+        case .confirm:
+            ac = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            ac.addAction(UIAlertAction(title: r.cancel, style: .cancel) { _ in finish(.cancelled) })
+            let ok = UIAlertAction(title: r.confirm, style: r.destructive ? .destructive : .default) { _ in finish(.confirmed(text: "")) }
+            ac.addAction(ok)
+            // A safe choice stays the bold one; a destructive one is never preferred.
+            if !r.destructive { ac.preferredAction = ok }
+        case .prompt:
+            ac = UIAlertController(title: title, message: message, preferredStyle: .alert)
+            ac.addTextField { f in
+                f.text = r.value
+                f.placeholder = r.placeholder
+                f.clearButtonMode = .whileEditing
+                f.autocorrectionType = .no
+                f.returnKeyType = .done
+            }
+            ac.addAction(UIAlertAction(title: r.cancel, style: .cancel) { _ in finish(.cancelled) })
+            let ok = UIAlertAction(title: r.confirm, style: .default) { [weak ac] _ in
+                finish(.confirmed(text: ac?.textFields?.first?.text ?? ""))
+            }
+            ac.addAction(ok)
+            ac.preferredAction = ok
+        case .actions:
+            ac = UIAlertController(title: title, message: message, preferredStyle: .actionSheet)
+            for (i, a) in r.actions.enumerated() {
+                ac.addAction(UIAlertAction(title: a.label, style: a.destructive ? .destructive : .default) { _ in finish(.action(i)) })
+            }
+            ac.addAction(UIAlertAction(title: r.cancel, style: .cancel) { _ in finish(.cancelled) })
+        }
+        guard Presenter.top() != nil else { finish(.cancelled); return }
+        Presenter.present(ac)
     }
 }
 

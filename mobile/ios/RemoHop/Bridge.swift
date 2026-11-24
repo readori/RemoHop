@@ -17,12 +17,92 @@ protocol BridgeHost: AnyObject {
     /// Makes sure the gateway answers (see AppModel.ensureGateway); `done`
     /// gets whether it does. If its URL changed the page is loaded again.
     func ensureGateway(done: @escaping @MainActor (Bool) -> Void)
+    /// Shows a native dialog for the page (see DialogRequest) and calls
+    /// `done` with the user's answer once they chose.
+    func showDialog(_ request: DialogRequest, done: @escaping @MainActor (DialogAnswer) -> Void)
 }
 
 extension BridgeHost {
     func openSettings(page: String) { openSettings() }
     func diagLog(_ text: String) {}
     func ensureGateway(done: @escaping @MainActor (Bool) -> Void) { Task { @MainActor in done(true) } }
+    func showDialog(_ request: DialogRequest, done: @escaping @MainActor (DialogAnswer) -> Void) { Task { @MainActor in done(.cancelled) } }
+}
+
+/// A dialog the page asks for (remohop-mobile.js): a confirmation, a text
+/// prompt, or a few actions. The page sends its own (translated) labels.
+struct DialogRequest: Equatable {
+    enum Kind: String { case confirm, prompt, actions }
+    struct Action: Equatable {
+        let label: String
+        let destructive: Bool
+    }
+
+    let kind: Kind
+    let title: String
+    let message: String
+    /// The confirming button (confirm, prompt).
+    let confirm: String
+    let cancel: String
+    /// The confirming button ends something (red, UIAlertAction .destructive).
+    let destructive: Bool
+    /// The prompt's starting text and placeholder.
+    let value: String
+    let placeholder: String
+    let actions: [Action]
+
+    static let maxTitle = 200, maxMessage = 1000, maxLabel = 60, maxValue = 500, maxActions = 8
+
+    /// The request in a bridge message, or nil when it is not a usable one.
+    init?(method: String, args: [String: Any]) {
+        guard let kind = Kind(rawValue: method) else { return nil }
+        func text(_ k: String, _ max: Int) -> String {
+            String((args[k] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(max))
+        }
+        self.kind = kind
+        title = text("title", Self.maxTitle)
+        message = text("message", Self.maxMessage)
+        confirm = text("confirm", Self.maxLabel)
+        cancel = text("cancel", Self.maxLabel)
+        destructive = Bridge.bool(args["destructive"])
+        value = String((args["value"] as? String ?? "").prefix(Self.maxValue))
+        placeholder = text("placeholder", Self.maxLabel)
+        var list: [Action] = []
+        for a in (args["actions"] as? [Any] ?? []).prefix(Self.maxActions) {
+            guard let o = a as? [String: Any] else { continue }
+            let label = String((o["label"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(Self.maxLabel))
+            if !label.isEmpty { list.append(Action(label: label, destructive: Bridge.bool(o["destructive"]))) }
+        }
+        actions = list
+        if title.isEmpty && message.isEmpty { return nil }
+        if cancel.isEmpty { return nil }
+        switch kind {
+        case .confirm, .prompt: if confirm.isEmpty { return nil }
+        case .actions: if actions.isEmpty { return nil }
+        }
+    }
+}
+
+/// What the user chose in a DialogRequest's dialog.
+enum DialogAnswer: Equatable {
+    case cancelled
+    /// Confirmed (a prompt with its text).
+    case confirmed(text: String)
+    /// The action at this index.
+    case action(Int)
+
+    /// The reply to the page: {ok} for a confirmation, {ok, text} for a
+    /// prompt, {index} (-1: cancelled) for actions.
+    func reply(for kind: DialogRequest.Kind) -> [String: Any] {
+        switch (kind, self) {
+        case (.confirm, .confirmed): return ["ok": true]
+        case (.confirm, _): return ["ok": false]
+        case (.prompt, .confirmed(let t)): return ["ok": true, "text": String(t.prefix(DialogRequest.maxValue))]
+        case (.prompt, _): return ["ok": false, "text": ""]
+        case (.actions, .action(let i)): return ["index": i]
+        case (.actions, _): return ["index": -1]
+        }
+    }
 }
 
 struct BridgeError: Error, Equatable {
@@ -58,13 +138,28 @@ final class Bridge {
     ///   "gateway unavailable"). If the gateway's URL changed the app loads
     ///   the page again instead.
     ///
+    /// - "confirm", "prompt", "actions": a native dialog (DialogRequest),
+    ///   answered with what the user chose (DialogAnswer.reply), or the
+    ///   error "bad dialog" for a request that is not a usable one.
+    ///
     /// Returns false when the message is not one of these (or not for us);
     /// then `handle` gets it.
     func handleAsync(body: Any, sourceOrigin: String?, isMainFrame: Bool,
                      reply: @escaping @MainActor (Result<[String: Any], BridgeError>) -> Void) -> Bool {
         guard isMainFrame, sourceOrigin == origin, let msg = body as? [String: Any],
-              msg["method"] as? String == "gateway.ensure", let host else { return false }
-        host.ensureGateway { ok in reply(ok ? .success([:]) : .failure(BridgeError(message: "gateway unavailable"))) }
+              let method = msg["method"] as? String, let host else { return false }
+        switch method {
+        case "gateway.ensure":
+            host.ensureGateway { ok in reply(ok ? .success([:]) : .failure(BridgeError(message: "gateway unavailable"))) }
+        case "confirm", "prompt", "actions":
+            guard let req = DialogRequest(method: method, args: msg["args"] as? [String: Any] ?? [:]) else {
+                Task { @MainActor in reply(.failure(BridgeError(message: "bad dialog"))) }
+                return true
+            }
+            host.showDialog(req) { answer in reply(.success(answer.reply(for: req.kind))) }
+        default:
+            return false
+        }
         return true
     }
 
@@ -106,7 +201,7 @@ final class Bridge {
     }
 
     /// WebKit hands JavaScript booleans over as NSNumber.
-    private static func bool(_ v: Any?) -> Bool {
+    static func bool(_ v: Any?) -> Bool {
         if let b = v as? Bool { return b }
         if let n = v as? NSNumber { return n.boolValue }
         return false

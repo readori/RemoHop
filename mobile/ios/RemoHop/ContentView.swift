@@ -30,8 +30,10 @@ struct ContentView: View {
         .environment(\.locale, L10n.locale(lang))
         .statusBarHidden(model.fullscreen)
         .persistentSystemOverlays(model.fullscreen ? .hidden : .automatic)
-        .sheet(isPresented: $model.showSettings) {
-            SettingsView(initialPage: model.settingsPage)
+        // When Settings closes, the page hears what it did to the saved
+        // hosts: it lists them again, or connects to the one chosen there.
+        .sheet(isPresented: $model.showSettings, onDismiss: { model.settingsClosed() }) {
+            SettingsView(initialPage: model.settingsPage) { target in model.pendingConnect = target }
         }
     }
 }

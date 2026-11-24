@@ -22,6 +22,73 @@ interface BridgeHost {
      * loaded again.
      */
     fun ensureGateway(done: (Boolean) -> Unit) = done(true)
+    /** Shows a native dialog for the page; [done] gets the user's answer (UI thread), once. */
+    fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) = done(DialogAnswer.Cancelled)
+}
+
+/**
+ * A dialog the page asks for (remohop-mobile.js): a confirmation, a text
+ * prompt, or a few actions, with the page's own (translated) labels.
+ */
+data class DialogRequest(
+    val kind: String, // "confirm", "prompt" or "actions"
+    val title: String,
+    val message: String,
+    /** The confirming button (confirm, prompt). */
+    val confirm: String,
+    val cancel: String,
+    /** The confirming button ends something: shown in the error colour. */
+    val destructive: Boolean,
+    /** The prompt's starting text and placeholder. */
+    val value: String,
+    val placeholder: String,
+    val actions: List<Action>,
+) {
+    data class Action(val label: String, val destructive: Boolean)
+
+    companion object {
+        const val MAX_TITLE = 200
+        const val MAX_MESSAGE = 1000
+        const val MAX_LABEL = 60
+        const val MAX_VALUE = 500
+        const val MAX_ACTIONS = 8
+        val KINDS = setOf("confirm", "prompt", "actions")
+
+        /** The request in a bridge message, or null when it is not a usable one. */
+        fun parse(method: String, args: JSONObject): DialogRequest? {
+            if (method !in KINDS) return null
+            fun text(k: String, max: Int) = args.optString(k).trim().take(max)
+            val list = ArrayList<Action>()
+            val arr = args.optJSONArray("actions")
+            if (arr != null) for (i in 0 until minOf(arr.length(), MAX_ACTIONS)) {
+                val o = arr.optJSONObject(i) ?: continue
+                val label = o.optString("label").trim().take(MAX_LABEL)
+                if (label.isNotEmpty()) list += Action(label, o.optBoolean("destructive"))
+            }
+            val r = DialogRequest(method, text("title", MAX_TITLE), text("message", MAX_MESSAGE), text("confirm", MAX_LABEL),
+                text("cancel", MAX_LABEL), args.optBoolean("destructive"), args.optString("value").take(MAX_VALUE),
+                text("placeholder", MAX_LABEL), list)
+            if (r.title.isEmpty() && r.message.isEmpty()) return null
+            if (r.cancel.isEmpty()) return null
+            if (method == "actions") { if (list.isEmpty()) return null } else if (r.confirm.isEmpty()) return null
+            return r
+        }
+    }
+}
+
+/** What the user chose in a [DialogRequest]'s dialog. */
+sealed class DialogAnswer {
+    object Cancelled : DialogAnswer()
+    /** Confirmed (a prompt with its text). */
+    data class Confirmed(val text: String = "") : DialogAnswer()
+    data class Picked(val index: Int) : DialogAnswer()
+
+    /** The reply to the page: {ok}, {ok, text} for a prompt, {index} (-1: cancelled) for actions. */
+    fun reply(kind: String): JSONObject = when (kind) {
+        "confirm" -> JSONObject().put("ok", this is Confirmed)
+        "prompt" -> JSONObject().put("ok", this is Confirmed).put("text", (this as? Confirmed)?.text?.take(DialogRequest.MAX_VALUE) ?: "")
+        else -> JSONObject().put("index", (this as? Picked)?.index ?: -1)
+    }
 }
 
 /**
@@ -56,6 +123,19 @@ class Bridge(private val host: BridgeHost, private val origin: String) {
             return
         }
         val args = msg.optJSONObject("args") ?: JSONObject()
+        val method = msg.optString("method")
+        if (method in DialogRequest.KINDS) {
+            // A native dialog: answered once the user chose.
+            val req = DialogRequest.parse(method, args)
+            if (req == null) {
+                if (id >= 0) reply(JSONObject().put("id", id).put("error", "bad dialog").toString())
+                return
+            }
+            host.showDialog(req) { answer ->
+                if (id >= 0) reply(JSONObject().put("id", id).put("result", answer.reply(req.kind)).toString())
+            }
+            return
+        }
         val result = JSONObject()
         val error: String? = try {
             when (msg.optString("method")) {

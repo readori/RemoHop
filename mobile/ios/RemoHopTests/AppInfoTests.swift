@@ -7,7 +7,9 @@ final class AppInfoTests: XCTestCase {
         XCTAssertEqual(AppInfo.privacyPolicy("en").absoluteString, "https://remohop.com/en/privacy/")
         XCTAssertEqual(AppInfo.terms("zh").absoluteString, "https://remohop.com/terms/")
         XCTAssertEqual(AppInfo.terms("en").absoluteString, "https://remohop.com/en/terms/")
-        XCTAssertEqual(AppInfo.supportEmail, "info@remohop.com")
+        XCTAssertEqual(AppInfo.contactEmail, "info@remohop.com")
+        XCTAssertEqual(AppInfo.supportEmail, "support@remohop.com")
+        XCTAssertEqual(AppInfo.privacyEmail, "privacy@remohop.com")
         XCTAssertTrue(AppInfo.notice.contains("AGPL-3.0-only"))
     }
 
@@ -25,7 +27,7 @@ final class AppInfoTests: XCTestCase {
         XCTAssertEqual(AppInfo.size(12 * 1024), "12 KB")
         XCTAssertEqual(AppInfo.size(1536 * 1024), "1.5 MB")
         let m = AppInfo.supportMailto(subject: "RemoHop logs", body: "a & b")?.absoluteString ?? ""
-        XCTAssertTrue(m.hasPrefix("mailto:info@remohop.com?subject=RemoHop%20logs&body=a%20%26%20b"), m)
+        XCTAssertTrue(m.hasPrefix("mailto:support@remohop.com?subject=RemoHop%20logs&body=a%20%26%20b"), m)
         XCTAssertEqual(RendezvousStatus(code: "ok"), .ok)
         XCTAssertEqual(RendezvousStatus(code: "signal_is_host"), .isHost)
         XCTAssertEqual(RendezvousStatus(code: "signal_wrong_protocol"), .wrongProtocol)
@@ -37,5 +39,36 @@ final class AppInfoTests: XCTestCase {
 
     func testEveryNewStringIsTranslated() {
         for s in L10n.settingsStrings { XCTAssertNotNil(L10n.zh[s], s) }
+    }
+
+    /// Saved hosts in the screens' words: paired (or by key) connect without a password, the rest are recent.
+    func testSavedHostKinds() {
+        let paired = SavedHost(json: ["target": "123456789", "alias": "Office PC", "login": "pairing", "presence": "not_checked",
+                                      "last_seen": "2026-11-24T10:00:00Z"])
+        XCTAssertEqual(paired.kind, .paired)
+        XCTAssertEqual(paired.label, "Office PC")
+        XCTAssertTrue(paired.isID)
+        XCTAssertEqual(paired.lastSeen?.timeIntervalSince1970, 1795514400)
+        XCTAssertTrue(paired.detail.hasPrefix("123456789 · "))
+        let recent = SavedHost(json: ["target": "10.0.0.2:21118", "login": "password", "presence": "online",
+                                      "last_seen": "2026-11-24T10:00:00.5Z"])
+        XCTAssertEqual(recent.kind, .recent)
+        XCTAssertEqual(recent.label, "10.0.0.2:21118")
+        XCTAssertFalse(recent.isID)
+        XCTAssertNotNil(recent.lastSeen)
+        XCTAssertEqual(SavedHost(json: ["target": "x:1", "login": "key"]).kind, .key)
+        XCTAssertEqual(SavedHost(json: ["target": "x:1", "login": "account"]).kind, .recent)
+        XCTAssertNil(SavedHost.date("yesterday"))
+    }
+
+    /// The rendezvous check offers the key the server presented.
+    func testRendezvousCheckKey() {
+        let ok = RendezvousCheck.parse(#"{"ok":true,"code":"ok","server":"s:21116","key":"AAAA"}"#)
+        XCTAssertEqual(ok?.status, .ok)
+        XCTAssertEqual(ok?.key, "AAAA")
+        let bad = RendezvousCheck.parse(#"{"ok":false,"code":"unreachable","error":"no answer"}"#)
+        XCTAssertEqual(bad?.status, .unreachable)
+        XCTAssertEqual(bad?.key, "")
+        XCTAssertNil(RendezvousCheck.parse("not json"))
     }
 }

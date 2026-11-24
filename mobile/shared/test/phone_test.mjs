@@ -137,7 +137,12 @@ window.remohopNative = {
       window.__ensures.push(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result: {}})}));
       return;
     }
-    const result = m.method === 'clipboard.read' ? {text: 'from-native'} : {};
+    // Native dialogs: answered as window.__answers says (the test sets it), or cancelled.
+    const a = window.__answers || {};
+    const result = m.method === 'clipboard.read' ? {text: 'from-native'}
+      : m.method === 'confirm' ? {ok: !!a.confirm}
+      : m.method === 'prompt' ? (a.prompt != null ? {ok: true, text: a.prompt} : {ok: false, text: ''})
+      : m.method === 'actions' ? {index: a.actions != null ? a.actions : -1} : {};
     setTimeout(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result})}), 0);
   },
 };`;
@@ -420,8 +425,49 @@ async function gatewayTests(b) {
     await p.eval(`document.getElementById('hostpass').value = ''; ${paired}.click()`);
     check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'tapping a paired host connects without a password',
       await p.eval('document.getElementById("connerr").textContent'));
+    // A tap on Disconnect asks first, in a native dialog (destructive), and
+    // Cancel keeps the session.
+    const tapDisconnect = async () => {
+      const at = await p.eval('(() => { const r = document.getElementById("disconnect").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()');
+      await p.touch('touchStart', [at]); await p.touch('touchEnd', []);
+    };
+    await p.eval('window.__native.length = 0; window.__answers = {confirm: false}');
+    await tapDisconnect();
+    check(await p.waitFor('window.__native.some(n => n.method === "confirm")', 5000), 'a tap on Disconnect asks in a native dialog');
+    const disc = JSON.parse(await p.eval('JSON.stringify(window.__native.find(n => n.method === "confirm").args)'));
+    check(disc.destructive === true && disc.confirm === 'Disconnect' && disc.cancel === 'Cancel' && /^Disconnect from .+\?$/.test(disc.title) && disc.message.length > 10,
+      'the disconnect dialog has a title, a message, Cancel and a destructive Disconnect', disc);
+    await sleep(300);
+    check(await p.eval('!document.getElementById("workspace").hidden && !document.getElementById("dlg").open'), 'Cancel keeps the session, and no web dialog shows');
+    await p.eval('window.__answers = {confirm: true}');
+    await tapDisconnect();
+    check(await p.waitFor('!document.getElementById("connect").hidden'), 'confirming disconnects');
+    await p.eval('window.__answers = {}');
+    // My computers: ⋯ on a saved host offers Rename and Forget (native
+    // action sheet), Rename asks for the name (native prompt).
+    const more = `[...document.querySelectorAll('#peercards li')].find(li => li.textContent.includes(${A})).querySelector('.peermore')`;
+    check(await p.waitFor(`!!${more}`), 'saved hosts have an actions button');
+    await p.eval(`window.__native.length = 0; window.__answers = {actions: 0, prompt: 'Lab Box'}; ${more}.click()`);
+    check(await p.waitFor(`[...document.querySelectorAll('#peercards .peer')].some(b => b.textContent.includes('Lab Box') && b.textContent.includes(${A}))`, 5000),
+      'Rename from the list names the host', await p.eval('document.getElementById("peerrow").textContent'));
+    const acts = JSON.parse(await p.eval('JSON.stringify(window.__native.find(n => n.method === "actions").args)'));
+    check(acts.actions.length === 2 && acts.actions[0].label === 'Rename' && !acts.actions[0].destructive && acts.actions[1].destructive,
+      'the actions are Rename and a destructive Forget', acts);
+    const prm = JSON.parse(await p.eval('JSON.stringify(window.__native.find(n => n.method === "prompt").args)'));
+    check(prm.placeholder === JSON.parse(A) && prm.confirm === 'Save', 'the rename prompt shows the address as placeholder', prm);
+    // The app's Settings → Saved hosts → Connect.
+    await p.eval(`window.__answers = {}; remohopMobile.connect(${A})`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'remohopMobile.connect connects to a paired host');
     await p.eval('document.getElementById("disconnect").click()');
     await p.waitFor('!document.getElementById("connect").hidden');
+    // Forget, confirmed in a native dialog: the host leaves the list.
+    await p.eval(`window.__native.length = 0; window.__answers = {actions: 1, confirm: true}; [...document.querySelectorAll('#peercards li')].find(li => li.textContent.includes(${A})).querySelector('.peermore').click()`);
+    check(await p.waitFor(`![...document.querySelectorAll('#peercards .peer, #peercards-recent .peer')].some(b => b.textContent.includes(${A}))`, 5000),
+      'Forget from the list removes the host', await p.eval('document.getElementById("peerrow").textContent'));
+    const fc = JSON.parse(await p.eval('JSON.stringify((window.__native.find(n => n.method === "confirm") || {}).args || null)'));
+    check(fc && fc.destructive === true && fc.confirm === 'Forget', 'forgetting asks first, with a destructive Forget', fc);
+    check(await p.eval('remohopMobile.peersChanged()') === 'ok', 'remohopMobile.peersChanged answers');
+    await p.eval('window.__answers = {}');
   }
   if (process.env.REMOHOP_NOPAIR_ADDR) {
     // "Remember" against a host that does not allow it: said plainly, and the host stays a recent one.

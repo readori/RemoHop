@@ -25,10 +25,13 @@ struct SettingsView: View {
     /// Read here so that the screen redraws in the new language.
     @AppStorage(L10n.key) private var language = AppLanguage.system.rawValue
     var initialPage: SettingsPage?
-    @State private var path: [SettingsPage] = []
+    /// Settings → Saved hosts → Connect: the app closes Settings and the page connects.
+    var onConnect: (String) -> Void
+    @State private var path = NavigationPath()
 
-    init(initialPage: SettingsPage? = nil) {
+    init(initialPage: SettingsPage? = nil, onConnect: @escaping (String) -> Void = { _ in }) {
         self.initialPage = initialPage
+        self.onConnect = onConnect
     }
 
     var body: some View {
@@ -94,11 +97,17 @@ struct SettingsView: View {
                 case .about: AboutView()
                 }
             }
+            .navigationDestination(for: SavedHostRef.self) { ref in
+                SavedHostDetailView(m: m, target: ref.target) { t in
+                    dismiss()
+                    onConnect(t)
+                }
+            }
         }
         .environment(\.locale, L10n.locale(L10n.resolve(AppLanguage(rawValue: language) ?? .system)))
         .onAppear {
             m.load()
-            if let p = initialPage, path.isEmpty { path = [p] }
+            if let p = initialPage, path.isEmpty { path.append(p) }
         }
         .onChange(of: language) { _ in m.languageChanged() }
     }
@@ -135,17 +144,78 @@ struct SettingsRow: View {
     }
 }
 
-struct SavedHost: Identifiable {
+/// A saved host as the core's DevicesJSON reports it, in the words the
+/// screens use: paired (or authorised by key), so it connects without a
+/// password, or recent, so it needs the password each time.
+struct SavedHost: Identifiable, Equatable {
+    enum Kind { case paired, key, recent }
+
     let target: String
     let alias: String
     let login: String
     let presence: String
+    let lastSeen: Date?
     var id: String { target }
     var label: String { alias.isEmpty ? target : alias }
-    var detail: String {
-        let p = presence == "not_checked" ? "" : " · " + L10n.presence(presence)
-        return (alias.isEmpty ? "" : target + " · ") + L10n.login(login) + p
+    var kind: Kind {
+        switch login {
+        case "pairing": return .paired
+        case "key": return .key
+        default: return .recent
+        }
     }
+    /// A 9-digit ID (shown as "ID"), or an address.
+    var isID: Bool { target.count == 9 && target.allSatisfy { $0.isASCII && $0.isNumber } }
+    /// The list's second line: the address under a name, how it logs in, and whether it is online.
+    var detail: String {
+        var parts: [String] = []
+        if !alias.isEmpty { parts.append(target) }
+        parts.append(kindSummary)
+        if !presence.isEmpty && presence != "not_checked" { parts.append(L10n.presence(presence)) }
+        return parts.joined(separator: " · ")
+    }
+    var kindSummary: String {
+        switch kind {
+        case .paired: return L("Paired · connects without a password")
+        case .key: return L("Authorised by key · connects without a password")
+        case .recent: return L("Recent · needs the password")
+        }
+    }
+    var status: String {
+        switch kind {
+        case .paired: return L("Paired: connects without a password")
+        case .key: return L("Authorised by key: connects without a password")
+        case .recent: return L("Recent: needs the password each time")
+        }
+    }
+
+    init(target: String, alias: String, login: String, presence: String, lastSeen: Date? = nil) {
+        self.target = target
+        self.alias = alias
+        self.login = login
+        self.presence = presence
+        self.lastSeen = lastSeen
+    }
+
+    /// One object of DevicesJSON.
+    init(json d: [String: Any]) {
+        self.init(target: d["target"] as? String ?? "", alias: d["alias"] as? String ?? "", login: d["login"] as? String ?? "",
+                  presence: d["presence"] as? String ?? "", lastSeen: Self.date(d["last_seen"] as? String))
+    }
+
+    /// Go's time.Time JSON (RFC 3339, with or without fractions of a second).
+    static func date(_ s: String?) -> Date? {
+        guard let s, !s.isEmpty else { return nil }
+        let f = ISO8601DateFormatter()
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: s)
+    }
+}
+
+/// A saved host's page in the Settings navigation.
+struct SavedHostRef: Hashable {
+    let target: String
 }
 
 /// The settings the screens edit. Each field is saved when it is left
@@ -162,6 +232,8 @@ final class SettingsModel: ObservableObject {
     @Published var saved: Field?
     @Published var fieldError = ""
     @Published var rendezvousStatus: RendezvousStatus?
+    /// The key the saved server presented in the last check (offered when none is saved).
+    @Published var rendezvousKey = ""
     @Published var checking = false
     @Published var pairTarget = ""
     @Published var pairPassword = ""
@@ -248,8 +320,8 @@ final class SettingsModel: ObservableObject {
                 self.fieldError = ""
                 self.stored[f] = v
                 // A new server address clears the key of the old one.
-                if f == .signal { self.pin = s["signal-pin"] ?? ""; self.stored[.pin] = self.pin; self.rendezvousStatus = nil }
-                if f == .pin { self.rendezvousStatus = nil }
+                if f == .signal { self.pin = s["signal-pin"] ?? ""; self.stored[.pin] = self.pin; self.rendezvousStatus = nil; self.rendezvousKey = "" }
+                if f == .pin { self.rendezvousStatus = nil; self.rendezvousKey = "" }
                 Diag.log("setting \(f.rawValue) changed")
                 self.flashSaved(f)
                 if (f == .signal || f == .pin) && !self.signal.isEmpty { self.checkRendezvous() }
@@ -274,15 +346,22 @@ final class SettingsModel: ObservableObject {
     /// RendezvousCheck); nothing happens while the core has no check.
     func checkRendezvous() {
         guard RendezvousCheck.available, !signal.isEmpty else { return }
-        let s = value(.signal), p = value(.pin)
         checking = true
         Task.detached {
-            let r = RendezvousCheck.run(server: s, key: p)
+            let r = RendezvousCheck.run()
             await MainActor.run {
                 self.checking = false
-                self.rendezvousStatus = r
+                self.rendezvousStatus = r?.status
+                self.rendezvousKey = r?.key ?? ""
             }
         }
+    }
+
+    /// Saves the key the server presented as the pinned server key.
+    func useServerKey() {
+        guard !rendezvousKey.isEmpty else { return }
+        pin = rendezvousKey
+        commit(.pin)
     }
 
     func copyKeyLine() {
@@ -326,10 +405,7 @@ final class SettingsModel: ObservableObject {
         Task.detached {
             do {
                 let list = try Core.devices(checkOnline: online)
-                let hosts = list.map { d in
-                    SavedHost(target: d["target"] as? String ?? "", alias: d["alias"] as? String ?? "",
-                              login: d["login"] as? String ?? "", presence: d["presence"] as? String ?? "")
-                }
+                let hosts = list.map { SavedHost(json: $0) }
                 await MainActor.run { self.hosts = hosts; self.hostsLoaded = true; self.hostsStatus = ""; self.checkingOnline = false }
             } catch {
                 await MainActor.run { self.hostsStatus = error.localizedDescription; self.hostsLoaded = true; self.checkingOnline = false }
@@ -337,12 +413,21 @@ final class SettingsModel: ObservableObject {
         }
     }
 
-    func rename(_ target: String, _ alias: String) {
+    /// Names a saved host ("" removes the name); `done` gets an error text, or nil.
+    func rename(_ target: String, _ alias: String, done: @escaping @MainActor (String?) -> Void = { _ in }) {
         let a = alias.trimmingCharacters(in: .whitespaces)
         Task.detached {
             var err: NSError?
-            _ = RemohopcoreSetAlias(target, a, &err)
-            await MainActor.run { self.loadHosts(online: false) }
+            let ok = RemohopcoreSetAlias(target, a, &err)
+            await MainActor.run {
+                if ok && err == nil {
+                    Diag.log("saved host renamed")
+                    self.loadHosts(online: false)
+                    done(nil)
+                } else {
+                    done(L("Start with a letter; then use letters, digits, single spaces, ., _ or - (up to 63 characters)."))
+                }
+            }
         }
     }
 
@@ -350,6 +435,7 @@ final class SettingsModel: ObservableObject {
         hosts.removeAll { $0.target == target }
         Task.detached {
             try? Core.forget(target)
+            Diag.log("saved host forgotten")
             await MainActor.run { self.loadHosts(online: false) }
         }
     }
@@ -380,13 +466,21 @@ final class SettingsModel: ObservableObject {
 enum RendezvousCheck {
     static let available = true
 
-    static func run(server: String, key: String) -> RendezvousStatus? {
+    /// What answered at the saved server, and the key it presented (empty unless it is a rendezvous server).
+    static func run() -> (status: RendezvousStatus, key: String)? {
         var err: NSError?
         let s = RemohopcoreCheckRendezvous("", &err)
         if err != nil { return nil }
-        guard let obj = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return nil }
-        let r = RendezvousStatus(code: obj["code"] as? String ?? "error", message: obj["error"] as? String ?? "")
-        Diag.log("rendezvous check: \(obj["code"] as? String ?? "?")")
+        let r = parse(s)
+        Diag.log("rendezvous check: \(r?.status == .ok ? "ok" : "problem")")
         return r
+    }
+
+    /// CheckRendezvous's JSON outcome.
+    static func parse(_ s: String) -> (status: RendezvousStatus, key: String)? {
+        guard let obj = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return nil }
+        let code = obj["code"] as? String ?? "error"
+        let key = code == "ok" ? (obj["key"] as? String ?? "").trimmingCharacters(in: .whitespaces) : ""
+        return (RendezvousStatus(code: code, message: obj["error"] as? String ?? ""), key)
     }
 }

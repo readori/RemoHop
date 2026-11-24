@@ -8,7 +8,12 @@ import org.json.JSONObject
  * Plain JVM code, unit tested without a device.
  */
 object AppInfo {
-    const val SUPPORT_EMAIL = "info@remohop.com"
+    /** General contact (About → Contact). */
+    const val CONTACT_EMAIL = "info@remohop.com"
+    /** Support: the diagnostic-log mail. */
+    const val SUPPORT_EMAIL = "support@remohop.com"
+    /** Privacy questions (Settings → Privacy). */
+    const val PRIVACY_EMAIL = "privacy@remohop.com"
     const val TELEGRAM = "https://t.me/remohop"
     const val WEBSITE = "https://remohop.com"
     const val SOURCE_CODE = "https://github.com/readori/RemoHop"
@@ -85,9 +90,23 @@ object RendezvousCheck {
     const val AVAILABLE = true
 
     @Suppress("UNUSED_PARAMETER")
-    fun run(server: String, key: String): RendezvousStatus? {
-        val code = runCatching { JSONObject(com.remohop.app.core.remohopcore.Remohopcore.checkRendezvous("")).optString("code", "error") }.getOrNull() ?: return null
-        Diag.log("rendezvous check: $code")
-        return RendezvousStatus.of(code)
+    fun run(server: String, key: String): RendezvousStatus? = check()?.status
+
+    /** The check of the saved server, with the key it presented (empty unless it answered). */
+    fun check(): RendezvousResult? {
+        val out = runCatching { JSONObject(com.remohop.app.core.remohopcore.Remohopcore.checkRendezvous("")) }.getOrNull() ?: return null
+        return parse(out).also { Diag.log("rendezvous check: ${out.optString("code", "error")}") }
     }
+
+    /** CheckRendezvous's JSON outcome. */
+    fun parse(out: JSONObject): RendezvousResult {
+        val code = out.optString("code", "error")
+        return RendezvousResult(RendezvousStatus.of(code), if (code == "ok") out.optString("key").trim() else "")
+    }
+}
+
+/** A rendezvous check: what answered, and the server's key when it was a rendezvous server. */
+data class RendezvousResult(val status: RendezvousStatus, val key: String) {
+    /** Offer "Use this key": the server answered with a key and none is saved. */
+    fun offerKey(savedKey: String): Boolean = status == RendezvousStatus.OK && key.isNotEmpty() && savedKey.isBlank()
 }
