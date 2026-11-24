@@ -85,7 +85,7 @@ GOOD TO KNOW
 • The app must stay in the foreground during a session.
 • The app is available in English and Simplified Chinese; choose the language in Settings.
 
-Support: info@remohop.com
+Support: support@remohop.com
 ```
 
 **Keywords**（97）
@@ -156,7 +156,7 @@ RemoHop 让你在 iPhone 或 iPad 上操作自己的电脑。它是开源远程�
 • 会话期间应用需要保持在前台。
 • 应用支持简体中文和英文，可在设置里切换。
 
-支持：info@remohop.com
+支持：support@remohop.com
 ```
 
 **关键词**（50）

@@ -68,7 +68,9 @@ APP_STORE = "https://apps.apple.com/app/id6838609056"
 GOOGLE_PLAY = "https://play.google.com/store/apps/details?id=com.remohop.app"
 
 
-EMAIL = "info@remohop.com"
+EMAIL = "info@remohop.com"  # general contact
+SUPPORT_EMAIL = "support@remohop.com"  # support page and store support lines
+PRIVACY_EMAIL = "privacy@remohop.com"  # privacy policy
 TELEGRAM = "https://t.me/remohop"
 UPDATED = "2026-11-24"
 
@@ -152,9 +154,9 @@ PAGES = {
     ),
     "support": (
         "支持与联系",
-        "通过 info@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。",
+        "通过 support@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。",
         "Support and contact",
-        "Contact RemoHop at info@remohop.com: what to include in a report, where the troubleshooting guide is, and how to report a security issue privately.",
+        "Contact RemoHop at support@remohop.com: what to include in a report, where the troubleshooting guide is, and how to report a security issue privately.",
     ),
 }
 
@@ -523,7 +525,7 @@ def gate(text):
 
 def fill(text, lang):
     text = gate(text)
-    text = text.replace("{{REPO}}", REPO).replace("{{EMAIL}}", EMAIL).replace("{{TELEGRAM}}", TELEGRAM).replace("{{UPDATED}}", UPDATED)
+    text = text.replace("{{REPO}}", REPO).replace("{{SUPPORT_EMAIL}}", SUPPORT_EMAIL).replace("{{PRIVACY_EMAIL}}", PRIVACY_EMAIL).replace("{{EMAIL}}", EMAIL).replace("{{TELEGRAM}}", TELEGRAM).replace("{{UPDATED}}", UPDATED)
     text = text.replace("{{SITE}}", SITE_URL).replace("{{APP_STORE}}", APP_STORE).replace("{{GOOGLE_PLAY}}", GOOGLE_PLAY)
     # {{L:slug}} is the page in this language, {{E:slug}} the English one
     # (for the reference documents, which exist in English only).
