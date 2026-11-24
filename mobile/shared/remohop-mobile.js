@@ -197,8 +197,10 @@
       // The page's connection errors, in the app's words (they name Settings).
       'reason.no_rendezvous': 'No rendezvous server is set, so a host can only be reached by its address (host:port). Set your server in Settings to connect by ID.',
       'reason.rendezvous_unreachable': 'The rendezvous server set in Settings cannot be reached. Check its address and the network, or connect by address (host:port).',
-      'reason.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a rendezvous server (it may be a host). Fix it there, or connect to the host by its address (host:port).',
-      'reason.signal_is_host': 'The address in Settings → Rendezvous server is not a rendezvous server (it may be a host). Fix it there, or connect to the host by its address (host:port).',
+      'reason.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a RemoHop rendezvous server. Fix it there, or connect to the host by its address (host:port).',
+      'reason.signal_is_host': 'The address in Settings → Rendezvous server is a RemoHop host, not a rendezvous server. Connect to that host by its address (host:port), and fix the setting.',
+      'err.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a RemoHop rendezvous server.',
+      'err.signal_is_host': 'The address in Settings → Rendezvous server is a RemoHop host, not a rendezvous server. Connect to it by its address (host:port).',
     },
     zh: {
       'm.kbd.input': '远程桌面的键盘输入',
@@ -254,8 +256,10 @@
       'm.help.privacy': '隐私与关于',
       'reason.no_rendezvous': '尚未设置汇合服务器，只能通过地址（host:port）连接被控端。要用 ID 连接，请在设置中填写你的汇合服务器。',
       'reason.rendezvous_unreachable': '无法连接设置中的汇合服务器。请检查它的地址和网络，或直接用地址（host:port）连接。',
-      'reason.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是汇合服务器（可能是某台被控端）。请在那里修改，或直接用地址（host:port）连接被控端。',
-      'reason.signal_is_host': '“设置 → 汇合服务器”中填写的不是汇合服务器（可能是某台被控端）。请在那里修改，或直接用地址（host:port）连接被控端。',
+      'reason.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是 RemoHop 汇合服务器。请在那里修改，或直接用地址（host:port）连接被控端。',
+      'reason.signal_is_host': '“设置 → 汇合服务器”中填写的是一台 RemoHop 被控端，不是汇合服务器。请直接用该地址（host:port）连接它，并修改该设置。',
+      'err.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是 RemoHop 汇合服务器。',
+      'err.signal_is_host': '“设置 → 汇合服务器”中填写的是一台 RemoHop 被控端，不是汇合服务器。请直接用该地址（host:port）连接它。',
     },
   };
   let I18N = null;
@@ -1085,6 +1089,11 @@
       if (ws && !ws.hidden && nc && !nc.hidden) { nc.click(); return 'handled'; }
       return 'unhandled';
     },
+    // ensureGateway is called by the page (app.js) when a request got no
+    // answer at all: the app checks its in-process gateway, reopens the
+    // listening socket iOS takes from a suspended app, and resolves once
+    // the gateway answers (it loads the page again if the address changed).
+    ensureGateway() { return native.call('gateway.ensure'); },
     // Test and debugging hooks; they expose nothing the page cannot see.
     _desk: desk,
     _zoom: zoom,

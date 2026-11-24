@@ -1,3 +1,4 @@
+import Remohopcore
 import SwiftUI
 import UIKit
 
@@ -363,21 +364,20 @@ final class SettingsModel: ObservableObject {
     }
 }
 
-/// The core's rendezvous server check. The function comes from the
-/// connect-fix branch; until it is merged `available` is false and the
-/// screens hide the Test row. Wiring it is this one place:
-///
-///     static let available = true
-///     static func run(server: String, key: String) -> RendezvousStatus? {
-///         var err: NSError?
-///         let s = RemohopcoreCheckRendezvous(server, key, &err)   // {"status": "...", "error": "..."}
-///         ...
-///         return RendezvousStatus(code: status, message: error)
-///     }
+/// The core's rendezvous server check (CheckRendezvous): it connects to
+/// the saved server the way a connection by ID does, with the saved key,
+/// and says what answered. Run after the server or key was saved, and from
+/// the Test row.
 enum RendezvousCheck {
-    static let available = false
+    static let available = true
 
     static func run(server: String, key: String) -> RendezvousStatus? {
-        nil
+        var err: NSError?
+        let s = RemohopcoreCheckRendezvous("", &err)
+        if err != nil { return nil }
+        guard let obj = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] else { return nil }
+        let r = RendezvousStatus(code: obj["code"] as? String ?? "error", message: obj["error"] as? String ?? "")
+        Diag.log("rendezvous check: \(obj["code"] as? String ?? "?")")
+        return r
     }
 }

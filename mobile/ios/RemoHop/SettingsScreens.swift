@@ -130,6 +130,7 @@ struct RendezvousView: View {
             lastFocus = new
         }
         .onChange(of: m.relay) { _ in m.commit(.relay) }
+        .onAppear { if m.rendezvousStatus == nil { m.checkRendezvous() } }
         .onDisappear { m.commitAll() }
         .animation(.default, value: m.saved)
     }
@@ -140,7 +141,8 @@ struct RendezvousStatusView: View {
     var body: some View {
         switch status {
         case .ok: Label(L("Working"), systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-        case .wrongProtocol: Label(L("This is a host, not a server"), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        case .isHost: Label(L("This is a host, not a server"), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+        case .wrongProtocol: Label(L("Not a rendezvous server"), systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         case .unreachable: Label(L("Unreachable"), systemImage: "xmark.circle.fill").foregroundStyle(.red)
         case .keyMismatch: Label(L("Key does not match"), systemImage: "exclamationmark.shield.fill").foregroundStyle(.red)
         case .failed(let s): Text(s).foregroundStyle(.red).lineLimit(2)

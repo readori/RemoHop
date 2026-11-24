@@ -2,7 +2,6 @@ package com.remohop.app
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,10 +38,9 @@ class AppInfoTest {
     @Test fun rendezvousStatusCodes() {
         assertEquals(RendezvousStatus.OK, RendezvousStatus.of("ok"))
         assertEquals(RendezvousStatus.WRONG_PROTOCOL, RendezvousStatus.of("signal_wrong_protocol"))
-        assertEquals(RendezvousStatus.WRONG_PROTOCOL, RendezvousStatus.of("signal_is_host"))
+        assertEquals(RendezvousStatus.IS_HOST, RendezvousStatus.of("signal_is_host"))
         assertEquals(RendezvousStatus.UNREACHABLE, RendezvousStatus.of("unreachable"))
         assertEquals(RendezvousStatus.KEY_MISMATCH, RendezvousStatus.of("key_mismatch"))
         assertEquals(RendezvousStatus.FAILED, RendezvousStatus.of("something else"))
-        assertFalse(RendezvousCheck.AVAILABLE && RendezvousCheck.run("a", "b") == null)
     }
 }

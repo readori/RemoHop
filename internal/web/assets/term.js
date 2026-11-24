@@ -270,7 +270,7 @@
         case 'error': SD.showErr('t-err', {message: m.message}); status('t.st.error'); break;
       }
     };
-    sock.onclose = () => { if (my === gen) { status('t.st.closed'); } };
+    sock.onclose = () => { if (my === gen) { status('t.st.closed'); if (SD.heartbeat) SD.heartbeat(); } };
     sock.onopen = () => {};
   }
 
@@ -305,12 +305,14 @@
     async show(c) {
       const changed = c !== conn;
       conn = c;
+      if (changed) sessionName = '';
       if (changed && view) { closeWS(); view.term.reset(); }
       if (ws && ws.readyState <= 1) { view.fit(true); view.focus(); return; }
       const list = await loadSessions();
       if (list === null) return;
       if (view) view.fit(true);
-      const pick = list.find(s => !s.attached) || list[0];
+      // After a reconnection, the shell this tab had (the host kept it).
+      const pick = list.find(s => s.name === sessionName) || list.find(s => !s.attached) || list[0];
       open(pick ? pick.name : '', !pick);
     },
     hide() { closeWS(); status(null); },

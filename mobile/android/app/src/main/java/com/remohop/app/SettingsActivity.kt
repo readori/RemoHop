@@ -352,11 +352,13 @@ class SettingsActivity : AppCompatActivity() {
         }
         val r = ui.section(col, null)
         ui.switchRow(r, getString(R.string.relay_short), relay) { on -> commit("relay", if (on) "on" else "off", null) }
+        if (rendezvousStatus == null) check()
     }
 
     private fun statusText(s: RendezvousStatus?) = getString(when (s) {
         RendezvousStatus.OK -> R.string.rv_ok
-        RendezvousStatus.WRONG_PROTOCOL -> R.string.rv_wrong_protocol
+        RendezvousStatus.IS_HOST -> R.string.rv_wrong_protocol
+        RendezvousStatus.WRONG_PROTOCOL -> R.string.rv_not_server
         RendezvousStatus.UNREACHABLE -> R.string.rv_unreachable
         RendezvousStatus.KEY_MISMATCH -> R.string.rv_key_mismatch
         else -> R.string.rv_failed

@@ -288,6 +288,8 @@ Apple 对“收集”的定义是：把数据传出设备，并且开发者或�
 
 如果届时已有 Readori 的公共汇合服务器，也可以改为提供 9 位 ID，并在备注里写明需要在 Settings 里填入的服务器地址。
 
+**纯 IPv6 网络。** Apple 的审核网络（以及部分运营商网络）只有 IPv6，通过 NAT64/DNS64 访问 IPv4。审核员按 IP 地址连接演示主机，所以这一点直接决定能否过审：iOS 应用在 IPv4 发不出去时会自动发现 NAT64 前缀，把 IPv4 地址转换成 IPv6 地址再发送（见 [how-it-works](en/how-it-works.md#ipv6-only-networks-nat64)）。提交前建议在 Mac 上用“互联网共享”里的“创建 NAT64 网络”（按住 Option 点“共享”设置里的“互联网共享”可见）搭一个纯 IPv6 Wi-Fi，用真机连上后按备注里的步骤连接演示主机验证一次。如果演示主机有域名，备注里也可以写域名，域名在 NAT64 网络里由 DNS64 处理。
+
 ### Sign-in 信息
 
 “需要登录（Sign-in required）”：**不勾选**。应用没有账号。演示主机的地址和密码写在备注（Notes）里。
@@ -436,3 +438,19 @@ App 预览视频不是必需的，首发可以不做。
 | 版权行、法律实体名称 | 1 | |
 | 欧盟交易者身份 | 7 | 在欧盟上架时必填 |
 | 截图 | 8 | 需要在 macOS 上生成 |
+
+## 附：Google Play 的前台服务声明（Android）
+
+Android 应用在有被控端会话时以前台服务（`SessionService`）保持连接，并显示常驻通知（“已连接到 …”，带“断开连接”）。`targetSdk 36` 要求声明前台服务类型，这里用的是 **`specialUse`**：
+
+- `dataSync` 从 Android 15 起每天最多 6 小时，而且用途是上传、下载、备份等数据传输，不适合“保持一个远程控制会话”；
+- `connectedDevice` 面向蓝牙、USB、NFC 等外接设备；
+- 所以选 `specialUse`，清单里的 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` 写明了用途。
+
+**【提交前确认】** 在 Play Console 的“应用内容 → 前台服务权限”中声明 `FOREGROUND_SERVICE_SPECIAL_USE`，用途说明可写：
+
+```
+RemoHop is a remote-control client for the user's own computers. While the user has an active remote session (terminal, file transfer or remote desktop) and switches to another app, a foreground service keeps that session's network connection alive so it is still there when they return. The service runs only while a session exists, shows an ongoing notification ("Connected to <host>") with a Disconnect action, and stops as soon as the user disconnects. It is started only by the user connecting to a host.
+```
+
+Play Console 可能要求一段演示视频：连接演示主机 → 切到桌面 → 下拉通知栏看到“已连接到 …” → 点“断开连接”。应用在第一次建立会话时请求通知权限（Android 13+），拒绝也不影响会话，只是通知不显示。

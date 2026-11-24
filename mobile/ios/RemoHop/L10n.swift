@@ -215,6 +215,7 @@ enum L10n {
         "Telegram": "Telegram",
         "Terms of use": "使用条款",
         "Third-party licenses": "第三方许可证",
+        "Not a rendezvous server": "不是汇合服务器",
     ]
 
     /// The English keys of the settings screens, for the test that each has
@@ -299,6 +300,7 @@ enum L10n {
         "Telegram",
         "Terms of use",
         "Third-party licenses",
+        "Not a rendezvous server",
     ]
 }
 

@@ -88,12 +88,12 @@ enum AppInfo {
     """
 }
 
-/// What a rendezvous server check found. The core's check (from the
-/// connect-fix branch) reports one of these codes; `RendezvousCheck.run`
-/// is the one place that calls it.
+/// What a rendezvous server check found: the codes of the core's
+/// CheckRendezvous (internal/mobile), called by `RendezvousCheck.run`.
 enum RendezvousStatus: Equatable {
     case ok
-    case wrongProtocol // the address answers, but it is a host, not a rendezvous server
+    case isHost // the address is a RemoHop host, not a rendezvous server
+    case wrongProtocol // something else answered
     case unreachable
     case keyMismatch
     case failed(String)
@@ -103,7 +103,8 @@ enum RendezvousStatus: Equatable {
     init(code: String, message: String = "") {
         switch code {
         case "ok": self = .ok
-        case "wrong_protocol", "signal_wrong_protocol", "signal_is_host", "is_host": self = .wrongProtocol
+        case "signal_is_host", "is_host": self = .isHost
+        case "wrong_protocol", "signal_wrong_protocol": self = .wrongProtocol
         case "unreachable", "rendezvous_unreachable", "timeout": self = .unreachable
         case "key_mismatch", "pin_mismatch": self = .keyMismatch
         default: self = .failed(message.isEmpty ? code : message)

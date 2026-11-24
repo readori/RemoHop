@@ -129,4 +129,5 @@
     <string name="about_terms">使用条款</string>
     <string name="back">返回</string>
     <string name="pair_target_required">请输入被控端的 ID 或地址。</string>
+    <string name="rv_not_server">不是汇合服务器</string>
 </resources>

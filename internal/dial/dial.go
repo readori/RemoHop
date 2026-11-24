@@ -102,6 +102,11 @@ type Options struct {
 	// Password is the host's password. When set it is the only credential
 	// tried.
 	Password string
+	// Pairing is a pairing token held in memory and not saved (the phone
+	// apps get one to log in again after a dropped connection). When set
+	// it is tried before the saved credentials; a host that no longer
+	// accepts it leaves the saved pairing alone.
+	Pairing *hostd.Pairing
 	// Prompt asks a human for the password when no other credential
 	// works. Nil means never ask: the dial fails with an explanation
 	// instead, which is what non-interactive callers want.
@@ -416,6 +421,8 @@ func (d *dialer) resolve(name string) (*target, error) {
 type credentials struct {
 	d        *dialer
 	t        *target
+	usedMem  bool
+	lastMem  bool // the credential last returned is Options.Pairing
 	usedPW   bool
 	usedTok  bool
 	usedKey  bool
@@ -428,6 +435,11 @@ type credentials struct {
 // left. prompted reports that it came from the user just now.
 func (c *credentials) next(ctx context.Context) (cred auth.Credential, prompted bool, err error) {
 	opts := &c.d.opts
+	c.lastMem = false
+	if opts.Pairing != nil && !c.usedMem {
+		c.usedMem, c.lastMem = true, true
+		return auth.TokenCredential(opts.Pairing.TokenID, opts.Pairing.Token), false, nil
+	}
 	if opts.Password != "" {
 		if c.usedPW {
 			return cred, false, errors.New("no more credentials")
@@ -595,6 +607,9 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 		// Decide whether another credential is worth a new connection.
 		code := auth.CodeOf(err)
 		switch {
+		case cred.Kind == auth.KindToken && creds.lastMem && (code == auth.CodeUnknownToken || code == auth.CodeAuthFailed):
+			d.log.Debug("in-memory pairing rejected", "target", t.canonical, "code", code)
+			creds.reason = "the pairing held for this session is no longer accepted"
 		case cred.Kind == auth.KindToken && (code == auth.CodeUnknownToken || code == auth.CodeAuthFailed):
 			d.log.Debug("saved pairing rejected", "target", t.canonical, "code", code)
 			if code == auth.CodeUnknownToken {
@@ -730,7 +745,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		uctx, ucancel := context.WithTimeout(sctx, sopts.UDPWait(signalTimeout))
 		sc, err = signal.Dial(uctx, sock, addr, sopts)
 		ucancel()
-		if err != nil && ctx.Err() == nil && sopts.UseWS() {
+		if err != nil && ctx.Err() == nil && sopts.UseWS() && !signal.IsWrongServer(err) {
 			return nil, route{}, &errUseWS{err}
 		}
 	}

@@ -57,7 +57,9 @@ type ttlPacketConn interface {
 }
 
 // Listen opens a UDP socket on addr ("" or ":0" for any port on all
-// interfaces) and wraps it.
+// interfaces) and wraps it. A socket on all interfaces is dual-stack and,
+// where NAT64Wanted, reaches IPv4 addresses through the network's NAT64
+// when there is no IPv4 (see nat64.go).
 func Listen(addr string) (*Socket, error) {
 	if addr == "" {
 		addr = ":0"
@@ -66,9 +68,13 @@ func Listen(addr string) (*Socket, error) {
 	if err != nil {
 		return nil, err
 	}
-	pc, err := net.ListenUDP("udp", ua)
+	uc, err := net.ListenUDP("udp", ua)
 	if err != nil {
 		return nil, err
+	}
+	var pc net.PacketConn = uc
+	if NAT64Wanted() && (ua.IP == nil || ua.IP.IsUnspecified()) {
+		pc = WrapNAT64(uc) // IPv4 literals on IPv6-only networks (nat64.go)
 	}
 	// quic-go prints a one-time notice through the log package when the
 	// kernel refuses large UDP buffers (common in containers). It is

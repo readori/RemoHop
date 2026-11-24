@@ -28,11 +28,20 @@ type webSession struct {
 }
 
 // pooled is one P2P session to a host, shared by every feature tab of the
-// browser session that opened it.
+// browser session that opened it. In persistent mode (see keep.go) its
+// connection is replaced when it drops and is re-established.
 type pooled struct {
-	key  string
-	conn *peer.Conn
-	info connInfo
+	key string
+	// redial logs in to the host again (persistent mode); nil: the
+	// session ends with its connection.
+	redial  Redialer
+	stopped chan struct{} // closed when the user (or the gateway) ends the session
+	stop1   sync.Once
+	kick    chan struct{} // try to reconnect now
+
+	cmu  sync.Mutex
+	conn *peer.Conn // the current connection
+	info connInfo   // with State and Error
 
 	// guarded by the web session's mu
 	users int
@@ -41,6 +50,36 @@ type pooled struct {
 	fsMu sync.Mutex
 	fsc  *fs.Client
 }
+
+func newPooled(key string, conn *peer.Conn, info connInfo) *pooled {
+	if info.State == "" {
+		info.State = stateConnected
+	}
+	return &pooled{key: key, conn: conn, info: info, stopped: make(chan struct{}), kick: make(chan struct{}, 1)}
+}
+
+// current is the session's connection now.
+func (p *pooled) current() *peer.Conn {
+	p.cmu.Lock()
+	defer p.cmu.Unlock()
+	return p.conn
+}
+
+// snapshot is the session as the page sees it.
+func (p *pooled) snapshot() connInfo {
+	p.cmu.Lock()
+	defer p.cmu.Unlock()
+	return p.info
+}
+
+func (p *pooled) state() string {
+	p.cmu.Lock()
+	defer p.cmu.Unlock()
+	return p.info.State
+}
+
+// stop ends the session for good: no more reconnecting.
+func (p *pooled) stop() { p.stop1.Do(func() { close(p.stopped) }) }
 
 // fsClient returns the file client of the session, opening it on first use
 // and again after it broke. A host that switched the file feature off
@@ -56,7 +95,7 @@ func (p *pooled) fsClient(ctx context.Context) (*fs.Client, error) {
 			return p.fsc, nil
 		}
 	}
-	c, err := fs.NewClient(ctx, p.conn)
+	c, err := fs.NewClient(ctx, p.current())
 	if err != nil {
 		return nil, err
 	}
@@ -65,13 +104,14 @@ func (p *pooled) fsClient(ctx context.Context) (*fs.Client, error) {
 }
 
 func (p *pooled) close() {
+	p.stop()
 	p.fsMu.Lock()
 	if p.fsc != nil {
 		p.fsc.Close()
 		p.fsc = nil
 	}
 	p.fsMu.Unlock()
-	p.conn.Close()
+	p.current().Close()
 }
 
 func dead(c *peer.Conn) bool {
@@ -116,6 +156,9 @@ func (s *Server) newSession() (*webSession, *apiError) {
 	now := s.now()
 	ws := &webSession{id: randToken(16), csrf: randToken(16), created: now, last: now,
 		conns: map[string]*pooled{}, attempts: map[string]*attempt{}}
+	if s.cfg.Persistent {
+		s.takeOver(ws)
+	}
 	s.sessions[ws.id] = ws
 	return ws, nil
 }
@@ -170,14 +213,33 @@ func (s *Server) dropSession(ws *webSession) {
 var errNotConnected = &apiError{Status: http.StatusGone, Code: "disconnected",
 	Message: "not connected to that host (the session ended or was closed for being idle); connect again"}
 
+// errReconnecting: the session dropped and the gateway is establishing it
+// again (persistent mode). The page retries once the connection list says
+// "connected".
+var errReconnecting = &apiError{Status: http.StatusServiceUnavailable, Code: "reconnecting",
+	Message: "the connection to the host dropped; reconnecting"}
+
 // acquire returns the live session to key and a release function. While
 // acquired, the session is not closed for idleness.
 func (ws *webSession) acquire(key string, now func() time.Time) (*pooled, func(), *apiError) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	p := ws.conns[key]
-	if p == nil || ws.closed || dead(p.conn) {
+	if p == nil || ws.closed {
 		return nil, nil, errNotConnected
+	}
+	switch info := p.snapshot(); {
+	case info.State == stateFailed:
+		e := *errNotConnected
+		if info.Error != nil {
+			e.Message = "the connection to the host was lost and could not be re-established: " + info.Error.Message
+		}
+		return nil, nil, &e
+	case info.State != stateConnected || dead(p.current()):
+		if p.redial == nil {
+			return nil, nil, errNotConnected
+		}
+		return nil, nil, errReconnecting
 	}
 	p.users++
 	p.last = now()
@@ -200,24 +262,18 @@ func (s *Server) adopt(ws *webSession, p *pooled, release func()) (*pooled, bool
 		ws.mu.Unlock()
 		return nil, false
 	}
-	if old := ws.conns[p.key]; old != nil && !dead(old.conn) {
+	old := ws.conns[p.key]
+	if old != nil && old.state() == stateConnected && !dead(old.current()) {
 		ws.mu.Unlock()
 		return old, false
 	}
 	p.last = s.now()
 	ws.conns[p.key] = p
 	ws.mu.Unlock()
-	// Free the slot when the session ends, whoever ends it.
-	go func() {
-		<-p.conn.Done()
-		release()
-		ws.mu.Lock()
-		if ws.conns[p.key] == p {
-			delete(ws.conns, p.key)
-		}
-		ws.mu.Unlock()
-		p.close()
-	}()
+	if old != nil {
+		old.close() // a session that was reconnecting or had failed: the new one replaces it
+	}
+	go s.keep(ws, p, release)
 	return p, true
 }
 
@@ -238,8 +294,9 @@ func (ws *webSession) list() []connInfo {
 	defer ws.mu.Unlock()
 	out := make([]connInfo, 0, len(ws.conns))
 	for _, p := range ws.conns {
-		if !dead(p.conn) {
-			out = append(out, p.info)
+		info := p.snapshot()
+		if p.redial != nil || !dead(p.current()) {
+			out = append(out, info) // in persistent mode also while reconnecting, or failed
 		}
 	}
 	return out
@@ -304,6 +361,8 @@ func (s *Server) reap() {
 		}
 		idle := now.Sub(ws.last)
 		switch {
+		case s.cfg.Persistent:
+			// App mode: the host sessions last until the user ends them.
 		case !s.passwordMode() && !busy && idle > s.cfg.PageIdle:
 			drop = append(drop, ws) // the tab is gone
 		case s.passwordMode() && (now.Sub(ws.created) > s.cfg.SessionTTL || !busy && idle > s.cfg.SessionIdle):
@@ -325,7 +384,7 @@ func (s *Server) reap() {
 		var stale []string
 		ws.mu.Lock()
 		for k, p := range ws.conns {
-			if p.users == 0 && now.Sub(p.last) > s.cfg.ConnIdle {
+			if !s.cfg.Persistent && p.users == 0 && now.Sub(p.last) > s.cfg.ConnIdle {
 				stale = append(stale, k)
 			}
 		}

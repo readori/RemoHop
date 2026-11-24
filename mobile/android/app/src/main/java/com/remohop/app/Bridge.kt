@@ -16,6 +16,12 @@ interface BridgeHost {
     fun openSettings(page: String) = openSettings()
     /** Something the page reported for the diagnostic log (kept only while the user has it on). */
     fun diagLog(text: String) {}
+    /**
+     * Makes sure the gateway answers (see [Core.gatewayUrl]) and calls [done]
+     * on the UI thread with whether it does. If its URL changed the page is
+     * loaded again.
+     */
+    fun ensureGateway(done: (Boolean) -> Unit) = done(true)
 }
 
 /**
@@ -37,6 +43,18 @@ class Bridge(private val host: BridgeHost, private val origin: String) {
             return
         }
         val id = msg.optLong("id", -1)
+        if (msg.optString("method") == "gateway.ensure") {
+            // The page got no answer from the gateway (remohop-mobile.js
+            // ensureGateway): answered once the app has checked it.
+            host.ensureGateway { ok ->
+                if (id >= 0) {
+                    val out = JSONObject().put("id", id)
+                    if (ok) out.put("result", JSONObject()) else out.put("error", "gateway unavailable")
+                    reply(out.toString())
+                }
+            }
+            return
+        }
         val args = msg.optJSONObject("args") ?: JSONObject()
         val result = JSONObject()
         val error: String? = try {

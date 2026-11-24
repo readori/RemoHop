@@ -622,3 +622,13 @@ html.app #sdm-sheet .actions button.danger::before { content: ""; display: inlin
   -webkit-mask: var(--i-trash) center / contain no-repeat; mask: var(--i-trash) center / contain no-repeat; }
 html.app #sdm-sheet .actions button.link { background: transparent; color: var(--md-primary); }
 html.app .exitfs { background: rgba(16, 20, 32, .6); }
+
+/* ---- session states and the gateway banner (app mode) ---- */
+html.app .banner:not([hidden]) { display: flex; align-items: center; gap: 12px; }
+html.app .banner[data-i18n="sess.reconnecting"]::before, html.app .banner[data-i18n="sess.reapproval"]::before {
+  content: ""; flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: sdm-spin .8s linear infinite; }
+html.app .banner.bad::before { content: ""; flex: none; width: 20px; height: 20px; background: currentColor;
+  -webkit-mask: var(--i-alert) center / contain no-repeat; mask: var(--i-alert) center / contain no-repeat; }
+html.app #gwretry { flex: none; margin-left: auto; min-height: var(--app-target); padding: 0 12px; border: 0; border-radius: var(--app-btn-radius);
+  background: transparent; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+html.app.platform-android #gwretry { text-decoration: none; font-size: 14px; font-weight: 500; }

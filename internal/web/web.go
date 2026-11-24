@@ -78,6 +78,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -117,6 +118,19 @@ type Config struct {
 	// https. Requires a loopback Listen and PasswordFile.
 	PublicURL string
 
+	// Persistent is app mode, for the phone apps' in-process gateway (see
+	// keep.go): one user, whose host sessions last until they disconnect.
+	// Nothing is closed for being idle (PageIdle and ConnIdle do not
+	// apply), a session that drops is established again on its own, and a
+	// new browser session takes over the host sessions of earlier ones.
+	// Loopback only.
+	Persistent bool
+	// Redial, in persistent mode, is asked after each connect how to log
+	// in to that host again without the user. Nil re-runs Dial with the
+	// same target and the password typed for it (kept in memory), or with
+	// the saved pairing if the connect paired.
+	Redial RedialFunc
+
 	// Seams for tests; the defaults use internal/dial.
 	Dial  DialFunc
 	Pair  PairFunc
@@ -140,23 +154,21 @@ type Server struct {
 	cfg Config
 	log *slog.Logger
 
-	token  string // loopback mode: path prefix
 	pwHash [sha256.Size]byte
 	havePW bool
 	// apiHash is the bearer token's (haveAPI: --api-token-file given).
 	apiHash [sha256.Size]byte
 	haveAPI bool
 	useTLS  bool
-	hosts   *hostMatcher
-	public  *hostMatcher // PublicURL's host, or nil
-	apiSID  string       // the session shared by bearer-authenticated clients
+	leaf    *x509.Certificate // the TLS certificate, for the Host check
+	public  *hostMatcher      // PublicURL's host, or nil
+	apiSID  string            // the session shared by bearer-authenticated clients
 	pubURL  string
 	lim     *limiter
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
-	ln     net.Listener
 	srv    *http.Server
 	mux    *http.ServeMux
 
@@ -164,6 +176,13 @@ type Server struct {
 	sessions map[string]*webSession
 	tickets  map[string]ticket
 	slots    int
+
+	// The listener and what depends on it (see listener.go). bind is read
+	// by every request; lnMu serialises changing it.
+	bind      atomic.Pointer[binding]
+	lnMu      sync.Mutex
+	lnChanged chan struct{} // closed when bind is replaced
+	lnErr     error         // why the current listener stopped serving
 }
 
 func (s *Server) now() time.Time { return s.cfg.Now() }
@@ -185,6 +204,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if !loop && (cfg.TLSCert == "" || cfg.PasswordFile == "") {
 		return nil, errNoTLSPassword
+	}
+	if cfg.Persistent && cfg.PasswordFile != "" {
+		return nil, errors.New("web: persistent (app) mode is for a loopback gateway without a login")
 	}
 	if cfg.APITokenFile != "" && cfg.PasswordFile == "" {
 		return nil, errors.New("--api-token-file needs --password-file: program access is for gateways that have a login")
@@ -264,8 +286,10 @@ func New(cfg Config) (*Server, error) {
 			s.apiHash = sha256.Sum256(tok)
 			s.haveAPI = true
 		}
-	} else {
-		s.token = randToken(16)
+	}
+	token := ""
+	if !s.havePW {
+		token = randToken(16) // loopback mode: the URL's path prefix
 	}
 
 	ln, err := net.Listen("tcp", cfg.Listen)
@@ -281,14 +305,9 @@ func New(cfg Config) (*Server, error) {
 		ln.Close()
 		return nil, errNoTLSPassword
 	}
-	s.ln = ln
-	s.hosts = newHostMatcher(tcp.Port, s.useTLS, "localhost", "127.0.0.1", "::1")
-	if !tcp.IP.IsUnspecified() {
-		s.hosts.add(tcp.IP.String())
-	}
-	if leaf != nil {
-		s.hosts.addCert(leaf)
-	}
+	s.leaf = leaf
+	s.bind.Store(s.newBinding(ln, tcp, token))
+	s.lnChanged = make(chan struct{})
 	if pub != nil {
 		s.public = pub
 		s.pubURL = strings.TrimSuffix(cfg.PublicURL, "/") + "/"
@@ -304,14 +323,15 @@ func New(cfg Config) (*Server, error) {
 }
 
 // Addr is the listen address.
-func (s *Server) Addr() net.Addr { return s.ln.Addr() }
+func (s *Server) Addr() net.Addr { return s.bind.Load().addr }
 
 // URL is what the user opens. On loopback it contains the access token.
 func (s *Server) URL() string {
 	if s.pubURL != "" {
 		return s.pubURL
 	}
-	tcp := s.ln.Addr().(*net.TCPAddr)
+	b := s.bind.Load()
+	tcp := b.addr
 	scheme := "http"
 	if s.useTLS {
 		scheme = "https"
@@ -321,8 +341,8 @@ func (s *Server) URL() string {
 		host = "localhost"
 	}
 	u := scheme + "://" + net.JoinHostPort(host, strconv.Itoa(tcp.Port)) + "/"
-	if s.token != "" {
-		u += s.token + "/"
+	if b.token != "" {
+		u += b.token + "/"
 	}
 	return u
 }
@@ -331,26 +351,51 @@ func (s *Server) URL() string {
 // password.
 func (s *Server) PasswordMode() bool { return s.havePW }
 
-// Serve runs the server until Close or ctx is done.
+// Serve runs the server until Close or ctx is done. If the listener fails
+// (see listener.go: a phone may take it away from a suspended app), Serve
+// keeps waiting for Rebind instead of returning, so the host sessions stay;
+// Listening reports the failure.
 func (s *Server) Serve(ctx context.Context) error {
 	stop := context.AfterFunc(ctx, func() { s.Close() })
 	defer stop()
-	var err error
-	if s.useTLS {
-		err = s.srv.ServeTLS(s.ln, "", "")
-	} else {
-		err = s.srv.Serve(s.ln)
+	for {
+		s.lnMu.Lock()
+		b, changed := s.bind.Load(), s.lnChanged
+		s.lnMu.Unlock()
+		var err error
+		if b.ln != nil {
+			if s.useTLS {
+				err = s.srv.ServeTLS(b.ln, "", "")
+			} else {
+				err = s.srv.Serve(b.ln)
+			}
+			if errors.Is(err, http.ErrServerClosed) || s.ctx.Err() != nil {
+				return nil
+			}
+			s.lnMu.Lock()
+			if s.bind.Load() == b && s.lnErr == nil {
+				s.lnErr = err
+				s.log.Warn("web: the listener stopped", "err", err)
+			}
+			s.lnMu.Unlock()
+		}
+		select {
+		case <-changed:
+		case <-s.ctx.Done():
+			return nil
+		}
 	}
-	if errors.Is(err, http.ErrServerClosed) {
-		return nil
-	}
-	return err
 }
 
 // Close stops the server and ends every host session.
 func (s *Server) Close() {
 	s.cancel()
 	s.srv.Close()
+	s.lnMu.Lock()
+	if b := s.bind.Load(); b.ln != nil {
+		b.ln.Close() // one Rebind made that Serve has not picked up yet
+	}
+	s.lnMu.Unlock()
 	s.mu.Lock()
 	all := make([]*webSession, 0, len(s.sessions))
 	for _, ws := range s.sessions {
@@ -384,15 +429,16 @@ func (s *Server) setHeaders(w http.ResponseWriter, r *http.Request) {
 // ServeHTTP checks the Host header, strips the loopback token prefix and
 // hands over to the router.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if !s.hosts.ok(r.Host) && !s.viaPublic(r) {
+	b := s.bind.Load()
+	if !b.hosts.ok(r.Host) && !s.viaPublic(r) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 	s.setHeaders(w, r)
-	if s.token != "" {
+	if b.token != "" {
 		rest, ok := strings.CutPrefix(r.URL.Path, "/")
 		tok, sub, _ := strings.Cut(rest, "/")
-		if !ok || !ctEqual(tok, s.token) {
+		if !ok || !ctEqual(tok, b.token) {
 			http.NotFound(w, r)
 			return
 		}

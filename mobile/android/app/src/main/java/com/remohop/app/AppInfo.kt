@@ -58,18 +58,15 @@ Works based on RemoHop must keep this notice. See LICENSING.md.
 基于 RemoHop 的作品必须保留本声明，详见 LICENSING.md。"""
 }
 
-/**
- * What a rendezvous server check found. The core's check (from the
- * connect-fix branch) reports one of these codes; [RendezvousCheck.run] is
- * the one place that calls it.
- */
+/** What a rendezvous server check found: the codes of the core's CheckRendezvous. */
 enum class RendezvousStatus {
-    OK, WRONG_PROTOCOL, UNREACHABLE, KEY_MISMATCH, FAILED;
+    OK, IS_HOST, WRONG_PROTOCOL, UNREACHABLE, KEY_MISMATCH, FAILED;
 
     companion object {
         fun of(code: String): RendezvousStatus = when (code) {
             "ok" -> OK
-            "wrong_protocol", "signal_wrong_protocol", "signal_is_host", "is_host" -> WRONG_PROTOCOL
+            "signal_is_host", "is_host" -> IS_HOST
+            "wrong_protocol", "signal_wrong_protocol" -> WRONG_PROTOCOL
             "unreachable", "rendezvous_unreachable", "timeout" -> UNREACHABLE
             "key_mismatch", "pin_mismatch" -> KEY_MISMATCH
             else -> FAILED
@@ -78,14 +75,19 @@ enum class RendezvousStatus {
 }
 
 /**
- * The core's rendezvous server check. It comes from the connect-fix
- * branch; until it is merged [AVAILABLE] is false and Settings hides the
- * Test row. Wiring it is this one place, e.g.
- * `RendezvousStatus.of(JSONObject(Remohopcore.checkRendezvous(server, key)).optString("status"))`.
+ * The core's rendezvous server check (CheckRendezvous): it connects to the
+ * saved server the way a connection by ID does, with the saved key, and
+ * says what answered. Run after the server or key was saved, when the page
+ * opens, and from the Test row. Blocks for a few seconds at most: call it
+ * off the UI thread.
  */
 object RendezvousCheck {
-    const val AVAILABLE = false
+    const val AVAILABLE = true
 
     @Suppress("UNUSED_PARAMETER")
-    fun run(server: String, key: String): RendezvousStatus? = null
+    fun run(server: String, key: String): RendezvousStatus? {
+        val code = runCatching { JSONObject(com.remohop.app.core.remohopcore.Remohopcore.checkRendezvous("")).optString("code", "error") }.getOrNull() ?: return null
+        Diag.log("rendezvous check: $code")
+        return RendezvousStatus.of(code)
+    }
 }

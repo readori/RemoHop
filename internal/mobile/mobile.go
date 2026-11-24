@@ -26,9 +26,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,10 +62,10 @@ var (
 	pairCancel context.CancelFunc
 )
 
-// pageIdle is how long the gateway keeps a page's host sessions without a
-// heartbeat. A phone pauses a backgrounded WebView, so this is much longer
-// than the desktop gateway's two minutes.
-const pageIdle = 30 * time.Minute
+// The gateway runs in persistent (app) mode: a host session lasts until the
+// user disconnects it, and one that drops (the app was suspended, the
+// network changed) is established again by itself; see internal/web's
+// keep.go and redialGateway below.
 
 // pairTimeout bounds PairWithPassword, which may wait for the host's owner
 // to approve the login.
@@ -155,11 +157,161 @@ func quietLogger() *slog.Logger {
 	return slog.New(newCoreHandler())
 }
 
+// gwLife serialises starting, checking, pausing and stopping the gateway
+// (mu only guards the variables, so other calls are not held up by the
+// health check).
+var gwLife sync.Mutex
+
+// healthTimeout bounds EnsureGateway's request to its own listener; on a
+// phone that answers in a millisecond.
+const healthTimeout = 1500 * time.Millisecond
+
 // StartGateway starts the in-process web gateway on 127.0.0.1 with a random
 // port and a fresh token and returns the URL to load, which contains the
-// token. If the gateway is already running it returns the same URL: the
-// token changes per start, not per call.
+// token. If the gateway is already running it returns its URL: the token
+// changes per start, not per call. A listener that is paused or known to
+// have failed is opened again first; EnsureGateway also checks one that
+// looks fine.
 func StartGateway() (string, error) {
+	gwLife.Lock()
+	defer gwLife.Unlock()
+	if srv := current(); srv != nil {
+		if srv.Listening() || srv.Rebind() == nil {
+			return srv.URL(), nil
+		}
+		stopLocked()
+	}
+	return startLocked()
+}
+
+// EnsureGateway is what the apps call whenever they come to the foreground,
+// and when the page reports that it cannot reach the gateway. It returns
+// the URL of a gateway that has just answered a request from inside this
+// process:
+//
+//   - nothing runs: it starts one (new port and token), like StartGateway;
+//   - the listener answers: the same URL;
+//   - the listener is paused (PauseGateway) or dead: iOS takes a suspended
+//     app's listening socket away, and Go's accept loop does not notice
+//     (see internal/web/listener.go). It listens again, on the same port
+//     if it can, which keeps the URL, the token, the page and every host
+//     session. If the port is gone it moves to a new port with a new token
+//     (the sessions stay in the gateway, but the page must load the new URL
+//     and starts a new browser session);
+//   - that fails too: it stops the gateway and starts a new one.
+//
+// It also checks the host sessions in the background (CheckSessions): one
+// whose connection died while the app was away is re-established now.
+//
+// The caller compares the URL with the one its web view has and loads it
+// only if it changed.
+func EnsureGateway() (string, error) {
+	gwLife.Lock()
+	defer gwLife.Unlock()
+	if srv := current(); srv != nil {
+		if srv.Listening() && healthy(srv) == nil {
+			go srv.CheckSessions()
+			return srv.URL(), nil
+		}
+		if err := srv.Rebind(); err == nil && healthy(srv) == nil {
+			go srv.CheckSessions()
+			return srv.URL(), nil
+		}
+		stopLocked()
+	}
+	return startLocked()
+}
+
+// PauseGateway closes the gateway's listening socket and keeps everything
+// else (the server, its token, the browser and host sessions). The iOS app
+// calls it when it goes to the background, as Apple's TN2277 asks of
+// listening sockets: then the system has nothing to take away from the
+// suspended app, the port is released cleanly, and EnsureGateway opens it
+// again on return with the same URL. Safe to call when nothing runs.
+func PauseGateway() {
+	gwLife.Lock()
+	defer gwLife.Unlock()
+	if srv := current(); srv != nil {
+		srv.PauseListening()
+	}
+}
+
+// BreakGatewayListenerForTest breaks the running gateway's listener the way
+// iOS does to a suspended app's socket, for tests of EnsureGateway: the
+// socket goes away underneath the server. With stall the server cannot tell
+// (GatewayRunning stays true, connections are refused: iOS's case); without,
+// it notices. It is harmless in production (the next EnsureGateway repairs
+// it) but nothing but tests should call it.
+func BreakGatewayListenerForTest(stall bool) {
+	gwLife.Lock()
+	defer gwLife.Unlock()
+	if srv := current(); srv != nil {
+		srv.BreakListenerForTest(stall)
+	}
+}
+
+// CheckSessions pings every host session and re-establishes the ones that
+// do not answer, at once. The apps call it when the network changes (and
+// EnsureGateway does on every return to the foreground).
+func CheckSessions() {
+	if srv := current(); srv != nil {
+		srv.CheckSessions()
+	}
+}
+
+// SessionsJSON lists the gateway's host sessions as a JSON array of
+// {"key","target","state",...} (state: connected, reconnecting,
+// waiting_approval, failed), "[]" when there are none. The Android app
+// polls it to keep its foreground service and notification while a
+// session exists.
+func SessionsJSON() (string, error) {
+	srv := current()
+	if srv == nil {
+		return "[]", nil
+	}
+	b, err := json.Marshal(srv.Sessions())
+	return string(b), err
+}
+
+// DisconnectAll ends every host session, as Disconnect in the page does
+// (the Android notification's Disconnect).
+func DisconnectAll() {
+	if srv := current(); srv != nil {
+		srv.DisconnectAll()
+	}
+}
+
+// DropSessionsForTest closes every host session's connection as a network
+// outage would; the sessions reconnect by themselves. Tests only.
+func DropSessionsForTest() {
+	if srv := current(); srv != nil {
+		srv.DropSessionsForTest()
+	}
+}
+
+func healthy(srv *web.Server) error {
+	ctx, cancel := context.WithTimeout(context.Background(), healthTimeout)
+	defer cancel()
+	return srv.Healthy(ctx)
+}
+
+// current returns the gateway if its Serve still runs.
+func current() *web.Server {
+	mu.Lock()
+	defer mu.Unlock()
+	if gw == nil {
+		return nil
+	}
+	select {
+	case <-gwDone:
+		return nil
+	default:
+		return gw
+	}
+}
+
+// startLocked starts a gateway unless one serves; gwLife must be held.
+func startLocked() (string, error) {
 	d, err := configDir()
 	if err != nil {
 		return "", err
@@ -176,12 +328,13 @@ func StartGateway() (string, error) {
 		}
 	}
 	srv, err := web.New(web.Config{
-		Listen:    "127.0.0.1:0",
-		ConfigDir: d,
-		Dial:      dialGateway(d),
-		Pair:      pairGateway(d),
-		PageIdle:  pageIdle,
-		Logger:    quietLogger(),
+		Listen:     "127.0.0.1:0",
+		ConfigDir:  d,
+		Dial:       dialGateway(d),
+		Pair:       pairGateway(d),
+		Persistent: true,
+		Redial:     redialGateway(d),
+		Logger:     quietLogger(),
 	})
 	if err != nil {
 		return "", err
@@ -246,8 +399,13 @@ func SetLocalAddresses(list string) {
 		all = all[:nat.MaxCandidates]
 	}
 	localsMu.Lock()
+	changed := !slices.Equal(nativeLAN, all)
 	nativeLAN = all
 	localsMu.Unlock()
+	if changed {
+		// The network changed: sessions on the old one are probably dead.
+		go CheckSessions()
+	}
 }
 
 // localAddrs prefers Go's own enumeration and falls back to what the app
@@ -259,6 +417,66 @@ func localAddrs() []netip.Addr {
 	localsMu.Lock()
 	defer localsMu.Unlock()
 	return append([]netip.Addr(nil), nativeLAN...)
+}
+
+// redialGateway decides how a host session logs in again after its
+// connection dropped, without the user:
+//
+//   - a session that logged in with a pairing token or this device's key
+//     does so again (the saved credential);
+//   - a session that logged in with a password, to a host this device has
+//     no saved pairing for, asks the host right away for a pairing token
+//     and keeps it in memory only, for this session (a one-time password
+//     is spent by the first login, so the password could not do it). The
+//     token is not saved: it is gone when the user disconnects or the app
+//     ends. The host lists it like any pairing of this device (`remohop
+//     host paired`, under the device's name) and replaces it when the
+//     device pairs again;
+//   - where the host refuses to pair (quick-support hosts, grants, hosts
+//     run with --no-pairing), the password is kept in memory instead. If
+//     that host asks its owner to approve every login, every reconnection
+//     needs approval again, and the page says so.
+//
+// The password is never written anywhere; see docs/security.md.
+func redialGateway(d string) web.RedialFunc {
+	return func(ctx context.Context, conn *peer.Conn, req web.DialRequest) (web.Redialer, error) {
+		info := dial.InfoOf(conn)
+		if info == nil {
+			return nil, errors.New("this connection was not established by remohop")
+		}
+		target, password := info.Target, ""
+		var mem *hostd.Pairing
+		if info.Auth == auth.KindPassword && !savedPairing(d, target) {
+			pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			p, err := hostd.Pair(pctx, conn, hostd.PairRequest{Name: pairLabel()})
+			cancel()
+			if err == nil {
+				mem = p
+			} else {
+				password = req.Password
+			}
+		}
+		return func(ctx context.Context, notify func(string)) (*peer.Conn, error) {
+			return dial.Dial(ctx, target, dial.Options{
+				Password: password,
+				Pairing:  mem,
+				Notify:   notify,
+				Dir:      d,
+				Locals:   localAddrs,
+				Logger:   quietLogger(),
+			})
+		}, nil
+	}
+}
+
+// savedPairing reports whether this device has a pairing saved for target.
+func savedPairing(d, target string) bool {
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		return false
+	}
+	p, _, err := st.Get(target)
+	return err == nil && p.Paired()
 }
 
 // pairGateway is the page's "pair this gateway" action with this device's
@@ -283,6 +501,12 @@ func pairGateway(d string) web.PairFunc {
 // StopGateway stops the gateway and ends every host session it holds. It
 // is safe to call when nothing runs.
 func StopGateway() {
+	gwLife.Lock()
+	defer gwLife.Unlock()
+	stopLocked()
+}
+
+func stopLocked() {
 	mu.Lock()
 	srv := gw
 	gw, gwDone = nil, nil
@@ -292,19 +516,13 @@ func StopGateway() {
 	}
 }
 
-// GatewayRunning reports whether StartGateway's server is serving.
+// GatewayRunning reports whether the gateway runs and its listener is open
+// and has not failed as far as the server can tell. It does no I/O, so it
+// cannot see a listener that iOS took away while the app was suspended;
+// EnsureGateway checks for real.
 func GatewayRunning() bool {
-	mu.Lock()
-	defer mu.Unlock()
-	if gw == nil {
-		return false
-	}
-	select {
-	case <-gwDone:
-		return false
-	default:
-		return true
-	}
+	srv := current()
+	return srv != nil && srv.Listening()
 }
 
 // GetSetting returns one of the settings the app manages: "signal" (the
@@ -474,7 +692,8 @@ func DevicesJSON(checkOnline bool) (string, error) {
 // "new_host"} or {"ok":false,"code","error"}, where code is one of
 // bad_password, unknown_id, host_offline, no_path, no_rendezvous,
 // host_key_changed, denied, locked_out, password_required, timeout,
-// canceled, bad_request or error. The returned error is reserved for
+// canceled, signal_is_host (the rendezvous setting names a RemoHop host),
+// signal_wrong_protocol (it names something else), bad_request or error. The returned error is reserved for
 // calling it before Init.
 //
 // The password is used for this one login and not kept.
@@ -584,7 +803,8 @@ func SetAlias(target, alias string) error {
 }
 
 // Forget discards what is saved for a host (pinned key, pairing token,
-// alias), named by target or alias, and returns how many entries went.
+// alias), named by target or alias, and returns how many entries went. Its
+// open sessions end too.
 func Forget(ref string) (int, error) {
 	d, err := configDir()
 	if err != nil {
@@ -594,7 +814,20 @@ func Forget(ref string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return st.Forget(strings.TrimSpace(ref))
+	ref = strings.TrimSpace(ref)
+	target := cli.NormalizeTarget(ref)
+	if p, ok, err := st.ByAlias(ref); err == nil && ok {
+		target = p.Target
+	}
+	n, err := st.Forget(ref)
+	if err == nil {
+		// Forgetting a host also ends the sessions to it: they would
+		// otherwise reconnect with credentials the user just deleted.
+		if srv := current(); srv != nil {
+			srv.DisconnectTarget(target)
+		}
+	}
+	return n, err
 }
 
 func codeOf(err error) string {
@@ -611,6 +844,8 @@ func codeOf(err error) string {
 		return "unknown_id"
 	case signal.CodeOffline:
 		return "host_offline"
+	case signal.CodeIsHost, signal.CodeWrongProtocol:
+		return signal.CodeOf(err) // "signal_is_host", "signal_wrong_protocol"
 	}
 	switch {
 	case errors.Is(err, signal.ErrNotConfigured):
@@ -627,4 +862,90 @@ func codeOf(err error) string {
 		return "password_required"
 	}
 	return "error"
+}
+
+// checkTimeout bounds CheckRendezvous.
+const checkTimeout = 10 * time.Second
+
+// CheckRendezvous connects to a rendezvous server the way a connection by
+// ID does, and reports what answered, for the Settings screen to show when
+// the user saves the server. addr is HOST[:PORT]; empty checks the
+// configured server. The configured key pin is used when addr is the
+// configured server (a new address has no pin yet: SetSetting drops the
+// old one when the address changes).
+//
+// The outcome is a JSON object either way:
+//
+//	{"ok":true,"code":"ok","server":"HOST:PORT","key":"<server key>"}
+//	{"ok":false,"code":"...","error":"..."}
+//
+// where key is the server's public key in the form the "signal-pin"
+// setting takes, and code is one of
+//
+//	ok                     a RemoHop rendezvous server answered
+//	no_rendezvous          addr is empty and none is configured
+//	bad_address            addr is not HOST or HOST:PORT
+//	unreachable            no answer (wrong address or port, UDP blocked, down)
+//	signal_is_host         the address is a RemoHop host, not a rendezvous
+//	                       server (connect to it by address instead)
+//	signal_wrong_protocol  something else answered
+//	key_mismatch           the server's key is not the pinned one
+//	error                  anything else
+//
+// The returned error is reserved for calling it before Init.
+func CheckRendezvous(addr string) (string, error) {
+	if _, err := configDir(); err != nil {
+		return "", err
+	}
+	res := checkRendezvousServer(strings.TrimSpace(addr))
+	b, err := json.Marshal(res)
+	return string(b), err
+}
+
+func checkRendezvousServer(addr string) map[string]any {
+	fail := func(code string, err error) map[string]any {
+		return map[string]any{"ok": false, "code": code, "error": cli.Sanitize(err.Error())}
+	}
+	configured, opts, err := signal.Resolve("")
+	if err != nil && !errors.Is(err, signal.ErrNotConfigured) {
+		return fail("error", err)
+	}
+	switch {
+	case addr == "" && configured == "":
+		return fail("no_rendezvous", signal.ErrNotConfigured)
+	case addr == "":
+		addr = configured
+	case addr != configured:
+		if err := checkRendezvous(addr); err != nil {
+			return fail("bad_address", err)
+		}
+		opts = signal.Options{}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), checkTimeout)
+	defer cancel()
+	c, sock, err := signal.Connect(ctx, addr, opts, func() (*nat.Socket, error) { return nat.Listen("") }, quietLogger())
+	if err != nil {
+		switch {
+		case signal.IsWrongServer(err):
+			return fail(signal.CodeOf(err), err)
+		case errors.Is(err, signal.ErrPinMismatch):
+			return fail("key_mismatch", err)
+		case errors.Is(err, context.DeadlineExceeded), isTimeout(err):
+			return fail("unreachable", fmt.Errorf("no answer from the rendezvous server %s: check the address and port, and that UDP gets out of this network", addr))
+		}
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) {
+			return fail("unreachable", err)
+		}
+		return fail("error", err)
+	}
+	key := auth.EncodeKey(c.ServerKey())
+	c.Close()
+	sock.Close()
+	return map[string]any{"ok": true, "code": "ok", "server": addr, "key": key}
+}
+
+func isTimeout(err error) bool {
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
 }

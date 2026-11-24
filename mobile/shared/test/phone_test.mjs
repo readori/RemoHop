@@ -122,13 +122,21 @@ async function newPhonePage(b, preload) {
 }
 
 // A fake Android bridge (what WebViewCompat.addWebMessageListener exposes).
+// "gateway.ensure" is answered only when the test calls window.__ensure(),
+// after it had the gateway checked (see answerEnsure), as the app does.
 const fakeNative = `
 window.__native = [];
+window.__ensures = [];
+window.__ensure = () => { const l = window.__ensures.splice(0); for (const f of l) f(); return l.length; };
 window.remohopNative = {
   onmessage: null,
   postMessage(s) {
     const m = JSON.parse(s);
     window.__native.push(m);
+    if (m.method === 'gateway.ensure') {
+      window.__ensures.push(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result: {}})}));
+      return;
+    }
     const result = m.method === 'clipboard.read' ? {text: 'from-native'} : {};
     setTimeout(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result})}), 0);
   },
@@ -322,6 +330,45 @@ async function harnessTests(b) {
   srv.close();
 }
 
+// answerEnsure plays the app's part of the page's recovery: it waits for the
+// page's "gateway.ensure", has the gateway checked (revive: the Go test's
+// control endpoint calls EnsureGateway) and answers it.
+async function answerEnsure(p, control, revive) {
+  check(await p.waitFor('window.__ensures.length > 0', 5000), 'the page asks the app to check the gateway');
+  if (revive) {
+    const r = await fetch(control + '/ensure');
+    check(r.ok, 'EnsureGateway revived the listener on the same URL', await r.text());
+  }
+  await p.eval('window.__ensure()');
+}
+
+// The release-blocking iOS bug: the gateway's listening socket is gone
+// (iOS took it while the app was in the background), the page's Connect
+// gets no answer at all. The page must ask the app, and retry; and when
+// even that fails, say so with a Retry button instead of "Load failed".
+async function lostListenerTests(p, control, target) {
+  const connect = () => p.eval(`document.getElementById('target').value = ${JSON.stringify(target)};
+    document.getElementById('hostpass').value = ''; document.getElementById('connectbtn').click()`);
+  await fetch(control + '/break');
+  await connect();
+  await answerEnsure(p, control, true);
+  check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'Connect works after the listener was lost (the page asked the app, then retried)',
+    await p.eval('document.getElementById("connerr").textContent'));
+  await p.eval('document.getElementById("disconnect").click()');
+  check(await p.waitFor('!document.getElementById("connect").hidden'), 'disconnect returns to the connect form');
+
+  await fetch(control + '/break');
+  await connect();
+  await answerEnsure(p, control, false);
+  check(await p.waitFor('!!document.getElementById("gwretry") && !document.getElementById("gwretry").parentNode.hidden', 5000),
+    'when the gateway stays silent the page says so, with Retry');
+  const err = await p.eval('document.getElementById("connerr").textContent');
+  check(!/Failed to fetch|Load failed/.test(err) && /not answering/.test(err), 'no raw browser error text in the connect form', err);
+  await p.eval('document.getElementById("gwretry").click()');
+  await answerEnsure(p, control, true);
+  check(await p.waitFor('document.getElementById("gwretry").parentNode.hidden', 5000), 'Retry clears the message once the gateway answers');
+}
+
 async function gatewayTests(b) {
   const url = process.env.REMOHOP_GATEWAY_URL, target = process.env.REMOHOP_TARGET, dir = process.env.REMOHOP_TEST_DIR;
   const p = await newPhonePage(b, [fakeNative, script]);
@@ -344,6 +391,7 @@ async function gatewayTests(b) {
     await p.eval('document.getElementById("disconnect").click()');
     check(await p.waitFor('!document.getElementById("connect").hidden'), 'disconnect returns to the connect form');
   }
+  if (process.env.REMOHOP_CONTROL_URL) await lostListenerTests(p, process.env.REMOHOP_CONTROL_URL, target);
   await p.shot('gateway-connect');
   await p.eval(`document.getElementById('target').value = ${JSON.stringify(target)}; document.getElementById('connectbtn').click()`);
   check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects with the pairing saved by PairWithPassword',
@@ -388,6 +436,24 @@ async function gatewayTests(b) {
     i.value = 'echo remohop-$((5*9))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
     i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
   check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-45")'), 'terminal takes input events');
+
+  // The connection to the host drops (the app was suspended, the network
+  // changed): the gateway re-establishes it and the terminal re-attaches to
+  // the same shell, without the user doing anything.
+  if (process.env.REMOHOP_CONTROL_URL) {
+    const before = await p.eval('document.getElementById("t-status").textContent');
+    await fetch(process.env.REMOHOP_CONTROL_URL + '/drop');
+    check(await p.waitFor('/re-attached/.test(document.getElementById("t-status").textContent)', 20000),
+      'after a dropped connection the terminal re-attaches by itself', {before, now: await p.eval('document.getElementById("t-status").textContent')});
+    check(await p.eval('!document.getElementById("workspace").hidden && document.getElementById("hostsel").options.length === 1'), 'the session stayed in the workspace');
+    check(await p.waitFor('document.getElementById("banner").hidden || !/dropped|could not/.test(document.getElementById("banner").textContent)', 5000),
+      'no reconnecting or error banner once reconnected', await p.eval('document.getElementById("banner").textContent'));
+    await sleep(300);
+    await p.eval(`(() => { const i = document.querySelector('#t-host textarea'); i.focus();
+      i.value = 'echo remohop-$((7*9))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
+      i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
+    check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-63")'), 'the re-attached terminal runs commands');
+  }
 
   // Clipboard tab through the bridge: device clipboard -> page -> host clipboard -> page -> device clipboard.
   await p.eval('document.getElementById("tab-clipboard").click()');

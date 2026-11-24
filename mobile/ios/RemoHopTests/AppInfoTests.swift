@@ -27,7 +27,8 @@ final class AppInfoTests: XCTestCase {
         let m = AppInfo.supportMailto(subject: "RemoHop logs", body: "a & b")?.absoluteString ?? ""
         XCTAssertTrue(m.hasPrefix("mailto:admin@remohop.com?subject=RemoHop%20logs&body=a%20%26%20b"), m)
         XCTAssertEqual(RendezvousStatus(code: "ok"), .ok)
-        XCTAssertEqual(RendezvousStatus(code: "signal_is_host"), .wrongProtocol)
+        XCTAssertEqual(RendezvousStatus(code: "signal_is_host"), .isHost)
+        XCTAssertEqual(RendezvousStatus(code: "signal_wrong_protocol"), .wrongProtocol)
         XCTAssertEqual(RendezvousStatus(code: "unreachable"), .unreachable)
         XCTAssertEqual(RendezvousStatus(code: "key_mismatch"), .keyMismatch)
         XCTAssertEqual(RendezvousStatus(code: "boom", message: "x"), .failed("x"))

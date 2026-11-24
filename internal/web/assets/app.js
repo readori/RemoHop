@@ -33,10 +33,64 @@
     try { const j = await r.json(); if (j.error) { code = j.error.code; msg = j.error.message; } } catch (e) { /* not JSON */ }
     return new ApiError(r.status, code, msg);
   }
+  // ---- reaching the gateway ----
+  // A fetch that gets no HTTP answer at all ("Load failed" in WebKit,
+  // "Failed to fetch" in Chrome) means the gateway did not answer. In the
+  // phone apps that is what happens when the system took the in-process
+  // gateway's listening socket away while the app was in the background:
+  // the app is asked to check and reopen it (remohop-mobile.js
+  // ensureGateway, over the app's bridge) and the request is sent once more.
+  // If that fails too, the page says so with a Retry button instead of the
+  // browser's raw text.
+  const LOST = 'The gateway is not answering. Try again.';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function ensureGateway() {
+    const m = window.remohopMobile;
+    if (m && typeof m.ensureGateway === 'function') {
+      try { await Promise.race([m.ensureGateway(), wait(8000)]); return; } catch (e) { /* not in the app, or it failed: retry anyway */ }
+    }
+    await wait(700);
+  }
+  let lostBar = null;
+  function gatewayLost(on) {
+    if (!on) { if (lostBar) lostBar.hidden = true; return; }
+    if (!lostBar) {
+      lostBar = document.createElement('div');
+      lostBar.className = 'banner bad';
+      lostBar.setAttribute('role', 'alert');
+      const msg = document.createElement('span');
+      I.say(msg, 'gw.lost');
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.id = 'gwretry';
+      I.say(btn, 'gw.retry');
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try { await ensureGateway(); if (st.csrf) await SD.api('GET', 'connections'); else await start(); } catch (e) { /* the bar stays */ }
+        btn.disabled = false;
+      });
+      lostBar.append(msg, ' ', btn);
+      $('banner').after(lostBar);
+    }
+    lostBar.hidden = false;
+  }
+  async function gwFetch(u, init) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const r = await fetch(u, init);
+        gatewayLost(false);
+        return r;
+      } catch (e) {
+        if (e && e.name === 'AbortError') throw e;
+        if (attempt > 0) { gatewayLost(true); throw new ApiError(0, 'gateway_unreachable', LOST); }
+        await ensureGateway();
+      }
+    }
+  }
+
   SD.api = async function (method, path, body, params) {
     const init = {method, headers: SD.headers(body === undefined ? {} : {'Content-Type': 'application/json'}), credentials: 'same-origin'};
     if (body !== undefined) init.body = JSON.stringify(body);
-    const r = await fetch(SD.url(path, params), init);
+    const r = await gwFetch(SD.url(path, params), init);
     if (!r.ok) {
       const e = await parseErr(r);
       if (e.code === 'login_required' || (e.code === 'bad_csrf')) sessionLost();
@@ -125,7 +179,7 @@
 
   async function start() {
     try {
-      const r = await fetch(SD.url('session'), {method: 'POST', credentials: 'same-origin',
+      const r = await gwFetch(SD.url('session'), {method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sid: load('sd.sid') || ''})});
       if (r.status === 401) { showLogin(); return; }
       if (!r.ok) throw await parseErr(r);
@@ -241,6 +295,7 @@
     if (!st.csrf) return;
     try { refreshConns((await SD.json('GET', 'connections')).conns); } catch (e) { /* sessionLost handles auth */ }
   }
+  SD.heartbeat = heartbeat; // a tab whose socket closed asks whether the session is still there
 
   function refreshConns(list) {
     const old = st.cur;
@@ -260,6 +315,30 @@
       return;
     }
     if (st.cur) sel.value = st.cur;
+    followState();
+  }
+
+  // In the phone apps the gateway re-establishes a session that dropped:
+  // its state is then "reconnecting" or "waiting_approval" (the host asks
+  // its owner again), and "failed" if it cannot be done. The page says so
+  // in the banner, keeps the workspace, polls faster, and re-opens the tab
+  // once the session is "connected" again (the terminal re-attaches to its
+  // shell, files reload, the desktop restarts).
+  const connStates = {};
+  let fastPoll = null;
+  function followState() {
+    const c = st.conns.find(x => x.key === st.cur);
+    const state = (c && c.state) || 'connected';
+    const now = c ? state + '/' + (c.reconnects || 0) : '';
+    const prev = c ? (connStates[c.key] || 'connected/' + (c.reconnects || 0)) : '';
+    if (c) connStates[c.key] = now;
+    if (c && now !== prev) {
+      if (state === 'reconnecting') { callTabs('hide'); banner('sess.reconnecting', {target: c.target}, false); }
+      else if (state === 'waiting_approval') { callTabs('hide'); banner('sess.reapproval', {target: c.target}, false); }
+      else if (state === 'failed') { callTabs('hide'); banner('sess.lost', {target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
+      else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'files'); }
+    }
+    if (state !== 'connected' && state !== 'failed' && !fastPoll) fastPoll = setTimeout(() => { fastPoll = null; heartbeat(); }, 2000);
   }
 
   // ---- connecting ----
@@ -447,7 +526,7 @@
     I.plain(el, '');
     if (!e) return;
     if (e.code === 'feature_off' || e.code === 'host_refused') I.say(el, 'refused', {msg: e.message});
-    else if (e.code === 'disconnected') { SD.sayErr(el, e); heartbeat(); }
+    else if (e.code === 'disconnected' || e.code === 'reconnecting') { SD.sayErr(el, e); heartbeat(); }
     else SD.sayErr(el, e);
   };
 

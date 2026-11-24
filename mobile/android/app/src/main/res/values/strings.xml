@@ -130,4 +130,5 @@
     <string name="about_terms">Terms of use</string>
     <string name="back">Back</string>
     <string name="pair_target_required">Enter the host\'s ID or address.</string>
+    <string name="rv_not_server">Not a rendezvous server</string>
 </resources>

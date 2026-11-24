@@ -208,7 +208,7 @@ func Connect(ctx context.Context, addr string, opts Options, newUDP func() (*nat
 			return c, sock, nil
 		}
 		sock.Close()
-		if !opts.UseWS() || ctx.Err() != nil {
+		if !opts.UseWS() || ctx.Err() != nil || IsWrongServer(err) {
 			return nil, nil, err
 		}
 		udpErr = err

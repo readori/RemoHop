@@ -211,6 +211,26 @@ final class GatewayE2ETests: XCTestCase {
             let err = (try? await js("return document.getElementById('t-err').textContent + ' ' + document.getElementById('t-status').textContent")) ?? ""
             throw Failure(description: "the terminal never showed the command's output: " + redact(String(err.prefix(300))))
         }
+        // The connection to the host drops, as when iOS suspends the app or the
+        // network changes: the gateway re-establishes it by itself and the
+        // terminal re-attaches to the same shell.
+        Core.dropSessionsForTest()
+        try await require("the terminal re-attached after a dropped connection", "/re-attached/.test(document.getElementById('t-status').textContent)",
+                          timeout: 60, detail: "return document.getElementById('t-status').textContent + ' | ' + document.getElementById('banner').textContent")
+        var again = false
+        for _ in 0..<3 where !again {
+            _ = try await js("""
+                const t = document.querySelector('#t-host textarea');
+                t.focus();
+                const type = v => { t.value = v; t.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: v, bubbles: true})); };
+                type('echo remohop-$((7*9))');
+                type('\\n');
+                return 'ok';
+                """)
+            again = await eventually("document.getElementById('t-host').textContent.includes('remohop-63')", timeout: 10)
+        }
+        XCTAssertTrue(again, "the re-attached terminal does not run commands")
+
         let fits = try await js("return document.documentElement.scrollWidth <= innerWidth ? 'fits' : 'overflows'")
         XCTAssertEqual(fits, "fits", "the terminal tab does not fit the phone's width")
         let colours = try await snapshotColours()
@@ -238,6 +258,77 @@ final class GatewayE2ETests: XCTestCase {
             left = await eventually("!document.getElementById('connect').hidden", timeout: 3)
         }
         XCTAssertTrue(left, "back never returned to the connect screen")
+
+        // The bug this release blocked on: the listener lost in the background.
+        try await listenerLoss(cfg)
+    }
+
+    /// The release-blocking bug: after a trip to another app (to copy the
+    /// password) the gateway's listening socket was gone, the page showed
+    /// "Load failed" and nothing left the phone. The simulator never
+    /// suspends the app, so the socket is broken with the core's test hook,
+    /// exactly as iOS leaves it (connections refused, Go's accept loop none
+    /// the wiser). Then: the page's own recovery (it asks the app through
+    /// the bridge, the app reopens the listener on the same port, the page
+    /// retries) must make the very next Connect work; and the app's
+    /// background/foreground path (pause, then ensure) must keep the URL.
+    ///
+    /// CI runs it as the last part of `testConnectTerminalFiles` (the one
+    /// end-to-end test the workflow names); it can also run on its own.
+    func testConnectAfterListenerLoss() async throws {
+        let cfg = settings()
+        guard !cfg.target.isEmpty, !cfg.password.isEmpty else {
+            throw XCTSkip("no host to connect to: set TEST_RUNNER_REMOHOP_E2E_TARGET and TEST_RUNNER_REMOHOP_E2E_PASSWORD")
+        }
+        var found: WKWebView?
+        for _ in 0..<240 {
+            found = appWebView()
+            if found != nil { break }
+            await pause(0.25)
+        }
+        web = try XCTUnwrap(found, "the app never showed its web view (the gateway did not start)")
+        try await listenerLoss(cfg)
+    }
+
+    private func listenerLoss(_ cfg: Settings) async throws {
+        try await require("the connect form", "document.getElementById('connect') && !document.getElementById('connect').hidden", timeout: 60)
+        try await require("the injected script", "typeof window.remohopMobile === 'object'")
+        let before = try await Task.detached { try Core.gatewayURL() }.value
+
+        // 1. The socket dies under the running gateway; the user taps Connect.
+        Core.breakListenerForTest(stall: true)
+        XCTAssertTrue(Core.gatewayRunning, "the stalled listener should be invisible without I/O (that was the bug)")
+        _ = try await js("""
+            document.getElementById('target').value = \(lit(cfg.target));
+            document.getElementById('hostpass').value = \(lit(cfg.password));
+            document.getElementById('connectbtn').click();
+            return 'ok';
+            """)
+        try await require("the session to the host after the listener was lost", "!document.getElementById('workspace').hidden", timeout: 90,
+                          detail: "return document.getElementById('connerr').textContent || document.getElementById('connstatus').textContent")
+        let after = try await Task.detached { try Core.gatewayURL() }.value
+        XCTAssertEqual(after, before, "the gateway moved to another URL (the page would have been reloaded)")
+        let errText = try await js("return document.getElementById('connerr').textContent")
+        XCTAssertFalse(errText.contains("Load failed"), "the raw WebKit error reached the page")
+
+        // 2. Background and foreground, as RemoHopApp does on scene phases.
+        _ = try await js("document.getElementById('disconnect').click(); return 'ok';")
+        try await require("the connect form after disconnecting", "!document.getElementById('connect').hidden", timeout: 15)
+        await Task.detached { Core.pauseGateway() }.value
+        XCTAssertFalse(Core.gatewayRunning, "the listener is still open after pausing")
+        let resumed = try await Task.detached { try Core.gatewayURL() }.value
+        XCTAssertEqual(resumed, before, "the gateway did not reopen on the same port and token")
+        XCTAssertTrue(Core.gatewayRunning)
+        _ = try await js("""
+            document.getElementById('target').value = \(lit(cfg.target));
+            document.getElementById('hostpass').value = \(lit(cfg.password));
+            document.getElementById('connectbtn').click();
+            return 'ok';
+            """)
+        try await require("the session to the host after background/foreground", "!document.getElementById('workspace').hidden", timeout: 90,
+                          detail: "return document.getElementById('connerr').textContent || document.getElementById('connstatus').textContent")
+        _ = try await js("document.getElementById('disconnect').click(); return 'ok';")
+        try await require("the connect form at the end", "!document.getElementById('connect').hidden", timeout: 15)
     }
 
     // MARK: App Store screenshots
