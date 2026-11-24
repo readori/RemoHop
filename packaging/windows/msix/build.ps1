@@ -39,7 +39,10 @@ param(
   [string] $ThirdPartyLicenses = 'dist/THIRD_PARTY_LICENSES.txt',
   # Optional, for a local test install only: sign every output with this .pfx.
   [string] $CertPfx = '',
-  [string] $CertPassword = $env:MSIX_CERT_PASSWORD
+  [string] $CertPassword = $env:MSIX_CERT_PASSWORD,
+  # For comparison only: keep MSIX's AppData virtualization (drops the desktop6 settings and the
+  # unvirtualizedResources capability). The window then cannot open; see README.md.
+  [switch] $Virtualized
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,6 +117,11 @@ try {
     Copy-Item -Recurse -LiteralPath $assets -Destination (Join-Path $layout 'Assets')
     $manifest = $template.Replace('@IDENTITY_NAME@', $IdentityName).Replace('@PUBLISHER@', $Publisher).
       Replace('@PUBLISHER_DISPLAY_NAME@', $PublisherDisplayName).Replace('@VERSION@', $pkgVersion).Replace('@ARCH@', $a)
+    if ($Virtualized) {
+      $manifest = $manifest -replace '(?m)^\s*<desktop6:\w+WriteVirtualization>disabled</desktop6:\w+WriteVirtualization>\r?\n', '' `
+        -replace '(?m)^\s*<rescap:Capability Name="unvirtualizedResources" />\r?\n', ''
+      if ($manifest -match '<rescap:Capability Name="unvirtualizedResources"|<desktop6:') { Fail 'could not remove the virtualization settings' }
+    }
     if ($manifest -match '@[A-Z_]+@') { Fail "unfilled placeholder in the manifest: $($Matches[0])" }
     [IO.File]::WriteAllText((Join-Path $layout 'AppxManifest.xml'), $manifest, (New-Object Text.UTF8Encoding $false))
 
