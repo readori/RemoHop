@@ -233,6 +233,10 @@ struct IdentityView: View {
 @MainActor
 struct SavedHostsView: View {
     @ObservedObject var m: SettingsModel
+    @State private var renaming: SavedHost?
+    @State private var newName = ""
+
+    init(m: SettingsModel) { self.m = m }
 
     var body: some View {
         List {
@@ -252,7 +256,14 @@ struct SavedHostsView: View {
                         Spacer()
                         if h.presence == "online" { Circle().fill(.green).frame(width: 8, height: 8).accessibilityLabel(L10n.presence("online")) }
                     }
-                    .swipeActions { Button(L("Forget"), role: .destructive) { m.forget(h.target) } }
+                    .swipeActions {
+                        Button(L("Forget"), role: .destructive) { m.forget(h.target) }
+                        Button(L("Rename")) { newName = h.alias; renaming = h }.tint(.indigo)
+                    }
+                    .contextMenu {
+                        Button { newName = h.alias; renaming = h } label: { Label(L("Rename"), systemImage: "pencil") }
+                        Button(role: .destructive) { m.forget(h.target) } label: { Label(L("Forget"), systemImage: "trash") }
+                    }
                 }
             }
             Section {
@@ -263,6 +274,13 @@ struct SavedHostsView: View {
         .navigationTitle(L("Saved hosts"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { m.loadHosts(online: true) }
+        .alert(L("Rename"), isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField(L("Name"), text: $newName)
+            Button(L("Save")) { if let h = renaming { m.rename(h.target, newName) } }
+            Button(L("Cancel"), role: .cancel) {}
+        } message: {
+            Text(renaming?.target ?? "")
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if m.checkingOnline { ProgressView() } else {
@@ -270,7 +288,7 @@ struct SavedHostsView: View {
                         .accessibilityLabel(L("Check which are online"))
                 }
                 InfoButton(title: L("Saved hosts"), items: [
-                    InfoItem(title: "", text: L("Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Swipe left to forget one; pull down to check which are online.")),
+                    InfoItem(title: "", text: L("Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Swipe left to rename or forget one; pull down to check which are online.")),
                 ])
             }
         }

@@ -237,7 +237,35 @@ type attempt struct {
 	notices []string
 	err     *apiError
 	conn    *connInfo
+	pair    *pairOutcome
 	done    time.Time
+}
+
+// pairOutcome is a pairing that did not work on a connection that did:
+// Code is "pair_refused" when the host does not allow it (Reason says why:
+// no_pairing, the host runs with --no-pairing, as quick support does; grant,
+// the login came through a grant) and "pair_failed" otherwise. The page
+// says so in its own words; the session itself is fine, and the host stays
+// one that needs its password.
+type pairOutcome struct {
+	OK      bool   `json:"ok"`
+	Code    string `json:"code"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message"`
+}
+
+func pairFailure(err error) *pairOutcome {
+	msg := cli.Sanitize(err.Error())
+	p := &pairOutcome{Code: "pair_failed", Message: msg}
+	switch {
+	case strings.Contains(msg, "does not allow pairing"):
+		p.Code, p.Reason = "pair_refused", "no_pairing"
+	case strings.Contains(msg, "not allowed by grant"):
+		p.Code, p.Reason = "pair_refused", "grant"
+	case strings.Contains(msg, "not available on this connection"):
+		p.Code, p.Reason = "pair_refused", "unavailable"
+	}
+	return p
 }
 
 func (a *attempt) finished() bool {
@@ -261,6 +289,9 @@ func (a *attempt) snapshot() map[string]any {
 	}
 	if a.conn != nil {
 		m["conn"] = a.conn
+	}
+	if a.pair != nil {
+		m["pair"] = a.pair
 	}
 	return m
 }
@@ -348,6 +379,10 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 			if err != nil {
 				// The session works; only the pairing failed. Say so.
 				a.notice("pairing failed: " + err.Error())
+				pf := pairFailure(err)
+				a.mu.Lock()
+				a.pair = pf
+				a.mu.Unlock()
 			} else {
 				ci.Paired = true
 			}

@@ -55,7 +55,7 @@
     <string name="forget">Forget</string>
     <string name="forget_host">Forget %1$s</string>
     <string name="forget_confirm">Forget %1$s? Its pinned key and pairing token are deleted from this device.</string>
-    <string name="info_hosts">Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Tap one to forget it; use the refresh button to check which are online.</string>
+    <string name="info_hosts">Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Tap one to rename or forget it; use the refresh button to check which are online.</string>
     <string name="pair_heading">Pair with a host</string>
     <string name="pair_target">Host ID or address</string>
     <string name="pair_password">Host password</string>
@@ -131,4 +131,6 @@
     <string name="back">Back</string>
     <string name="pair_target_required">Enter the host\'s ID or address.</string>
     <string name="rv_not_server">Not a rendezvous server</string>
+    <string name="rename">Rename</string>
+    <string name="save">Save</string>
 </resources>

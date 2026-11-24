@@ -380,7 +380,30 @@ async function gatewayTests(b) {
   // box in the connect form (a second host, so the saved pairing below is
   // not what makes this work).
   if (process.env.REMOHOP_HOST_ADDR) {
+    const addr = process.env.REMOHOP_HOST_ADDR, A = JSON.stringify(addr);
     check(await p.eval('!document.getElementById("pairrow").hidden'), 'the pair box is offered');
+    check(await p.eval('document.getElementById("pair").checked'), 'the app remembers computers by default');
+    // A password login without remembering: the host is then a recent one.
+    await p.eval(`document.getElementById('target').value = ${A};
+      document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
+      document.getElementById('pair').checked = false; document.getElementById('connectbtn').click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects with address + password, not remembered',
+      await p.eval('document.getElementById("connerr").textContent'));
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
+    const recent = `[...document.querySelectorAll('#peercards-recent .peer')].find(b => b.textContent.includes(${A}))`;
+    check(await p.waitFor(`!!${recent} && ${recent}.textContent.includes('Needs the password')`), 'an unpaired host is listed under Recent as needing its password',
+      await p.eval('document.getElementById("peerrow").textContent'));
+    await p.eval(`document.getElementById('target').value = ''; ${recent}.click()`);
+    await sleep(400);
+    check(await p.eval(`document.activeElement.id === 'hostpass' && document.getElementById('target').value === ${A} && !document.getElementById('connect').hidden &&
+      document.getElementById('connstatus').textContent === '' && document.getElementById('connerr').textContent === ''`),
+      'tapping a recent host fills it in and asks for the password, without trying to connect');
+    await p.eval('document.getElementById("connectbtn").click()');
+    check(await p.waitFor('document.getElementById("connerr").textContent.trim() !== ""', 20000), 'connecting without the password is refused');
+    const pwErr = await p.eval('document.getElementById("connerr").textContent');
+    check(pwErr.includes("Enter this computer's password") && !/remohop|--password|REMOHOP_|pair/.test(pwErr), 'the missing password is asked for in plain words, with no command-line text', pwErr);
+    check(await p.eval('document.activeElement.id') === 'hostpass', 'and the password field has the focus');
     await p.eval(`document.getElementById('target').value = ${JSON.stringify(process.env.REMOHOP_HOST_ADDR)};
       document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
       document.getElementById('pair').checked = true; document.getElementById('connectbtn').click()`);
@@ -390,6 +413,31 @@ async function gatewayTests(b) {
       await p.eval('document.getElementById("pathbadge").textContent'));
     await p.eval('document.getElementById("disconnect").click()');
     check(await p.waitFor('!document.getElementById("connect").hidden'), 'disconnect returns to the connect form');
+    // Remembered: the host moved to the paired list, and a tap connects with no password.
+    const paired = `[...document.querySelectorAll('#peercards .peer')].find(b => b.textContent.includes(${A}))`;
+    check(await p.waitFor(`!!${paired} && ${paired}.textContent.includes('Connects without a password')`), 'the remembered host is listed as connecting without a password',
+      await p.eval('document.getElementById("peerrow").textContent'));
+    await p.eval(`document.getElementById('hostpass').value = ''; ${paired}.click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'tapping a paired host connects without a password',
+      await p.eval('document.getElementById("connerr").textContent'));
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
+  }
+  if (process.env.REMOHOP_NOPAIR_ADDR) {
+    // "Remember" against a host that does not allow it: said plainly, and the host stays a recent one.
+    const np = JSON.stringify(process.env.REMOHOP_NOPAIR_ADDR);
+    await p.eval(`document.getElementById('target').value = ${np};
+      document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
+      document.getElementById('pair').checked = true; document.getElementById('connectbtn').click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects to a host that refuses pairing',
+      await p.eval('document.getElementById("connerr").textContent'));
+    const bannerText = await p.eval('document.getElementById("banner").hidden ? "" : document.getElementById("banner").textContent');
+    check(bannerText.includes('does not allow remembering') && !/pairing failed/.test(bannerText), 'the refusal to remember is said in plain words', bannerText);
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
+    check(await p.waitFor(`[...document.querySelectorAll('#peercards-recent .peer')].some(b => b.textContent.includes(${np}))`) &&
+      !(await p.eval(`[...document.querySelectorAll('#peercards .peer')].some(b => b.textContent.includes(${np}))`)), 'and it stays under Recent, needing its password');
+    await p.eval('document.getElementById("banner").hidden = true');
   }
   if (process.env.REMOHOP_CONTROL_URL) await lostListenerTests(p, process.env.REMOHOP_CONTROL_URL, target);
   await p.shot('gateway-connect');

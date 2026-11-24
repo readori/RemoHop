@@ -174,7 +174,10 @@
       'm.back': 'Hosts',
       'm.help': 'Help',
       'm.colon': 'Type a colon',
-      'm.pair': 'Remember this host',
+      'm.pair': 'Remember this computer',
+      // App wording for the page's saved hosts.
+      'peers.h': 'My computers',
+      'peers.recent.h': 'Recent',
       'm.saved': 'Saved hosts',
       'm.active': 'Connected now',
       'm.live': 'Connected · tap to return',
@@ -189,8 +192,8 @@
       'm.help.target': 'Its 9-digit ID (needs a rendezvous server, set in Settings), a name you saved, or its address, such as 192.168.1.20:21118.',
       'm.help.pass.h': 'Password',
       'm.help.pass': 'The password set on the host. Leave it empty for a host this device is paired with. It is used for this login only and not stored.',
-      'm.help.pair.h': 'Remember this host',
-      'm.help.pair': 'Pairs this device with the host: the host gives it a token, so next time no password is needed. Remove it in Settings → Saved hosts.',
+      'm.help.pair.h': 'Remember this computer',
+      'm.help.pair': 'On by default: after you log in with the password, this device is paired with the computer, so next time it connects without one. Some computers (quick support) ask for approval every time and cannot be remembered. Remove one in Settings → Saved hosts.',
       'm.help.sec.h': 'Security',
       'm.help.sec': 'The session runs directly between this device and the host and is end-to-end encrypted; a relay, if one is used, cannot read it. RemoHop collects no data.',
       'm.help.privacy': 'Privacy and about',
@@ -234,7 +237,9 @@
       'm.back': '被控端列表',
       'm.help': '帮助',
       'm.colon': '输入冒号',
-      'm.pair': '记住这台被控端',
+      'm.pair': '记住这台电脑，下次免密码',
+      'peers.h': '我的电脑',
+      'peers.recent.h': '最近连接',
       'm.saved': '已保存的被控端',
       'm.active': '当前连接',
       'm.live': '已连接 · 轻点返回',
@@ -249,8 +254,8 @@
       'm.help.target': '填写它的 9 位 ID（需要先在设置中填写汇合服务器）、你保存的名称，或它的地址，例如 192.168.1.20:21118。',
       'm.help.pass.h': '密码',
       'm.help.pass': '被控端上设置的密码。已与本设备配对的被控端可以留空。密码只用于这次登录，不会保存。',
-      'm.help.pair.h': '记住这台被控端',
-      'm.help.pair': '让本设备与被控端配对：被控端会发给本设备一个令牌，下次连接无需密码。可在“设置 → 已保存的被控端”中移除。',
+      'm.help.pair.h': '记住这台电脑',
+      'm.help.pair': '默认开启：用密码登录后，本设备会与这台电脑配对，下次连接无需密码。有些电脑（快速协助）每次都需要批准，无法记住。可在“设置 → 已保存的被控端”中移除。',
       'm.help.sec.h': '安全',
       'm.help.sec': '会话直接在本设备与被控端之间建立，并且端到端加密；即使经过中继，中继也无法读取内容。RemoHop 不收集任何数据。',
       'm.help.privacy': '隐私与关于',
@@ -265,7 +270,13 @@
   let I18N = null;
   function i18n() {
     if (I18N) return I18N;
-    if (window.SDI18n) { window.SDI18n.add(MD); I18N = window.SDI18n; return I18N; }
+    if (window.SDI18n) {
+      window.SDI18n.add(MD);
+      // Some of MD replace the page's own words (app wording): show them.
+      if (window.SDI18n.apply) window.SDI18n.apply(document);
+      I18N = window.SDI18n;
+      return I18N;
+    }
     const norm = l => { l = String(l || '').toLowerCase(); return l.indexOf('zh') === 0 ? 'zh' : l.indexOf('en') === 0 ? 'en' : ''; };
     let q = '';
     try { q = norm(new URLSearchParams(location.search).get('lang')); } catch (e) { /* ignore */ }
@@ -891,8 +902,9 @@
     // Shorter labels.
     const pairText = document.querySelector('#pairrow [data-i18n="connect.pair"]');
     if (pairText) i18n().say(pairText, 'm.pair');
-    const ph = $('peers-h');
-    if (ph) i18n().say(ph, 'm.saved');
+    // Remember the computer by default (pairing after a password login).
+    const pairBox = $('pair');
+    if (pairBox) pairBox.checked = true;
     const banner = $('banner');
     if (banner) banner.addEventListener('click', () => { banner.hidden = true; });
 

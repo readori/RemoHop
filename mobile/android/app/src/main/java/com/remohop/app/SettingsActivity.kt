@@ -430,8 +430,9 @@ class SettingsActivity : AppCompatActivity() {
             val p = d.optString("presence")
             val sum = listOfNotNull(target.takeIf { alias.isNotEmpty() }, login(d.optString("login")),
                 presence(p).takeIf { p != "not_checked" && p.isNotEmpty() }).joinToString(" · ")
-            val row = ui.row(c, label, summary = sum, icon = R.drawable.ic_s_host) { forget(target, label) }
-            row.view.contentDescription = "$label, $sum. " + getString(R.string.forget_host, label)
+            val row = ui.row(c, label, summary = sum, icon = R.drawable.ic_s_host) { hostActions(target, alias, label) }
+            row.view.contentDescription = "$label, $sum"
+            row.view.setOnLongClickListener { hostActions(target, alias, label); true }
         }
         ui.row(ui.section(col, null), getString(R.string.pair_heading), icon = R.drawable.ic_s_link, chevron = true) { open(PAGE_PAIR) }
     }
@@ -445,6 +446,31 @@ class SettingsActivity : AppCompatActivity() {
                 if (stack.lastOrNull() == PAGE_HOSTS || stack.isEmpty()) show()
             }
         }
+    }
+
+    /** What can be done with a saved host: rename it, or forget it. */
+    private fun hostActions(target: String, alias: String, label: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(label)
+            .setItems(arrayOf(getString(R.string.rename), getString(R.string.forget))) { _, i ->
+                if (i == 0) rename(target, alias) else forget(target, label)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun rename(target: String, alias: String) {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(ui.dp(8), ui.dp(8), ui.dp(8), 0) }
+        val f = ui.field(box, getString(R.string.pair_alias), alias, target) {}
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.rename)
+            .setView(box)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val name = f.editText?.text.toString().trim()
+                bg.execute { runCatching { Remohopcore.setAlias(target, name) }; ui { refreshHosts(false) } }
+            }
+            .show()
     }
 
     private fun forget(target: String, label: String) {

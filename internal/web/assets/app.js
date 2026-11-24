@@ -253,13 +253,21 @@
       renderPeerCards();
     } catch (e) { /* the form still works without the list */ }
   }
-  // The saved hosts as cards under the form. Choosing one fills the form;
-  // a host this gateway is paired with (or authorised by key) connects
-  // straight away, since it needs no password.
+  // The saved hosts under the form, in two lists with plain states: paired
+  // (or authorised by key) hosts connect straight away, since they need no
+  // password; the others ("recent") fill in the form and wait for the
+  // password, with no connection attempt and so no error.
   function renderPeerCards() {
-    const ul = $('peercards');
-    ul.textContent = '';
-    for (const p of st.peers) {
+    const ready = p => p.paired || p.key_login;
+    const lists = [[$('peercards'), $('peers-h'), st.peers.filter(ready)], [$('peercards-recent'), $('peers-recent-h'), st.peers.filter(p => !ready(p))]];
+    for (const [ul, h, list] of lists) {
+      ul.textContent = '';
+      ul.hidden = h.hidden = !list.length;
+      for (const p of list) renderPeerCard(ul, p);
+    }
+  }
+  function renderPeerCard(ul, p) {
+    {
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'peer';
@@ -270,19 +278,15 @@
       const name = document.createElement('strong');
       name.textContent = p.alias || p.target;
       const sub = document.createElement('small');
-      if (p.alias) sub.textContent = p.target; else I.say(sub, p.paired ? 'peer.paired' : p.key_login ? 'peer.key' : 'peer.saved');
+      const ready = p.paired || p.key_login;
+      I.say(sub, p.alias ? 'peer.sub.alias' : 'raw', {target: p.target, s: {k: ready ? 'peer.ready' : 'peer.needspw'}, state: {k: ready ? 'peer.ready' : 'peer.needspw'}});
       text.append(name, sub);
       b.append(icon, text);
-      const ready = p.paired || p.key_login;
-      if (ready) {
-        const tag = document.createElement('span');
-        tag.className = 'tag'; I.say(tag, p.paired ? 'peer.tag.paired' : 'peer.tag.key');
-        b.appendChild(tag);
-      }
       I.sayAttr(b, 'aria-label', ready ? 'peer.aria.ready' : 'peer.aria.form', {label: (p.alias ? p.alias + ', ' : '') + p.target});
       b.addEventListener('click', () => {
         $('target').value = p.alias || p.target;
         $('peersel').value = p.target;
+        I.plain($('connerr'), '');
         if (ready && !attemptId) { $('hostpass').value = ''; $('connectform').requestSubmit(); } else $('hostpass').focus();
       });
       li.appendChild(b);
@@ -372,6 +376,8 @@
     else if (code && I.has('err.' + code, 'zh')) I.say(main, 'err.' + code);
     else I.say(main, 'connect.failed');
     box.appendChild(main);
+    // An expected case (the host needs its password): no technical detail.
+    if (code === 'password_required') { $('hostpass').focus(); return; }
     if (msg && msg !== main.textContent) {
       const d = document.createElement('details');
       d.className = 'errdetail';
@@ -409,7 +415,8 @@
     if (fixed !== $('target').value) $('target').value = fixed;
     I.plain($('connerr'), ''); I.say($('connstatus'), 'connect.connecting');
     $('connectbtn').disabled = true; $('cancelconn').hidden = false;
-    const body = {target: $('target').value, password: $('hostpass').value, pair: $('pair').checked};
+    // Pairing needs a password login; with none (a paired host) there is nothing to remember.
+    const body = {target: $('target').value, password: $('hostpass').value, pair: $('pair').checked && $('hostpass').value !== ''};
     $('hostpass').value = '';
     try {
       const a = await SD.json('POST', 'connect', body);
@@ -440,11 +447,25 @@
       if (j.state === 'connected') {
         endAttempt();
         I.plain($('connerr'), '');
-        if (j.notices && j.notices.length) banner('raw', {s: j.notices.join(' ')}, false);
+        // A "remember" that did not work is said in plain words (the session
+        // works, the host still needs its password next time): by its code
+        // (pair_refused: the host does not allow it), or for an older gateway
+        // by its notice.
+        const notices = (j.notices || []).filter(n => !/^pairing failed/.test(n));
+        const pairFailed = (j.pair && j.pair.ok === false) || notices.length < (j.notices || []).length;
+        const pairMsg = pairFailed ? (j.pair && j.pair.code === 'pair_refused' ? 'connect.pairrefused' : 'connect.pairfailed') : null;
+        if (notices.length) banner('raw', {s: notices.join(' ')}, false);
         await loadPeers();
         $('peerrow').hidden = !(st.peers && st.peers.length);
         refreshConns((await SD.json('GET', 'connections')).conns);
         selectConn(j.conn.key);
+        if (pairMsg) {
+          // Shown last, so it stays: with the first-connection notice when there is one.
+          const b = $('banner');
+          const first = !b.hidden && b.getAttribute('data-i18n') === 'sess.firstkey';
+          if (first) banner('pair2', {a: {k: pairMsg}, b: {k: 'sess.firstkey', v: JSON.parse(b.getAttribute('data-i18n-vars') || 'null')}}, false);
+          else banner(pairMsg, null, false);
+        }
         return;
       }
       if (j.state === 'failed' || j.state === 'canceled') {

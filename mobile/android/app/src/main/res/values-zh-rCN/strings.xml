@@ -56,7 +56,7 @@
     <string name="forget">移除</string>
     <string name="forget_host">移除 %1$s</string>
     <string name="forget_confirm">移除 %1$s？本设备上保存的固定密钥和配对令牌都会被删除。</string>
-    <string name="info_hosts">本设备连接或配对过的被控端，以及它们的固定密钥和配对令牌。轻点某一项可将其移除；用刷新按钮检查哪些在线。</string>
+    <string name="info_hosts">本设备连接或配对过的被控端，以及它们的固定密钥和配对令牌。轻点某一项可重命名或移除；用刷新按钮检查哪些在线。</string>
     <string name="pair_heading">与被控端配对</string>
     <string name="pair_target">被控端 ID 或地址</string>
     <string name="pair_password">被控端密码</string>
@@ -130,4 +130,6 @@
     <string name="back">返回</string>
     <string name="pair_target_required">请输入被控端的 ID 或地址。</string>
     <string name="rv_not_server">不是汇合服务器</string>
+    <string name="rename">重命名</string>
+    <string name="save">保存</string>
 </resources>

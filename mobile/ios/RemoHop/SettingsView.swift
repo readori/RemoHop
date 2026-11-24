@@ -337,6 +337,15 @@ final class SettingsModel: ObservableObject {
         }
     }
 
+    func rename(_ target: String, _ alias: String) {
+        let a = alias.trimmingCharacters(in: .whitespaces)
+        Task.detached {
+            var err: NSError?
+            _ = RemohopcoreSetAlias(target, a, &err)
+            await MainActor.run { self.loadHosts(online: false) }
+        }
+    }
+
     func forget(_ target: String) {
         hosts.removeAll { $0.target == target }
         Task.detached {

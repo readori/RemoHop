@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/readori/RemoHop/internal/hostd"
 )
 
 // TestPhoneBrowser runs mobile/shared/test/phone_test.mjs: headless Chrome
@@ -39,6 +41,8 @@ func TestPhoneBrowser(t *testing.T) {
 	}
 	// A second host, for the connect form's own pairing (address, password, pair box).
 	formAddr := startHost(t)
+	// And one that refuses pairing (remohop host --no-pairing): "remember" cannot work there.
+	noPair := runHost(t, hostd.Config{Password: hostPassword, NoPairing: true}).Addr().String()
 	u, err := StartGateway()
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +72,7 @@ func TestPhoneBrowser(t *testing.T) {
 	// The URL goes through the environment, not argv, which other local
 	// users can read.
 	cmd.Env = append(os.Environ(), "REMOHOP_GATEWAY_URL="+u, "REMOHOP_TARGET=lab", "REMOHOP_TEST_DIR="+files,
-		"REMOHOP_HOST_ADDR="+formAddr, "REMOHOP_HOST_PASSWORD="+hostPassword, "REMOHOP_CONTROL_URL="+ctl.URL)
+		"REMOHOP_HOST_ADDR="+formAddr, "REMOHOP_HOST_PASSWORD="+hostPassword, "REMOHOP_CONTROL_URL="+ctl.URL, "REMOHOP_NOPAIR_ADDR="+noPair)
 	done := make(chan struct{})
 	var out []byte
 	go func() { out, err = cmd.CombinedOutput(); close(done) }()

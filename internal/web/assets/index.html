@@ -57,8 +57,10 @@
     <div id="connstatus" class="status" role="status" aria-live="polite"></div>
     <div id="connerr" class="err" role="alert"></div>
     <div id="peerrow" class="peers" hidden>
-      <h3 id="peers-h" data-i18n="peers.h">Saved on this gateway</h3>
+      <h3 id="peers-h" data-i18n="peers.h">Paired: no password needed</h3>
       <ul id="peercards" class="peerlist" aria-labelledby="peers-h"></ul>
+      <h3 id="peers-recent-h" data-i18n="peers.recent.h">Recent</h3>
+      <ul id="peercards-recent" class="peerlist" aria-labelledby="peers-recent-h"></ul>
       <label for="peersel" hidden data-i18n="peers.h">Saved on this gateway</label>
       <select id="peersel" hidden><option value="" data-i18n="peers.type">(type below)</option></select>
     </div>
