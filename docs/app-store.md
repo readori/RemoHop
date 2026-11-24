@@ -85,7 +85,7 @@ GOOD TO KNOW
 • The app must stay in the foreground during a session.
 • The app is available in English and Simplified Chinese; choose the language in Settings.
 
-Support: support@readori.com
+Support: admin@remohop.com
 ```
 
 **Keywords**（97）
@@ -156,7 +156,7 @@ RemoHop 让你在 iPhone 或 iPad 上操作自己的电脑。它是开源远程�
 • 会话期间应用需要保持在前台。
 • 应用支持简体中文和英文，可在设置里切换。
 
-支持：support@readori.com
+支持：admin@remohop.com
 ```
 
 **关键词**（50）
@@ -327,10 +327,10 @@ NOTES FOR REVIEW
 • The app collects no data and contains no analytics, advertising or third-party SDKs.
 • Encryption: standard algorithms only (TLS 1.3/QUIC, CPace, Ed25519), implemented in Go.
 
-Contact: support@readori.com
+Contact: admin@remohop.com
 ```
 
-**【提交前确认】** App Store Connect 还要求填写审核联系人的姓名、电话和邮箱。邮箱可用 `support@readori.com`。联系人姓名、电话以及演示主机的地址和密码只填在 App Store Connect 或 CI 的密钥里，不要提交到仓库：`mobile/ios/fastlane/metadata/review_information/` 中只保留占位内容。
+**【提交前确认】** App Store Connect 还要求填写审核联系人的姓名、电话和邮箱。邮箱可用 `admin@remohop.com`。联系人姓名、电话以及演示主机的地址和密码只填在 App Store Connect 或 CI 的密钥里，不要提交到仓库：`mobile/ios/fastlane/metadata/review_information/` 中只保留占位内容。
 
 ### 审核中可能被问到的点
 
@@ -414,7 +414,7 @@ App 预览视频不是必需的，首发可以不做。
 - 内部测试（团队成员，最多 100 人）不需要审核，上传后填完出口合规问题即可分发。
 - 外部测试需要通过 Beta App Review，要填写“测试信息”：
   - Beta App Description：用第 2 节英文描述的前两段；
-  - Feedback Email：`support@readori.com`；
+  - Feedback Email：`admin@remohop.com`；
   - What to Test：`Connect to a computer running "remohop host" by address or ID, then try Desktop, Terminal, Files and Clipboard. Please report the device model and iOS version with any problem.`；
   - 审核备注同第 7 节，同样需要演示主机。
 - 隐私政策 URL 在外部测试时也是必填的。

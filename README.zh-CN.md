@@ -59,4 +59,4 @@ remohop 276941009 shell                        # 在你的机器上：输入密�
 
 RemoHop 采用双许可：所有人都可以按 [GNU AGPL-3.0](LICENSE) 使用；AGPL 不适合的场景，可以向版权方购买商业授权。运营者要特别注意 AGPL 的网络条款：如果你把**修改过的** `remohop signal` 或 `remohop web` 提供给他人使用，就必须向这些用户提供修改后的源代码；运行未修改的 RemoHop 没有额外义务。**基于本仓库源码的二次开发，必须标明项目名称 RemoHop 和开源地址 https://github.com/readori/RemoHop，并保留 [NOTICE](NOTICE) 文件**；修改版不得自称原版，也不得用 RemoHop 作为自己产品的名称（AGPL-3.0 第 7 条的附加条款）。第三方组件的许可证、以及为什么不捆绑 ffmpeg，见 [LICENSING.md](LICENSING.md)；贡献代码需要签署 CLA，见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-联系方式：<support@readori.com>（商业授权、CLA，以及不宜公开的安全问题）。 交流和提问也可以到 Telegram：[t.me/remohop](https://t.me/remohop)。
+联系方式：<admin@remohop.com>（商业授权、CLA，以及不宜公开的安全问题）。 交流和提问也可以到 Telegram：[t.me/remohop](https://t.me/remohop)。
