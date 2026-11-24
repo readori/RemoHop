@@ -10,11 +10,14 @@ EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21
 | Output | What it is |
 |---|---|
 | `dist/quick/windows-amd64/RemoHop.exe`, `windows-arm64/RemoHop.exe` | Windows GUI program (`-H windowsgui`: no console window), with the icon and an application manifest linked in |
-| `dist/quick/macos/RemoHop.app` | macOS bundle with a universal (arm64 + x86_64) program, `Info.plist` and `RemoHop.icns`. **Unsigned.** |
+| `dist/quick/macos/RemoHop.app` | macOS bundle with a universal (arm64 + x86_64) program, `Info.plist`, `RemoHop.icns` and the license files. **Unsigned** (the release's `RemoHop-macos.zip` is signed, see below). |
 | `dist/quick/linux-amd64/remohop-quick`, `linux-arm64/remohop-quick` | the same program for Linux |
 | `dist/quick/RemoHop.ico`, `RemoHop.icns`, `RemoHop.png` | the icon by itself, for installers and the website |
 
-Everything is made with Go alone (`CGO_ENABLED=0`), from any system; `packaging/quick/build.sh` is the whole recipe.
+Everything is made with Go alone (`CGO_ENABLED=0`), from any system; `packaging/quick/build.sh` is the whole recipe
+(`TARGETS="windows linux macos icons"` picks parts of it). Releases carry the results as `RemoHop-windows-*.zip`,
+`RemoHop-macos.zip` and `remohop-quick_linux_*.tar.gz` (see [packaging/README.md](../README.md)); the Microsoft
+Store package is made from the Windows program by [packaging/windows/msix](../windows/msix/README.md).
 
 ## How the pieces are made
 
@@ -35,11 +38,11 @@ Everything is made with Go alone (`CGO_ENABLED=0`), from any system; `packaging/
 
 ## Signing
 
-Nothing here is signed.
+Nothing `make quick` writes is signed. Releases:
 
-**Windows.** `RemoHop.exe` goes through the same hook as `remohop.exe` (`scripts/sign-windows.sh`, see `packaging/README.md`); add the two files to the list it signs. Until then SmartScreen warns on first start.
+**Windows.** `RemoHop.exe` goes through the same hook as `remohop.exe` (`scripts/sign-windows.sh`, see `packaging/README.md`); the release workflow already passes both `RemoHop.exe` files to it. Until signing is set up, SmartScreen warns on first start.
 
-**macOS.** The macOS signing workflow in the CI repository (see [packaging/README.md](../README.md)) signs and notarizes the bare `remohop` binary with the Developer ID certificate. For the bundle the same workflow needs these changes:
+**macOS.** The signing workflow in the CI repository (`sodesk-macos-release.yml`, see [packaging/README.md](../README.md)) builds the bundle with `TARGETS=macos`, signs, notarizes and staples it, and returns `RemoHop-macos.zip`; it first passed on 2026-11-24 (Gatekeeper accepts a quarantined copy as "Notarized Developer ID", the app's page answers, LaunchServices starts it). What it does, and why:
 
 1. Build the bundle on the runner (`make quick`, or only the darwin part of `build.sh`), or build the two thin programs there and run `gen -app`. Do not sign the thin programs first: signing happens once, on the finished bundle.
 2. Sign the **bundle**, not the file inside it: `codesign --force --options runtime --timestamp --sign "Developer ID Application: ..." dist/quick/macos/RemoHop.app`. That signs the main program and seals `Info.plist` and the resources into `Contents/_CodeSignature`. It is the same program as `remohop`, which is signed without entitlements today, so none should be needed (it loads only system frameworks, through purego, and sends no Apple events to other apps).
@@ -56,8 +59,8 @@ Nothing here is signed.
 4. Ship the zip made with `ditto` (or a `.dmg`). `zip -r` and `tar` from other tools can drop the bundle's symlinks and extended attributes on some systems; `ditto` is what Apple's tools expect.
 5. The identity that macOS privacy settings remember (Screen Recording, Accessibility) is the bundle identifier plus the signing team. It must stay `com.remohop.quick` signed by the same team across releases, or users are asked to grant the permissions again. An unsigned or ad-hoc signed build gets a new identity with every build.
 
-The release workflow in this repository then downloads the signed zip the way it downloads `remohop-macos-universal`, and should check after unpacking that `Contents/MacOS/RemoHop` is a universal Mach-O carrying the version string, as it does for `remohop`.
+The release workflow in this repository downloads the signed zip with `remohop`, and `scripts/build-release.sh darwin-app` checks after unpacking that `Contents/MacOS/RemoHop` is a universal Mach-O carrying the version string, that the license files and the stapled ticket are there, then releases the zip unchanged.
 
 ## Not verified yet
 
-The page and its server are tested in headless Chromium on Linux, and the app-window mode was run with Chromium under a virtual display. The Windows program and the macOS bundle are cross-compiled and checked structurally (`gen -verify`, the tests in `packaging/quick/gen`), but have not been started on Windows or macOS: the Edge app window, the message box / `osascript` approval dialogs, the icon in Explorer and Finder, and Gatekeeper's verdict on a signed bundle still need a run on real systems.
+The page and its server are tested in headless Chromium on Linux, and the app-window mode was run with Chromium under a virtual display. On hosted CI machines: the signed `RemoHop.app` passes Gatekeeper, serves its page and is started by LaunchServices (macOS); the MSIX-packaged `RemoHop.exe` starts from its package and opens its page in an Edge app window (Windows x64 and arm64). Still not run on real desktops by a person: the message box / `osascript` approval dialogs, the icon in Explorer and Finder, and a full help session.

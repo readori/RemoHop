@@ -15,10 +15,15 @@ dir="${1:?usage: finalize-release.sh ASSETS_DIR}"
 cp packaging/install.sh "$dir/install.sh"
 cp packaging/install.ps1 "$dir/install.ps1"
 
+# Every asset a release must have (install.sh, install.ps1, Homebrew, Scoop, winget,
+# the AUR and the website link to these names). ALLOW_MISSING is a space-separated
+# list of names that may be absent (the release workflow sets it only for SKIP_MACOS).
 for must in remohop_linux_amd64.tar.gz remohop_linux_arm64.tar.gz remohop_darwin_universal.tar.gz \
-	remohop_windows_amd64.zip remohop_windows_arm64.zip; do
+	remohop_windows_amd64.zip remohop_windows_arm64.zip \
+	RemoHop-windows-amd64.zip RemoHop-windows-arm64.zip RemoHop-macos.zip \
+	remohop-quick_linux_amd64.tar.gz remohop-quick_linux_arm64.tar.gz; do
 	[[ -f "$dir/$must" ]] || {
-		if [[ "${ALLOW_MISSING:-}" == "$must" ]]; then echo "warning: $must is missing (allowed)" >&2
+		if [[ " ${ALLOW_MISSING:-} " == *" $must "* ]]; then echo "warning: $must is missing (allowed)" >&2
 		else echo "missing release asset: $must" >&2; exit 1; fi
 	}
 done

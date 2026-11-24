@@ -43,6 +43,20 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/"/>
   </url>
   <url>
+    <loc>https://remohop.com/download/</loc>
+    <lastmod>2026-11-23</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/download/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/download/"/>
+  </url>
+  <url>
+    <loc>https://remohop.com/en/download/</loc>
+    <lastmod>2026-11-23</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/download/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/download/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/download/"/>
+  </url>
+  <url>
     <loc>https://remohop.com/apps/</loc>
     <lastmod>2026-11-23</lastmod>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/apps/"/>

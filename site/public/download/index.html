@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>下载 | RemoHop</title>
+<meta name="description" content="下载 RemoHop：给被协助的人用的快速协助程序（Windows、macOS、Linux），命令行程序 remohop 的压缩包、软件包和安装脚本，包管理器，手机应用，以及如何校验下载。">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/download/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/download/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/download/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/download/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="下载 | RemoHop">
+<meta property="og:description" content="下载 RemoHop：给被协助的人用的快速协助程序（Windows、macOS、Linux），命令行程序 remohop 的压缩包、软件包和安装脚本，包管理器，手机应用，以及如何校验下载。">
+<meta property="og:url" content="https://remohop.com/download/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/download/" aria-current="page">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/download/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>下载 RemoHop</h1>
+<div class="note warn">
+<p><strong>首个发布版本正在准备中。</strong>RemoHop 1.0 将发布在 GitHub Releases 上；在那之前，下面列出的文件还不存在，列出来是为了让你知道会有什么。现在可以<a href="/docs/building/">从源码编译 RemoHop</a>。</p>
+</div>
+<p>两种下载，对应两种人：被协助的人只需要<a href="#quick">快速协助</a>，一个双击就能打开的窗口；协助别人或者连接自己机器的人，用<a href="#cli">命令行程序 <code>remohop</code></a>、它提供的浏览器客户端，或者<a href="#mobile">手机应用</a>。</p>
+
+<h2 id="quick">快速协助：给被协助的人</h2>
+<p>一个双击打开的程序。它显示 9 位 ID 和临时密码，让对方念给协助者听，每次有人连接都会先问一下。不需要安装。详见<a href="/docs/quick-support/">快速协助说明</a>。</p>
+<div class="table-wrap dl" tabindex="0" role="region" aria-label="快速协助下载">
+<table>
+<thead><tr><th scope="col">系统</th><th scope="col">文件</th></tr></thead>
+<tbody>
+<tr><td>Windows 10、11<br><span class="small">x64</span></td><td class="file"><code>RemoHop-windows-amd64.zip</code><br><span class="small">解压后双击 RemoHop.exe。尚未代码签名，SmartScreen 会提示：点“更多信息”，再点“仍要运行”。</span></td></tr>
+<tr><td>Windows 11<br><span class="small">ARM64</span></td><td class="file"><code>RemoHop-windows-arm64.zip</code><br><span class="small">同上。</span></td></tr>
+<tr><td>macOS 12 及以上<br><span class="small">Apple 芯片和 Intel</span></td><td class="file"><code>RemoHop-macos.zip</code><br><span class="small">解压后打开 RemoHop.app。已用 Developer ID 签名并经 Apple 公证。</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop-quick_linux_amd64.tar.gz</code><br><span class="small">解压后运行 ./remohop-quick，窗口在默认浏览器里打开。</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop-quick_linux_arm64.tar.gz</code><br><span class="small">同上。</span></td></tr>
+</tbody>
+</table>
+</div>
+<p>在 macOS 上，第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限。双方要用同一台汇合服务器。</p>
+
+<h2 id="cli">命令行程序 <code>remohop</code></h2>
+<p>被控端、客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都在这一个静态链接的程序里。安装脚本会下载与你的系统和 CPU 对应的压缩包，用 <code>SHA256SUMS</code> 校验（如果装了 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a>，还会校验该文件的签名），然后把 <code>remohop</code> 复制到 <code>~/.local/bin</code> 或 <code>%LOCALAPPDATA%\Programs\RemoHop</code>。脚本从不使用 <code>sudo</code>。运行前请先读一遍。</p>
+<h3>Linux 和 macOS</h3>
+<pre tabindex="0"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<h3>Windows（PowerShell）</h3>
+<pre tabindex="0"><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
+<h3>压缩包</h3>
+<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。每个压缩包里还有 <code>LICENSE</code>、<code>NOTICE</code> 和 <code>THIRD_PARTY_LICENSES.txt</code>。</p>
+<div class="table-wrap dl" tabindex="0" role="region" aria-label="命令行程序下载">
+<table>
+<thead><tr><th scope="col">系统</th><th scope="col">文件</th></tr></thead>
+<tbody>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop_linux_amd64.tar.gz</code><br><span class="small">静态链接</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop_linux_arm64.tar.gz</code><br><span class="small">静态链接</span></td></tr>
+<tr><td>macOS<br><span class="small">通用（Apple 芯片和 Intel）</span></td><td class="file"><code>remohop_darwin_universal.tar.gz</code><br><span class="small">Developer ID 签名，已公证</span></td></tr>
+<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><code>remohop_windows_amd64.zip</code><br><span class="small">尚未代码签名</span></td></tr>
+<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><code>remohop_windows_arm64.zip</code><br><span class="small">尚未代码签名</span></td></tr>
+</tbody>
+</table>
+</div>
+<h3>Linux 软件包</h3>
+<p>x86-64 和 ARM64 的 <code>.deb</code>、<code>.rpm</code>、<code>.apk</code>。文件名里带版本号（例如 <code>remohop_1.0.0_amd64.deb</code>），所以请到发布页下载。它们安装 <code>remohop</code> 和 systemd 单元，但不启用任何东西；<code>remohop service install</code> 让被控端开机自启。详见<a href="/docs/install/">安装</a>。</p>
+
+<h2 id="channels">包管理器、应用商店和容器</h2>
+<p>这些渠道在首个发布版本之后陆续开通。哪个开通了，这里就会显示它的安装命令。</p>
+<div class="cards">
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>Homebrew</h3>
+<p class="platforms">macOS · Linux · 命令行程序</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>Homebrew Cask</h3>
+<p class="platforms">macOS · 快速协助</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>Scoop</h3>
+<p class="platforms">Windows · 命令行程序</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>winget</h3>
+<p class="platforms">Windows · 命令行程序</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>Microsoft Store</h3>
+<p class="platforms">Windows 10, 11 · 快速协助</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>AUR</h3>
+<p class="platforms">Arch Linux · 命令行程序</p>
+</article>
+<article class="panel">
+<p class="chip wait">即将推出</p>
+<h3>Docker</h3>
+<p class="platforms">linux/amd64 · linux/arm64 · 汇合服务器</p>
+</article>
+</div>
+
+<h2 id="mobile">手机应用</h2>
+<p>Android 和 iOS / iPadOS 上的控制端：在手机或平板上连接并操作你的电脑。手机本身不能被控。</p>
+<p><span class="chip wait">即将上架</span></p>
+<p>两个应用都还没有上架。上架后，这里会链接到 App Store 和 Google Play。应用能做什么，见<a href="/apps/">移动应用</a>。</p>
+
+<h2 id="verify">校验下载</h2>
+<p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>
+<pre tabindex="0"><code>sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。macOS 的下载另外用 Developer ID 签名并经过 Apple 公证；Windows 程序尚未做代码签名。详见<a href="/docs/install/#校验下载">安装</a>和<a href="/security/">安全模型</a>。</p>
+
+<h2 id="source">源码</h2>
+<p>RemoHop 是以 GNU AGPL-3.0 发布的自由软件，完整源码在 <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>。想自己编译，见<a href="/docs/building/">从源码编译</a>。AGPL 不适合的场景可以购买商业授权，见<a href="/licensing/">许可证</a>。</p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Download | RemoHop</title>
+<meta name="description" content="Download RemoHop: the quick-support app for the person being helped (Windows, macOS, Linux), the remohop command-line archives, packages and install scripts, package managers, the phone apps, and how to verify a download.">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/download/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/download/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/download/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/download/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Download | RemoHop">
+<meta property="og:description" content="Download RemoHop: the quick-support app for the person being helped (Windows, macOS, Linux), the remohop command-line archives, packages and install scripts, package managers, the phone apps, and how to verify a download.">
+<meta property="og:url" content="https://remohop.com/en/download/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/download/" aria-current="page">Download</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/download/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<h1>Download RemoHop</h1>
+<div class="note warn">
+<p><strong>The first release is being prepared.</strong> RemoHop 1.0 will be published on GitHub Releases; until then the files below do not exist yet. They are listed so you know what to expect. Today you can <a href="/en/docs/building/">build RemoHop from source</a>.</p>
+</div>
+<p>Two downloads, two people: the one being helped needs <a href="#quick">quick support</a>, a window to double-click. The one helping, or anyone reaching their own machines, uses <a href="#cli">the <code>remohop</code> program</a>, the browser client it serves, or a <a href="#mobile">phone app</a>.</p>
+
+<h2 id="quick">Quick support, for the person being helped</h2>
+<p>One program to double-click. It shows a 9-digit ID and a temporary password to read to the helper, and asks before every connection. Nothing is installed. See the <a href="/en/docs/quick-support/">quick support guide</a>.</p>
+<div class="table-wrap dl" tabindex="0" role="region" aria-label="Quick support downloads">
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
+<tbody>
+<tr><td>Windows 10, 11<br><span class="small">x64</span></td><td class="file"><code>RemoHop-windows-amd64.zip</code><br><span class="small">Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.</span></td></tr>
+<tr><td>Windows 11<br><span class="small">ARM64</span></td><td class="file"><code>RemoHop-windows-arm64.zip</code><br><span class="small">As above.</span></td></tr>
+<tr><td>macOS 12 or later<br><span class="small">Apple silicon and Intel</span></td><td class="file"><code>RemoHop-macos.zip</code><br><span class="small">Unzip, then open RemoHop.app. Signed with a Developer ID and notarized by Apple.</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop-quick_linux_amd64.tar.gz</code><br><span class="small">Unpack, then run ./remohop-quick; the window opens in the default browser.</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop-quick_linux_arm64.tar.gz</code><br><span class="small">As above.</span></td></tr>
+</tbody>
+</table>
+</div>
+<p>On macOS the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility. Both sides must use the same rendezvous server.</p>
+
+<h2 id="cli">The <code>remohop</code> program</h2>
+<p>Host, client, browser gateway, rendezvous server and MCP server for AI agents in one static binary. The install scripts download the archive for your system and CPU, check it against <code>SHA256SUMS</code> (and that file's signature when <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> is installed) and copy <code>remohop</code> to <code>~/.local/bin</code> or <code>%LOCALAPPDATA%\Programs\RemoHop</code>. They never use <code>sudo</code>. Read a script before you run it.</p>
+<h3>Linux and macOS</h3>
+<pre tabindex="0"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<h3>Windows (PowerShell)</h3>
+<pre tabindex="0"><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
+<h3>Archives</h3>
+<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>. Each archive also holds <code>LICENSE</code>, <code>NOTICE</code> and <code>THIRD_PARTY_LICENSES.txt</code>.</p>
+<div class="table-wrap dl" tabindex="0" role="region" aria-label="Command-line downloads">
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
+<tbody>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop_linux_amd64.tar.gz</code><br><span class="small">statically linked</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop_linux_arm64.tar.gz</code><br><span class="small">statically linked</span></td></tr>
+<tr><td>macOS<br><span class="small">universal (Apple silicon and Intel)</span></td><td class="file"><code>remohop_darwin_universal.tar.gz</code><br><span class="small">Developer ID signed, notarized</span></td></tr>
+<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><code>remohop_windows_amd64.zip</code><br><span class="small">not code-signed yet</span></td></tr>
+<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><code>remohop_windows_arm64.zip</code><br><span class="small">not code-signed yet</span></td></tr>
+</tbody>
+</table>
+</div>
+<h3>Linux packages</h3>
+<p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.0_amd64.deb</code>), so take them from the release page. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="/en/docs/install/">Install</a>.</p>
+
+<h2 id="channels">Package managers, store and container</h2>
+<p>These are being set up after the first release. Each one shows its command here once it is published.</p>
+<div class="cards">
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>Homebrew</h3>
+<p class="platforms">macOS · Linux · command line</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>Homebrew Cask</h3>
+<p class="platforms">macOS · quick support</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>Scoop</h3>
+<p class="platforms">Windows · command line</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>winget</h3>
+<p class="platforms">Windows · command line</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>Microsoft Store</h3>
+<p class="platforms">Windows 10, 11 · quick support</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>AUR</h3>
+<p class="platforms">Arch Linux · command line</p>
+</article>
+<article class="panel">
+<p class="chip wait">Coming soon</p>
+<h3>Docker</h3>
+<p class="platforms">linux/amd64 · linux/arm64 · rendezvous server</p>
+</article>
+</div>
+
+<h2 id="mobile">Phone apps</h2>
+<p>Controllers for Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet. The phone itself cannot be controlled.</p>
+<p><span class="chip wait">Coming soon</span></p>
+<p>Neither app is in a store yet. This section will link to the App Store and Google Play when they are. See <a href="/en/apps/">Apps</a> for what they do.</p>
+
+<h2 id="verify">Verify a download</h2>
+<p>Every file of a release is listed in its <code>SHA256SUMS</code>. That file has a keyless cosign signature: it proves that this repository's release workflow made it, for that tag, and the signature is recorded in the public Sigstore log. Download <code>SHA256SUMS</code>, <code>SHA256SUMS.sigstore.json</code> and your files into one directory, then:</p>
+<pre tabindex="0"><code>sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. The macOS downloads are also signed with a Developer ID and notarized by Apple; the Windows programs are not code-signed yet. Details: <a href="/en/docs/install/#verifying-a-download">Install</a> and the <a href="/en/security/">security model</a>.</p>
+
+<h2 id="source">Source code</h2>
+<p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>. To build it yourself, see <a href="/en/docs/building/">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="/en/licensing/">Licensing</a>.</p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/download/">Download</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<h1>Download RemoHop</h1>
+<!--norel-->
+<div class="note warn">
+<p><strong>The first release is being prepared.</strong> RemoHop 1.0 will be published on GitHub Releases; until then the files below do not exist yet. They are listed so you know what to expect. Today you can <a href="{{L:docs/building}}">build RemoHop from source</a>.</p>
+</div>
+<!--/norel-->
+<!--rel-->
+<p>Every file is on <a href="{{REPO}}/releases/latest">GitHub Releases</a>; the links below always fetch the newest release. All of them are listed in its <code>SHA256SUMS</code>, which is signed (see <a href="#verify">Verify a download</a>).</p>
+<!--/rel-->
+<p>Two downloads, two people: the one being helped needs <a href="#quick">quick support</a>, a window to double-click. The one helping, or anyone reaching their own machines, uses <a href="#cli">the <code>remohop</code> program</a>, the browser client it serves, or a <a href="#mobile">phone app</a>.</p>
+
+<h2 id="quick">Quick support, for the person being helped</h2>
+<p>One program to double-click. It shows a 9-digit ID and a temporary password to read to the helper, and asks before every connection. Nothing is installed. See the <a href="{{L:docs/quick-support}}">quick support guide</a>.</p>
+{{DL:quick}}
+<p>On macOS the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility. Both sides must use the same rendezvous server.</p>
+
+<h2 id="cli">The <code>remohop</code> program</h2>
+<p>Host, client, browser gateway, rendezvous server and MCP server for AI agents in one static binary. The install scripts download the archive for your system and CPU, check it against <code>SHA256SUMS</code> (and that file's signature when <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> is installed) and copy <code>remohop</code> to <code>~/.local/bin</code> or <code>%LOCALAPPDATA%\Programs\RemoHop</code>. They never use <code>sudo</code>. Read a script before you run it.</p>
+<h3>Linux and macOS</h3>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<h3>Windows (PowerShell)</h3>
+<pre><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
+<h3>Archives</h3>
+<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>. Each archive also holds <code>LICENSE</code>, <code>NOTICE</code> and <code>THIRD_PARTY_LICENSES.txt</code>.</p>
+{{DL:cli}}
+<h3>Linux packages</h3>
+<p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.0_amd64.deb</code>), so take them from the <!--rel--><a href="{{REPO}}/releases/latest">release page</a><!--/rel--><!--norel-->release page<!--/norel-->. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="{{L:docs/install}}">Install</a>.</p>
+
+<h2 id="channels">Package managers, store and container</h2>
+<p>These are being set up after the first release. Each one shows its command here once it is published.</p>
+{{DL:channels}}
+
+<h2 id="mobile">Phone apps</h2>
+<p>Controllers for Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet. The phone itself cannot be controlled.</p>
+<!--store-->
+<div class="actions">
+<a class="btn primary" href="{{APP_STORE}}">App Store (iPhone, iPad)</a>
+<a class="btn" href="{{GOOGLE_PLAY}}">Google Play (Android)</a>
+</div>
+<!--/store-->
+<!--nostore-->
+<p><span class="chip wait">Coming soon</span></p>
+<p>Neither app is in a store yet. This section will link to the App Store and Google Play when they are. See <a href="{{L:apps}}">Apps</a> for what they do.</p>
+<!--/nostore-->
+
+<h2 id="verify">Verify a download</h2>
+<p>Every file of a release is listed in its <code>SHA256SUMS</code>. That file has a keyless cosign signature: it proves that this repository's release workflow made it, for that tag, and the signature is recorded in the public Sigstore log. Download <code>SHA256SUMS</code>, <code>SHA256SUMS.sigstore.json</code> and your files into one directory, then:</p>
+<pre><code>sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. The macOS downloads are also signed with a Developer ID and notarized by Apple; the Windows programs are not code-signed yet. Details: <a href="{{L:docs/install}}#verifying-a-download">Install</a> and the <a href="{{L:security}}">security model</a>.</p>
+
+<h2 id="source">Source code</h2>
+<p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="{{REPO}}">github.com/readori/RemoHop</a><!--rel-->, and each release page has the source of that version as an archive<!--/rel-->. To build it yourself, see <a href="{{L:docs/building}}">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="{{L:licensing}}">Licensing</a>.</p>

@@ -20,7 +20,7 @@
 
 <div class="wrap">
 <div class="note status-note">
-<p><strong>现状（2026 年 11 月）：</strong>还没有可下载的发布版本<!--src-->，需要从源码编译<!--/src-->；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="{{L:features}}#status">完整的限制清单</a></p>
+<p><strong>现状（2026 年 11 月）：</strong><!--norel-->首个发布版本正在准备中<!--src-->，在它发布之前需要从源码编译<!--/src--><!--nosrc-->，目前还没有可下载的版本<!--/nosrc-->；<!--/norel--><!--rel-->首个发布版本已经发布，见<a href="{{L:download}}">下载</a>；<!--/rel-->程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="{{L:features}}#status">完整的限制清单</a></p>
 </div>
 </div>
 
@@ -71,36 +71,43 @@
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
 <h2 id="get-h">获取 RemoHop</h2>
-<p class="section-lede"><!--src-->还没有可下载的发布版本，下面三样目前都要从源码构建。发布之后，这里会换成下载链接。<!--/src--><!--nosrc-->还没有可下载的发布版本。各平台应用上架后，这里会换成下载链接。<!--/nosrc--><!-- TODO(owner): replace with download links after the first release --></p>
+<p class="section-lede"><!--norel-->首个发布版本正在准备中，<a href="{{L:download}}">下载页</a>列出了它会包含的文件。<!--src-->在此之前，下面三样都要从源码构建。<!--/src--><!--/norel--><!--rel-->全部下载以及校验和、签名，都在<a href="{{L:download}}">下载页</a>上。<!--/rel--></p>
 <div class="cards">
 <article class="panel">
-<p class="chip wait">尚未发布</p>
+<!--norel--><p class="chip wait">尚未发布</p><!--/norel--><!--rel--><p class="chip">可以下载</p><!--/rel-->
 <h3>命令行程序 <code>remohop</code></h3>
 <p class="platforms">Linux · macOS · Windows</p>
+<!--rel-->
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。在 Linux 和 macOS 上：</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<!--/rel-->
+<!--norel-->
 <!--src-->
-<p>被控端、客户端、浏览器网关和汇合服务器都在里面。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。发布之前，用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
 <pre class="cmd"><code>git clone {{REPO}}
 cd RemoHop
 make build</code></pre>
 <!--/src-->
+<!--/norel-->
 <!--nosrc-->
 <p>被控端、客户端、浏览器网关和汇合服务器都在这一个程序里。发布之后在这里下载；在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
 <!--/nosrc-->
-<p class="links"><a href="{{L:features}}#install">安装</a><a href="{{L:features}}#platforms">平台支持</a></p>
+<p class="links"><a href="{{L:download}}#cli">下载</a><a href="{{L:features}}#platforms">平台支持</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">尚未发布</p>
+<!--norel--><p class="chip wait">尚未发布</p><!--/norel--><!--rel--><p class="chip">可以下载</p><!--/rel-->
 <h3>快速协助</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>给被协助的人双击打开的窗口。<!--src--><code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序，都还没有代码签名。<!--/src--><!--nosrc-->Windows 上是 <code>RemoHop.exe</code>，macOS 上是 <code>RemoHop.app</code>，Linux 上是 <code>remohop quick</code>，都还没有代码签名。<!--/nosrc--></p>
-<p class="links"><a href="{{L:docs/quick-support}}">快速协助说明</a><!--src--><a href="{{REPO}}/blob/main/packaging/quick/README.md">打包说明</a><!--/src--></p>
+<p>给被协助的人双击打开的窗口。<!--rel-->Windows 上是 <code>RemoHop.exe</code>（尚未代码签名），macOS 上是 <code>RemoHop.app</code>（已签名并经过公证），另有 Linux 程序。<!--/rel--><!--norel--><!--src--><code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序；发布版本里的 macOS 程序会签名，Windows 程序暂不签名。<!--/src--><!--/norel--><!--nosrc-->Windows 上是 <code>RemoHop.exe</code>，macOS 上是 <code>RemoHop.app</code>，Linux 上是 <code>remohop quick</code>，都还没有代码签名。<!--/nosrc--></p>
+<p class="links"><a href="{{L:download}}#quick">下载</a><a href="{{L:docs/quick-support}}">快速协助说明</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">尚未发布</p>
+<!--nostore--><p class="chip wait">尚未发布</p><!--/nostore--><!--store--><p class="chip">可以下载</p><!--/store-->
 <h3>手机控制端</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
-<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。iOS 版正在准备 TestFlight，Android 版没有上架任何商店。</p>
-<p class="links"><a href="{{L:apps}}">移动应用</a></p>
+<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。<!--nostore-->两个应用都还没有上架。<!--/nostore--><!--store-->已在 App Store 和 Google Play 上架。<!--/store--></p>
+<p class="links"><a href="{{L:download}}#mobile">下载</a><a href="{{L:apps}}">移动应用</a></p>
 </article>
 </div>
 </div>

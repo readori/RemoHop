@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Install | RemoHop</title>
 <meta name="description" content="Releases are built by the release workflow on every v* tag. No release has been published yet, so the download commands below work only from the first…">
-<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +37,7 @@
 <ul>
 <li><a href="/en/features/">Features</a></li>
 <li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/download/">Download</a></li>
 <li><a href="/en/apps/">Apps</a></li>
 <li><a href="/en/security/">Security</a></li>
 <li><a href="/en/self-hosting/">Self-hosting</a></li>
@@ -65,14 +66,15 @@
 </table>
 </div>
 <p>The scripts download the archive for your OS and CPU, check it against the release's <code>SHA256SUMS</code>, check that file's signature when <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> is installed, and copy <code>remohop</code> to <code>~/.local/bin</code> (as root: <code>/usr/local/bin</code>; Windows: <code>%LOCALAPPDATA%\Programs\RemoHop</code>, added to your user <code>PATH</code>). They never use <code>sudo</code> and never edit shell profiles. Options: <code>--version vX.Y.Z</code>, <code>--bindir DIR</code>, <code>--verify require</code> (fail unless the signature checks out); <code>install.ps1</code> takes <code>-Version</code>, <code>-BinDir</code>, <code>-Verify</code>, <code>-NoPath</code>.</p>
-<p>Package managers (planned; the tap, bucket and packages are not published yet, so these are templates, see <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>):</p>
+<p>Package managers (planned; the tap, bucket and packages are not published yet, see <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>):</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Manager / Command once published">
 <table>
 <thead><tr><th scope="col">Manager</th><th scope="col">Command once published</th></tr></thead>
 <tbody>
-<tr><td>Homebrew (macOS, Linux)</td><td><code>brew install &lt;owner&gt;/&lt;tap&gt;/remohop</code></td></tr>
-<tr><td>Scoop (Windows)</td><td><code>scoop bucket add &lt;name&gt; &lt;bucket-url&gt;</code> then <code>scoop install remohop</code></td></tr>
-<tr><td>winget (Windows)</td><td><code>winget install &lt;Publisher&gt;.RemoHop</code></td></tr>
+<tr><td>Homebrew (macOS, Linux)</td><td><code>brew install readori/tap/remohop</code></td></tr>
+<tr><td>Homebrew cask (macOS, quick support)</td><td><code>brew install --cask readori/tap/remohop-quick</code></td></tr>
+<tr><td>Scoop (Windows)</td><td><code>scoop bucket add readori https://github.com/readori/scoop-bucket</code> then <code>scoop install remohop</code></td></tr>
+<tr><td>winget (Windows)</td><td><code>winget install Readori.RemoHop</code></td></tr>
 <tr><td>AUR (Arch)</td><td><code>yay -S remohop-bin</code></td></tr>
 <tr><td>Nix</td><td><code>callPackage</code> of the generated <code>remohop.nix</code></td></tr>
 </tbody>
@@ -83,8 +85,22 @@
 <li><strong>macOS:</strong> releases carry one universal (Apple silicon and Intel) binary, which the release workflow signs with a Developer ID and submits to Apple for notarization. Gatekeeper checks the notarization online on first run; a bare executable cannot carry an offline ticket.</li>
 <li><strong>Windows:</strong> the binaries are <strong>not code-signed yet</strong>, so SmartScreen may warn on first run. The checksum and cosign signature are how to verify a download until signing is set up.</li>
 <li><strong>Linux packages</strong> install <code>remohop</code> and the systemd unit files and enable nothing. <code>remohop service install</code> is the supported way to run the host at boot or login.</li>
-<li><strong>Verify a download by hand:</strong></li>
 </ul>
+<h2 id="quick-support">Quick support</h2>
+<p>The double-click program for the person being helped (<a href="/en/docs/quick-support/">Quick support</a>) is a separate download in each release:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="System / File / Then">
+<table>
+<thead><tr><th scope="col">System</th><th scope="col">File</th><th scope="col">Then</th></tr></thead>
+<tbody>
+<tr><td>Windows 10/11</td><td><code>RemoHop-windows-amd64.zip</code> (ARM64: <code>RemoHop-windows-arm64.zip</code>)</td><td>unzip, double-click <code>RemoHop.exe</code>; not code-signed yet, so SmartScreen warns ("More info", "Run anyway")</td></tr>
+<tr><td>macOS 12+</td><td><code>RemoHop-macos.zip</code> (Apple silicon and Intel)</td><td>unzip, open <code>RemoHop.app</code>; signed with a Developer ID, notarized and stapled</td></tr>
+<tr><td>Linux</td><td><code>remohop-quick_linux_amd64.tar.gz</code> (ARM64: <code>..._arm64.tar.gz</code>)</td><td>unpack, run <code>./remohop-quick</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Each is at <code>https://github.com/readori/RemoHop/releases/latest/download/&lt;file&gt;</code> and covered by the release's <code>SHA256SUMS</code>. A Microsoft Store version is in preparation.</p>
+<h2 id="verifying-a-download">Verifying a download</h2>
+<p>Every file of a release is listed in its <code>SHA256SUMS</code>, and that file carries a keyless <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> signature which ties it to this repository's release workflow and the tag. Download <code>SHA256SUMS</code>, <code>SHA256SUMS.sigstore.json</code> and the files you want into one directory, then:</p>
 <pre tabindex="0"><code class="language-bash">sha256sum --ignore-missing -c SHA256SUMS
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
@@ -105,6 +121,7 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 <ul>
 <li><a href="/en/features/">Features</a></li>
 <li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/download/">Download</a></li>
 <li><a href="/en/apps/">Apps</a></li>
 <li><a href="/en/security/">Security</a></li>
 <li><a href="/en/self-hosting/">Self-hosting</a></li>

@@ -2,9 +2,17 @@
 <p>这一页只讲从零到第一次连上要做的五步。每个命令的完整语法用 <code>remohop help &lt;命令&gt;</code> 查看，其余内容在按主题分页的文档里，<a href="#more">目录在页面下方</a>。</p>
 <p>假设有三台机器：一台带公网地址的小服务器运行汇合服务器（下文写作 <code>sig.example.net</code>），一台被控机，一台你自己的工作机。只在局域网里用的话，可以<a href="#direct">跳过服务器</a>。</p>
 
+<!--rel-->
+<h2 id="build">1. 安装</h2>
+<p>在每台机器上用安装脚本（Windows 用 <code>install.ps1</code>）、软件包或<a href="{{L:download}}#cli">下载页</a>上的压缩包安装 <code>remohop</code>：</p>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>它会把 <code>remohop</code> 放到 <code>~/.local/bin</code>（root 用户为 <code>/usr/local/bin</code>）。想自己编译，见<a href="{{L:docs/building}}">从源码编译</a>。</p>
+<!--/rel-->
+<!--norel-->
 <!--src-->
 <h2 id="build">1. 编译</h2>
-<p>还没有可下载的发布版本。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<p>首个发布版本正在准备中（见<a href="{{L:download}}">下载</a>）。在此之前，用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
 <pre><code>git clone {{REPO}}
 cd RemoHop
 make build</code></pre>
@@ -15,6 +23,7 @@ make build</code></pre>
 <p>还没有可下载的发布版本。各平台应用上架后，这里会给出下载方式，源码也会在那时以 AGPL-3.0 公开。在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
 <p>下面几步假设每台机器的 <code>PATH</code> 里都已经有 <code>remohop</code> 这个程序。</p>
 <!--/nosrc-->
+<!--/norel-->
 
 <h2 id="signal">2. 运行汇合服务器</h2>
 <p>在有公网 IP 的机器上开放 UDP 端口 <code>21116</code> 和 <code>21117</code>，然后运行：</p>

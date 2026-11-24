@@ -8,6 +8,7 @@
 //	go run ./packaging/quick/gen -ico dist/quick/RemoHop.ico -icns dist/quick/RemoHop.icns
 //	go run ./packaging/quick/gen -app dist/quick/RemoHop.app -version v1.2.3 -binary arm64=PATH,amd64=PATH
 //	go run ./packaging/quick/gen -verify dist/quick/RemoHop.exe
+//	go run ./packaging/quick/gen -msix-assets DIR      (the Assets folder of the MSIX package)
 package main
 
 import (
@@ -31,14 +32,15 @@ func main() {
 	binary := flag.String("binary", "", "with -app: the program, PATH or arm64=PATH,amd64=PATH for a universal binary")
 	version := flag.String("version", "0.0.0", "with -app: the version (a leading v and anything after the numbers is dropped)")
 	verify := flag.String("verify", "", "check that this Windows program carries the icon and the manifest")
+	msix := flag.String("msix-assets", "", "write the MSIX package's logos (Store, tiles, app list) into this directory")
 	flag.Parse()
-	if err := run(*syso, *ico, *icns, *pngOut, *app, *binary, *version, *verify); err != nil {
+	if err := run(*syso, *ico, *icns, *pngOut, *app, *binary, *version, *verify, *msix); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(syso, ico, icns, pngOut, app, binary, version, verify string) error {
+func run(syso, ico, icns, pngOut, app, binary, version, verify, msix string) error {
 	did := false
 	write := func(path string, data []byte, mode os.FileMode) error {
 		did = true
@@ -76,6 +78,11 @@ func run(syso, ico, icns, pngOut, app, binary, version, verify string) error {
 	if app != "" {
 		did = true
 		if err := writeApp(app, binary, version); err != nil {
+			return err
+		}
+	}
+	if msix != "" {
+		if err := writeMsixAssets(msix, func(p string, data []byte) error { return write(p, data, 0o644) }); err != nil {
 			return err
 		}
 	}

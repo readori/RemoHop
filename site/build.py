@@ -46,6 +46,28 @@ def pick(public, prelaunch):
     return public if SOURCE_PUBLIC else prelaunch
 
 
+# Release switch: False until the first desktop release (v1.0.0) is published on
+# GitHub Releases. With False:
+#   - <!--rel-->...<!--/rel--> blocks in src/*.html are dropped and
+#     <!--norel-->...<!--/norel--> blocks are shown (True: the reverse);
+#   - the download page names the release files but does not link them (the
+#     links would be dead) and says that the first release is being prepared;
+#   - RELEASE_DOC_EDITS below are not applied;
+#   - the build fails if a page links into the (empty) releases.
+# After the tag is published: set this to True, run
+#     python3 site/build.py --release-docs
+# once (it applies RELEASE_DOC_EDITS to the Markdown files in the repository, so
+# README.md and docs/ say the same as the site), then run this script and commit.
+RELEASED = False
+
+# The mobile apps in the App Store and on Google Play. Same mechanism, with
+# <!--store-->...<!--/store--> and <!--nostore-->...<!--/nostore--> blocks. With
+# False the store addresses below appear nowhere (the build checks it).
+STORES_LIVE = False
+APP_STORE = "https://apps.apple.com/app/id6838609056"
+GOOGLE_PLAY = "https://play.google.com/store/apps/details?id=com.remohop.app"
+
+
 EMAIL = "support@readori.com"
 TELEGRAM = "https://t.me/remohop"
 UPDATED = "2026-11-23"
@@ -83,6 +105,12 @@ PAGES = {
         "Quick start and documentation",
         pick("Build remohop from source, run a rendezvous server, start a host, pair and connect. With the index of the RemoHop user guide and reference documents.",
              "Run a rendezvous server, start a host, pair and connect. With the index of the RemoHop user guide and reference documents."),
+    ),
+    "download": (
+        "下载",
+        "下载 RemoHop：给被协助的人用的快速协助程序（Windows、macOS、Linux），命令行程序 remohop 的压缩包、软件包和安装脚本，包管理器，手机应用，以及如何校验下载。",
+        "Download",
+        "Download RemoHop: the quick-support app for the person being helped (Windows, macOS, Linux), the remohop command-line archives, packages and install scripts, package managers, the phone apps, and how to verify a download.",
     ),
     "apps": (
         "Android 与 iOS 控制端应用",
@@ -133,6 +161,7 @@ PAGES = {
 NAV = [
     ("features", "功能", "Features"),
     ("docs", "文档", "Docs"),
+    ("download", "下载", "Download"),
     ("apps", "移动应用", "Apps"),
     ("security", "安全", "Security"),
     ("self-hosting", "自建服务器", "Self-hosting"),
@@ -171,6 +200,110 @@ LOGO = (
     '<path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" '
     'stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
+
+
+
+# ---- download page ----
+#
+# /download/ and /en/download/: src/<lang>/download.html with the placeholders
+# {{DL:quick}}, {{DL:cli}}, {{DL:channels}} and {{DL:mobile}}, filled from the
+# data below. Release asset names carry no version (packaging/README.md, "What a
+# release contains"), so .../releases/latest/download/NAME always is the newest.
+DOWNLOAD = REPO + "/releases/latest/download/"
+
+# (platform, CPU, file, note): zh and en texts as pairs.
+QUICK_ASSETS = [
+    (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip",
+     ("解压后双击 RemoHop.exe。尚未代码签名，SmartScreen 会提示：点“更多信息”，再点“仍要运行”。",
+      "Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.")),
+    (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", ("同上。", "As above.")),
+    (("macOS 12 及以上", "macOS 12 or later"), ("Apple 芯片和 Intel", "Apple silicon and Intel"), "RemoHop-macos.zip",
+     ("解压后打开 RemoHop.app。已用 Developer ID 签名并经 Apple 公证。",
+      "Unzip, then open RemoHop.app. Signed with a Developer ID and notarized by Apple.")),
+    (("Linux", "Linux"), "x86-64", "remohop-quick_linux_amd64.tar.gz",
+     ("解压后运行 ./remohop-quick，窗口在默认浏览器里打开。", "Unpack, then run ./remohop-quick; the window opens in the default browser.")),
+    (("Linux", "Linux"), "ARM64", "remohop-quick_linux_arm64.tar.gz", ("同上。", "As above.")),
+]
+CLI_ASSETS = [
+    (("Linux", "Linux"), "x86-64", "remohop_linux_amd64.tar.gz", ("静态链接", "statically linked")),
+    (("Linux", "Linux"), "ARM64", "remohop_linux_arm64.tar.gz", ("静态链接", "statically linked")),
+    (("macOS", "macOS"), ("通用（Apple 芯片和 Intel）", "universal (Apple silicon and Intel)"), "remohop_darwin_universal.tar.gz",
+     ("Developer ID 签名，已公证", "Developer ID signed, notarized")),
+    (("Windows", "Windows"), "x64", "remohop_windows_amd64.zip", ("尚未代码签名", "not code-signed yet")),
+    (("Windows", "Windows"), "ARM64", "remohop_windows_arm64.zip", ("尚未代码签名", "not code-signed yet")),
+]
+
+# Package managers, stores and images. Each entry is one channel; set "live" to
+# True once it is published (packaging/README.md, "Package-manager manifests"),
+# and run this script. Until then the page shows "coming soon" instead of the
+# command. "url" (optional) is the channel's page, linked when live.
+CHANNELS = [
+    {"name": "Homebrew", "live": False, "os": "macOS · Linux", "what": ("命令行程序", "command line"),
+     "cmd": "brew install readori/tap/remohop"},
+    {"name": "Homebrew Cask", "live": False, "os": "macOS", "what": ("快速协助", "quick support"),
+     "cmd": "brew install --cask readori/tap/remohop-quick"},
+    {"name": "Scoop", "live": False, "os": "Windows", "what": ("命令行程序", "command line"),
+     "cmd": "scoop bucket add readori https://github.com/readori/scoop-bucket\nscoop install remohop"},
+    {"name": "winget", "live": False, "os": "Windows", "what": ("命令行程序", "command line"),
+     "cmd": "winget install Readori.RemoHop"},
+    {"name": "Microsoft Store", "live": False, "os": "Windows 10, 11", "what": ("快速协助", "quick support"),
+     "url": "", "store": ("在 Microsoft Store 里搜索 RemoHop。", "Search for RemoHop in the Microsoft Store.")},
+    {"name": "AUR", "live": False, "os": "Arch Linux", "what": ("命令行程序", "command line"),
+     "cmd": "yay -S remohop-bin"},
+    {"name": "Docker", "live": False, "os": "linux/amd64 · linux/arm64", "what": ("汇合服务器", "rendezvous server"),
+     "cmd": "docker run -d --name remohop-signal --restart unless-stopped \\\n"
+            "  -p 21116:21116/udp -p 21117:21117/udp -v remohop-signal:/data \\\n"
+            "  ghcr.io/readori/remohop-signal:latest"},
+]
+
+DL_TEXT = {
+    "zh": {"platform": "系统", "file": "文件", "soon": "即将推出", "live": "可用",
+           "unreleased": "发布后可下载", "store_soon": "即将上架", "open": "打开"},
+    "en": {"platform": "System", "file": "File", "soon": "Coming soon", "live": "Available",
+           "unreleased": "available after the release", "store_soon": "Coming soon", "open": "Open"},
+}
+
+
+def asset_table(lang, rows, label):
+    t = DL_TEXT[lang]
+    i = 0 if lang == "zh" else 1
+    out = [f'<div class="table-wrap dl" tabindex="0" role="region" aria-label="{html.escape(label)}">', "<table>",
+           f'<thead><tr><th scope="col">{t["platform"]}</th><th scope="col">{t["file"]}</th></tr></thead>', "<tbody>"]
+    for plat, cpu, name, note in rows:
+        cpu = cpu[i] if isinstance(cpu, tuple) else cpu
+        f = f'<a href="{DOWNLOAD}{name}"><code>{name}</code></a>' if RELEASED else f"<code>{name}</code>"
+        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span></td><td class="file">{f}<br><span class="small">{note[i]}</span></td></tr>')
+    out += ["</tbody>", "</table>", "</div>"]
+    return "\n".join(out)
+
+
+def channel_cards(lang):
+    t = DL_TEXT[lang]
+    i = 0 if lang == "zh" else 1
+    out = ['<div class="cards">']
+    for c in CHANNELS:
+        live = c["live"] and RELEASED
+        part = [f'<article class="panel">', f'<p class="chip">{t["live"]}</p>' if live else f'<p class="chip wait">{t["soon"]}</p>',
+                f'<h3>{html.escape(c["name"])}</h3>', f'<p class="platforms">{html.escape(c["os"])} · {c["what"][i]}</p>']
+        if live and c.get("cmd"):
+            part.append(f'<pre><code>{html.escape(c["cmd"])}</code></pre>')
+        elif live and c.get("store"):
+            part.append(f"<p>{c['store'][i]}</p>")
+            if c.get("url"):
+                part.append(f'<p class="links"><a href="{html.escape(c["url"])}">{t["open"]}</a></p>')
+        part.append("</article>")
+        out.append("\n".join(part))
+    out.append("</div>")
+    return "\n".join(out)
+
+
+def download_parts(lang):
+    zh = lang == "zh"
+    return {
+        "quick": asset_table(lang, QUICK_ASSETS, "快速协助下载" if zh else "Quick support downloads"),
+        "cli": asset_table(lang, CLI_ASSETS, "命令行程序下载" if zh else "Command-line downloads"),
+        "channels": channel_cards(lang),
+    }
 
 
 
@@ -282,6 +415,79 @@ See [skills/README.md](../../skills/README.md) for other agents and the setup st
      "RemoHop puts the open-source version (AGPL-3.0) first; the source will be published once the apps are out."),
 ]
 
+# Statements in the repository's Markdown that change at release time:
+# (switch, file, text now, text after). switch is "rel" (RELEASED) or "store"
+# (STORES_LIVE). When the switch is on, the site renders docs/ with the new
+# text, and `python3 site/build.py --release-docs` writes it into the files
+# (README.md and README.zh-CN.md are not on the site, so only that command
+# changes them). Each old text must occur exactly once, unless the new text is
+# already there (the command was run), so a document that changes under a rule
+# fails the build instead of keeping a stale statement.
+RELEASE_DOC_EDITS = [
+    ("rel", "README.md", "- No release has been published yet; build from source. Windows binaries are not code-signed yet.",
+     "- Releases are on [GitHub Releases](https://github.com/readori/RemoHop/releases), with every download listed at [remohop.com/en/download](https://remohop.com/en/download/); see [Install](docs/en/install.md). Windows binaries are not code-signed yet."),
+    ("rel", "README.zh-CN.md", "- 目前还没有发布版本，请从源码编译。Windows 二进制尚未做代码签名。",
+     "- 发布版本在 [GitHub Releases](https://github.com/readori/RemoHop/releases)，全部下载见 [remohop.com/download](https://remohop.com/download/)；安装方法见[安装](docs/zh/install.md)。Windows 二进制尚未做代码签名。"),
+    ("store", "README.md", "| Mobile | Android and iOS controller apps (no releases yet) |",
+     "| Mobile | Android and iOS controller apps (App Store, Google Play) |"),
+    ("store", "README.zh-CN.md", "| 移动端 | Android 和 iOS 控制端应用（尚无发布版本） |",
+     "| 移动端 | Android 和 iOS 控制端应用（App Store、Google Play） |"),
+    ("rel", "docs/en/install.md",
+     "Releases are built by the release workflow on every `v*` tag. No release has been published yet, so the download commands below work only from the first release; until then, [build from source](#from-source).",
+     "Releases are built by the release workflow on every `v*` tag and published on [GitHub Releases](https://github.com/readori/RemoHop/releases); the commands below always fetch the latest one. You can also [build from source](#from-source)."),
+    ("rel", "docs/zh/install.md",
+     "每次推送 `v*` 标签，发布工作流都会构建发布版本。目前还没有发布过任何版本，下面的下载命令要等首个发布版本之后才能用；在此之前请[从源码编译](#从源码编译)。",
+     "每次推送 `v*` 标签，发布工作流都会构建发布版本并发布到 [GitHub Releases](https://github.com/readori/RemoHop/releases)；下面的命令总是下载最新版本。也可以[从源码编译](#从源码编译)。"),
+    ("rel", "docs/en/platforms.md", "The `v*` tag release workflow has not run yet, no release has been published, and Windows binaries are unsigned.",
+     "Releases are published on GitHub Releases by the `v*` tag workflow; the macOS binary and `RemoHop.app` are signed and notarized, Windows binaries are unsigned."),
+    ("rel", "docs/zh/platforms.md", "推送 `v*` 标签触发的发布工作流还没有运行过，尚无已发布的版本，Windows 二进制也未签名。",
+     "发布版本由推送 `v*` 标签触发的发布工作流发布到 GitHub Releases；macOS 二进制和 `RemoHop.app` 已签名并经过公证，Windows 二进制未签名。"),
+    ("rel", "docs/security.md", "- There are no published releases yet. Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary.",
+     "- Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary and `RemoHop.app`."),
+    ("rel", "docs/en/quick-support.md", "`RemoHop.exe` and `RemoHop.app` are the same program as `remohop`;",
+     "Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.zip`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`;"),
+    ("rel", "docs/zh/quick-support.md", "`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；",
+     "每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.zip`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；"),
+    ("rel", "docs/en/quick-support.md", "`RemoHop.app` built here is unsigned;",
+     "The `RemoHop-macos.zip` download is signed with a Developer ID, notarized and stapled; a `RemoHop.app` you build yourself is unsigned;"),
+    ("rel", "docs/zh/quick-support.md", "这里构建出的 `RemoHop.app` 没有签名；",
+     "下载的 `RemoHop-macos.zip` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；"),
+    ("store", "docs/en/mobile-apps.md", "- There are no store releases yet. Build them yourself.",
+     "- Get them from the [App Store](https://apps.apple.com/app/id6838609056) and [Google Play](https://play.google.com/store/apps/details?id=com.remohop.app), or build them yourself."),
+    ("store", "docs/zh/mobile-apps.md", "- 目前没有商店发布版本，需要自己构建。",
+     "- 可以从 [App Store](https://apps.apple.com/app/id6838609056) 和 [Google Play](https://play.google.com/store/apps/details?id=com.remohop.app) 安装，也可以自己构建。"),
+]
+
+
+def release_edit(text, path, only_on=True):
+    """Applies the RELEASE_DOC_EDITS of one file whose switch is on."""
+    for k, (switch, f, old, new) in enumerate(RELEASE_DOC_EDITS):
+        if f != path or (only_on and not gates()[switch]):
+            continue
+        if new in text:  # already applied (the new text may contain the old one)
+            continue
+        n = text.count(old)
+        if n == 1:
+            text = text.replace(old, new)
+        else:
+            raise SystemExit(f"RELEASE_DOC_EDITS: {f} contains the text {n} times: {old[:70]!r}")
+    return text
+
+
+def release_docs():
+    """--release-docs: writes the switched-on RELEASE_DOC_EDITS into the files."""
+    changed = []
+    for f in sorted({e[1] for e in RELEASE_DOC_EDITS if gates()[e[0]]}):
+        p = ROOT / f
+        old = p.read_text(encoding="utf-8")
+        new = release_edit(old, f)
+        if new != old:
+            p.write_text(new, encoding="utf-8")
+            changed.append(f)
+    print("--release-docs: " + (", ".join(changed) if changed else "nothing to change")
+          + f" (RELEASED = {RELEASED}, STORES_LIVE = {STORES_LIVE})")
+
+
 # The first line of each guide page links to the other language; the site
 # header already has that switch.
 LANG_LINE = re.compile(r"^\[(?:中文|English)\]\([^)]*\)(?: · \[[^\]]*\]\([^)]*\))*[ \t]*\n", re.M)
@@ -292,25 +498,33 @@ def url(lang, slug):
     return f"{p}/{slug}/" if slug else f"{p}/"
 
 
+def gates():
+    """Marker name -> whether its blocks are shown (the "no" name gets the opposite)."""
+    return {"src": SOURCE_PUBLIC, "rel": RELEASED, "store": STORES_LIVE}
+
+
 def gate(text):
-    """Keeps or drops <!--src-->…<!--/src--> and <!--nosrc-->…<!--/nosrc-->
-    blocks according to SOURCE_PUBLIC. A block that fills whole lines takes
-    its line break with it. Blocks do not nest."""
-    for name in ("src", "nosrc"):
-        if text.count(f"<!--{name}-->") != text.count(f"<!--/{name}-->"):
-            raise SystemExit(f"unbalanced <!--{name}--> markers")
-    keep, drop = ("src", "nosrc") if SOURCE_PUBLIC else ("nosrc", "src")
-    inner = rf"(?:(?!<!--/?{drop}-->).)*"
-    text = re.sub(rf"^[ \t]*<!--{drop}-->{inner}<!--/{drop}-->[ \t]*\n", "", text, flags=re.S | re.M)
-    text = re.sub(rf"<!--{drop}-->{inner}<!--/{drop}-->", "", text, flags=re.S)
-    text = re.sub(rf"^[ \t]*<!--/?{keep}-->[ \t]*\n", "", text, flags=re.M)
-    return re.sub(rf"<!--/?{keep}-->", "", text)
+    """Keeps or drops <!--X-->…<!--/X--> and <!--noX-->…<!--/noX--> blocks for
+    each switch in gates(): src (SOURCE_PUBLIC), rel (RELEASED), store
+    (STORES_LIVE). A block that fills whole lines takes its line break with it.
+    Blocks of one kind do not nest; blocks of different kinds may."""
+    for base, on in gates().items():
+        for name in (base, "no" + base):
+            if text.count(f"<!--{name}-->") != text.count(f"<!--/{name}-->"):
+                raise SystemExit(f"unbalanced <!--{name}--> markers")
+        keep, drop = (base, "no" + base) if on else ("no" + base, base)
+        inner = rf"(?:(?!<!--/?{drop}-->).)*"
+        text = re.sub(rf"^[ \t]*<!--{drop}-->{inner}<!--/{drop}-->[ \t]*\n", "", text, flags=re.S | re.M)
+        text = re.sub(rf"<!--{drop}-->{inner}<!--/{drop}-->", "", text, flags=re.S)
+        text = re.sub(rf"^[ \t]*<!--/?{keep}-->[ \t]*\n", "", text, flags=re.M)
+        text = re.sub(rf"<!--/?{keep}-->", "", text)
+    return text
 
 
 def fill(text, lang):
     text = gate(text)
     text = text.replace("{{REPO}}", REPO).replace("{{EMAIL}}", EMAIL).replace("{{TELEGRAM}}", TELEGRAM).replace("{{UPDATED}}", UPDATED)
-    text = text.replace("{{SITE}}", SITE_URL)
+    text = text.replace("{{SITE}}", SITE_URL).replace("{{APP_STORE}}", APP_STORE).replace("{{GOOGLE_PLAY}}", GOOGLE_PLAY)
     # {{L:slug}} is the page in this language, {{E:slug}} the English one
     # (for the reference documents, which exist in English only).
     text = re.sub(r"\{\{L:([a-z0-9/-]*)\}\}", lambda m: url(lang, m.group(1)), text)
@@ -387,7 +601,8 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
     if not is_home:
         content = f'<div class="wrap {cls}">\n{content}\n</div>'
 
-    product = [f'<li><a href="{url(lang, s)}">{zh if lang == "zh" else en}</a></li>' for s, zh, en in NAV[:5]]
+    product = [f'<li><a href="{url(lang, s)}">{zh if lang == "zh" else en}</a></li>' for s, zh, en in NAV if s != "support"]
+    support = next(zh if lang == "zh" else en for s, zh, en in NAV if s == "support")
     if SOURCE_PUBLIC:
         product.append(f'<li><a href="{REPO}">{t["source"]}</a></li>')
 
@@ -427,7 +642,7 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
 <div>
 <h2>{t["f_contact"]}</h2>
 <ul>
-<li><a href="{url(lang, "support")}">{NAV[5][1] if lang == "zh" else NAV[5][2]}</a></li>
+<li><a href="{url(lang, "support")}">{support}</a></li>
 <li><a href="mailto:{EMAIL}">{EMAIL}</a></li>
 <li><a href="{TELEGRAM}" rel="noopener">Telegram</a></li>
 </ul>
@@ -479,7 +694,7 @@ class Docs:
 
     def source(self, rel):
         """The Markdown of docs/<rel>.md, with the pre-launch edits applied."""
-        text = (DOCS / f"{rel}.md").read_text(encoding="utf-8")
+        text = release_edit((DOCS / f"{rel}.md").read_text(encoding="utf-8"), f"docs/{rel}.md")
         if SOURCE_PUBLIC:
             return text
         for k, (key, old, new) in enumerate(PRELAUNCH_DOC_EDITS):
@@ -585,6 +800,11 @@ def main():
                 if "{{GUIDES}}" not in body:
                     raise SystemExit(f"src/{lang}/docs.html has no {{{{GUIDES}}}} placeholder")
                 body = body.replace("{{GUIDES}}", docs.index(lang))
+            if slug == "download":
+                for key, part in download_parts(lang).items():
+                    if f"{{{{DL:{key}}}}}" not in body:
+                        raise SystemExit(f"src/{lang}/download.html has no {{{{DL:{key}}}}} placeholder")
+                    body = body.replace(f"{{{{DL:{key}}}}}", part)
             dest = OUT / T[lang]["prefix"].lstrip("/") / slug / "index.html"
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(page(lang, slug, title, desc, body), encoding="utf-8")
@@ -639,9 +859,28 @@ def main():
                        if p.suffix in (".html", ".xml", ".txt") and needle in p.read_text(encoding="utf-8").lower())
         if leaks:
             raise SystemExit(f"SOURCE_PUBLIC is False but these files mention {needle}: {leaks}")
+    # Nothing may announce what is not out yet: no link into the releases before
+    # RELEASED, no store address before STORES_LIVE, and no gate marker left over.
+    generated = {p: p.read_text(encoding="utf-8") for p in OUT.rglob("*") if p.suffix in (".html", ".xml", ".txt")}
+    bad = []
+    for p, text in generated.items():
+        name = str(p.relative_to(OUT))
+        if not RELEASED and re.search(r'href="' + re.escape(REPO) + r'/releases', text):
+            bad.append(f"{name}: links to the releases but RELEASED is False")
+        if not STORES_LIVE and (APP_STORE in text or GOOGLE_PLAY in text):
+            bad.append(f"{name}: names a store address but STORES_LIVE is False")
+        if re.search(r"<!--/?(no)?(src|rel|store)-->", text):
+            bad.append(f"{name}: a gate marker is left over")
+    if bad:
+        raise SystemExit("\n".join(bad))
     pages = sum(len(e) for e in sitemap) + 2
-    print(f"wrote {pages} pages to {OUT} (SOURCE_PUBLIC = {SOURCE_PUBLIC})")
+    print(f"wrote {pages} pages to {OUT} (SOURCE_PUBLIC = {SOURCE_PUBLIC}, RELEASED = {RELEASED}, STORES_LIVE = {STORES_LIVE})")
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--release-docs"]:
+        release_docs()
+    elif sys.argv[1:]:
+        raise SystemExit("usage: build.py [--release-docs]")
+    else:
+        main()
