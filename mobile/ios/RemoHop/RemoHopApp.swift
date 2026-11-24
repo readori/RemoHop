@@ -12,7 +12,14 @@ struct RemoHopApp: App {
                 .environmentObject(model)
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active { model.ensureGateway() }
+            // iOS takes a suspended app's listening socket away, so the
+            // gateway's is closed on the way into the background and
+            // checked (reopened) on the way back, before the page needs it.
+            switch phase {
+            case .active: model.ensureGateway()
+            case .background: model.pauseGateway()
+            default: break
+            }
         }
     }
 }
@@ -28,27 +35,45 @@ final class AppModel: ObservableObject {
     @Published var fullscreen = false
     @Published var showSettings = false
 
+    /// Gateway calls run here in the order they were made (pausing on the
+    /// way into the background must not overtake the check on the way back).
+    private let gatewayQueue = DispatchQueue(label: "com.remohop.gateway", qos: .userInitiated)
+
     init() {
         ensureGateway()
     }
 
-    func ensureGateway() {
+    /// Makes sure the gateway answers (starting it, or reopening its
+    /// listener) and loads the page again only if its URL changed. `done`
+    /// (on the main actor) gets whether the gateway is up; the page's
+    /// "gateway.ensure" bridge call waits for it.
+    func ensureGateway(done: (@MainActor (Bool) -> Void)? = nil) {
         let device = UIDevice.current.model
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
-        Task.detached(priority: .userInitiated) {
-            do {
+        gatewayQueue.async {
+            let result = Result { () throws -> URL in
                 try Core.initialize(deviceName: device, appVersion: version)
-                let url = try Core.gatewayURL()
-                await MainActor.run {
+                return try Core.gatewayURL()
+            }
+            Task { @MainActor in
+                switch result {
+                case .success(let url):
                     if url != self.gatewayURL {
                         self.gatewayURL = url
                         self.loadID = UUID()
                     }
                     self.error = nil
+                    done?(true)
+                case .failure(let error):
+                    self.error = error.localizedDescription
+                    done?(false)
                 }
-            } catch {
-                await MainActor.run { self.error = error.localizedDescription }
             }
         }
+    }
+
+    /// The app is going to the background: close the gateway's listener.
+    func pauseGateway() {
+        gatewayQueue.async { Core.pauseGateway() }
     }
 }

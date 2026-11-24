@@ -20,6 +20,26 @@ class BridgeTest {
         override fun keyboard(show: Boolean) { calls += "keyboard:$show" }
         override fun haptic() { calls += "haptic" }
         override fun openSettings() { calls += "settings" }
+        var pending: ((Boolean) -> Unit)? = null
+        override fun ensureGateway(done: (Boolean) -> Unit) { calls += "ensure"; pending = done }
+    }
+
+    /** The page's "gateway.ensure" is answered once the app has checked the gateway. */
+    @Test fun ensureGatewayAnsweredLater() {
+        val h = FakeHost()
+        var out: String? = null
+        val b = Bridge(h, origin)
+        b.handle("""{"id":3,"method":"gateway.ensure"}""", "http://127.0.0.1:5001", true) { out = it }
+        assertTrue(h.calls.isEmpty())
+        b.handle("""{"id":3,"method":"gateway.ensure"}""", origin, true) { out = it }
+        assertEquals(listOf("ensure"), h.calls)
+        assertNull("answered before the gateway was checked", out)
+        h.pending!!(true)
+        assertEquals(3, JSONObject(out!!).getInt("id"))
+        assertTrue(JSONObject(out!!).has("result"))
+        b.handle("""{"id":4,"method":"gateway.ensure"}""", origin, true) { out = it }
+        h.pending!!(false)
+        assertEquals("gateway unavailable", JSONObject(out!!).getString("error"))
     }
 
     private fun call(host: FakeHost, msg: String, src: String? = origin, main: Boolean = true): JSONObject? {

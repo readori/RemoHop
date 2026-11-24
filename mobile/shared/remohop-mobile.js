@@ -715,6 +715,11 @@
       if (ws && !ws.hidden && nc && !nc.hidden) { nc.click(); return 'handled'; }
       return 'unhandled';
     },
+    // ensureGateway is called by the page (app.js) when a request got no
+    // answer at all: the app checks its in-process gateway, reopens the
+    // listening socket iOS takes from a suspended app, and resolves once
+    // the gateway answers (it loads the page again if the address changed).
+    ensureGateway() { return native.call('gateway.ensure'); },
     // Test and debugging hooks; they expose nothing the page cannot see.
     _desk: desk,
     _zoom: zoom,

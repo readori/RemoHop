@@ -96,6 +96,13 @@ struct GatewayWebView: UIViewRepresentable {
         func receive(_ message: WKScriptMessage, reply: @escaping @MainActor @Sendable (Any?, String?) -> Void) {
             let so = message.frameInfo.securityOrigin
             let source = Bridge.originString(protocol: so.protocol, host: so.host, port: so.port)
+            let async = bridge?.handleAsync(body: message.body, sourceOrigin: source, isMainFrame: message.frameInfo.isMainFrame) { result in
+                switch result {
+                case .success(let obj): reply(obj, nil)
+                case .failure(let e): reply(nil, e.message)
+                }
+            }
+            if async == true { return }
             guard let result = bridge?.handle(body: message.body, sourceOrigin: source, isMainFrame: message.frameInfo.isMainFrame) else {
                 reply(nil, "refused")
                 return
@@ -161,6 +168,8 @@ struct GatewayWebView: UIViewRepresentable {
         func haptic() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
 
         func openSettings() { model.showSettings = true }
+
+        func ensureGateway(done: @escaping @MainActor (Bool) -> Void) { model.ensureGateway(done: done) }
     }
 }
 

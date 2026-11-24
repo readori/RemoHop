@@ -141,7 +141,7 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 		InsecureSkipVerify: true, // see Options.Pin
 		VerifyPeerCertificate: auth.VerifyPeerKey(func(key ed25519.PublicKey) error {
 			if pin != nil && !pin.Equal(key) {
-				return fmt.Errorf("rendezvous server key %s does not match the pinned key", auth.EncodeKey(key))
+				return fmt.Errorf("rendezvous server key %s does not match the pinned key: %w", auth.EncodeKey(key), ErrPinMismatch)
 			}
 			c.key = key
 			return nil
@@ -158,6 +158,9 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 	})
 	if err != nil {
 		stopProbe()
+		if noALPN(err) {
+			return nil, wrongServer(ctx, sock.Transport(), ua, addr, err)
+		}
 		return nil, fmt.Errorf("rendezvous server %s unreachable: %w", addr, err)
 	}
 	c.q = q

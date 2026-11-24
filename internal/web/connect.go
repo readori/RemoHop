@@ -181,6 +181,10 @@ func classify(err error) *apiError {
 		return mk(http.StatusBadGateway, "host_unreachable")
 	case signal.CodeRateLimited:
 		return mk(http.StatusTooManyRequests, "rendezvous_rate_limited")
+	case signal.CodeIsHost: // the rendezvous setting names a host
+		return mk(http.StatusBadGateway, "signal_is_host")
+	case signal.CodeWrongProtocol:
+		return mk(http.StatusBadGateway, "signal_wrong_protocol")
 	}
 	switch {
 	case errors.Is(err, dial.ErrNoCredential):

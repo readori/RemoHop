@@ -30,6 +30,8 @@
       'host.logout': 'Sign out',
       'loading': 'Loading…',
       'gw.unreachable': 'Cannot reach the gateway: {msg}',
+      'gw.lost': 'The gateway is not answering.',
+      'gw.retry': 'Retry',
       'gw.ended.login': 'Your gateway session ended. Log in again.',
       'gw.ended.reload': 'The gateway session ended. Reload this page to start a new one.',
       'sess.ended': 'The session with {target} ended.',
@@ -289,6 +291,8 @@
       'host.logout': '退出登录',
       'loading': '正在加载…',
       'gw.unreachable': '无法连接网关：{msg}',
+      'gw.lost': '网关没有响应。',
+      'gw.retry': '重试',
       'gw.ended.login': '网关会话已结束，请重新登录。',
       'gw.ended.reload': '网关会话已结束，请刷新本页面开始新的会话。',
       'sess.ended': '与 {target} 的会话已结束。',
@@ -549,6 +553,9 @@
       'err.no_space': '被控端的磁盘空间不足。',
       'err.bad_name': '文件名无效。',
       'err.timeout': '超时。',
+      'err.gateway_unreachable': '网关没有响应，请重试。',
+      'err.signal_is_host': '设置里的会合服务器地址是一台 RemoHop 被控端，而不是会合服务器：请直接用该地址（host:port）连接它，并在设置中填写会合服务器的地址。',
+      'err.signal_wrong_protocol': '设置里的会合服务器地址不是 RemoHop 会合服务器，请检查设置。',
     },
   };
 

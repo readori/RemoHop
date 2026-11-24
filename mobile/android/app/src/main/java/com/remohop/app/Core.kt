@@ -30,14 +30,27 @@ object Core {
         initialized = true
     }
 
-    /** The gateway's URL with its token, starting the gateway if needed. */
+    /**
+     * The URL (with its token) of a gateway that has just answered a request
+     * from this process: started if needed, its listening socket reopened
+     * if it failed (see EnsureGateway in internal/mobile; Android does not
+     * take sockets from a frozen app the way iOS does, but the check is
+     * cheap). Blocks for at most a couple of seconds: call it off the UI
+     * thread. [generation] changes whenever the URL does, so a caller
+     * reloads its page only then.
+     */
     @Synchronized
     fun gatewayUrl(context: Context): String {
         init(context)
-        val u = url
-        if (u != null && Remohopcore.gatewayRunning()) return u
-        val fresh = Remohopcore.startGateway()
-        url = fresh
+        val fresh = Remohopcore.ensureGateway()
+        if (fresh != url) {
+            url = fresh
+            generation++
+        }
         return fresh
     }
+
+    /** Changes with the gateway's URL (a new gateway, or a new port). */
+    @Volatile var generation = 0
+        private set
 }

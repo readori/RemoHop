@@ -10,6 +10,13 @@ protocol BridgeHost: AnyObject {
     func keyboard(show: Bool)
     func haptic()
     func openSettings()
+    /// Makes sure the gateway answers (see AppModel.ensureGateway); `done`
+    /// gets whether it does. If its URL changed the page is loaded again.
+    func ensureGateway(done: @escaping @MainActor (Bool) -> Void)
+}
+
+extension BridgeHost {
+    func ensureGateway(done: @escaping @MainActor (Bool) -> Void) { Task { @MainActor in done(true) } }
 }
 
 struct BridgeError: Error, Equatable {
@@ -31,6 +38,24 @@ final class Bridge {
     init(host: BridgeHost, origin: String) {
         self.host = host
         self.origin = origin
+    }
+
+    /// Methods answered later rather than by `handle`:
+    ///
+    /// - "gateway.ensure": the page could not reach the gateway (remohop-mobile.js
+    ///   ensureGateway); the app checks it, reopens its listener if iOS took
+    ///   it away, and answers once the gateway answers again ({} or the error
+    ///   "gateway unavailable"). If the gateway's URL changed the app loads
+    ///   the page again instead.
+    ///
+    /// Returns false when the message is not one of these (or not for us);
+    /// then `handle` gets it.
+    func handleAsync(body: Any, sourceOrigin: String?, isMainFrame: Bool,
+                     reply: @escaping @MainActor (Result<[String: Any], BridgeError>) -> Void) -> Bool {
+        guard isMainFrame, sourceOrigin == origin, let msg = body as? [String: Any],
+              msg["method"] as? String == "gateway.ensure", let host else { return false }
+        host.ensureGateway { ok in reply(ok ? .success([:]) : .failure(BridgeError(message: "gateway unavailable"))) }
+        return true
     }
 
     /// Returns nil when the message is not for us (wrong origin or frame, or

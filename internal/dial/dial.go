@@ -730,7 +730,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		uctx, ucancel := context.WithTimeout(sctx, sopts.UDPWait(signalTimeout))
 		sc, err = signal.Dial(uctx, sock, addr, sopts)
 		ucancel()
-		if err != nil && ctx.Err() == nil && sopts.UseWS() {
+		if err != nil && ctx.Err() == nil && sopts.UseWS() && !signal.IsWrongServer(err) {
 			return nil, route{}, &errUseWS{err}
 		}
 	}

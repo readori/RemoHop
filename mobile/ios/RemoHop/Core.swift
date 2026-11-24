@@ -36,20 +36,38 @@ enum Core {
         initialized = true
     }
 
-    /// The gateway's URL (with its token), starting the gateway if needed.
+    /// The URL (with its token) of a gateway that has just answered a
+    /// request from this process: it is started if needed, and a listening
+    /// socket that iOS took away while the app was suspended is opened
+    /// again, on the same port when possible (see EnsureGateway in
+    /// internal/mobile). Blocks for at most a couple of seconds: call it
+    /// off the main thread. The caller reloads the page only if the URL
+    /// changed.
     static func gatewayURL() throws -> URL {
         lock.lock()
         defer { lock.unlock() }
-        if let url, RemohopcoreGatewayRunning() { return url }
         var err: NSError?
-        let s = RemohopcoreStartGateway(&err)
+        let s = RemohopcoreEnsureGateway(&err)
         if let err { throw err }
         guard let u = URL(string: s), GatewayURLs.origin(s) != nil else { throw Failure(message: "unexpected gateway address") }
         url = u
         return u
     }
 
+    /// Closes the gateway's listening socket before the app is suspended
+    /// (Apple's TN2277: a suspended app's listening sockets are taken away);
+    /// the host sessions stay, and `gatewayURL()` reopens it on return.
+    static func pauseGateway() {
+        lock.lock()
+        defer { lock.unlock() }
+        RemohopcorePauseGateway()
+    }
+
     static var gatewayRunning: Bool { RemohopcoreGatewayRunning() }
+
+    /// Tests only (GatewayE2ETests): breaks the listener the way iOS does to
+    /// a suspended app's socket, since the simulator never suspends the app.
+    static func breakListenerForTest(stall: Bool) { RemohopcoreBreakGatewayListenerForTest(stall) }
 
     // ---- settings screen ----
 

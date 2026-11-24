@@ -455,6 +455,11 @@ class HostSessionTest {
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
             Thread.sleep(cfg.backgroundSeconds * 1000L)
+            // What iOS does to a suspended app (and what broke the iOS app's
+            // "Connect" after a trip to another app): the gateway's listening
+            // socket goes away under it, unnoticed by the server. On return,
+            // onResume's EnsureGateway must find and reopen it on the same port.
+            Remohopcore.breakGatewayListenerForTest(true)
             inst.targetContext.startActivity(
                 Intent(inst.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
@@ -466,6 +471,12 @@ class HostSessionTest {
             Log.i(TAG, "terminal socket survived ${cfg.backgroundSeconds}s in background: $direct")
             sessionUsable(s, cfg, 8, 8, "after background")
             stage("background ${cfg.backgroundSeconds}s: session usable (open terminal worked directly: $direct)")
+
+            // 9. The owner's sequence: back from another app, then Connect.
+            disconnect(s)
+            connect(s, cfg.host, "", false)
+            sessionUsable(s, cfg, 9, 9, "connect after a lost listener")
+            stage("connect after the listener was lost in the background")
         }
     }
 

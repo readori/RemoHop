@@ -65,6 +65,8 @@ class MainActivity : Activity(), BridgeHost {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var fullscreen = false
     private var pageLang: String? = null
+    /** [Core.generation] of the URL the WebView has. */
+    private var loadedGen = -1
     private lateinit var saver: DownloadSaver
     private val bg = Executors.newSingleThreadExecutor()
     private val script by lazy { assets.open("remohop-mobile.js").bufferedReader().use { it.readText() } }
@@ -94,9 +96,34 @@ class MainActivity : Activity(), BridgeHost {
     private fun startGateway() {
         bg.execute {
             val url = runCatching { Core.gatewayUrl(this) }
+            val gen = Core.generation
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
-                url.onSuccess(::load).onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
+                url.onSuccess { loadedGen = gen; load(it) }.onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
+            }
+        }
+    }
+
+    /**
+     * Makes sure the gateway answers (reopening its listener if it failed)
+     * and loads the page again only if the gateway's URL changed. Runs on
+     * every return to the foreground and when the page asks (bridge
+     * "gateway.ensure"); [done] gets the outcome on the UI thread.
+     */
+    override fun ensureGateway(done: (Boolean) -> Unit) {
+        if (bg.isShutdown) return done(false)
+        bg.execute {
+            val url = runCatching { Core.gatewayUrl(this) }
+            val gen = Core.generation
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                val u = url.getOrNull()
+                if (u != null && (gen != loadedGen || origin == null)) {
+                    if (!::web.isInitialized || web.parent == null) newWebView()
+                    loadedGen = gen
+                    load(u)
+                }
+                done(u != null)
             }
         }
     }
@@ -258,10 +285,9 @@ class MainActivity : Activity(), BridgeHost {
         super.onResume()
         if (::web.isInitialized) web.onResume()
         syncLang()
-        // The gateway is process wide; if it stopped, start a new one.
-        if (origin != null) bg.execute {
-            if (!com.remohop.app.core.remohopcore.Remohopcore.gatewayRunning()) runOnUiThread { startGateway() }
-        }
+        // The gateway is process wide: check that it answers (it reopens a
+        // failed listener, or starts again) before the page needs it.
+        if (origin != null) ensureGateway {}
     }
 
     override fun onPause() {
