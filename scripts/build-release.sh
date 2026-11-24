@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # Builds the release assets that do not need a macOS machine: linux and windows
-# archives, .deb/.rpm/.apk packages. The macOS universal archive is made from the
-# signed binary by `build-release.sh darwin PATH`. SHA256SUMS, the SBOM and the
-# signature are made later by scripts/finalize-release.sh.
+# archives of remohop and of the quick-support program, .deb/.rpm/.apk packages and
+# the SBOM. The macOS universal archive is made from the signed binary by
+# `build-release.sh darwin PATH`, and the signed RemoHop.app zip is checked and
+# copied by `build-release.sh darwin-app ZIP`. SHA256SUMS and the signature are
+# made later (scripts/finalize-release.sh, then cosign in the release workflow).
 #
 # Usage:
-#   VERSION=v1.2.3 scripts/build-release.sh build      # make cross into dist/
+#   VERSION=v1.2.3 scripts/build-release.sh build      # make cross + quick apps into dist/
 #   VERSION=v1.2.3 scripts/build-release.sh package    # archives + packages into $OUT
 #   VERSION=v1.2.3 scripts/build-release.sh darwin /path/to/signed/universal/remohop
+#   VERSION=v1.2.3 scripts/build-release.sh darwin-app /path/to/RemoHop-macos.zip
 #   VERSION=v1.2.3 scripts/build-release.sh all        # build + package
 #
 # Environment:
@@ -65,6 +68,9 @@ step_build() {
 	for a in $LINUX_ARCHES; do targets="$targets linux/$a"; done
 	for a in $WINDOWS_ARCHES; do targets="$targets windows/$a"; done
 	make cross VERSION="$VERSION" CROSS_TARGETS="${targets# }"
+	# Quick support (RemoHop.exe, remohop-quick): same flags, see packaging/quick.
+	# RemoHop.app is built and signed on macOS by the signing workflow.
+	VERSION="$VERSION" OUT=dist/quick TARGETS="windows linux" sh packaging/quick/build.sh
 }
 
 licenses() {
@@ -103,6 +109,24 @@ step_package() {
 		rm -rf "$stage"
 	done
 
+	# Quick support: the double-click program with the same license files.
+	for a in $WINDOWS_ARCHES; do
+		[[ -f "dist/quick/windows-$a/RemoHop.exe" ]] || { echo "missing dist/quick/windows-$a/RemoHop.exe (run the build step)" >&2; exit 1; }
+		stage="$(mktemp -d)"
+		cp "dist/quick/windows-$a/RemoHop.exe" "$stage/RemoHop.exe"
+		stage_common "$stage"
+		make_zip "$OUT/RemoHop-windows-$a.zip" "$stage" RemoHop.exe LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		rm -rf "$stage"
+	done
+	for a in $LINUX_ARCHES; do
+		[[ -f "dist/quick/linux-$a/remohop-quick" ]] || { echo "missing dist/quick/linux-$a/remohop-quick (run the build step)" >&2; exit 1; }
+		stage="$(mktemp -d)"
+		cp "dist/quick/linux-$a/remohop-quick" "$stage/remohop-quick"; chmod 755 "$stage/remohop-quick"
+		stage_common "$stage"
+		make_tar "$OUT/remohop-quick_linux_$a.tar.gz" "$stage" remohop-quick LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		rm -rf "$stage"
+	done
+
 	# nfpm does not expand variables in file sources, so the binary is staged
 	# where packaging/nfpm.yaml expects it (packaging/stage is git-ignored).
 	local nfpm; nfpm="$(nfpm_bin)"
@@ -119,7 +143,9 @@ step_package() {
 	# SBOM: one for the release, from the binaries just built. (The macOS binary is
 	# the same source and module set; build tags only differ between OSes.)
 	scripts/sbom.sh "$VERSION" dist/remohop-linux-amd64 dist/remohop-linux-arm64 \
-		dist/remohop-windows-amd64.exe dist/remohop-windows-arm64.exe >"$OUT/remohop_sbom.cdx.json"
+		dist/remohop-windows-amd64.exe dist/remohop-windows-arm64.exe \
+		dist/quick/linux-amd64/remohop-quick dist/quick/linux-arm64/remohop-quick \
+		dist/quick/windows-amd64/RemoHop.exe dist/quick/windows-arm64/RemoHop.exe >"$OUT/remohop_sbom.cdx.json"
 }
 
 # The universal binary is built, signed and notarized on a macOS runner (see
@@ -135,10 +161,35 @@ step_darwin() {
 	rm -rf "$stage"
 }
 
+# RemoHop.app is signed, notarized, stapled and zipped (ditto) on a macOS runner;
+# the zip is released as it is, because unpacking and packing it again here could
+# lose what the signature covers. This checks what Linux can check and copies it.
+step_darwin_app() {
+	local zip="${1:?path to RemoHop-macos.zip}"
+	[[ -f "$zip" ]] || { echo "no such file: $zip" >&2; exit 1; }
+	local x; x="$(mktemp -d)"
+	unzip -q "$zip" -d "$x"
+	local app="$x/RemoHop.app/Contents" f
+	for f in Info.plist MacOS/RemoHop _CodeSignature/CodeResources Resources/RemoHop.icns \
+		Resources/LICENSE Resources/NOTICE Resources/THIRD_PARTY_LICENSES.txt; do
+		[[ -f "$app/$f" ]] || { echo "$zip: RemoHop.app/Contents/$f is missing" >&2; rm -rf "$x"; exit 1; }
+	done
+	# The stapled notarization ticket (stapler writes Contents/CodeResources).
+	[[ -f "$app/CodeResources" ]] || { echo "$zip: no stapled notarization ticket" >&2; rm -rf "$x"; exit 1; }
+	[[ "$(head -c 4 "$app/MacOS/RemoHop" | od -An -tx1 | tr -d ' \n')" == cafebabe ]] ||
+		{ echo "$zip: RemoHop is not a universal Mach-O" >&2; rm -rf "$x"; exit 1; }
+	grep -aqF -- "$VERSION" "$app/MacOS/RemoHop" || { echo "$zip: RemoHop does not carry $VERSION" >&2; rm -rf "$x"; exit 1; }
+	grep -qF '<string>com.remohop.quick</string>' "$app/Info.plist" || { echo "$zip: unexpected bundle identifier" >&2; rm -rf "$x"; exit 1; }
+	rm -rf "$x"
+	mkdir -p "$OUT"
+	cp "$zip" "$OUT/RemoHop-macos.zip"
+}
+
 case "${1:-}" in
 build) step_build ;;
 package) step_package ;;
 darwin) shift; step_darwin "$@" ;;
+darwin-app) shift; step_darwin_app "$@" ;;
 all) step_build; step_package ;;
-*) sed -n '2,20p' "$0"; exit 2 ;;
+*) sed -n '2,23p' "$0"; exit 2 ;;
 esac

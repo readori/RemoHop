@@ -2,8 +2,9 @@ name: Release
 
 # Pushing a tag such as v1.2.3 builds, signs and publishes everything:
 #
-#   build    linux + windows archives, .deb/.rpm/.apk, SBOM (scripts/build-release.sh)
-#   macos    signed + notarized universal binary, made in the public CI repository
+#   build    linux + windows archives (remohop and quick support), .deb/.rpm/.apk, SBOM
+#            (scripts/build-release.sh)
+#   macos    signed + notarized universal binary and RemoHop.app (stapled), made in the public CI repository
 #            (readori/test-env-setup, sodesk-macos-release.yml: CI file names keep the pre-rename prefix) where the Apple secrets live
 #   publish  adds installers, SHA256SUMS, a keyless cosign signature, then the GitHub release
 #   docker   multi-arch rendezvous-server image to ghcr.io, signed, with SBOM + provenance
@@ -65,7 +66,9 @@ jobs:
       - name: Sign Windows binaries (hook)
         env:
           WINDOWS_SIGNING: ${{ vars.WINDOWS_SIGNING }}
-        run: scripts/sign-windows.sh dist/remohop-windows-amd64.exe dist/remohop-windows-arm64.exe
+        run: |
+          scripts/sign-windows.sh dist/remohop-windows-amd64.exe dist/remohop-windows-arm64.exe \
+            dist/quick/windows-amd64/RemoHop.exe dist/quick/windows-arm64/RemoHop.exe
 
       - name: Package (archives, .deb, .rpm, .apk, SBOM)
         run: VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh package
@@ -116,19 +119,23 @@ jobs:
 
       # The artifact crossed repositories, so check what can be checked on a Linux machine: the
       # hashes the signing run recorded, that it is a universal Mach-O, and that it carries this
-      # release's version string. (codesign and Gatekeeper were verified in the signing run.)
-      - name: Check the downloaded binary
+      # release's version string; for RemoHop.app also the bundle layout and the stapled ticket
+      # (build-release.sh darwin-app). codesign and Gatekeeper were verified in the signing run.
+      - name: Check the downloaded binary and app
         run: |
           set -eu
           cd macos
           sha256sum -c SHA256SUMS-macos
+          grep -q ' RemoHop-macos.zip$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.zip (is the CI repo's workflow up to date?)"; exit 1; }
           [ "$(head -c 4 remohop | od -An -tx1 | tr -d ' \n')" = cafebabe ] || { echo "::error::remohop is not a universal Mach-O"; exit 1; }
           grep -aqF -- "$TAG" remohop || { echo "::error::remohop does not carry version $TAG"; exit 1; }
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: macos-signed
-          path: macos/remohop
+          path: |
+            macos/remohop
+            macos/RemoHop-macos.zip
           if-no-files-found: error
 
   publish:
@@ -160,14 +167,15 @@ jobs:
           name: macos-signed
           path: macos
 
-      - name: Add the macOS archive, installers and SHA256SUMS
+      - name: Add the macOS archive and app, installers and SHA256SUMS
         env:
-          # Only a deliberate SKIP_MACOS run may lack the macOS archive.
-          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz' || '' }}
+          # Only a deliberate SKIP_MACOS run may lack the macOS files.
+          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz RemoHop-macos.zip' || '' }}
         run: |
           set -eu
           if [ -f macos/remohop ]; then
             VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin macos/remohop
+            VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin-app macos/RemoHop-macos.zip
           fi
           scripts/finalize-release.sh assets
 
