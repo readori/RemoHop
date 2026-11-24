@@ -73,7 +73,10 @@ class SessionService : Service() {
             }
             return START_NOT_STICKY
         }
-        val n = notification(str(R.string.session_connected_generic))
+        // A second start (two SessionWatch checks can race before onCreate
+        // sets running) must not put the generic text back: update() only
+        // posts when the text changes, so it would stay generic.
+        val n = notification(lastText ?: str(R.string.session_connected_generic))
         val type = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, n, type)
