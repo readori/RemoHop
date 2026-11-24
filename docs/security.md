@@ -253,6 +253,8 @@ The Windows VPN client needs the Wintun driver. `remohop` does not ship or downl
 
 The Android and iOS apps are controllers only. Each is a native shell with a WebView on an in-process `remohop web` gateway, so the [browser gateway](#browser-gateway) caveats apply, with the gateway running on the phone. The access token is in the URL the app loads. The apps keep their identity and pairings in the app's private directory. The iOS app has only run in the iOS Simulator in CI, and the Android app has had no real-device test.
 
+The gateway's loopback listener is closed and reopened during the app's life: iOS takes the listening socket of a suspended app away, so the iOS app closes it on the way into the background and reopens it on return, and both apps reopen it when it stops answering. It is reopened on the same port with the same token, so the page keeps working. While it is closed another app on the device could take that port, and then it could receive the page's next requests, which carry the token. So when the gateway cannot have its port back it moves to a new port **and a new token**, and the old token stops working everywhere; the page is loaded again on the new address. The health check that decides this is a request from the app to its own listener that carries no token.
+
 ## Local listeners on the client
 
 Several commands open a listener on this machine. All of them bind to `127.0.0.1` by default:
