@@ -14,7 +14,8 @@ For a tag `vX.Y.Z` the release has these assets (names carry no version, so
 | `remohop_darwin_universal.tar.gz` (arm64 + x86_64, Developer ID signed, notarized) | built and signed in the CI repo, wrapped by `build-release.sh darwin` |
 | `remohop_windows_{amd64,arm64}.zip` (unsigned for now) | `build-release.sh package` |
 | `RemoHop-windows-{amd64,arm64}.zip`: quick support, `RemoHop.exe` (unsigned for now) | `build-release.sh build` (via `packaging/quick/build.sh`) + `package` |
-| `RemoHop-macos.zip`: quick support, `RemoHop.app` universal, Developer ID signed, notarized, stapled (`ditto` zip) | built, signed, notarized and stapled in the CI repo, checked and copied by `build-release.sh darwin-app` |
+| `RemoHop-macos.dmg`: quick support, the usual Mac download: disk image with `RemoHop.app` and an Applications link; the image and the app are Developer ID signed, notarized and stapled |
+| `RemoHop-macos.zip`: the same `RemoHop.app` as a `ditto` zip (signed, notarized, stapled), for scripts and tools that want a zip | built, signed, notarized and stapled in the CI repo, checked and copied by `build-release.sh darwin-app` |
 | `remohop-quick_linux_{amd64,arm64}.tar.gz`: quick support for Linux | `build-release.sh build` + `package` |
 | `remohop_<ver>_{amd64,arm64}.deb`, `remohop-<ver>-1.{x86_64,aarch64}.rpm`, `remohop_<ver>_{x86_64,aarch64}.apk` | nfpm, from `packaging/nfpm.yaml` |
 | `remohop_sbom.cdx.json` | `scripts/sbom.sh` (CycloneDX, from `go version -m`) |

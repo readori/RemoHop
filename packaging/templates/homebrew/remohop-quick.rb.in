@@ -5,9 +5,9 @@
 # The token is not "remohop" so that it cannot be confused with the formula (the CLI).
 cask "remohop-quick" do
   version "@VERSION_NOV@"
-  sha256 "@SHA_MACOS_APP@"
+  sha256 "@SHA_MACOS_DMG@"
 
-  url "https://github.com/@REPO@/releases/download/@TAG@/RemoHop-macos.zip",
+  url "https://github.com/@REPO@/releases/download/@TAG@/RemoHop-macos.dmg",
       verified: "github.com/@REPO@/"
   name "RemoHop"
   desc "Quick support: share this Mac with someone who is helping you"

@@ -20,7 +20,7 @@ cp packaging/install.ps1 "$dir/install.ps1"
 # list of names that may be absent (the release workflow sets it only for SKIP_MACOS).
 for must in remohop_linux_amd64.tar.gz remohop_linux_arm64.tar.gz remohop_darwin_universal.tar.gz \
 	remohop_windows_amd64.zip remohop_windows_arm64.zip \
-	RemoHop-windows-amd64.zip RemoHop-windows-arm64.zip RemoHop-macos.zip \
+	RemoHop-windows-amd64.zip RemoHop-windows-arm64.zip RemoHop-macos.zip RemoHop-macos.dmg \
 	remohop-quick_linux_amd64.tar.gz remohop-quick_linux_arm64.tar.gz; do
 	[[ -f "$dir/$must" ]] || {
 		if [[ " ${ALLOW_MISSING:-} " == *" $must "* ]]; then echo "warning: $must is missing (allowed)" >&2

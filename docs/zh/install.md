@@ -39,7 +39,7 @@
 | 系统 | 文件 | 然后 |
 |---|---|---|
 | Windows 10/11 | `RemoHop-windows-amd64.zip`（ARM64：`RemoHop-windows-arm64.zip`） | 解压，双击 `RemoHop.exe`；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”） |
-| macOS 12+ | `RemoHop-macos.zip`（Apple 芯片和 Intel） | 解压，打开 `RemoHop.app`；已用 Developer ID 签名、经 Apple 公证并附带公证票据 |
+| macOS 12+ | `RemoHop-macos.dmg`（Apple 芯片和 Intel） | 打开后把 `RemoHop.app` 拖到“应用程序”文件夹，再从那里打开；已用 Developer ID 签名、经 Apple 公证并附带公证票据 |
 | Linux | `remohop-quick_linux_amd64.tar.gz`（ARM64：`..._arm64.tar.gz`） | 解压，运行 `./remohop-quick` |
 
 下载地址都是 `https://github.com/readori/RemoHop/releases/latest/download/<文件名>`，都列在发布页的 `SHA256SUMS` 里。Microsoft Store 版本正在准备中。
