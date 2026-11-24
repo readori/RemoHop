@@ -1,6 +1,6 @@
 // Package peertest gives service packages a real client<->host session to
 // test against without rendezvous, hole punching or passwords: two QUIC
-// endpoints on loopback wired straight into peer.NewConn.
+// endpoints on loopback wired straight into the session layer.
 //
 // It is test support only. Nothing outside _test.go files may import it,
 // because the sessions it creates are unauthenticated.
@@ -19,6 +19,7 @@ import (
 
 	"github.com/quic-go/quic-go"
 
+	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer"
 )
 
@@ -41,6 +42,9 @@ func PairWith(t testing.TB, services *peer.Registry) (client, host *peer.Conn) {
 type Options struct {
 	// Authorize is passed to the host's peer.Options.
 	Authorize func(service string) error
+	// NoStart returns the host end unstarted (peer.New): it serves no
+	// stream until the test calls Start.
+	NoStart bool
 }
 
 // PairOpts is PairWith with host options.
@@ -98,12 +102,18 @@ func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *p
 		}
 	}
 
-	host = peer.NewConn(peer.QUICMux(hq), peer.Options{
+	host = peer.New(peer.QUICMux(hq), peer.Options{
 		Role:      peer.RoleHost,
 		RemoteID:  "test-client",
 		Services:  services,
 		Authorize: o.Authorize,
 	})
+	// Like a host daemon's session with full access; a test that wants a
+	// granted session attaches its own guard.
+	grant.AttachFull(host)
+	if !o.NoStart {
+		host.Start()
+	}
 	client = peer.NewConn(peer.QUICMux(cq), peer.Options{
 		Role:     peer.RoleClient,
 		RemoteID: "test-host",

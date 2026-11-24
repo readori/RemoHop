@@ -523,9 +523,12 @@ func (a *App) Disconnect(id int) error {
 }
 
 // SetOption switches one of Options ("input", "files", "advanced"). It
-// applies at once, also to helpers already connected: what they have open
-// that is no longer allowed stops at the service's next check, and nothing
-// new of it can be opened.
+// applies at once, also to helpers already connected, before SetOption
+// returns: nothing new of what is switched off can be opened, and what
+// they have open with it ends (terminals, file transfers, forwards, ...;
+// see hostd.WatchFeature). Switching "input" off leaves the screen
+// showing: an open desktop stream lets go of any key or button the helper
+// holds, takes no more input and tells the helper's viewer so.
 func (a *App) SetOption(name string, on bool) error {
 	a.mu.Lock()
 	switch name {
@@ -539,7 +542,11 @@ func (a *App) SetOption(name string, on bool) error {
 		a.mu.Unlock()
 		return fmt.Errorf("unknown option %q", name)
 	}
+	h := a.host
 	a.mu.Unlock()
+	if h != nil {
+		h.PolicyChanged()
+	}
 	a.log.Info("option changed", "option", name, "on", on)
 	a.wake()
 	return nil

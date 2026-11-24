@@ -1,6 +1,6 @@
 module github.com/readori/RemoHop
 
-go 1.26.0
+go 1.26.11
 
 require (
 	filippo.io/cpace v0.0.0-20210101143347-24d601e2e469

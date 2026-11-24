@@ -17,9 +17,9 @@ jobs:
     name: fmt, vet and race tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
 
@@ -47,15 +47,37 @@ jobs:
       - name: go test -race
         run: make race
 
+  # Known vulnerabilities reachable from our code, in dependencies and in the Go
+  # toolchain itself (go.mod's `go` line selects it). A failure here usually means
+  # a new Go patch release: raise the `go` line in go.mod and mobile/go.mod.
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+
+      - name: govulncheck (main module and the mobile module)
+        run: |
+          go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
+          cd mobile && go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
+
   # The real binary across two Linux-kernel NATs in network namespaces: a
-  # session only works if hole punching does.
+  # session only works if hole punching does. The lab checks after every
+  # mode that the runner's own network (root namespace, systemd-resolved,
+  # /etc/hosts) is untouched; bounded twice so that a lab that does break
+  # the runner fails in minutes instead of losing it for an hour.
   natlab:
     name: NAT traversal end to end
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
 
@@ -65,7 +87,8 @@ jobs:
           sudo apt-get install -y iproute2 iptables fuse3 curl python3
 
       - name: Run the NAT lab
-        run: sudo env "PATH=$PATH" "HOME=$HOME" test/natlab/natlab.sh all
+        timeout-minutes: 25
+        run: sudo env "PATH=$PATH" "HOME=$HOME" timeout 1200 test/natlab/natlab.sh all
 
   cross:
     name: build ${{ matrix.target }}
@@ -80,9 +103,9 @@ jobs:
           - darwin/arm64
           - windows/amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
 

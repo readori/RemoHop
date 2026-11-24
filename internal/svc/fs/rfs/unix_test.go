@@ -13,10 +13,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer/peertest"
 )
 
@@ -179,5 +181,211 @@ func TestAbandonedUploadCreatesNothing(t *testing.T) {
 	time.Sleep(300 * time.Millisecond) // give the handlers every chance
 	if ents, _ := os.ReadDir(dir); len(ents) != 0 {
 		t.Fatalf("abandoned uploads left %v", ents)
+	}
+}
+
+// A resumable upload must not write through a partial file that is a link
+// to somewhere outside the session's grant (audit finding 3).
+func TestGrantPartialUploadConfined(t *testing.T) {
+	root, outside := grantDirs(t)
+	c := newGrantedClient(t, "files:write:"+root)
+	ctx := tctx(t)
+	dst := filepath.Join(root, "f")
+	victim := filepath.Join(outside, "victim")
+	// A link named like a partial file, made by the session if it can,
+	// or planted on the host.
+	part := filepath.Join(root, PartialPrefix("f")+"x")
+	if err := c.Symlink(ctx, victim, part); err == nil {
+		t.Error("the session made a partial-named link to outside the root")
+	} else if err := os.Symlink(victim, part); err != nil {
+		t.Fatal(err)
+	}
+	c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: part, Offset: 0})
+	c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: part, Offset: 3})
+	// A hard link to the victim (same file system) is refused too.
+	hard := filepath.Join(root, PartialPrefix("f")+"h")
+	if err := os.Link(victim, hard); err == nil {
+		c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: hard, Offset: 0})
+	}
+	// A partial file in another directory is refused whatever its name.
+	c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: filepath.Join(outside, PartialPrefix("f")+"x")})
+	wantUntouched(t, outside)
+	if b, err := os.ReadFile(victim); err != nil || string(b) != "precious" {
+		t.Fatalf("victim: %q %v", b, err)
+	}
+}
+
+// swapGuard is a testGuard whose rules can be replaced, as reissuing a
+// grant replaces them on the host.
+type swapGuard struct {
+	testGuard
+	cur *atomic.Pointer[grant.Rules]
+}
+
+func (g swapGuard) File(ctx context.Context, op string, a grant.Access, p string) error {
+	return testGuard{g.cur.Load()}.File(ctx, op, a, p)
+}
+func (g swapGuard) FileScope() (*grant.Scope, error) { return g.cur.Load().Scope(), nil }
+
+// breakUpload sends n bytes to dst through the partial file of key and
+// then breaks the upload, and returns the partial file's path once the
+// host has written all of it.
+func breakUpload(t *testing.T, c *Client, dst, key string, n int) string {
+	t.Helper()
+	ctx := tctx(t)
+	part, err := c.PartialPath(ctx, dst, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx2, cancel := context.WithCancel(ctx)
+	pr, pw := io.Pipe()
+	go func() {
+		pw.Write(bytes.Repeat([]byte("a"), n))
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+		pw.CloseWithError(errors.New("source broke"))
+	}()
+	if _, err := c.Upload(ctx2, dst, pr, PutOptions{Partial: part, PartialKey: key}); err == nil {
+		t.Fatal("broken upload succeeded")
+	}
+	for i := 0; i < 100; i++ {
+		if fi, err := os.Stat(part); err == nil && fi.Size() == int64(n) {
+			return part
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("partial file not kept")
+	return ""
+}
+
+// Resumable uploads under a grant: the host names the partial file, binds
+// it to the grant credential and opens it only as a regular file inside
+// the root (audit finding 3).
+func TestGrantPartialResume(t *testing.T) {
+	root, outside := grantDirs(t)
+	r1, _ := grant.Parse([]string{"files:write:" + root}, nil)
+	var cur atomic.Pointer[grant.Rules]
+	cur.Store(r1)
+	g := swapGuard{cur: &cur}
+	c := newGuardedClient(t, g)
+	ctx := tctx(t)
+	dst := filepath.Join(root, "f")
+	n := 2 * bulkChunk
+
+	// Disconnect and resume, from a new session on the same grant.
+	part := breakUpload(t, c, dst, "k1", n)
+	if !strings.HasPrefix(filepath.Base(part), PartialPrefix("f")) || filepath.Dir(part) != root {
+		t.Fatalf("partial path %s", part)
+	}
+	c.Close()
+	c = newGuardedClient(t, g)
+	if p2, _ := c.PartialPath(ctx, dst, "k1"); p2 != part {
+		t.Fatalf("same key, same grant, different file: %s vs %s", p2, part)
+	}
+	if p2, _ := c.PartialPath(ctx, dst, "k2"); p2 == part {
+		t.Fatal("different key, same file")
+	}
+	// A client-chosen name is not accepted under a grant (old clients
+	// then upload normally), nor a key with a name not derived from it.
+	_, err := c.Upload(ctx, dst, strings.NewReader("b"), PutOptions{Partial: part, Offset: int64(n)})
+	wantErrno(t, err, syscall.ENOTSUP)
+	_, err = c.Upload(ctx, dst, strings.NewReader("b"), PutOptions{Partial: part, PartialKey: "k2", Offset: int64(n)})
+	wantErrno(t, err, syscall.EINVAL)
+	_, err = c.Upload(ctx, dst, strings.NewReader("b"), PutOptions{Partial: part, PartialKey: "../x", Offset: int64(n)})
+	wantErrno(t, err, syscall.EINVAL)
+	os.WriteFile(filepath.Join(root, PartialPrefix("f")+"stale"), []byte("old"), 0o600)
+	if _, err := c.Upload(ctx, dst, strings.NewReader("bc"), PutOptions{Partial: part, PartialKey: "k1", Offset: int64(n)}); err != nil {
+		t.Fatalf("resume: %v", err)
+	}
+	if b, _ := os.ReadFile(dst); len(b) != n+2 || string(b[n:]) != "bc" {
+		t.Fatalf("resumed content: %d bytes", len(b))
+	}
+	if ents, _ := os.ReadDir(root); len(ents) != 2 { // in.txt, f
+		t.Fatalf("partials left: %v", ents)
+	}
+
+	// A link (symbolic or hard) where the host's partial name is, to a
+	// file outside: refused, the outside file untouched.
+	victim := filepath.Join(outside, "victim")
+	part, _ = c.PartialPath(ctx, dst, "k3")
+	os.Symlink(victim, part)
+	_, err = c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: part, PartialKey: "k3"})
+	wantErrno(t, err, syscall.EINVAL)
+	os.Remove(part)
+	if os.Link(victim, part) == nil {
+		_, err = c.Upload(ctx, dst, strings.NewReader("overwritten"), PutOptions{Partial: part, PartialKey: "k3"})
+		wantErrno(t, err, syscall.EINVAL)
+		os.Remove(part)
+	}
+	wantUntouched(t, outside)
+
+	// Concurrent writers: the second takes the file over (the first is
+	// aborted), never both writing it.
+	pr, pw := io.Pipe()
+	part, _ = c.PartialPath(ctx, dst, "k4")
+	first := make(chan error, 1)
+	go func() {
+		_, err := c.Upload(ctx, dst, pr, PutOptions{Partial: part, PartialKey: "k4"})
+		first <- err
+	}()
+	pw.Write(bytes.Repeat([]byte("a"), bulkChunk))
+	for i := 0; ; i++ {
+		if fi, err := os.Stat(part); err == nil && fi.Size() > 0 {
+			break
+		}
+		if i > 100 {
+			t.Fatal("no partial file")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, err := c.Upload(ctx, dst, strings.NewReader("new"), PutOptions{Partial: part, PartialKey: "k4", Offset: bulkChunk}); err != nil {
+		t.Fatalf("takeover: %v", err)
+	}
+	pw.CloseWithError(errors.New("gone"))
+	if err := <-first; err == nil {
+		t.Fatal("the abandoned upload succeeded too")
+	}
+
+	// The grant is reissued: the old partial file is not the new
+	// credential's, and the session from before is refused.
+	part = breakUpload(t, c, dst, "k5", n)
+	r2, _ := grant.Parse([]string{"files:write:" + root}, nil)
+	cur.Store(r2)
+	if _, err := c.Stat(ctx, dst); err == nil || !strings.Contains(err.Error(), "reissued") {
+		t.Fatalf("old session after reissue: %v", err)
+	}
+	c = newGuardedClient(t, g)
+	p2, err := c.PartialPath(ctx, dst, "k5")
+	if err != nil || p2 == part {
+		t.Fatalf("reissued grant resumes the old partial file: %s %v", p2, err)
+	}
+	if _, err := c.Upload(ctx, dst, strings.NewReader("fresh"), PutOptions{Partial: p2, PartialKey: "k5"}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(dst); string(b) != "fresh" {
+		t.Fatalf("content after reissue: %d bytes", len(b))
+	}
+	// ... and the install cleaned up the old credential's partial file.
+	if _, err := os.Stat(part); !os.IsNotExist(err) {
+		t.Fatalf("old partial file left: %v", err)
+	}
+
+	// An upload in flight when the grant is reissued is not installed.
+	pr, pw = io.Pipe()
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.Upload(ctx, filepath.Join(root, "g"), pr, PutOptions{})
+		done <- err
+	}()
+	pw.Write([]byte("data"))
+	time.Sleep(100 * time.Millisecond)
+	r3, _ := grant.Parse([]string{"files:write:" + root}, nil)
+	cur.Store(r3)
+	pw.Close()
+	if err := <-done; err == nil || !strings.Contains(err.Error(), "reissued") {
+		t.Fatalf("upload across a reissue: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "g")); !os.IsNotExist(err) {
+		t.Fatal("upload across a reissue was installed")
 	}
 }

@@ -40,6 +40,8 @@ func opAccess(op byte, r *request) (name string, a grant.Access, ok bool) {
 		return "realpath", grant.Meta, true
 	case opStatFS:
 		return "statfs", grant.Meta, true
+	case opPartial:
+		return "partial-name", grant.Meta, true
 	case opOpenDir:
 		return "list", grant.Read, true
 	case opReadFile:

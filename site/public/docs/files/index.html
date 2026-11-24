@@ -59,7 +59,8 @@ remohop dev cp -rp :project .
 remohop dev send report.pdf
 remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site</code></pre>
 <ul>
-<li><code>cp</code> 和 <code>sync</code> 传输 8 MiB 及以上的文件中断后，重新执行同一条命令会接着传（<code>--no-resume</code> 则从头开始）。<code>sync --perms</code> 原样复制权限位。</li>
+<li><code>cp</code> 和 <code>sync</code> 传输 8 MiB 及以上的文件中断后，重新执行同一条命令会接着传（<code>--no-resume</code> 则从头开始）。<code>sync --perms</code> 原样复制权限位。上传时，隐藏的续传临时文件由被控端根据源文件、目标和会话凭据自行命名；使用<a href="/en/docs/agents/#grants">授权</a>时，重新签发的凭据会从头开始传，早于此版本的客户端在授权下不能续传（改为整份上传）。</li>
+<li>在限定目录的授权下，所有文件操作都限制在这些目录之内：指向目录外的符号链接和 Windows 目录联接（junction）不会被跟随，新建的链接必须指向同一个授权目录之内，授权目录本身不能被删除或替换，在两个不同授权目录之间移动或建立硬链接会返回 <code>EXDEV</code>（<code>mv</code> 会改为复制）。</li>
 <li><code>send</code> 把文件投递到远程用户的“下载”目录，从不覆盖：重名时保存为 <code>name (1).ext</code>。</li>
 </ul>
 <p>把远程目录挂载到本地，让编辑器和构建工具直接读写：</p>

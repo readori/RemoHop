@@ -950,3 +950,62 @@ func TestApprovalInHandshake(t *testing.T) {
 		t.Fatalf("login after denials: %v %v", serr, cerr)
 	}
 }
+
+// A host that hands out its password with a generation learns which
+// generation a login proved (none for the alternative password), and its
+// approver's refusal reaches the client with the approver's code. That is
+// how a host spends a one-time password atomically before the welcome.
+func TestPasswordGenerationAndApproverCode(t *testing.T) {
+	cb, hb := testBinding(t)
+	gen := uint64(7)
+	srv := &Server{
+		PasswordGen: func() (string, uint64) { return "onetimeaa", gen },
+		AltPassword: func() string { return "fixedpassword" },
+		Limiter:     NewLimiter(LimiterConfig{}),
+	}
+	try := func(pw string, approve Approver) (*Result, error, error) {
+		cc, hc := net.Pipe()
+		type out struct {
+			res *Result
+			err error
+		}
+		done := make(chan out, 1)
+		go func() {
+			hello, err := srv.ReadHello(hc)
+			if err != nil {
+				done <- out{nil, err}
+				hc.Close()
+				return
+			}
+			res, err := srv.Complete(bg, hc, hello, hb, testSrc, approve)
+			done <- out{res, err}
+			hc.Close()
+		}()
+		cerr := ClientHandshake(cc, cb, PasswordCredential(pw), "")
+		cc.Close()
+		o := <-done
+		return o.res, o.err, cerr
+	}
+	res, serr, cerr := try("onetimeaa", nil)
+	if serr != nil || cerr != nil || res.PasswordGen != 7 || res.AltPassword {
+		t.Fatalf("primary: %+v %v %v", res, serr, cerr)
+	}
+	res, serr, cerr = try("fixedpassword", nil)
+	if serr != nil || cerr != nil || res.PasswordGen != 0 || !res.AltPassword {
+		t.Fatalf("alternative: %+v %v %v", res, serr, cerr)
+	}
+	// The approver sees the generation and refuses with its own code.
+	var seen uint64
+	_, serr, cerr = try("onetimeaa", func(res *Result, _ func() error) error {
+		seen = res.PasswordGen
+		return &Error{Code: CodeAuthFailed}
+	})
+	if seen != 7 || CodeOf(serr) != CodeAuthFailed || CodeOf(cerr) != CodeAuthFailed {
+		t.Fatalf("spent at the approver: seen %d, server %v, client %v", seen, serr, cerr)
+	}
+	// Any other error is a denial, as before.
+	_, _, cerr = try("onetimeaa", func(*Result, func() error) error { return errors.New("no") })
+	if CodeOf(cerr) != CodeDenied {
+		t.Fatalf("plain approver error: %v", cerr)
+	}
+}

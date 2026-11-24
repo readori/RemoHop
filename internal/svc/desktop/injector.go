@@ -89,13 +89,16 @@ func (h *hostInjector) retarget(spec captureSpec) {
 	}
 }
 
-func (h *hostInjector) typeText(text string) error {
+func (h *hostInjector) typeText(text string, stop func() bool) error {
 	// Typing must not combine with modifiers the viewer still holds.
 	if err := h.inj.ReleaseAll(); err != nil {
 		return err
 	}
 	var skipped int
 	for _, r := range text {
+		if stop() {
+			return nil
+		}
 		if _, ok := inject.RuneKeysym(r); !ok {
 			skipped++
 			continue

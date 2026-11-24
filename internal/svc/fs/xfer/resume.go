@@ -39,8 +39,15 @@ const ResumeMin = 8 << 20
 // never share one (the second simply does not resume).
 
 func partialName(base, src string, e *entry) string {
+	return rfs.PartialPrefix(base) + partialKey(src, e)
+}
+
+// partialKey identifies a source for resuming: its path, size and
+// modification time. Uploads hand it to the host, which names the partial
+// file itself (rfs.Client.PartialPath).
+func partialKey(src string, e *entry) string {
 	h := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%d\x00%d", src, e.size, e.mtime.UnixNano())))
-	return rfs.PartialPrefix(base) + hex.EncodeToString(h[:8])
+	return hex.EncodeToString(h[:8])
 }
 
 // hashLocal is the hex SHA-256 of n bytes of a local file at offset 0.
@@ -83,8 +90,20 @@ func uploadResumable(ctx context.Context, c *rfs.Client, sp, dp string, e *entry
 	if info, err := c.Info(ctx); err == nil && info.OS == "windows" {
 		return false, nil // no file locks there, so no partial files
 	}
-	dir, base := path.Split(dp)
-	part := dir + partialName(base, sp, e)
+	// The host names the partial file; a host from before that
+	// (ENOSYS) takes the name the client derives.
+	key := partialKey(sp, e)
+	part, err := c.PartialPath(ctx, dp, key)
+	if errors.Is(err, syscall.ENOSYS) {
+		dir, base := path.Split(dp)
+		part, key, err = dir+partialName(base, sp, e), "", nil
+	}
+	if err != nil {
+		if ctx.Err() == nil && cannotResume(err) {
+			return false, nil
+		}
+		return true, err
+	}
 	f, err := os.Open(sp)
 	if err != nil {
 		return true, err
@@ -99,7 +118,7 @@ func uploadResumable(ctx context.Context, c *rfs.Client, sp, dp string, e *entry
 	if _, err := f.Seek(off, io.SeekStart); err != nil {
 		return true, err
 	}
-	opts.Partial, opts.Offset = part, off
+	opts.Partial, opts.PartialKey, opts.Offset = part, key, off
 	prog.addResumed(off)
 	sent := &Progress{}
 	if _, err := c.Upload(ctx, dp, countingReader{countingReader{f, sent}, prog}, opts); err != nil {

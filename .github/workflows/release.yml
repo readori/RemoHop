@@ -37,8 +37,44 @@ env:
   CI_WORKFLOW: sodesk-macos-release.yml
 
 jobs:
+  # The commit being released must pass the checks first: formatting, vet, the
+  # unit tests and govulncheck (reachable vulnerabilities in the code and the Go
+  # toolchain). Nothing is built, signed or published unless this job passes.
+  verify:
+    name: verify the tagged commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+
+      - name: gofmt and vet
+        run: |
+          set -eu
+          go version
+          test -z "$(gofmt -l .)" || { gofmt -l .; echo "::error::gofmt"; exit 1; }
+          for os in linux darwin windows; do CGO_ENABLED=0 GOOS=$os go vet ./...; done
+
+      # The same tools the CI workflow installs for the integration tests.
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fuse3 xvfb xclip xsel ffmpeg
+
+      - name: Unit tests
+        run: go test -count=1 ./...
+
+      - name: govulncheck
+        run: |
+          set -eu
+          go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
+          (cd mobile && go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...)
+
   build:
     name: build linux and windows
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

@@ -227,3 +227,42 @@ func TestWaitHandlersAfterClose(t *testing.T) {
 		t.Fatal("WaitHandlers timed out after the handler returned")
 	}
 }
+
+// A connection made with New serves nothing until Start, so whatever its
+// owner attaches in between is in place for the very first stream, even
+// one the remote side opened at once.
+func TestNoStreamBeforeStart(t *testing.T) {
+	type key struct{}
+	reg := peer.NewRegistry()
+	reg.Handle("probe", func(_ context.Context, c *peer.Conn, s peer.Stream, _ json.RawMessage) error {
+		v, _ := c.Value(key{})
+		ready, _ := v.(string)
+		_, err := s.Write([]byte(ready + "\n"))
+		return err
+	})
+	client, host := peertest.PairOpts(t, reg, peertest.Options{NoStart: true})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	got := make(chan string, 1)
+	go func() {
+		s, err := client.Open(ctx, "probe", nil)
+		if err != nil {
+			got <- "open: " + err.Error()
+			return
+		}
+		defer s.Close()
+		b, _ := io.ReadAll(s)
+		got <- strings.TrimSpace(string(b))
+	}()
+	select {
+	case g := <-got:
+		t.Fatalf("stream served before Start: %q", g)
+	case <-time.After(300 * time.Millisecond):
+	}
+	host.SetValue(key{}, "ready")
+	host.Start()
+	host.Start() // idempotent
+	if g := <-got; g != "ready" {
+		t.Fatalf("first stream saw %q, want %q", g, "ready")
+	}
+}

@@ -86,7 +86,7 @@ func (s *Session) limits() Limits {
 		return l
 	}
 	l.Grant = s.grant
-	e, err := s.host.activeGrant(s.grant)
+	e, err := s.activeGrant()
 	if err != nil {
 		l.Error = err.Error()
 		return l

@@ -148,6 +148,7 @@ type Host struct {
 
 	mu           sync.Mutex
 	temp         string // generated temporary password
+	tempGen      uint64 // its generation: bumped whenever temp is replaced
 	approvals    []*Approval
 	nextApproval int
 	relays       map[netip.AddrPort]time.Time // relay addresses bound for clients
@@ -236,6 +237,8 @@ func New(cfg Config) (*Host, error) {
 	if cfg.Services == nil {
 		cfg.Services = peer.HostServices
 	}
+	// A stream ends when its feature is withdrawn (revoke.go).
+	cfg.Services = cfg.Services.Wrapped(guardStream)
 	dir := cfg.Dir
 	if dir == "" {
 		var err error
@@ -270,8 +273,9 @@ func New(cfg Config) (*Host, error) {
 	if h.temp, err = auth.GeneratePassword(); err != nil {
 		return nil, err
 	}
+	h.tempGen = 1
 	h.auth = &auth.Server{
-		Password:    func() string { pw, _ := h.passwords(); return pw },
+		PasswordGen: h.primaryPassword,
 		AltPassword: func() string { _, alt := h.passwords(); return alt },
 		Tokens:      h.tokens,
 		Limiter:     auth.NewLimiter(cfg.Limiter),
@@ -366,6 +370,19 @@ func (h *Host) passwords() (primary, alt string) {
 	return temp, fixed
 }
 
+// primaryPassword is the auth.Server's PasswordGen hook: passwords' primary
+// password, with the temporary password's generation if that is what it
+// is, or 0 for the fixed password.
+func (h *Host) primaryPassword() (string, uint64) {
+	fixed := h.fixedPassword()
+	if fixed != "" && !h.policy().otp {
+		return fixed, 0
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.temp, h.tempGen
+}
+
 // Password is a password clients can log in with now, in canonical form:
 // the temporary one if it is accepted, else the fixed one.
 func (h *Host) Password() string {
@@ -409,6 +426,7 @@ func (h *Host) RotatePassword() error {
 	}
 	h.mu.Lock()
 	h.temp = pw
+	h.tempGen++
 	h.mu.Unlock()
 	h.notify()
 	return nil
@@ -705,7 +723,7 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 	src := remote.Addr()
 
 	slot := h.gate.enter(src, func() { q.CloseWithError(closeBusy, "too many pending logins") })
-	res, err := h.authenticate(ctx, q, remote, slot)
+	sess, err := h.authenticate(ctx, q, remote, slot)
 	if err != nil {
 		// Close first, then free the slot: whatever the connection holds
 		// stays accounted for until it is really gone. The refusal is in
@@ -726,44 +744,20 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 		return
 	}
 	h.gate.leave(slot)
-	if res.Kind == auth.KindPassword && !res.AltPassword && h.policy().otp {
-		// One-time: the password that just worked is spent.
-		if err := h.RotatePassword(); err != nil {
-			h.log.Error("could not replace the one-time password", "err", err)
-		}
-	}
 
-	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant,
-		used: map[perm.Feature]bool{}, Path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
-	who := "key " + auth.Fingerprint(res.ClientKey)
-	label := who
-	if res.TokenName != "" {
-		label = res.TokenName
-	}
-	conn := peer.NewConn(peer.QUICMux(q), peer.Options{Role: peer.RoleHost, RemoteID: label, Services: h.cfg.Services, Authorize: sess.authorize})
-	sess.conn = conn
-	conn.SetValue(sessionKey{}, sess)
-	if sess.grant != "" {
-		grant.Attach(conn, sessionGuard{sess})
-	}
-
-	h.mu.Lock()
-	h.nextSession++
-	sess.id = h.nextSession
-	full := h.admitGrantLocked(sess)
-	h.sessions[sess] = struct{}{}
-	h.mu.Unlock()
-	if full != nil {
-		conn.CloseWithReason(full.Error())
-	}
+	// The session was set up and admitted (admit) before the client was
+	// welcomed; only now does it serve the streams the client opens.
+	res, conn, label := sess.Auth, sess.conn, sess.conn.RemoteID()
 	h.log.Info("session opened", "client", label, "identity", auth.Fingerprint(res.ClientKey), "from", remote, "auth", res.Kind, "path", sess.Path)
 	h.audit.add("login", sess.fields("result", "accepted", "path", sess.Path)...)
+	if testHookSessionBuilt != nil {
+		testHookSessionBuilt()
+	}
+	conn.Start()
 
 	<-conn.Done()
 
-	h.mu.Lock()
-	delete(h.sessions, sess)
-	h.mu.Unlock()
+	h.dropSession(sess)
 	h.log.Info("session closed", "client", label, "from", remote, "duration", time.Since(sess.Started).Round(time.Second))
 	h.audit.add("session-end", sess.fields("duration", time.Since(sess.Started).Round(time.Second).String())...)
 	// Handlers undo what they set up once the session is gone (a USB
@@ -773,6 +767,109 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 		h.log.Warn("service handlers still running after the session closed", "client", label)
 	}
 }
+
+// admit is the final step of a login, after the credential has checked out
+// and the owner has approved, and before the client is welcomed. It sets the
+// session up completely (identity, grant guard or the mark of full access)
+// on a connection that serves nothing yet, and then, in one step under
+// h.mu, makes the last checks and registers the session:
+//
+//   - a granted session's grant is still active and still the one its
+//     credential was issued for, and has a session to spare;
+//   - a pairing token still exists;
+//   - the password a password login proved is still the one in force, and
+//     a one-time password is spent here, so that of several logins racing
+//     with it exactly one gets in.
+//
+// A login refused here never serves a stream and is not recorded as
+// accepted. On success the caller starts the connection once the client has
+// been welcomed, or drops the session if that fails.
+func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result) (*Session, error) {
+	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant,
+		used: map[perm.Feature]bool{}, Path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
+	label := "key " + auth.Fingerprint(res.ClientKey)
+	if res.TokenName != "" {
+		label = res.TokenName
+	}
+	conn := peer.New(peer.QUICMux(q), peer.Options{Role: peer.RoleHost, RemoteID: label, Services: h.cfg.Services, Authorize: sess.authorize})
+	sess.conn = conn
+	conn.SetValue(sessionKey{}, sess)
+	if sess.grant != "" {
+		grant.Attach(conn, sessionGuard{sess})
+	} else {
+		grant.AttachFull(conn)
+	}
+
+	denied := func(err error) (*Session, error) {
+		h.log.Info("login refused at admission", "from", remote, "reason", err)
+		if sess.grant != "" {
+			h.audit.add("grant-refused", "from", remote.String(), "identity", auth.Fingerprint(res.ClientKey), "grant", sess.grant, "reason", err.Error())
+		}
+		return nil, &auth.Error{Code: auth.CodeDenied}
+	}
+	maxSessions := 0
+	if sess.grant != "" {
+		e, err := h.grantFor(sess.grant, res.TokenID)
+		if err != nil {
+			return denied(err)
+		}
+		maxSessions = e.g.MaxSessions
+	}
+	if res.Kind == auth.KindToken {
+		if ok, err := h.tokens.Exists(res.TokenID); err != nil || !ok {
+			return nil, &auth.Error{Code: auth.CodeUnknownToken}
+		}
+	}
+	otp := h.policy().otp
+	var next string
+	if res.Kind == auth.KindPassword && res.PasswordGen != 0 && otp {
+		var err error
+		if next, err = auth.GeneratePassword(); err != nil {
+			h.log.Error("could not replace the one-time password", "err", err)
+			return nil, &auth.Error{Code: auth.CodeBusy}
+		}
+	}
+
+	h.mu.Lock()
+	if sess.grant != "" {
+		if err := h.grantFullLocked(sess.grant, maxSessions); err != nil {
+			h.mu.Unlock()
+			return denied(err)
+		}
+	}
+	if res.Kind == auth.KindPassword && res.PasswordGen != 0 {
+		if res.PasswordGen != h.tempGen {
+			// Replaced since the client proved it: spent by a login
+			// that got here first, or changed by the owner.
+			h.mu.Unlock()
+			return nil, &auth.Error{Code: auth.CodeAuthFailed}
+		}
+		if next != "" {
+			// One-time: spent by this login.
+			h.temp = next
+			h.tempGen++
+		}
+	}
+	h.nextSession++
+	sess.id = h.nextSession
+	h.sessions[sess] = struct{}{}
+	h.mu.Unlock()
+	if next != "" {
+		h.notify()
+	}
+	return sess, nil
+}
+
+// dropSession removes a session from the live ones.
+func (h *Host) dropSession(s *Session) {
+	h.mu.Lock()
+	delete(h.sessions, s)
+	h.mu.Unlock()
+}
+
+// testHookSessionBuilt, set only by tests, runs in serveConn once a
+// session's connection exists and before the session is ready to serve.
+var testHookSessionBuilt func()
 
 // handlerCleanup bounds how long a closed session's service handlers may
 // take to clean up before the host stops waiting for them.
@@ -851,8 +948,9 @@ func LoginRefusal(err error) *auth.Error {
 	return e
 }
 
-// authenticate runs the login handshake on the connection's first stream.
-func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.AddrPort, slot *pending) (*auth.Result, error) {
+// authenticate runs the login handshake on the connection's first stream
+// and returns the session it admitted (see admit), set up but not started.
+func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.AddrPort, slot *pending) (*Session, error) {
 	src := remote.Addr()
 	hctx, cancel := context.WithTimeout(ctx, helloTimeout)
 	defer cancel()
@@ -879,6 +977,7 @@ func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.Addr
 	lctx, cancel := context.WithTimeout(ctx, loginTimeout)
 	defer cancel()
 	st.SetDeadline(time.Now().Add(loginTimeout))
+	var sess *Session
 	approve := func(res *auth.Result, announce func() error) error {
 		if res.Grant != "" {
 			if err := h.grantLogin(res); err != nil {
@@ -887,20 +986,35 @@ func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.Addr
 				return err
 			}
 		}
-		if !h.policy().needsApproval(res) {
-			return nil
+		if h.policy().needsApproval(res) {
+			// The client has proven its credential: it is no stranger any
+			// more, and its wait is bounded by the approval timeout and
+			// maxApprovals rather than by the login gate.
+			h.gate.leave(slot)
+			st.SetDeadline(time.Now().Add(h.cfg.AskTimeout + DefaultAskTimeout + loginTimeout))
+			if err := announce(); err != nil {
+				return err
+			}
+			if err := h.ask(ctx, q.Context().Done(), res, remote); err != nil {
+				return err
+			}
 		}
-		// The client has proven its credential: it is no stranger any
-		// more, and its wait is bounded by the approval timeout and
-		// maxApprovals rather than by the login gate.
-		h.gate.leave(slot)
-		st.SetDeadline(time.Now().Add(h.cfg.AskTimeout + DefaultAskTimeout + loginTimeout))
-		if err := announce(); err != nil {
-			return err
-		}
-		return h.ask(ctx, q.Context().Done(), res, remote)
+		var err error
+		sess, err = h.admit(q, remote, res)
+		return err
 	}
-	return h.auth.Complete(lctx, st, hello, binding, src, approve)
+	res, err := h.auth.Complete(lctx, st, hello, binding, src, approve)
+	if err != nil {
+		if sess != nil {
+			// Admitted, but the client never heard: it is not in.
+			h.dropSession(sess)
+		}
+		return nil, err
+	}
+	if sess == nil || sess.Auth != res {
+		return nil, errors.New("login completed without admission")
+	}
+	return sess, nil
 }
 
 // revocationLoop ends sessions whose pairing token has been revoked.

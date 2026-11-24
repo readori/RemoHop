@@ -13,7 +13,9 @@ import (
 //
 //	host -> client: wire frames
 //	  'H' JSON Hello       before the first video frame and again whenever
-//	                       the encoder restarts with different parameters
+//	                       the encoder restarts with different parameters,
+//	                       or the host's owner switches input off or on
+//	                       (Hello.Input; the encoder is restarted for it)
 //	  'V' video            frameHeaderLen-byte header + one frame: an AV1
 //	                       temporal unit, or an H.264 access unit as
 //	                       length-prefixed NAL units (as in MP4)
@@ -246,7 +248,11 @@ type Hello struct {
 	ScreenWidth  int `json:"screen_width,omitempty"`
 	ScreenHeight int `json:"screen_height,omitempty"`
 	// Input reports whether the host accepts input on this session;
-	// InputError says why not.
+	// InputError says why not. It can change during the session: when
+	// the host's owner switches keyboard and mouse off, the host releases
+	// whatever the client holds, ignores input from then on and sends a
+	// new Hello with Input false; switched back on, another Hello brings
+	// input back.
 	Input      bool   `json:"input"`
 	InputError string `json:"input_error,omitempty"`
 	// Warning is a non-fatal problem worth showing (e.g. capturing an

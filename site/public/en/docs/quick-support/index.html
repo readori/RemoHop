@@ -73,11 +73,27 @@
 <p><code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; started without arguments they run <code>remohop quick</code>.</p>
 <p>What the person at the computer gets:</p>
 <ul>
-<li><strong>The ID and a temporary password, large,</strong> with Copy buttons and "Create a new password". The password is new on every start; the ID stays the same for the computer.</li>
-<li><strong>A question for every connection.</strong> The right password is not enough: each login waits until they press Allow, and is refused after 60 seconds without an answer. The request shows the name the other side gave itself, its device key (the fingerprint of its identity key) and its address. On Windows and macOS the same question also appears as a system dialog on top of everything else, so it is not missed when the window is buried; either place answers.</li>
-<li><strong>Who is connected,</strong> each with a Disconnect button, and <strong>Stop sharing</strong>, which ends every session and quits. Closing the window stops sharing too.</li>
-<li><strong>Three switches</strong> for what an allowed helper may do besides seeing the screen: use the mouse and keyboard (on), transfer files and use the clipboard (on), run commands and reach the network: terminal, port forwarding, VPN, serial, USB (off). They apply at once, also to a helper who is already connected.</li>
-<li><strong>The state of the connection in plain words:</strong> registered with the server or not, still trying, and whether helpers come directly or through the relay.</li>
+<li>
+<p><strong>The ID and a temporary password, large,</strong> with Copy buttons and "Create a new password". The password is new on every start; the ID stays the same for the computer.</p>
+</li>
+<li>
+<p><strong>A question for every connection.</strong> The right password is not enough: each login waits until they press Allow, and is refused after 60 seconds without an answer. The request shows the name the other side gave itself, its device key (the fingerprint of its identity key) and its address. On Windows and macOS the same question also appears as a system dialog on top of everything else, so it is not missed when the window is buried; either place answers.</p>
+</li>
+<li>
+<p><strong>Who is connected,</strong> each with a Disconnect button, and <strong>Stop sharing</strong>, which ends every session and quits. Closing the window stops sharing too.</p>
+</li>
+<li>
+<p><strong>Three switches</strong> for what an allowed helper may do besides seeing the screen: use the mouse and keyboard (on), transfer files and use the clipboard (on), run commands and reach the network: terminal, port forwarding, VPN, serial, USB (off). They apply at once, also to a helper who is already connected, and the helper cannot open again what is switched off:</p>
+<ul>
+<li><em>Mouse and keyboard</em> off: the helper keeps seeing the screen. Any key or button the helper is holding is let go, nothing the helper types or clicks reaches the computer any more, and the helper's viewer switches to view-only, told so by this computer. Ticked again, the helper can take control in the same session.</li>
+<li><em>Files and clipboard</em> off: file transfers in progress stop (a file that was still arriving is not saved), and file browsing and clipboard sharing end.</li>
+<li><em>Commands and network</em> off: running commands are stopped, an open terminal is closed, forwarded connections and the VPN are cut, serial ports and USB devices are released. Background jobs the helper started (<code>spawn</code>) keep running; Stop sharing does not end them either.</li>
+</ul>
+<p>The details for each kind of access are in <a href="/en/docs/host-access-control/#what-a-switch-does-to-sessions-already-connected">Host access control</a>.</p>
+</li>
+<li>
+<p><strong>The state of the connection in plain words:</strong> registered with the server or not, still trying, and whether helpers come directly or through the relay.</p>
+</li>
 </ul>
 <p>The window follows the system language (Chinese or English) and can be switched in its corner; the choice is remembered for the next start and also applies to the system's connection dialogs. <code>--lang zh|en</code> overrides both.</p>
 <p>You, the helper, connect as usual: <code>remohop &lt;ID&gt; desktop</code>, the browser client (<code>remohop web</code>) or the mobile app, with the password they read to you.</p>

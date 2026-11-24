@@ -71,7 +71,14 @@ Allow-list items:
 
 Anything not listed is refused, including pairing: a granted session cannot mint itself an ordinary pairing that would outlive the grant. The host's own feature switches (`remohop config feature NAME off`) still apply on top of every grant.
 
-File roots are checked after resolving symbolic links, both of the path and of its parent directory, so a link inside a root cannot lead out of it. Paths containing `..` are refused. Directories above a root may be looked at (stat) so a client can find its way to the root, but not listed.
+File roots are checked after resolving symbolic links (and, on Windows, junctions), both of the path and of its parent directory, so a link inside a root cannot lead out of it; a link whose target does not exist yet counts as the place a file created through it would land. Paths containing `..` are refused. Directories above a root may be looked at (stat) so a client can find its way to the root, but not listed.
+
+Each root is pinned when the host loads the grant: the file service does its work through a handle on that directory (Go's `os.Root`), which cannot be led out of it by a link or junction, even one swapped in after the check, and it remembers the directory's identity. If the root's path later names a different directory (it was moved, deleted or replaced by a link), everything below it is refused until you reissue the grant. Within a root, a granted session:
+
+- may not remove, rename or replace the root itself (its contents are fine);
+- may create symbolic links only if they point inside the same root (relative or absolute); links that already exist and point outside are not followed;
+- may create hard links only between files inside the same root; renames and hard links between two different roots fail with `EXDEV` (tools then copy);
+- resumes uploads (`cp`, `sync`) through partial files the host names itself, bound to the destination and to the grant's credential: a reissued grant starts such uploads over, and a partial file is used only if it is a regular file with a single link. Older clients cannot resume under a grant and upload whole files instead.
 
 With a command allow-list, a command must be a single simple command: `;`, `&`, `|`, `<`, `>`, parentheses and braces outside quotes, and `$`, backticks or line breaks anywhere, are refused, and custom environment variables are not accepted. Quotes group words as usual (`git commit -m "fix: x"` is fine).
 
@@ -97,6 +104,8 @@ remohop host grants --json
 remohop host revoke NAME        # delete it; its live sessions end at once
 remohop host grant NAME ...     # reissue: replaces the grant and its code; old sessions end
 ```
+
+Sessions on a reissued grant's old code never get the new rules: every check compares the session's credential with the grant's current one, so they are refused (and ended) at their next request, whether or not `remohop host grant` reached the running host.
 
 From the agent's machine, `remohop <ID> limits` shows what its credential allows.
 
@@ -247,7 +256,7 @@ Grants narrow what an authenticated client may do; they are enforced by the host
 - **A command allow-list is a guard rail, not a sandbox.** It decides which program is started. A permitted program that can run others (`git` with aliases, hooks or `-c`, `make`, `find -exec`, `npm run`, any interpreter) carries that power along. Allow such programs only when that is acceptable. Write access combines with this: an agent that may write in a repository can add git hooks or aliases (`.git/hooks`, `.git/config`) that an allowed `git` command then runs, and one that may write to a directory on `PATH` can plant a program under an allowed name. Do not give write roots that contain such files when you rely on the allow-list. The check assumes the host user's shell is POSIX-like (sh, bash, zsh, dash) or PowerShell.
 - **`shell` and `shell:run-only` without an allow-list can do anything the host's user can**, including reading and writing files outside the file roots. File roots only constrain the file tools. Combine roots with `--cmd`, or with no shell, when files matter.
 - **Background jobs are the host user's.** A granted session with `shell:run-only` can list and stop every background job on the host (it is logged), not only its own. Interactive terminals are separated: a granted session sees and attaches only to terminals it started.
-- **File roots are checked when an operation is asked for.** Another process on the host that swaps a symbolic link in at the same moment, or a hard link that already points outside, is not caught.
+- **File roots confine names, not files.** The file service cannot leave a root, but a hard link that the host's user (or other software) already put in a root shares its content with a file elsewhere, and a granted session can change that content. A root that is replaced is refused, but one that was already replaced before the host loaded the grant (or restarted) is taken as it is then. Keep roots to directories whose contents you control.
 - **Approvals rely on the person reading them.** Approving `exec: ./deploy.sh` approves whatever that script does.
 - **Recordings and the audit log live on the host**, readable by its user, and are as trustworthy as that account. A full-shell grant can, in principle, edit them; prefer `shell:run-only` with `--cmd` when the record matters.
 - **The agent's machine holds a credential.** Anyone who can read its `peers.json` and identity key can use the grant until it expires or is revoked. Keep grants short.

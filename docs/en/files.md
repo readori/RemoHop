@@ -14,7 +14,8 @@ remohop dev send report.pdf
 remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site
 ```
 
-- `cp` and `sync` resume an interrupted file of 8 MiB or more when you run the same command again (`--no-resume` starts over). `sync --perms` copies permission bits exactly.
+- `cp` and `sync` resume an interrupted file of 8 MiB or more when you run the same command again (`--no-resume` starts over). `sync --perms` copies permission bits exactly. When uploading, the host names the hidden partial file itself, from the source, the destination and the session's credential; with a [grant](../agents.md#grants) a reissued credential starts over, and clients older than this cannot resume under a grant (they send the whole file).
+- Under a grant with file roots, everything happens inside the roots: links and junctions that lead out are not followed, links created must point inside the same root, the root folder itself cannot be removed or replaced, and moving or linking between two different roots fails with `EXDEV` (`mv` then copies).
 - `send` delivers files to the remote user's Downloads folder and never overwrites: a taken name becomes `name (1).ext`.
 
 Mount a remote directory so local editors and build tools use it directly:

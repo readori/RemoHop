@@ -106,6 +106,9 @@ const (
 	opHash
 	opRealpath
 	opUserDir
+	// opPartial names the partial file of a resumable upload: Path is the
+	// destination, Kind the client's key; the reply's Str is the path.
+	opPartial
 )
 
 // Reply status (frame type of a reply).
@@ -209,6 +212,12 @@ type putReq struct {
 	// broken upload.
 	Partial string `json:"pt,omitempty"`
 	Off     int64  `json:"o,omitempty"`
+	// PartialKey is the key the partial file's name was derived from
+	// (opPartial). With it the host uses its own name, bound to the
+	// destination and to the session's grant, and Partial, if given,
+	// must be that name. Without it (clients before opPartial) Partial
+	// names the file, which only sessions with full access may do.
+	PartialKey string `json:"pk,omitempty"`
 }
 
 // bulkStatus is the payload of a bulk end frame sent by the host.

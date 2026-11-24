@@ -9,6 +9,7 @@ import (
 
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
 )
@@ -124,15 +125,15 @@ func (s *Session) authorize(service string) error {
 // session behind c. Services that offer more than their own feature covers
 // ask it for the rest: the desktop service is in "screen" and calls
 // Allowed(c, perm.Input) before it injects keyboard or mouse events, so
-// that a host with input off still shows its screen. A connection that is
-// not a session of a running Host (in tests, say) is not restricted.
+// that a host with input off still shows its screen, and WatchFeature to
+// learn when the answer changes while its stream is open. A connection that
+// is not a session of a running Host is restricted as grant.Of says: not at
+// all if it was marked as having full access (grant.AttachFull, as test
+// sessions are), entirely if nothing was set up for it.
 func Allowed(c *peer.Conn, feature perm.Feature) bool {
 	s := SessionOf(c)
 	if s == nil {
-		return true
+		return grant.Of(c) == nil
 	}
-	if s.grant != "" && !s.grantAllowsFeature(feature) {
-		return false
-	}
-	return !s.host.policy().off[feature]
+	return s.allows(s.host.policy(), feature)
 }

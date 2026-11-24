@@ -245,9 +245,11 @@ func TestGrantFiles(t *testing.T) {
 	wantRefusal(t, c.Rename(ctx, filepath.Join(out, "result.txt"), filepath.Join(proj, "moved")), "files:write is not allowed by grant reader")
 	wantRefusal(t, c.Link(ctx, filepath.Join(secret, "key"), filepath.Join(out, "hard")), "is not allowed by grant reader")
 	if runtime.GOOS != "windows" {
-		// A link made inside the writable root cannot be read through.
-		if err := c.Symlink(ctx, secret, filepath.Join(out, "esc")); err != nil {
-			t.Fatalf("symlink in write root: %v", err)
+		// A link out of the writable root cannot be made there, and
+		// one planted on the host cannot be read through.
+		wantRefusal(t, c.Symlink(ctx, secret, filepath.Join(out, "esc")), "must point inside its root")
+		if err := os.Symlink(secret, filepath.Join(out, "esc")); err != nil {
+			t.Fatal(err)
 		}
 		_, err = c.ReadFile(ctx, filepath.Join(out, "esc", "key"))
 		wantRefusal(t, err, "files:read is not allowed by grant reader")

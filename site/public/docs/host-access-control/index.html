@@ -63,7 +63,7 @@ remohop config otp on</code></pre>
 <tr><td>VPN 路由</td><td><code>remohop config vpn-exit on</code></td><td>允许 VPN 客户端访问被控机自身局域网以外的网络，并把被控机当作出口；默认关闭</td></tr>
 <tr><td>连接审批</td><td><code>remohop config ask on</code></td><td>每次密码登录都要在被控机上确认：在 <code>remohop host</code> 所在的终端回答，或用 <code>remohop host approve N</code> / <code>remohop host deny N</code></td></tr>
 <tr><td>已知客户端也要审批</td><td><code>remohop config ask-paired on</code></td><td>在 <code>ask on</code> 的基础上，已配对的客户端和已授权的密钥也需要审批</td></tr>
-<tr><td>一次性密码</td><td><code>remohop config otp on</code></td><td>临时密码每次登录后更换；<code>remohop otp</code> 打印当前密码，<code>remohop otp new</code> 立即更换</td></tr>
+<tr><td>一次性密码</td><td><code>remohop config otp on</code></td><td>临时密码每次登录后更换，多个同时使用它的登录只有一个能成功；被拒绝、无人应答或中途放弃的登录不会消耗它；<code>remohop otp</code> 打印当前密码，<code>remohop otp new</code> 立即更换</td></tr>
 <tr><td>固定密码</td><td><code>remohop passwd</code></td><td>设置固定密码，<code>--clear</code> 清除；<code>remohop status</code> 从不打印固定密码</td></tr>
 <tr><td>配对管理</td><td><code>remohop host paired</code>、<code>remohop host revoke NAME</code></td><td>列出、移除已配对的客户端和已授权的密钥</td></tr>
 <tr><td>USB 设备</td><td><code>remohop usb allow BUSID</code>、<code>remohop usb allowed</code></td><td>客户端挂接某个设备之前，必须先允许它</td></tr>
@@ -78,6 +78,25 @@ remohop config otp on</code></pre>
 remohop authorize "remohop-key ... laptop"
 remohop peers trust 276941009 "remohop-key ... host"</code></pre>
 <p>第一条和第三条在客户端执行，第二条在被控机上执行。<code>remohop key export --private FILE</code> 和 <code>remohop key import FILE --yes</code> 用于把身份迁移到另一台机器，<code>remohop key gen --yes</code> 生成新的身份。每项控制分别防范什么，见 <a href="/en/docs/security/">security.md</a>。</p>
+<h2 id="开关对已连接会话的作用">开关对已连接会话的作用</h2>
+<p>关闭某项功能后，新的请求立即被拒绝，已连接的客户端用这项功能打开的东西也会结束。用 <code>remohop config</code> 做的修改，被控端在四分之一秒内察觉；<a href="/docs/quick-support/">快速协助窗口</a>的开关在点击返回之前就已生效。不会自行结束的流在半秒后被切断。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="关闭的功能 / 已经打开的部分">
+<table>
+<thead><tr><th scope="col">关闭的功能</th><th scope="col">已经打开的部分</th></tr></thead>
+<tbody>
+<tr><td><code>input</code></td><td>已打开的远程桌面继续显示画面。被控端松开协助者按住的所有按键和鼠标按钮，此后不再接受协助者的键盘鼠标（包括“输入文字”、锁屏等主机控制），并通知查看器把会话显示为仅查看。重新打开后，同一个桌面会话恢复控制。仍在执行的输入命令（<code>remohop &lt;ID&gt; type</code>、<code>click</code> 等）会结束。</td></tr>
+<tr><td><code>screen</code></td><td>远程桌面、桌面声音和截图结束；查看器会说明是被控端主人关闭了屏幕。</td></tr>
+<tr><td><code>shell</code></td><td>正在运行的命令（<code>remohop &lt;ID&gt; shell -c ...</code>）连同其进程组被终止。已连接的终端在显示一条提示后结束（shell 被挂断，不保留以供重新连接）。此前已经分离的终端和后台任务（<code>spawn</code>）像客户端断开时一样继续在被控端运行，但在 <code>shell</code> 重新打开之前，任何客户端都无法访问它们。</td></tr>
+<tr><td><code>file</code></td><td>文件会话（浏览、<code>mount</code>）和进行中的传输结束。被中断的上传不会写入目标文件。</td></tr>
+<tr><td><code>clip</code></td><td>剪贴板的流结束。</td></tr>
+<tr><td><code>forward</code></td><td>转发的连接被切断，被控端上的反向转发监听被关闭，UDP 转发和唤醒请求结束。</td></tr>
+<tr><td><code>vpn</code></td><td>隧道结束。</td></tr>
+<tr><td><code>serial</code>、<code>usb</code></td><td>串口被关闭，已挂接的 USB 设备交还给被控端。</td></tr>
+<tr><td><code>info</code></td><td>系统信息请求结束。</td></tr>
+</tbody>
+</table>
+</div>
+<p>以授权（grant）登录的会话，在授权不再允许某项服务时也是如此。重新打开功能不会自动恢复任何东西，需要客户端重新打开（上面桌面的键盘鼠标是例外）。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/host-access-control.md">源文件（GitHub）</a></p>
 </div>
 </main>

@@ -14,6 +14,7 @@ import (
 
 	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer"
+	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/wire"
 )
 
@@ -454,9 +455,41 @@ func (s *session) serve(ctx context.Context, st peer.Stream, fw *frameWriter, cr
 	case <-inputDone:
 	case <-streamGone(st):
 	case <-ctx.Done():
+		if w, ok := perm.Withdrawn(context.Cause(ctx)); ok {
+			s.withdraw(att, w)
+			return nil
+		}
 	}
 	s.detach(att)
 	return nil
+}
+
+// withdrawWait bounds how long withdraw waits for the shell to exit before
+// it tells the client the terminal ended anyway (the host resets the
+// stream soon after a withdrawal; see internal/hostd).
+const withdrawWait = 300 * time.Millisecond
+
+// withdraw ends the session because the host's owner withdrew the shell
+// feature from the attached client: unlike a client that goes away, the
+// shell is not kept for re-attaching. The client is told why in the
+// terminal and then gets the exit.
+func (s *session) withdraw(att *attachment, why error) {
+	att.fw.frame(frameStdout, []byte("\r\n[remohop: "+why.Error()+"; this terminal was ended]\r\n"))
+	s.terminate()
+	select {
+	case <-att.done:
+		return
+	case <-time.After(withdrawWait):
+	}
+	s.mu.Lock()
+	current := s.att == att
+	if current {
+		s.att = nil
+	}
+	s.mu.Unlock()
+	if current {
+		att.finish(frameExit, &exitMsg{Code: -1})
+	}
 }
 
 // relayInput copies keystrokes and resizes from the client to the PTY for as

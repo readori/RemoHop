@@ -59,7 +59,8 @@ remohop dev cp -rp :project .
 remohop dev send report.pdf
 remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site</code></pre>
 <ul>
-<li><code>cp</code> and <code>sync</code> resume an interrupted file of 8 MiB or more when you run the same command again (<code>--no-resume</code> starts over). <code>sync --perms</code> copies permission bits exactly.</li>
+<li><code>cp</code> and <code>sync</code> resume an interrupted file of 8 MiB or more when you run the same command again (<code>--no-resume</code> starts over). <code>sync --perms</code> copies permission bits exactly. When uploading, the host names the hidden partial file itself, from the source, the destination and the session's credential; with a <a href="/en/docs/agents/#grants">grant</a> a reissued credential starts over, and clients older than this cannot resume under a grant (they send the whole file).</li>
+<li>Under a grant with file roots, everything happens inside the roots: links and junctions that lead out are not followed, links created must point inside the same root, the root folder itself cannot be removed or replaced, and moving or linking between two different roots fails with <code>EXDEV</code> (<code>mv</code> then copies).</li>
 <li><code>send</code> delivers files to the remote user's Downloads folder and never overwrites: a taken name becomes <code>name (1).ext</code>.</li>
 </ul>
 <p>Mount a remote directory so local editors and build tools use it directly:</p>

@@ -8,6 +8,7 @@
 package perm
 
 import (
+	"errors"
 	"sort"
 	"sync"
 )
@@ -96,4 +97,24 @@ func Services(f Feature) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// WithdrawnError says that the host's owner switched Feature off (or a
+// grant stopped allowing it) while a stream of it was open. The host
+// daemon cancels the context of such a stream's handler with it as the
+// cause, so a service can tell the client why it ends: see Withdrawn.
+type WithdrawnError struct{ Feature Feature }
+
+func (e *WithdrawnError) Error() string {
+	return "the host's owner switched feature \"" + string(e.Feature) + "\" off for this session"
+}
+
+// Withdrawn reports whether err, typically context.Cause of a handler's
+// context, is a WithdrawnError, and returns it.
+func Withdrawn(err error) (*WithdrawnError, bool) {
+	var w *WithdrawnError
+	if errors.As(err, &w) {
+		return w, true
+	}
+	return nil, false
 }

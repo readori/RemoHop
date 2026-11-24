@@ -274,10 +274,11 @@ final class GatewayE2ETests: XCTestCase {
             await pause(0.25)
         }
         web = try XCTUnwrap(found, "the app never showed its web view")
-        // REMOHOP_SHOTS_LANG ("zh" or "en") picks the app's language, as the
-        // Settings screen does; the store's zh-Hans page gets Chinese screens.
+        // REMOHOP_SHOTS_LANG ("zh" or "en") is the simulator's system language,
+        // set by CI before the run; the app follows the system, as it does by
+        // default, so the store's zh-Hans page gets Chinese screens.
         let lang = ProcessInfo.processInfo.environment["REMOHOP_SHOTS_LANG"] ?? "en"
-        UserDefaults.standard.set(lang == "zh" ? "zh" : "en", forKey: L10n.key)
+        UserDefaults.standard.set(AppLanguage.system.rawValue, forKey: L10n.key)
         try await require("the connect form", "document.getElementById('connect') && !document.getElementById('connect').hidden", timeout: 60)
         try await require("the injected script", "typeof window.remohopMobile === 'object'")
         try await require("the page in the chosen language", "document.documentElement.lang.indexOf(\(lit(lang == "zh" ? "zh" : "en"))) === 0", timeout: 15)
