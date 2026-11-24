@@ -305,8 +305,8 @@ func startLocked() (string, error) {
 		}
 	}
 	srv, err := web.New(web.Config{
-		Listen:    "127.0.0.1:0",
-		ConfigDir: d,
+		Listen:     "127.0.0.1:0",
+		ConfigDir:  d,
 		Dial:       dialGateway(d),
 		Pair:       pairGateway(d),
 		Persistent: true,
