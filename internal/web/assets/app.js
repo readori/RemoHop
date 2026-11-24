@@ -269,12 +269,16 @@
   // line otherwise. The gateway's technical text goes under "Details" (for
   // support), not in the message itself.
   function reasonKey(code, msg) {
+    if (code === 'bad_target') return 'reason.bad_target';
+    // Cases the gateway has no code for yet (they come as remote_error)
+    // are recognised by their words.
+    if (!code || code === 'remote_error') {
+      if (/no rendezvous server configured/i.test(msg)) return 'reason.no_rendezvous';
+      if (/unknown target /i.test(msg)) return 'reason.bad_target';
+      if (/no application protocol/i.test(msg)) return 'reason.signal_wrong_protocol';
+      if (/rendezvous server .*unreachable/i.test(msg)) return 'reason.rendezvous_unreachable';
+    }
     if (code && I.has('reason.' + code, 'en')) return 'reason.' + code;
-    // Older gateways (and cases without a code yet) say it only in words.
-    if (/no rendezvous server configured/i.test(msg)) return 'reason.no_rendezvous';
-    if (code === 'bad_target' || /^unknown target /i.test(msg)) return 'reason.bad_target';
-    if (/no application protocol/i.test(msg)) return 'reason.signal_wrong_protocol';
-    if (/rendezvous server .*unreachable/i.test(msg)) return 'reason.rendezvous_unreachable';
     return null;
   }
   function showConnErr(e) {

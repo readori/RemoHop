@@ -11,6 +11,9 @@
 }
 /* Icons (masks, so they take the text colour). */
 :root {
+  --i-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12H5M11 18l-6-6 6-6'/%3E%3C/svg%3E");
+  --i-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9.5'/%3E%3Cpath d='M12 7.5v5.5M12 16.4v.01'/%3E%3C/svg%3E");
+  --i-trash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6.5h16M9.5 6.5V4h5v2.5M6 6.5l1 14h10l1-14'/%3E%3C/svg%3E");
   --i-collapse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7'/%3E%3C/svg%3E");
   --i-back: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 5l-7 7 7 7'/%3E%3C/svg%3E");
   --i-power: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.36 6.64a9 9 0 1 1-12.73 0'/%3E%3Cpath d='M12 2v10'/%3E%3C/svg%3E");
@@ -250,208 +253,372 @@ dialog h2 { margin-top: 0; } #dlg-msg { overflow-wrap: anywhere; white-space: pr
 
 /* ==== App mode =========================================================
    The Android and iOS apps show this page in their web view and inject
-   mobile/shared/remohop-mobile.js, which sets html.app (and .insession while
-   a host session shows). Everything below is scoped to it: the browser
-   page above is unchanged. Native-feeling chrome: a compact top bar under
-   the status bar, grouped lists, segmented tabs, chip toolbars, 16px
-   fields (iOS zooms into smaller ones), 44px touch targets, help on
-   demand (the injected ⓘ sheet) instead of paragraphs. */
-html.app { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
-html.app body { font-size: 16px; min-height: 100vh; min-height: 100dvh; overscroll-behavior-y: none;
+   mobile/shared/remohop-mobile.js, which sets html.app (with .insession
+   while a host session shows) and the platform: .platform-android or
+   .platform-ios. Everything below is scoped to it; the browser page above
+   keeps the site's cobalt design.
+
+   One markup, two native idioms, from role tokens:
+   - Android: Material 3 (the cobalt-seeded scheme the native Settings use
+     when there is no dynamic colour): small top app bar, primary tabs,
+     outlined text fields, filled/tonal buttons, M3 switch, list items on
+     the surface with dividers (no cards), dialogs and bottom sheets.
+   - iOS: Apple HIG system colours with the cobalt tint: navigation bar,
+     segmented control, inset grouped lists, bordered buttons, iOS switch,
+     alerts and sheets.
+   Help is on demand (the injected ⓘ sheet), fields are 16px (iOS zooms
+   into smaller ones), touch targets 44pt (iOS) / 48dp (Android). */
+
+/* ---- role tokens ---- */
+html.app.platform-android {
+  --md-primary: #2546d8; --md-on-primary: #ffffff; --md-primary-container: #dde1ff; --md-on-primary-container: #001257;
+  --md-secondary-container: #dee1f9; --md-on-secondary-container: #161b2c;
+  --md-surface: #fbf8ff; --md-surface-container-lowest: #ffffff; --md-surface-container-low: #f5f2fa; --md-surface-container: #efedf4;
+  --md-surface-container-high: #e9e7ef; --md-surface-container-highest: #e3e1e9;
+  --md-on-surface: #1a1b21; --md-on-surface-variant: #45464f; --md-outline: #767680; --md-outline-variant: #c6c5d0;
+  --md-error: #ba1a1a; --md-error-container: #ffdad6; --md-on-error-container: #410002;
+  --md-success: #146c2e; --md-success-container: #c4eed0; --md-on-success-container: #002109;
+  --md-scrim: rgba(0, 0, 0, .32);
+}
+html.app.platform-ios {
+  /* systemGroupedBackground, secondarySystemGroupedBackground, label,
+     secondaryLabel, separator, systemRed, systemGreen; cobalt as the tint. */
+  --md-primary: #2546d8; --md-on-primary: #ffffff; --md-primary-container: #e6ebff; --md-on-primary-container: #1b36b0;
+  --md-secondary-container: #e9e9ee; --md-on-secondary-container: #1c1c1e;
+  --md-surface: #f2f2f7; --md-surface-container-lowest: #ffffff; --md-surface-container-low: #ffffff; --md-surface-container: #ffffff;
+  --md-surface-container-high: #ffffff; --md-surface-container-highest: #e5e5ea;
+  --md-on-surface: #000000; --md-on-surface-variant: #6c6c70; --md-outline: #c7c7cc; --md-outline-variant: #c6c6c8;
+  --md-error: #d70015; --md-error-container: #ffe5e7; --md-on-error-container: #8e0010;
+  --md-success: #248a3d; --md-success-container: #e3f6e8; --md-on-success-container: #0b4b1c;
+  --md-scrim: rgba(0, 0, 0, .4);
+}
+@media (prefers-color-scheme: dark) {
+  html.app.platform-android {
+    --md-primary: #b9c3ff; --md-on-primary: #08218a; --md-primary-container: #2d43b6; --md-on-primary-container: #dde1ff;
+    --md-secondary-container: #424659; --md-on-secondary-container: #dee1f9;
+    --md-surface: #121318; --md-surface-container-lowest: #0d0e13; --md-surface-container-low: #1a1b21; --md-surface-container: #1e1f25;
+    --md-surface-container-high: #292a2f; --md-surface-container-highest: #34343a;
+    --md-on-surface: #e3e1e9; --md-on-surface-variant: #c6c5d0; --md-outline: #90909a; --md-outline-variant: #45464f;
+    --md-error: #ffb4ab; --md-error-container: #93000a; --md-on-error-container: #ffdad6;
+    --md-success: #a7d4b0; --md-success-container: #0e5221; --md-on-success-container: #c4eed0;
+  }
+  html.app.platform-ios {
+    --md-primary: #6e8bff; --md-on-primary: #ffffff; --md-primary-container: #1c2a63; --md-on-primary-container: #c9d4ff;
+    --md-secondary-container: #2c2c2e; --md-on-secondary-container: #ffffff;
+    --md-surface: #000000; --md-surface-container-lowest: #1c1c1e; --md-surface-container-low: #1c1c1e; --md-surface-container: #1c1c1e;
+    --md-surface-container-high: #2c2c2e; --md-surface-container-highest: #3a3a3c;
+    --md-on-surface: #ffffff; --md-on-surface-variant: #98989f; --md-outline: #48484a; --md-outline-variant: #38383a;
+    --md-error: #ff6961; --md-error-container: #3b0a0d; --md-on-error-container: #ffb3ae;
+    --md-success: #30d158; --md-success-container: #0c3317; --md-on-success-container: #a6f0b8;
+  }
+}
+/* Component tokens per platform. */
+html.app.platform-android {
+  --app-font: Roboto, "Noto Sans", "Noto Sans CJK SC", system-ui, sans-serif;
+  --app-bar-bg: var(--md-surface); --app-bar-h: 64px; --app-title-size: 22px; --app-title-weight: 400;
+  --app-group-bg: transparent; --app-group-radius: 0; --app-group-border: 0; --app-row-h: 56px;
+  --app-field-bg: transparent; --app-field-border: 1px solid var(--md-outline); --app-field-radius: 4px; --app-field-h: 56px;
+  --app-btn-radius: 20px; --app-btn-h: 40px; --app-cta-h: 48px; --app-cta-radius: 24px;
+  --app-tonal-bg: var(--md-secondary-container); --app-tonal-fg: var(--md-on-secondary-container);
+  --app-caption-size: 14px; --app-caption-weight: 500; --app-caption-color: var(--md-primary);
+  --app-dialog-radius: 28px; --app-dialog-bg: var(--md-surface-container-high); --app-sheet-bg: var(--md-surface-container-low);
+  --app-target: 48px;
+}
+html.app.platform-ios {
+  --app-font: -apple-system, system-ui, "PingFang SC", sans-serif;
+  --app-bar-bg: color-mix(in srgb, var(--md-surface-container-lowest) 82%, transparent); --app-bar-h: 44px; --app-title-size: 17px; --app-title-weight: 600;
+  --app-group-bg: var(--md-surface-container-lowest); --app-group-radius: 10px; --app-group-border: 0; --app-row-h: 44px;
+  --app-field-bg: var(--md-surface-container-lowest); --app-field-border: 0; --app-field-radius: 10px; --app-field-h: 44px;
+  --app-btn-radius: 8px; --app-btn-h: 36px; --app-cta-h: 50px; --app-cta-radius: 12px;
+  --app-tonal-bg: var(--md-primary-container); --app-tonal-fg: var(--md-primary);
+  --app-caption-size: 13px; --app-caption-weight: 400; --app-caption-color: var(--md-on-surface-variant);
+  --app-dialog-radius: 14px; --app-dialog-bg: var(--md-surface-container-high); --app-sheet-bg: var(--md-surface-container-lowest);
+  --app-target: 44px;
+}
+/* The page's own variables follow the roles, so every base rule above adapts. */
+html.app {
+  --bg: var(--md-surface); --panel: var(--md-surface-container-lowest); --panel2: var(--md-surface-container-highest);
+  --fg: var(--md-on-surface); --muted: var(--md-on-surface-variant); --line: var(--md-outline-variant); --field: var(--md-outline);
+  --accent: var(--md-primary); --accent-fg: var(--md-on-primary); --accent-soft: var(--md-primary-container); --link: var(--md-primary);
+  --err: var(--md-error); --err-bg: var(--md-error-container); --err-line: var(--md-error-container);
+  --ok: var(--md-success); --ok-bg: var(--md-success-container);
+  --warn: var(--md-on-secondary-container); --warn-bg: var(--md-secondary-container); --warn-line: var(--md-secondary-container);
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+}
+html.app body { font-family: var(--app-font); font-size: 16px; min-height: 100vh; min-height: 100dvh; overscroll-behavior-y: none;
   padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 html.app input, html.app select, html.app textarea, html.app .tv-input { font-size: 16px !important; }
 html.app :focus:not(:focus-visible) { outline: none; }
+html.app :focus-visible { outline: 2px solid var(--md-primary); outline-offset: 2px; }
 html.app .foot, html.app #connect .lead, html.app #pairhint, html.app #passhint, html.app #logout, html.app .langsw,
 html.app .drop > .hint:not(#f-empty), html.app .sessionbar, html.app #peersel { display: none !important; }
+@media (prefers-reduced-motion: reduce) { html.app *, html.app *::before { transition: none !important; animation: none !important; } }
 
-/* ---- top bar ---- */
-html.app .top { position: sticky; top: 0; z-index: 20; flex-wrap: nowrap; gap: 2px; padding: env(safe-area-inset-top) 4px 0 14px;
-  min-height: calc(52px + env(safe-area-inset-top)); border-bottom: 1px solid var(--line); background: var(--panel); }
-@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
-  html.app .top { background: color-mix(in srgb, var(--panel) 86%, transparent); -webkit-backdrop-filter: saturate(1.8) blur(18px); backdrop-filter: saturate(1.8) blur(18px); }
-}
+/* ---- top bar: Android small top app bar / iOS navigation bar ---- */
+html.app .top { position: sticky; top: 0; z-index: 20; flex-wrap: nowrap; gap: 0; padding: env(safe-area-inset-top) 4px 0 4px;
+  min-height: calc(var(--app-bar-h) + env(safe-area-inset-top)); border-bottom: 0; background: var(--app-bar-bg); }
+html.app.platform-ios .top { border-bottom: .5px solid var(--md-outline-variant); -webkit-backdrop-filter: saturate(1.8) blur(20px); backdrop-filter: saturate(1.8) blur(20px); }
+html.app.platform-android.insession .top { background: var(--md-surface-container); }
 html.app .hostbar:not([hidden]) { display: contents; }
 html.app #hostsel { display: none; }
 html.app.multi.insession .top { flex-wrap: wrap; padding-bottom: 8px; }
-html.app.multi.insession #hostsel { display: block; order: 9; flex: 1 0 100%; width: 100%; margin: 0 10px 0 0; min-height: 40px; border-radius: 10px; }
-html.app .brand { order: 1; flex: 1; min-width: 0; gap: 10px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+html.app.multi.insession #hostsel { display: block; order: 9; flex: 1 0 100%; width: auto; margin: 0 12px; min-height: var(--app-target);
+  border-radius: var(--app-field-radius); border: var(--app-field-border); background: var(--app-field-bg); }
+html.app .brand { order: 1; flex: 1; min-width: 0; gap: 12px; margin-left: 12px; font-size: var(--app-title-size); font-weight: var(--app-title-weight); letter-spacing: 0; }
 html.app .brand .sub { display: none; }
 html.app .mark { width: 28px; height: 28px; border-radius: 7px; }
+html.app.insession .brand { margin-left: 0; }
 html.app.insession .brand .mark { display: none; }
-html.app .apptitle { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+html.app .apptitle { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
 html.app #sdm-title-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html.app .apptitle .badge { align-self: flex-start; margin-top: 2px; padding: 0; background: none; font-size: 12px; font-weight: 600; gap: 5px; }
-html.app .apptitle .badge::before { width: 6px; height: 6px; }
+html.app .apptitle .badge { align-self: flex-start; margin-top: 1px; padding: 0; background: none; font-size: 12px; font-weight: 500; gap: 5px; color: var(--md-on-surface-variant); }
+html.app .apptitle .badge::before { width: 7px; height: 7px; background: var(--md-success); }
+html.app .apptitle .badge.relayed::before { background: var(--md-on-secondary-container); border-radius: 1px; }
 html.app:not(.insession) .apptitle .badge { display: none; }
+/* iOS: the title is centred between the bar's buttons. */
+html.app.platform-ios .top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+html.app.platform-ios .brand { grid-column: 2; grid-row: 1; margin: 0; max-width: 62vw; justify-content: center; }
+html.app.platform-ios .apptitle { align-items: center; text-align: center; }
+html.app.platform-ios .apptitle .badge { align-self: center; }
+html.app.platform-ios #newconn { grid-column: 1; grid-row: 1; justify-self: start; }
+html.app.platform-ios #sdm-settings { grid-column: 3; grid-row: 1; justify-self: end; }
+html.app.platform-ios #disconnect { grid-column: 3; grid-row: 1; justify-self: end; margin-right: 44px; }
+html.app.platform-ios.multi.insession #hostsel { grid-column: 1 / -1; grid-row: 2; }
 /* Icon buttons: back (to the host list), disconnect, settings, help. */
 html.app #newconn, html.app #disconnect, html.app #sdm-settings, html.app .sdm-icon {
-  flex: none; position: relative; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 22px;
-  background: transparent; color: var(--link); font-size: 0; }
+  flex: none; position: relative; width: var(--app-target); height: var(--app-target); min-height: var(--app-target); padding: 0; border: 0;
+  border-radius: 50%; background: transparent; color: var(--md-on-surface-variant); font-size: 0; }
+html.app.platform-ios #newconn, html.app.platform-ios #disconnect, html.app.platform-ios #sdm-settings, html.app.platform-ios .sdm-icon { color: var(--md-primary); }
 html.app #newconn::before, html.app #disconnect::before, html.app #sdm-settings::before, html.app .sdm-icon::before {
   content: ""; position: absolute; inset: 0; margin: auto; width: 24px; height: 24px; background: currentColor;
   -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat; }
-html.app #newconn:active, html.app #disconnect:active, html.app #sdm-settings:active, html.app .sdm-icon:active { background: var(--panel2); }
-html.app #newconn { order: 0; margin-left: -10px; --icon: var(--i-back); }
-html.app #newconn::before { width: 28px; height: 28px; }
-html.app #disconnect { order: 2; color: var(--err); --icon: var(--i-power); }
+html.app #newconn:active, html.app #disconnect:active, html.app #sdm-settings:active, html.app .sdm-icon:active { background: color-mix(in srgb, currentColor 12%, transparent); }
+html.app #newconn { order: 0; --icon: var(--i-back); }
+html.app.platform-android #newconn { --icon: var(--i-arrow); color: var(--md-on-surface); }
+html.app.platform-ios #newconn::before { width: 28px; height: 28px; }
+html.app #disconnect { order: 2; --icon: var(--i-power); }
 html.app:not(.insession) #disconnect { display: none; }
 html.app #sdm-settings { order: 3; --icon: var(--i-gear); }
-html.app .sdm-icon.info { --icon: var(--i-info); width: 40px; height: 40px; min-height: 40px; }
-html.app .sdm-icon.info::before { width: 22px; height: 22px; }
-html.app .banner { margin: 10px 14px 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
-html.app .banner.bad { border-color: var(--err-line); }
+html.app .sdm-icon.info { --icon: var(--i-info); }
+html.app .banner { margin: 10px 16px 0; padding: 12px 16px; border: 0; border-radius: 12px; font-size: 14px;
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+html.app .banner.bad { background: var(--md-error-container); color: var(--md-on-error-container); }
 
 /* ---- connect ---- */
-html.app main { padding: 18px 16px calc(28px + env(safe-area-inset-bottom)); }
-html.app .card.narrow { max-width: 560px; margin: 0 auto; padding: 0; background: transparent; border: 0; box-shadow: none; }
+html.app main { padding: 16px 16px calc(28px + env(safe-area-inset-bottom)); }
+html.app .card.narrow { max-width: 600px; margin: 0 auto; padding: 0; background: transparent; border: 0; box-shadow: none; }
 html.app .titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
-html.app .card.narrow h2 { font-size: 28px; font-weight: 750; letter-spacing: -.02em; margin: 0; }
-html.app #connectform > label:not(.check), html.app #loginform > label { margin: 18px 4px 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
-html.app input[type=text], html.app input[type=password] { min-height: 50px; padding: 12px 14px; border-radius: 12px; border-color: var(--line); background: var(--panel); }
-html.app input[type=text]:focus, html.app input[type=password]:focus, html.app textarea:focus, html.app select:focus {
-  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+html.app .card.narrow h2 { margin: 0; letter-spacing: 0; }
+html.app.platform-android .card.narrow h2 { font-size: 28px; font-weight: 400; line-height: 36px; } /* headlineMedium */
+html.app.platform-ios .card.narrow h2 { font-size: 28px; font-weight: 700; letter-spacing: .01em; } /* large title (compact) */
+/* Persistent labels above the fields. */
+html.app #connectform > label:not(.check), html.app #loginform > label { margin: 18px 4px 6px; font-size: var(--app-caption-size); font-weight: var(--app-caption-weight); color: var(--md-on-surface-variant); }
+html.app input[type=text], html.app input[type=password], html.app select, html.app textarea {
+  background: var(--app-field-bg); color: var(--md-on-surface); border: var(--app-field-border); border-radius: var(--app-field-radius); }
+html.app input[type=text], html.app input[type=password] { min-height: var(--app-field-h); padding: 0 16px; }
+html.app.platform-android input:focus, html.app.platform-android textarea:focus, html.app.platform-android select:focus {
+  outline: none; border-color: var(--md-primary); box-shadow: inset 0 0 0 1px var(--md-primary); }
+html.app.platform-ios input:focus, html.app.platform-ios textarea:focus, html.app.platform-ios select:focus { outline: none; box-shadow: 0 0 0 2px var(--md-primary); }
 html.app .fieldwrap { position: relative; }
-html.app .fieldwrap input { padding-right: 56px; }
-html.app .fieldkey { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); width: 40px; height: 38px; min-height: 38px; padding: 0;
-  border: 0; border-radius: 9px; background: var(--panel2); color: var(--fg); font: 600 20px/1 var(--mono); }
-html.app .fieldkey:active { background: var(--accent-soft); }
-/* The pair box as a switch row. */
-html.app #pairrow { align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0; min-height: 52px; padding: 8px 14px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; }
-html.app #pairrow input, html.app .toolbar label.check input { order: 2; -webkit-appearance: none; appearance: none; position: relative; margin: 0;
-  width: 51px; height: 31px; flex: none; border-radius: 16px; background: var(--field); transition: background .2s; cursor: pointer; }
-html.app #pairrow input::before, html.app .toolbar label.check input::before { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
-  border-radius: 50%; background: #fff; box-shadow: 0 2px 4px #0003; transition: transform .2s; }
-html.app #pairrow input:checked, html.app .toolbar label.check input:checked { background: var(--accent); }
-html.app #pairrow input:checked::before, html.app .toolbar label.check input:checked::before { transform: translateX(20px); }
-html.app .toolbar label.check input { width: 40px; height: 24px; }
-html.app .toolbar label.check input::before { width: 20px; height: 20px; }
-html.app .toolbar label.check input:checked::before { transform: translateX(16px); }
-html.app .formbuttons { margin-top: 20px; }
-html.app .formbuttons button { min-height: 52px; border-radius: 12px; font-size: 17px; }
-html.app .formbuttons button:not(.primary) { flex: none; padding: 0 18px; }
-html.app #connstatus:not(:empty) { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-size: 15px; }
+html.app .fieldwrap input { padding-right: 60px; }
+html.app .fieldkey { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); width: var(--app-target); height: var(--app-target); min-height: var(--app-target);
+  padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--md-primary); font: 600 22px/1 var(--mono); }
+html.app .fieldkey:active { background: color-mix(in srgb, var(--md-primary) 12%, transparent); }
+/* The pair box as a switch row: label left, switch right, the whole row tappable. */
+html.app #pairrow { align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 0; min-height: var(--app-row-h); padding: 4px 16px;
+  font-size: 16px; color: var(--md-on-surface); background: var(--app-group-bg); border-radius: var(--app-group-radius); }
+html.app.platform-android #pairrow { padding: 4px 4px; }
+html.app #pairrow input, html.app .toolbar label.check input { order: 2; -webkit-appearance: none; appearance: none; position: relative; margin: 0; flex: none; cursor: pointer; }
+/* Material 3 switch: 52x32 track, 16dp thumb off (outlined track), 24dp on. */
+html.app.platform-android #pairrow input, html.app.platform-android .toolbar label.check input {
+  width: 52px; height: 32px; border-radius: 16px; background: var(--md-surface-container-highest); border: 2px solid var(--md-outline); transition: background .15s, border-color .15s; }
+html.app.platform-android #pairrow input::before, html.app.platform-android .toolbar label.check input::before {
+  content: ""; position: absolute; top: 50%; left: 6px; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; background: var(--md-outline); transition: all .15s; }
+html.app.platform-android #pairrow input:checked, html.app.platform-android .toolbar label.check input:checked { background: var(--md-primary); border-color: var(--md-primary); }
+html.app.platform-android #pairrow input:checked::before, html.app.platform-android .toolbar label.check input:checked::before {
+  left: 24px; width: 24px; height: 24px; margin-top: -12px; background: var(--md-on-primary); }
+/* iOS switch: 51x31, white knob. */
+html.app.platform-ios #pairrow input, html.app.platform-ios .toolbar label.check input {
+  width: 51px; height: 31px; border-radius: 16px; background: var(--md-surface-container-highest); transition: background .2s; }
+html.app.platform-ios #pairrow input::before, html.app.platform-ios .toolbar label.check input::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px #0003; transition: transform .2s; }
+html.app.platform-ios #pairrow input:checked, html.app.platform-ios .toolbar label.check input:checked { background: #34c759; }
+html.app.platform-ios #pairrow input:checked::before, html.app.platform-ios .toolbar label.check input:checked::before { transform: translateX(20px); }
+html.app .toolbar label.check input { transform: scale(.8); margin: 0 -4px; }
+/* The primary action: Android filled button, iOS large filled button. */
+html.app .formbuttons { margin-top: 24px; }
+html.app .formbuttons button { min-height: var(--app-cta-h); border-radius: var(--app-cta-radius); font-size: 16px; font-weight: 600; }
+html.app.platform-android .formbuttons button { font-size: 14px; font-weight: 500; letter-spacing: .01em; } /* labelLarge */
+html.app .formbuttons button:not(.primary) { flex: none; padding: 0 20px; border: 0; background: transparent; color: var(--md-primary); }
+html.app.platform-android .formbuttons button:not(.primary) { border: 1px solid var(--md-outline); } /* outlined */
+html.app button.primary:disabled { background: color-mix(in srgb, var(--md-on-surface) 12%, transparent); border-color: transparent; color: color-mix(in srgb, var(--md-on-surface) 38%, transparent); opacity: 1; }
+html.app #connstatus:not(:empty) { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 12px 16px; border: 0; border-radius: 12px; font-size: 15px;
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
 html.app #connstatus:not(:empty)::before { content: ""; flex: none; width: 18px; height: 18px; border-radius: 50%;
   border: 2.5px solid currentColor; border-right-color: transparent; animation: sdm-spin .8s linear infinite; }
 @keyframes sdm-spin { to { transform: rotate(360deg); } }
-html.app #connerr:not(:empty), html.app #loginerr:not(:empty) { margin-top: 14px; padding: 12px 14px; border-radius: 12px; font-size: 15px; }
+/* Errors: an icon and words, not colour alone. */
+html.app #connerr:not(:empty), html.app #loginerr:not(:empty) { position: relative; margin-top: 16px; padding: 12px 16px 12px 44px; border: 0; border-radius: 12px;
+  font-size: 15px; background: var(--md-error-container); color: var(--md-on-error-container); }
+html.app #connerr:not(:empty)::before, html.app #loginerr:not(:empty)::before { content: ""; position: absolute; left: 14px; top: 13px; width: 20px; height: 20px;
+  background: currentColor; -webkit-mask: var(--i-alert) center / contain no-repeat; mask: var(--i-alert) center / contain no-repeat; }
 
-/* ---- grouped lists: saved hosts, open sessions ---- */
-html.app .peers { margin-top: 30px; }
-html.app .peers h3 { margin: 0 4px 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
-html.app .peerlist { gap: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+/* ---- lists: open sessions, saved hosts, files, info ----
+   Android: list items on the surface, divided (no cards).
+   iOS: inset grouped lists. */
+html.app .peers { margin-top: 28px; }
+html.app .peers h3 { margin: 0 4px 6px; font-size: var(--app-caption-size); font-weight: var(--app-caption-weight); color: var(--app-caption-color); }
+html.app.platform-android .peers h3 { margin-left: 0; }
+html.app .peerlist { gap: 0; background: var(--app-group-bg); border-radius: var(--app-group-radius); overflow: hidden; }
 html.app .peerlist li { position: relative; }
-html.app .peerlist li + li::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; border-top: 1px solid var(--line); }
-html.app .peer { min-height: 62px; padding: 10px 14px; gap: 12px; border: 0; border-radius: 0; background: transparent; }
-html.app .peer:active { background: var(--panel2); }
-html.app .peer::after { content: ""; flex: none; width: 16px; height: 16px; background: var(--muted); opacity: .6;
+html.app .peerlist li + li::before { content: ""; position: absolute; top: 0; left: 62px; right: 0; border-top: .5px solid var(--md-outline-variant); }
+html.app.platform-android .peerlist li + li::before { left: 0; border-top-width: 1px; }
+html.app .peer { min-height: 64px; padding: 8px 16px; gap: 16px; border: 0; border-radius: 0; background: transparent; color: var(--md-on-surface); }
+html.app.platform-android .peer { padding: 8px 4px; min-height: 72px; } /* two-line list item */
+html.app .peer:active { background: color-mix(in srgb, var(--md-on-surface) 10%, transparent); }
+html.app .peer::after { content: ""; flex: none; width: 16px; height: 16px; background: var(--md-on-surface-variant); opacity: .7;
   -webkit-mask: var(--i-chev) center / contain no-repeat; mask: var(--i-chev) center / contain no-repeat; }
-html.app .peericon { width: 34px; height: 34px; border-radius: 9px; background: var(--accent-soft); }
-html.app .peericon::before, html.app .peericon::after { display: none; }
-html.app .peertext strong { font-size: 16px; font-weight: 600; }
-html.app .peertext small { font-size: 13px; }
-html.app .tag { font-size: 12px; }
-html.app .peer.live .tag { color: var(--ok); background: var(--ok-bg); }
-/* The monitor glyph on the host icon. */
-html.app .peericon { display: grid; place-items: center; }
-html.app .peericon:empty::after { display: block; content: ""; position: static; width: 20px; height: 20px; background: var(--link);
+html.app.platform-android .peer::after { display: none; }
+html.app .peericon { width: 36px; height: 36px; border-radius: 50%; background: var(--md-primary-container); display: grid; place-items: center; }
+html.app.platform-ios .peericon { border-radius: 8px; }
+html.app .peericon::before { display: none; }
+html.app .peericon::after { display: block; content: ""; position: static; width: 20px; height: 20px; background: var(--md-on-primary-container);
   -webkit-mask: var(--i-monitor) center / contain no-repeat; mask: var(--i-monitor) center / contain no-repeat; }
-html.app .peer.live .peericon { background: var(--ok-bg); }
-html.app .peer.live .peericon:empty::after { background: var(--ok); }
-html.app #sdm-active { margin: 18px 0 6px; }
+html.app .peer.live .peericon { background: var(--md-success-container); }
+html.app .peer.live .peericon::after { background: var(--md-on-success-container); }
+html.app .peertext strong { font-size: 16px; font-weight: 500; }
+html.app.platform-ios .peertext strong { font-weight: 400; font-size: 17px; }
+html.app .peertext small { font-size: 14px; color: var(--md-on-surface-variant); }
+html.app .peer.live .peertext small { font-family: inherit; }
+html.app .tag { font-size: 12px; font-weight: 500; background: transparent; color: var(--md-on-surface-variant); padding: 0; }
+html.app #sdm-active { margin: 16px 0 4px; }
 
 /* ---- session ---- */
 html.app.insession body { height: 100vh; height: 100dvh; overflow: hidden; }
 html.app.insession.vkb body { height: var(--app-h, 100dvh); }
-html.app.insession main { display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 0; }
+html.app.insession main { display: flex; flex-direction: column; min-height: 0; padding: 0 12px; }
 html.app #workspace:not([hidden]) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-html.app .tabs { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; width: 100%; margin: 0 0 10px; padding: 3px;
-  border-radius: 11px; overflow: visible; }
-html.app .tabs button { min-height: 38px; padding: 0 2px; border-radius: 8px; font-size: 14px; font-weight: 600; white-space: nowrap; }
-html.app .tabs button[aria-selected=true] { color: var(--fg); box-shadow: 0 1px 3px #14203a24; }
+/* Tabs (peer views of one session): Android primary tabs, iOS segmented control. */
+html.app .tabs { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: auto; max-width: none; overflow: visible; }
+html.app .tabs button { padding: 0 2px; white-space: nowrap; border: 0; }
+html.app.platform-android .tabs { margin: 0 -12px 12px; padding: 0; gap: 0; border-radius: 0; background: var(--md-surface-container); border-bottom: 1px solid var(--md-outline-variant); }
+html.app.platform-android .tabs button { position: relative; min-height: 48px; border-radius: 0; background: transparent; font-size: 14px; font-weight: 500; color: var(--md-on-surface-variant); }
+html.app.platform-android .tabs button[aria-selected=true] { color: var(--md-primary); box-shadow: none; background: transparent; }
+html.app.platform-android .tabs button[aria-selected=true]::after { content: ""; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 3px; border-radius: 3px 3px 0 0; background: var(--md-primary); }
+html.app.platform-ios .tabs { margin: 10px 0 10px; padding: 2px; gap: 0; border-radius: 9px; background: color-mix(in srgb, var(--md-on-surface) 8%, transparent); }
+html.app.platform-ios .tabs button { min-height: 32px; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 500; color: var(--md-on-surface); }
+html.app.platform-ios .tabs button[aria-selected=true] { background: var(--md-surface-container-lowest); color: var(--md-on-surface); font-weight: 600; box-shadow: 0 3px 8px #0000001f, 0 3px 1px #0000000a; }
+@media (prefers-color-scheme: dark) { html.app.platform-ios .tabs button[aria-selected=true] { background: #636366; } }
+html.app.platform-ios .tabs { min-height: 36px; }
 html.app [role=tabpanel]:not([hidden]) { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; overflow-x: hidden;
   margin: 0 -12px; padding: 0 12px calc(14px + env(safe-area-inset-bottom)); }
 html.app #panel-desktop:not([hidden]), html.app #panel-terminal:not([hidden]) { overflow: hidden; }
 html.app #panel-desktop:not([hidden]) { padding-bottom: 0; }
-html.app .stage { flex: 1; height: auto; min-height: 120px; border-radius: 12px; }
+html.app .stage { flex: 1; height: auto; min-height: 120px; border-radius: 12px; align-items: center; }
 html.app .termhost { flex: 1; height: auto; min-height: 120px; border-radius: 12px; border: 0; }
 html.app .keyrow { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 6px; margin: 8px -12px 0; padding: 0 12px; }
 html.app .keyrow::-webkit-scrollbar { display: none; }
-html.app .keyrow button { flex: none; min-width: 44px; min-height: 40px; border-radius: 10px; }
-/* Toolbars: one row of chips that scrolls sideways. */
-html.app .toolbar { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; margin: 0 -12px 10px; padding: 1px 12px; }
+html.app .keyrow button { flex: none; min-width: var(--app-target); min-height: var(--app-target); border: 0; border-radius: 10px;
+  background: var(--md-surface-container-highest); color: var(--md-on-surface); }
+/* Toolbars: a row of buttons that scrolls sideways (Android tonal buttons,
+   iOS bordered buttons; not chips). */
+html.app .toolbar { flex: none; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; margin: 0 -12px 8px; padding: 4px 12px; }
 html.app .toolbar::-webkit-scrollbar { display: none; }
 html.app .toolbar > * { flex: none; }
-html.app .toolbar button, html.app .toolbar select { min-height: 40px; padding: 0 15px; border: 1px solid var(--line); border-radius: 20px;
-  background: var(--panel); font-size: 15px; font-weight: 600; white-space: nowrap; }
+html.app .toolbar button, html.app .toolbar select, html.app .toolbar label.check { min-height: var(--app-btn-h); padding: 0 16px; border: 0; border-radius: var(--app-btn-radius);
+  background: var(--app-tonal-bg); color: var(--app-tonal-fg); font-size: 14px; font-weight: 500; white-space: nowrap; position: relative; }
+html.app.platform-ios .toolbar button, html.app.platform-ios .toolbar select, html.app.platform-ios .toolbar label.check { font-size: 15px; padding: 0 12px; }
+html.app .toolbar button::after { content: ""; position: absolute; left: 0; right: 0; top: calc((var(--app-btn-h) - var(--app-target)) / 2); bottom: calc((var(--app-btn-h) - var(--app-target)) / 2); }
 html.app .toolbar select { padding: 0 12px; max-width: 60vw; }
-html.app .toolbar button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-html.app .toolbar button[aria-pressed=true] { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--link); }
-html.app .toolbar label.check { display: flex; align-items: center; gap: 8px; margin: 0; min-height: 40px; padding: 0 8px 0 14px;
-  border: 1px solid var(--line); border-radius: 20px; background: var(--panel); font-size: 15px; font-weight: 600; white-space: nowrap; }
+html.app .toolbar button.primary { background: var(--md-primary); color: var(--md-on-primary); }
+html.app .toolbar button[aria-pressed=true] { background: var(--md-primary); color: var(--md-on-primary); }
+html.app .toolbar button[aria-pressed=true]::before { content: "✓ "; }
+html.app .toolbar label.check { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 8px 0 16px; }
 html.app .toolbar .status { align-self: center; font-size: 13px; white-space: nowrap; }
-html.app .toolbar button:active, html.app .keyrow button:active { background: var(--panel2); }
+html.app .toolbar button:active, html.app .keyrow button:active { filter: brightness(.92); }
+html.app #d-cad, html.app #t-kill { color: var(--md-error); }
 /* Files: path on one row, actions on the next. */
-html.app #panel-files .toolbar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; overflow: visible; margin: 0 0 10px; padding: 0; }
+html.app #panel-files .toolbar { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; overflow: visible; margin: 0 0 8px; padding: 0; }
 html.app #panel-files .toolbar > * { min-width: 0; }
-html.app #f-up { grid-column: span 1; padding: 0; font-size: 0; position: relative; }
+html.app #f-up { grid-column: span 1; padding: 0; font-size: 0; }
 html.app #f-up::before { content: ""; position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; background: currentColor;
   -webkit-mask: var(--i-up) center / contain no-repeat; mask: var(--i-up) center / contain no-repeat; }
-html.app #f-up:disabled::before { opacity: .4; }
-html.app #f-path { grid-column: span 4; min-height: 40px; height: 40px; padding: 0 14px; border-radius: 20px; font-family: var(--mono); font-size: 16px; }
+html.app #f-up:disabled { opacity: .38; }
+html.app #f-path { grid-column: span 4; min-height: var(--app-btn-h); height: var(--app-btn-h); padding: 0 12px; font-family: var(--mono); font-size: 16px; }
 html.app #f-go { grid-column: span 1; padding: 0; }
 html.app #f-refresh, html.app #f-mkdir, html.app #f-upload { grid-column: span 2; padding: 0 6px; overflow: hidden; text-overflow: ellipsis; }
 html.app table.files, html.app table.files tbody { display: block; }
-html.app table.files { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+html.app table.files { background: var(--app-group-bg); border-radius: var(--app-group-radius); overflow: hidden; }
 html.app table.files thead { display: none; }
-html.app table.files tr { display: flex; align-items: center; position: relative; min-height: 56px; padding: 0 2px 0 14px; }
-html.app table.files tr + tr::before { content: ""; position: absolute; top: 0; left: 56px; right: 0; border-top: 1px solid var(--line); }
+html.app table.files tr { display: flex; align-items: center; position: relative; min-height: var(--app-row-h); padding: 0 2px 0 16px; }
+html.app.platform-android table.files tr { padding-left: 4px; }
+html.app table.files tr + tr::before { content: ""; position: absolute; top: 0; left: 58px; right: 0; border-top: .5px solid var(--md-outline-variant); }
+html.app.platform-android table.files tr + tr::before { left: 0; border-top-width: 1px; }
 html.app table.files td { padding: 6px 0; border: 0; }
-html.app table.files td.name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; font-size: 16px; min-height: 44px; }
-html.app table.files td.name::before { content: ""; flex: none; width: 30px; height: 30px; background: var(--muted);
-  -webkit-mask: var(--i-file) center / 26px no-repeat; mask: var(--i-file) center / 26px no-repeat; }
-html.app table.files td.name.dir::before { background: var(--accent); -webkit-mask-image: var(--i-folder); mask-image: var(--i-folder); }
-html.app table.files td.name button.link { flex: 1; min-width: 0; min-height: 44px; color: var(--fg); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
-html.app table.files td.num { padding: 0 4px 0 8px; color: var(--muted); font-size: 13px; }
+html.app table.files td.name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; font-size: 16px; min-height: var(--app-target); color: var(--md-on-surface); }
+html.app table.files td.name::before { content: ""; flex: none; width: 26px; height: 26px; background: var(--md-on-surface-variant);
+  -webkit-mask: var(--i-file) center / 24px no-repeat; mask: var(--i-file) center / 24px no-repeat; }
+html.app table.files td.name.dir::before { background: var(--md-primary); -webkit-mask-image: var(--i-folder); mask-image: var(--i-folder); }
+html.app table.files td.name button.link { flex: 1; min-width: 0; min-height: var(--app-target); color: var(--md-on-surface); text-decoration: none; font-weight: 400; overflow-wrap: anywhere; }
+html.app table.files td.num { padding: 0 4px 0 8px; color: var(--md-on-surface-variant); font-size: 13px; }
 html.app table.files td.mtime { display: none; }
 html.app table.files td.act > button:not(.more) { display: none; }
 html.app table.files td.act { flex: none; }
-html.app table.files td.act button.more { width: 44px; height: 44px; min-height: 44px; margin: 0; padding: 0; border: 0; border-radius: 22px;
-  background: transparent; color: var(--muted); font-size: 0; position: relative; }
+html.app table.files td.act button.more { width: var(--app-target); height: var(--app-target); min-height: var(--app-target); margin: 0; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--md-on-surface-variant); font-size: 0; position: relative; }
 html.app table.files td.act button.more::before { content: ""; position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; background: currentColor;
   -webkit-mask: var(--i-more) center / contain no-repeat; mask: var(--i-more) center / contain no-repeat; }
-html.app table.files td.act button.more:active { background: var(--panel2); }
+html.app table.files td.act button.more:active { background: color-mix(in srgb, var(--md-on-surface) 10%, transparent); }
 html.app #f-empty { padding: 28px 10px; text-align: center; }
 html.app .drop { border: 0; }
 html.app .uploads li { padding: 10px 2px; font-size: 14px; }
-/* Clipboard and info: sections without the card frame. */
+/* Clipboard and info: sections without a card frame. */
 html.app #panel-clipboard .card, html.app #panel-info .card { padding: 0; background: transparent; border: 0; max-width: none; }
-html.app #panel-clipboard h2 { margin: 6px 4px 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+html.app #panel-clipboard h2 { margin: 6px 4px 8px; font-size: var(--app-caption-size); font-weight: var(--app-caption-weight); color: var(--app-caption-color); }
 html.app #panel-clipboard h2:not(:first-child) { margin-top: 22px; }
-html.app #panel-clipboard textarea { border-radius: 12px; border-color: var(--line); padding: 12px 14px; min-height: 120px; }
+html.app #panel-clipboard textarea { padding: 12px 16px; min-height: 120px; }
+html.app.platform-android #panel-clipboard textarea { border: 1px solid var(--md-outline); }
 html.app #panel-clipboard .toolbar, html.app #panel-info .toolbar { margin-left: 0; margin-right: 0; padding: 0; flex-wrap: wrap; overflow: visible; }
-html.app #panel-clipboard .toolbar button, html.app #panel-info .toolbar button { flex: 1 1 0; min-height: 44px; border-radius: 12px; }
-html.app dl.info { grid-template-columns: auto 1fr; gap: 0; margin: 4px 0 0; padding: 0 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-html.app dl.info dt, html.app dl.info dd { padding: 11px 0; border-top: 1px solid var(--line); font-size: 15px; }
-html.app dl.info dt { padding-right: 14px; }
+html.app #panel-clipboard .toolbar button, html.app #panel-info .toolbar button { flex: 1 1 0; }
+html.app dl.info { grid-template-columns: auto 1fr; gap: 0; margin: 4px 0 0; padding: 0 16px; background: var(--app-group-bg); border-radius: var(--app-group-radius); }
+html.app.platform-android dl.info { padding: 0 4px; }
+html.app dl.info dt, html.app dl.info dd { padding: 11px 0; border-top: .5px solid var(--md-outline-variant); font-size: 15px; }
+html.app dl.info dt { padding-right: 16px; color: var(--md-on-surface-variant); }
 html.app dl.info dd { text-align: right; }
 html.app dl.info dt:first-of-type, html.app dl.info dd:first-of-type { border-top: 0; }
 html.app figure img { border-radius: 12px; }
 
 /* ---- dialogs and the bottom sheet ---- */
-html.app dialog { border: 0; border-radius: 16px; padding: 20px; width: min(92vw, 400px); }
-html.app .dlg-buttons button { flex: 1 1 auto; min-height: 44px; border-radius: 12px; }
+html.app dialog { border: 0; border-radius: var(--app-dialog-radius); padding: 24px; width: min(88vw, 400px); background: var(--app-dialog-bg); color: var(--md-on-surface); }
+html.app dialog::backdrop { background: var(--md-scrim); }
+html.app.platform-android #dlg h2 { font-size: 24px; font-weight: 400; } /* headlineSmall */
+html.app.platform-android .dlg-buttons button { flex: none; min-height: var(--app-btn-h); padding: 0 12px; border: 0; border-radius: var(--app-btn-radius);
+  background: transparent; color: var(--md-primary); font-size: 14px; font-weight: 500; } /* text buttons */
+html.app.platform-ios #dlg { width: min(76vw, 300px); padding: 20px 0 0; text-align: center; }
+html.app.platform-ios #dlg h2 { font-size: 17px; font-weight: 600; margin: 0 16px 4px; }
+html.app.platform-ios #dlg-msg { margin: 0 16px; font-size: 13px; }
+html.app.platform-ios #dlg-input { width: calc(100% - 32px); margin: 12px 16px 0; min-height: 36px; border: .5px solid var(--md-outline); border-radius: 7px; }
+html.app.platform-ios #dlg-all-row { margin: 10px 16px 0; text-align: left; }
+html.app.platform-ios .dlg-buttons { gap: 0; margin-top: 18px; border-top: .5px solid var(--md-outline-variant); justify-content: stretch; flex-wrap: nowrap; }
+html.app.platform-ios .dlg-buttons button { flex: 1; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--md-primary); font-size: 17px; font-weight: 400; }
+html.app.platform-ios .dlg-buttons button + button { border-left: .5px solid var(--md-outline-variant); }
+html.app.platform-ios .dlg-buttons button.primary { font-weight: 600; }
 html.app #sdm-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 640px; max-height: 88vh; max-height: 88dvh;
-  overflow-y: auto; padding: 8px 20px calc(18px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
+  overflow-y: auto; padding: 0 24px calc(16px + env(safe-area-inset-bottom)); border-radius: var(--app-dialog-radius) var(--app-dialog-radius) 0 0; background: var(--app-sheet-bg); }
+html.app.platform-ios #sdm-sheet { border-radius: 12px 12px 0 0; padding: 0 20px calc(16px + env(safe-area-inset-bottom)); }
 html.app #sdm-sheet[open] { animation: sdm-up .22s ease-out; }
 @keyframes sdm-up { from { transform: translateY(40px); opacity: .4; } }
-html.app #sdm-sheet::before { content: ""; display: block; width: 36px; height: 5px; margin: 0 auto 14px; border-radius: 3px; background: var(--field); }
-html.app #sdm-sheet h2 { margin: 0 0 12px; font-size: 20px; }
-html.app #sdm-sheet h3 { margin: 16px 0 4px; font-size: 15px; }
-html.app #sdm-sheet p { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.45; }
-html.app #sdm-sheet .sheetname { margin: -4px 0 14px; color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
-html.app #sdm-sheet .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
-html.app #sdm-sheet .actions button { min-height: 50px; border-radius: 12px; font-size: 17px; background: var(--panel2); border-color: transparent; }
-html.app #sdm-sheet .actions button.danger { color: var(--err); }
-html.app #sdm-sheet .actions button.primary { background: var(--accent); color: var(--accent-fg); }
-html.app #sdm-sheet .actions button.link { background: transparent; color: var(--link); }
+html.app #sdm-sheet::before { content: ""; display: block; width: 32px; height: 4px; margin: 16px auto 18px; border-radius: 2px; background: var(--md-on-surface-variant); opacity: .4; }
+html.app.platform-ios #sdm-sheet::before { width: 36px; height: 5px; margin: 6px auto 14px; }
+html.app #sdm-sheet h2 { margin: 0 0 12px; font-size: 22px; font-weight: 400; }
+html.app.platform-ios #sdm-sheet h2 { font-size: 20px; font-weight: 600; }
+html.app #sdm-sheet h3 { margin: 16px 0 4px; font-size: 16px; font-weight: 500; }
+html.app #sdm-sheet p { margin: 0; color: var(--md-on-surface-variant); font-size: 15px; line-height: 1.45; }
+html.app #sdm-sheet .actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+html.app #sdm-sheet .actions button { min-height: var(--app-cta-h); border: 0; border-radius: var(--app-cta-radius); font-size: 16px; background: var(--app-tonal-bg); color: var(--app-tonal-fg); }
+html.app.platform-android #sdm-sheet .actions button { font-size: 14px; font-weight: 500; }
+html.app #sdm-sheet .actions button.danger { background: var(--md-error-container); color: var(--md-on-error-container); }
+html.app #sdm-sheet .actions button.danger::before { content: ""; display: inline-block; vertical-align: -3px; width: 16px; height: 16px; margin-right: 8px; background: currentColor;
+  -webkit-mask: var(--i-trash) center / contain no-repeat; mask: var(--i-trash) center / contain no-repeat; }
+html.app #sdm-sheet .actions button.link { background: transparent; color: var(--md-primary); }
+html.app .exitfs { background: rgba(16, 20, 32, .6); }

@@ -28,7 +28,16 @@
   // script, so the browser page never gets the class.
   // At document start the <html> element may not exist yet.
   (function markApp() {
-    const mark = () => { if (!document.documentElement) return false; document.documentElement.classList.add('app'); return true; };
+    // The platform picks the idiom (style.css): Material 3 on Android, the
+    // HIG on iOS. The bridge says which app this is; the user agent is the
+    // fallback.
+    const ios = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.remohop) ||
+      (!window.remohopNative && /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent));
+    const mark = () => {
+      if (!document.documentElement) return false;
+      document.documentElement.classList.add('app', ios ? 'platform-ios' : 'platform-android');
+      return true;
+    };
     if (mark()) return;
     const mo = new MutationObserver(() => { if (mark()) mo.disconnect(); });
     mo.observe(document, {childList: true});
