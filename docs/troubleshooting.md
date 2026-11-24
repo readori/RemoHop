@@ -370,6 +370,7 @@ The viewer decodes with WebCodecs and needs a browser that supports it.
 - **404 on the gateway address:** the token in the URL is the login; open the full URL that `remohop web` printed.
 - **The page cannot use a saved host:** the gateway runs with `--no-saved`, or under a different config directory from the one that holds the pairing.
 - **A tab shows the host's refusal:** the host switched that feature off.
+- **The browser opens but shows "file not found" or "access denied" for an `open-…html` file** (Linux): the page is opened through a short-lived private file so the access token never appears on a command line. RemoHop puts that file where Snap and Flatpak browsers can read it (inside `~/snap/<browser>/common/` or `~/.var/app/<id>/cache/`), detected from the default browser (`xdg-settings get default-web-browser`) or `--app-browser`. If your sandboxed browser isn't detected, set `REMOHOP_HANDOFF_DIR` to a directory it can read (mode 0700 is fine), or open the URL that was printed. This applies to `remohop web`, quick support and the desktop viewer.
 
 ### Through Cloudflare Tunnel
 

@@ -1,20 +1,13 @@
 package desktop
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"html"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/readori/RemoHop/internal/cli"
-	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/handoff"
 )
 
 const (
@@ -23,9 +16,6 @@ const (
 	handoffLife = 30 * time.Second
 	// minGrace is the least time the file survives after the opener started.
 	minGrace = 6 * time.Second
-	// staleHandoff is the age after which a leftover redirect file (from a
-	// process that was killed) is swept.
-	staleHandoff = 5 * time.Minute
 )
 
 // browserCommand builds the platform command that opens target (a file
@@ -49,31 +39,14 @@ var browserCommand = func(target string) *exec.Cmd {
 // runs on its own after handoffLife.
 func openBrowser(env *cli.Env, url string) (cleanup func()) {
 	cleanup = func() {}
-	dir, err := config.SubDir("run")
+	dir, err := handoff.Dir("")
 	if err != nil {
 		env.Errorf("desktop: opening browser: %v; open the URL above manually", err)
 		return
 	}
-	sweepHandoffs(dir)
-	var rnd [16]byte
-	if _, err := rand.Read(rnd[:]); err != nil {
-		env.Errorf("desktop: opening browser: %v; open the URL above manually", err)
-		return
-	}
-	path := filepath.Join(dir, "open-"+hex.EncodeToString(rnd[:])+".html")
-	// O_EXCL: never write through a pre-planted file or link.
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		env.Errorf("desktop: opening browser: %v; open the URL above manually", err)
-		return
-	}
-	_, werr := f.WriteString(redirectPage(url))
-	if cerr := f.Close(); werr == nil {
-		werr = cerr
-	}
-	remove := func() { os.Remove(path) }
+	handoff.Sweep(dir)
+	path, remove, werr := handoff.Write(dir, "desktop", handoff.Page(url, "Opening the remote desktop viewer..."))
 	if werr != nil {
-		remove()
 		env.Errorf("desktop: opening browser: %v; open the URL above manually", werr)
 		return
 	}
@@ -99,27 +72,5 @@ func openBrowser(env *cli.Env, url string) (cleanup func()) {
 	return func() {
 		time.Sleep(max(0, minGrace-time.Since(started)))
 		removeNow()
-	}
-}
-
-// redirectPage is a self-contained page that forwards to url.
-func redirectPage(url string) string {
-	js, _ := json.Marshal(url) // escapes <, > and & as well
-	return `<!doctype html><html><head><meta charset="utf-8"><title>RemoHop</title>` +
-		`<meta http-equiv="refresh" content="0;url=` + html.EscapeString(url) + `">` +
-		`<script>location.replace(` + string(js) + `)</script></head>` +
-		`<body>Opening the remote desktop viewer...</body></html>`
-}
-
-// sweepHandoffs removes redirect files left behind by killed processes.
-func sweepHandoffs(dir string) {
-	ents, _ := os.ReadDir(dir)
-	for _, e := range ents {
-		if !strings.HasPrefix(e.Name(), "open-") || !strings.HasSuffix(e.Name(), ".html") {
-			continue
-		}
-		if info, err := e.Info(); err == nil && time.Since(info.ModTime()) > staleHandoff {
-			os.Remove(filepath.Join(dir, e.Name()))
-		}
 	}
 }
