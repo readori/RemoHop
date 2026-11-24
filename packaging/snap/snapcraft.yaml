@@ -36,7 +36,7 @@ license: AGPL-3.0-only
 website: https://remohop.com
 source-code: https://github.com/readori/RemoHop
 issues: https://github.com/readori/RemoHop/issues
-contact: info@remohop.com
+contact: support@remohop.com
 icon: gui/icon.svg
 base: core24
 grade: stable
