@@ -371,7 +371,7 @@ class FgsDemoTest {
             waitFor(s, "document.documentElement.lang.indexOf('en')===0", "the page shows English", 20, "document.documentElement.lang")
             foreground(s, "connect form")
             stage("app-open")
-            Thread.sleep(1800)
+            Thread.sleep(1200)
 
             // The address, typed out; the password in one go (it shows as dots).
             for (i in 1..host.length) {
@@ -498,8 +498,9 @@ class FgsDemoTest {
             )
             val banner = text(s, "(function(){var b=document.getElementById('banner');return b.hidden?'':b.textContent})()")
             Log.i(TAG, "back in the app: connect screen; banner '${banner.take(80)}'")
+            hideKeyboard(s) // the connect form focuses its field; the keyboard would cover the screen
             stage("app-disconnected")
-            Thread.sleep(5000)
+            Thread.sleep(4000)
             stage("end")
         }
     }
