@@ -20,7 +20,7 @@
 
 <div class="wrap">
 <div class="note status-note">
-<p><strong>Where it stands (November 2026):</strong> there are no published downloads yet<!--src-->, so you build from source<!--/src-->. There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="{{L:features}}#status">Full list of limits</a></p>
+<p><strong>Where it stands (November 2026):</strong> <!--norel-->the first release is being prepared, and until it is out<!--src--> you build from source<!--/src--><!--nosrc--> there are no downloads<!--/nosrc-->.<!--/norel--><!--rel-->the first release is out; see <a href="{{L:download}}">Download</a>.<!--/rel--> There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="{{L:features}}#status">Full list of limits</a></p>
 </div>
 </div>
 
@@ -71,36 +71,43 @@
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
 <h2 id="get-h">Get RemoHop</h2>
-<p class="section-lede"><!--src-->There are no published downloads yet; all three are built from source for now. This section will link to the downloads after the first release.<!--/src--><!--nosrc-->There are no published downloads yet. Once the apps are out, this section will link to them.<!--/nosrc--><!-- TODO(owner): replace with download links after the first release --></p>
+<p class="section-lede"><!--norel-->The first release is being prepared; the <a href="{{L:download}}">download page</a> lists what it will contain. <!--src-->Until then all three are built from source.<!--/src--><!--/norel--><!--rel-->Every download, with checksums and signatures, is on the <a href="{{L:download}}">download page</a>.<!--/rel--></p>
 <div class="cards">
 <article class="panel">
-<p class="chip wait">Not released yet</p>
+<!--norel--><p class="chip wait">Not released yet</p><!--/norel--><!--rel--><p class="chip">Available</p><!--/rel-->
 <h3>The <code>remohop</code> program</h3>
 <p class="platforms">Linux · macOS · Windows</p>
+<!--rel-->
+<p>Host, client, browser gateway and rendezvous server in one binary. On Linux and macOS:</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<!--/rel-->
+<!--norel-->
 <!--src-->
-<p>Host, client, browser gateway and rendezvous server in one binary. Build it with the Go version in <code>go.mod</code> (1.26):</p>
+<p>Host, client, browser gateway and rendezvous server in one binary. Until the release, build it with the Go version in <code>go.mod</code> (1.26):</p>
 <pre class="cmd"><code>git clone {{REPO}}
 cd RemoHop
 make build</code></pre>
 <!--/src-->
+<!--/norel-->
 <!--nosrc-->
 <p>Host, client, browser gateway and rendezvous server in one binary. Downloads will be here after the release; questions in the meantime: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
 <!--/nosrc-->
-<p class="links"><a href="{{L:features}}#install">Install</a><a href="{{L:features}}#platforms">Platform support</a></p>
+<p class="links"><a href="{{L:download}}#cli">Download</a><a href="{{L:features}}#platforms">Platform support</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">Not released yet</p>
+<!--norel--><p class="chip wait">Not released yet</p><!--/norel--><!--rel--><p class="chip">Available</p><!--/rel-->
 <h3>Quick Support</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>The window the person being helped double-clicks. <!--src--><code>make quick</code> builds <code>RemoHop.exe</code>, <code>RemoHop.app</code> and a Linux program, none of them code-signed yet.<!--/src--><!--nosrc--><code>RemoHop.exe</code> on Windows, <code>RemoHop.app</code> on macOS and <code>remohop quick</code> on Linux, none of them code-signed yet.<!--/nosrc--></p>
-<p class="links"><a href="{{L:docs/quick-support}}">Quick support guide</a><!--src--><a href="{{REPO}}/blob/main/packaging/quick/README.md">Packaging notes</a><!--/src--></p>
+<p>The window the person being helped double-clicks. <!--rel--><code>RemoHop.exe</code> for Windows (not code-signed yet), <code>RemoHop.app</code> for macOS (signed and notarized) and a Linux program.<!--/rel--><!--norel--><!--src--><code>make quick</code> builds <code>RemoHop.exe</code>, <code>RemoHop.app</code> and a Linux program; the release will have them signed for macOS, not yet for Windows.<!--/src--><!--/norel--><!--nosrc--><code>RemoHop.exe</code> on Windows, <code>RemoHop.app</code> on macOS and <code>remohop quick</code> on Linux, none of them code-signed yet.<!--/nosrc--></p>
+<p class="links"><a href="{{L:download}}#quick">Download</a><a href="{{L:docs/quick-support}}">Quick support guide</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">Not released yet</p>
+<!--nostore--><p class="chip wait">Not released yet</p><!--/nostore--><!--store--><p class="chip">Available</p><!--/store-->
 <h3>Phone controller</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
-<p>Connect to and operate your computers from a phone or tablet; the phone itself cannot be controlled. TestFlight for iOS is in preparation, and the Android app is in no store yet.</p>
-<p class="links"><a href="{{L:apps}}">Apps</a></p>
+<p>Connect to and operate your computers from a phone or tablet; the phone itself cannot be controlled. <!--nostore-->Neither app is in a store yet.<!--/nostore--><!--store-->On the App Store and Google Play.<!--/store--></p>
+<p class="links"><a href="{{L:download}}#mobile">Download</a><a href="{{L:apps}}">Apps</a></p>
 </article>
 </div>
 </div>

@@ -15,13 +15,14 @@ Releases are built by the release workflow on every `v*` tag. No release has bee
 
 The scripts download the archive for your OS and CPU, check it against the release's `SHA256SUMS`, check that file's signature when [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) is installed, and copy `remohop` to `~/.local/bin` (as root: `/usr/local/bin`; Windows: `%LOCALAPPDATA%\Programs\RemoHop`, added to your user `PATH`). They never use `sudo` and never edit shell profiles. Options: `--version vX.Y.Z`, `--bindir DIR`, `--verify require` (fail unless the signature checks out); `install.ps1` takes `-Version`, `-BinDir`, `-Verify`, `-NoPath`.
 
-Package managers (planned; the tap, bucket and packages are not published yet, so these are templates, see [packaging/README.md](../../packaging/README.md)):
+Package managers (planned; the tap, bucket and packages are not published yet, see [packaging/README.md](../../packaging/README.md)):
 
 | Manager | Command once published |
 |---|---|
-| Homebrew (macOS, Linux) | `brew install <owner>/<tap>/remohop` |
-| Scoop (Windows) | `scoop bucket add <name> <bucket-url>` then `scoop install remohop` |
-| winget (Windows) | `winget install <Publisher>.RemoHop` |
+| Homebrew (macOS, Linux) | `brew install readori/tap/remohop` |
+| Homebrew cask (macOS, quick support) | `brew install --cask readori/tap/remohop-quick` |
+| Scoop (Windows) | `scoop bucket add readori https://github.com/readori/scoop-bucket` then `scoop install remohop` |
+| winget (Windows) | `winget install Readori.RemoHop` |
 | AUR (Arch) | `yay -S remohop-bin` |
 | Nix | `callPackage` of the generated `remohop.nix` |
 
@@ -30,7 +31,22 @@ Notes:
 - **macOS:** releases carry one universal (Apple silicon and Intel) binary, which the release workflow signs with a Developer ID and submits to Apple for notarization. Gatekeeper checks the notarization online on first run; a bare executable cannot carry an offline ticket.
 - **Windows:** the binaries are **not code-signed yet**, so SmartScreen may warn on first run. The checksum and cosign signature are how to verify a download until signing is set up.
 - **Linux packages** install `remohop` and the systemd unit files and enable nothing. `remohop service install` is the supported way to run the host at boot or login.
-- **Verify a download by hand:**
+
+## Quick support
+
+The double-click program for the person being helped ([Quick support](quick-support.md)) is a separate download in each release:
+
+| System | File | Then |
+|---|---|---|
+| Windows 10/11 | `RemoHop-windows-amd64.zip` (ARM64: `RemoHop-windows-arm64.zip`) | unzip, double-click `RemoHop.exe`; not code-signed yet, so SmartScreen warns ("More info", "Run anyway") |
+| macOS 12+ | `RemoHop-macos.zip` (Apple silicon and Intel) | unzip, open `RemoHop.app`; signed with a Developer ID, notarized and stapled |
+| Linux | `remohop-quick_linux_amd64.tar.gz` (ARM64: `..._arm64.tar.gz`) | unpack, run `./remohop-quick` |
+
+Each is at `https://github.com/readori/RemoHop/releases/latest/download/<file>` and covered by the release's `SHA256SUMS`. A Microsoft Store version is in preparation.
+
+## Verifying a download
+
+Every file of a release is listed in its `SHA256SUMS`, and that file carries a keyless [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) signature which ties it to this repository's release workflow and the tag. Download `SHA256SUMS`, `SHA256SUMS.sigstore.json` and the files you want into one directory, then:
 
 ```bash
 sha256sum --ignore-missing -c SHA256SUMS

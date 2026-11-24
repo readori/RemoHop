@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>功能与限制 | RemoHop</title>
 <meta name="description" content="RemoHop 的常用命令、浏览器客户端、连接如何建立、平台支持、安装方式和已知限制。">
-<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +37,7 @@
 <ul>
 <li><a href="/features/" aria-current="page">功能</a></li>
 <li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>
@@ -108,7 +109,7 @@ Linux x86_64
 <div>
 <h3>目前不适合</h3>
 <ul>
-<li>想要下载即用的图形界面安装包。现在只有命令行，而且要自己编译。</li>
+<li>想要下载即用的图形界面安装包。现在只有命令行，而且在首个发布版本出来之前要自己编译。</li>
 <li>要控制手机或平板。移动应用只是控制端，手机不能被控。</li>
 <li>需要经过第三方审计的产品。RemoHop 还没有做过独立审计。</li>
 <li>被控机用的是原生 Wayland 桌面。屏幕采集目前只支持 X11、macOS 和 Windows。</li>
@@ -313,12 +314,12 @@ remohop log</code></pre>
 <p>Android 和 iOS 上有控制端应用，都还没有商店版本，见<a href="/apps/">移动应用</a>。</p>
 
 <h2 id="install">安装</h2>
-<p>目前没有可下载的发布版本，需要用 <code>go.mod</code> 里指定的 Go 版本（1.26）从源码编译。得到的是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。</p>
+<p>首个发布版本正在准备中，<a href="/download/">下载页</a>列出了它会包含的文件。在此之前，需要用 <code>go.mod</code> 里指定的 Go 版本（1.26）从源码编译。得到的是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。</p>
 <pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
 cd RemoHop
 make build        <span class="c"># 生成 bin/remohop（CGO_ENABLED=0）</span>
 make cross        <span class="c"># 可选：linux、macOS、Windows 各架构，输出到 dist/</span></code></pre>
-<p>仓库里已经有 <code>.deb</code>、<code>.rpm</code> 的打包配置和一个推送 <code>v*</code> 标签时触发的发布工作流，但它还没有运行过，程序也没有做代码签名。发布之后，压缩包和 <code>SHA256SUMS</code> 会出现在 <a href="https://github.com/readori/RemoHop/releases">GitHub Releases</a>，这一节到时会换成下载链接。</p>
+<p>推送 <code>v*</code> 标签时触发的发布工作流会构建 Linux、macOS 和 Windows 的压缩包、<code>.deb</code>/<code>.rpm</code>/<code>.apk</code> 软件包和快速协助程序，并给 <code>SHA256SUMS</code> 签名。macOS 的文件用 Developer ID 签名并经过公证；Windows 的文件尚未做代码签名。</p>
 <p>接下来怎么配置服务器、启动被控机和配对，见<a href="/docs/">快速开始</a>。</p>
 
 <h2 id="license">开源与商业授权</h2>
@@ -326,7 +327,7 @@ make cross        <span class="c"># 可选：linux、macOS、Windows 各架构�
 
 <h2 id="status">状态与限制</h2>
 <ul>
-<li>没有发布版本，没有代码签名，没有内置默认服务器。</li>
+<li>还没有发布版本（首个版本正在准备中），Windows 程序没有代码签名，没有内置默认服务器。</li>
 <li>没有经过独立的安全审计。</li>
 <li>NAT 穿透测试用的是 Linux 网络命名空间。真实的家用路由器和 IPv6 路径没有测试过。</li>
 <li>实体 Mac 上的一切、Windows 的 WebDAV 挂载和图形输入、除一台 macOS 虚拟机里的 VideoToolbox 以外的 GPU 编码器、4K 60 fps，都没有测试过。</li>
@@ -346,6 +347,7 @@ make cross        <span class="c"># 可选：linux、macOS、Windows 各架构�
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>

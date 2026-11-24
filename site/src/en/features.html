@@ -58,7 +58,7 @@ Linux x86_64
 <div>
 <h3>Not a fit yet</h3>
 <ul>
-<li>You want a graphical installer that works after one download. Today there is a command line<!--src-->, and you compile it<!--/src--><!--nosrc-->, and it is not released yet<!--/nosrc-->.</li>
+<li>You want a graphical installer that works after one download. Today there is a command line<!--norel--><!--src--> that you compile until the first release is out<!--/src--><!--nosrc-->, and it is not released yet<!--/nosrc--><!--/norel--><!--rel--> and the quick-support window, without an installer<!--/rel-->.</li>
 <li>You want to control a phone or tablet. The mobile apps are controllers; a phone cannot be a host.</li>
 <li>You need a product with a third-party audit. RemoHop has not had one.</li>
 <li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
@@ -261,20 +261,28 @@ remohop log</code></pre>
 </tbody>
 </table>
 </div>
-<p>There are controller apps for Android and iOS, neither with a store release yet. See <a href="{{L:apps}}">Apps</a>.</p>
+<p>There are controller apps for Android and iOS, <!--nostore-->neither with a store release yet<!--/nostore--><!--store-->on the App Store and Google Play<!--/store-->. See <a href="{{L:apps}}">Apps</a>.</p>
 
 <h2 id="install">Install</h2>
+<!--rel-->
+<p>Every download is on the <a href="{{L:download}}">download page</a>: install scripts, archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, all listed in a signed <code>SHA256SUMS</code>. On Linux and macOS:</p>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>The result is one statically linked binary on your <code>PATH</code>. The macOS downloads are signed and notarized; the Windows ones are not code-signed yet. You can also build from source; see <a href="{{L:docs/building}}">Building from source</a>.</p>
+<!--/rel-->
+<!--norel-->
 <!--src-->
-<p>There are no published downloads yet. Build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
+<p>The first release is being prepared; the <a href="{{L:download}}">download page</a> lists what it will contain. Until then, build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
 <pre><code>git clone {{REPO}}
 cd RemoHop
 make build        <span class="c"># writes bin/remohop (CGO_ENABLED=0)</span>
 make cross        <span class="c"># optional: linux, macOS and Windows targets into dist/</span></code></pre>
-<p>The repository already has <code>.deb</code> and <code>.rpm</code> packaging and a release workflow that runs when a <code>v*</code> tag is pushed, but that workflow has never run and the binaries are not code-signed. Once there is a release, archives and <code>SHA256SUMS</code> will be on <a href="{{REPO}}/releases">GitHub Releases</a>, and this section will link to them.</p>
+<p>The release workflow, run when a <code>v*</code> tag is pushed, builds archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, and signs <code>SHA256SUMS</code>. The macOS files are signed with a Developer ID and notarized; the Windows ones are not code-signed yet.</p>
 <!--/src-->
 <!--nosrc-->
 <p>There are no published downloads yet, and the binaries are not code-signed yet. Once the apps are out, this section will link to the downloads, and the source will be published under the AGPL-3.0 at the same time. It will be one statically linked binary to put on the <code>PATH</code> of each machine. Questions in the meantime: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
 <!--/nosrc-->
+<!--/norel-->
 <p>For setting up the server, starting a host and pairing, continue with the <a href="{{L:docs}}">quick start</a>.</p>
 
 <h2 id="license"><!--src-->Open source and commercial license<!--/src--><!--nosrc-->License and commercial license<!--/nosrc--></h2>
@@ -282,7 +290,7 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 
 <h2 id="status">Status and limits</h2>
 <ul>
-<li>No releases, no code signing, no built-in default server.</li>
+<li><!--norel-->No release yet (the first is being prepared), no<!--/norel--><!--rel-->No<!--/rel--> code signing for Windows, no built-in default server.</li>
 <li>No independent security audit.</li>
 <li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
 <li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>

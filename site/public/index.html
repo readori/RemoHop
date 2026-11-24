@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>RemoHop：远程连上你的电脑</title>
 <meta name="description" content="RemoHop 是开源的点对点远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。">
-<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +37,7 @@
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>
@@ -69,7 +70,7 @@
 
 <div class="wrap">
 <div class="note status-note">
-<p><strong>现状（2026 年 11 月）：</strong>还没有可下载的发布版本，需要从源码编译；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="/features/#status">完整的限制清单</a></p>
+<p><strong>现状（2026 年 11 月）：</strong>首个发布版本正在准备中，在它发布之前需要从源码编译；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="/features/#status">完整的限制清单</a></p>
 </div>
 </div>
 
@@ -120,31 +121,31 @@
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
 <h2 id="get-h">获取 RemoHop</h2>
-<p class="section-lede">还没有可下载的发布版本，下面三样目前都要从源码构建。发布之后，这里会换成下载链接。</p>
+<p class="section-lede">首个发布版本正在准备中，<a href="/download/">下载页</a>列出了它会包含的文件。在此之前，下面三样都要从源码构建。</p>
 <div class="cards">
 <article class="panel">
 <p class="chip wait">尚未发布</p>
 <h3>命令行程序 <code>remohop</code></h3>
 <p class="platforms">Linux · macOS · Windows</p>
-<p>被控端、客户端、浏览器网关和汇合服务器都在里面。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。发布之前，用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
 <pre class="cmd"><code>git clone https://github.com/readori/RemoHop
 cd RemoHop
 make build</code></pre>
-<p class="links"><a href="/features/#install">安装</a><a href="/features/#platforms">平台支持</a></p>
+<p class="links"><a href="/download/#cli">下载</a><a href="/features/#platforms">平台支持</a></p>
 </article>
 <article class="panel">
 <p class="chip wait">尚未发布</p>
 <h3>快速协助</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>给被协助的人双击打开的窗口。<code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序，都还没有代码签名。</p>
-<p class="links"><a href="/docs/quick-support/">快速协助说明</a><a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">打包说明</a></p>
+<p>给被协助的人双击打开的窗口。<code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序；发布版本里的 macOS 程序会签名，Windows 程序暂不签名。</p>
+<p class="links"><a href="/download/#quick">下载</a><a href="/docs/quick-support/">快速协助说明</a></p>
 </article>
 <article class="panel">
 <p class="chip wait">尚未发布</p>
 <h3>手机控制端</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
-<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。iOS 版正在准备 TestFlight，Android 版没有上架任何商店。</p>
-<p class="links"><a href="/apps/">移动应用</a></p>
+<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。两个应用都还没有上架。</p>
+<p class="links"><a href="/download/#mobile">下载</a><a href="/apps/">移动应用</a></p>
 </article>
 </div>
 </div>
@@ -168,6 +169,7 @@ make build</code></pre>
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>

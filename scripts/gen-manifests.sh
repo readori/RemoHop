@@ -4,18 +4,19 @@
 #
 # Usage: scripts/gen-manifests.sh vX.Y.Z ASSETS_DIR OUT_DIR
 #   ASSETS_DIR holds SHA256SUMS (as uploaded to the release); OUT_DIR gets:
-#     homebrew-tap/Formula/remohop.rb                       -> your Homebrew tap repo
-#     scoop-bucket/bucket/remohop.json                      -> your Scoop bucket repo
+#     homebrew-tap/Formula/remohop.rb                       -> the Homebrew tap repo (readori/homebrew-tap)
+#     homebrew-tap/Casks/remohop-quick.rb                   -> the same tap: RemoHop.app (quick support)
+#     scoop-bucket/bucket/remohop.json                      -> the Scoop bucket repo (readori/scoop-bucket)
 #     winget/manifests/<letter>/<Publisher>/RemoHop/<ver>/*.yaml -> microsoft/winget-pkgs PR
 #     aur/remohop-bin/{PKGBUILD,.SRCINFO}                   -> the AUR git repo
 #     nix/remohop.nix
 # Environment: REPO (default readori/RemoHop), RELEASE_DATE (default: today, UTC),
-#   WINGET_PUBLISHER (the winget package id prefix, e.g. Acme; default REPLACE_ME_PUBLISHER)
-#   WINGET_PUBLISHER_NAME (display name; default REPLACE_ME_PUBLISHER_NAME),
+#   WINGET_PUBLISHER (the winget package id prefix; default Readori, so the id is Readori.RemoHop)
+#   WINGET_PUBLISHER_NAME (display name; default Readori),
 #   ALLOW_PRERELEASE=1 to render a prerelease (package managers should not track those).
 #
-# Values that need a human decision stay as REPLACE_ME... markers: tap owner and name,
-# the winget publisher, the AUR maintainer. The script lists the ones left.
+# Values that need a human decision stay as REPLACE_ME... markers (today only the AUR
+# maintainer). The script lists the ones left.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 TAG="${1:?usage: gen-manifests.sh vX.Y.Z ASSETS_DIR OUT_DIR}"; ASSETS="${2:?}"; OUT="${3:?}"
@@ -27,8 +28,8 @@ if [[ "$TAG" == *-* && "${ALLOW_PRERELEASE:-}" != 1 ]]; then
 fi
 SUMS="$ASSETS/SHA256SUMS"; [[ -f "$SUMS" ]] || { echo "no $SUMS" >&2; exit 1; }
 RELEASE_DATE="${RELEASE_DATE:-$(date -u +%Y-%m-%d)}"
-WINGET_PUBLISHER="${WINGET_PUBLISHER:-REPLACE_ME_PUBLISHER}"
-WINGET_PUBLISHER_NAME="${WINGET_PUBLISHER_NAME:-REPLACE_ME_PUBLISHER_NAME}"
+WINGET_PUBLISHER="${WINGET_PUBLISHER:-Readori}"
+WINGET_PUBLISHER_NAME="${WINGET_PUBLISHER_NAME:-Readori}"
 [[ "$WINGET_PUBLISHER" =~ ^[A-Za-z0-9_]+$ ]] || { echo "WINGET_PUBLISHER must be letters, digits, underscore" >&2; exit 2; }
 
 sum() { # asset name -> hex digest
@@ -48,6 +49,7 @@ sedargs=(
 	-e "s|@SHA_WINDOWS_ARM64@|$(sum remohop_windows_arm64.zip)|g"
 	-e "s|@SHA_WINDOWS_AMD64_UPPER@|$(sum remohop_windows_amd64.zip | tr a-f A-F)|g"
 	-e "s|@SHA_WINDOWS_ARM64_UPPER@|$(sum remohop_windows_arm64.zip | tr a-f A-F)|g"
+	-e "s|@SHA_MACOS_APP@|$(sum RemoHop-macos.zip)|g"
 )
 render() { # template out
 	mkdir -p "$(dirname "$2")"
@@ -57,6 +59,7 @@ render() { # template out
 
 rm -rf "$OUT"
 render homebrew/remohop.rb.in "$OUT/homebrew-tap/Formula/remohop.rb"
+render homebrew/remohop-quick.rb.in "$OUT/homebrew-tap/Casks/remohop-quick.rb"
 render scoop/remohop.json.in "$OUT/scoop-bucket/bucket/remohop.json"
 letter="$(printf '%s' "$WINGET_PUBLISHER" | cut -c1 | tr "[:upper:]" "[:lower:]")"
 w="$OUT/winget/manifests/$letter/$WINGET_PUBLISHER/RemoHop/$VERSION_NOV"

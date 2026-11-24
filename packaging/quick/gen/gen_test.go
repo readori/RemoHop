@@ -204,3 +204,47 @@ func TestBundle(t *testing.T) {
 		}
 	}
 }
+
+func TestMsixAssets(t *testing.T) {
+	dir := t.TempDir()
+	if err := run("", "", "", "", "", "", "", "", dir); err != nil {
+		t.Fatal(err)
+	}
+	// The sizes the manifest's logos need at 100% (Partner Center checks these),
+	// and the 200% versions.
+	want := map[string][2]int{
+		"Square44x44Logo.scale-100.png": {44, 44}, "Square150x150Logo.scale-100.png": {150, 150},
+		"Wide310x150Logo.scale-100.png": {310, 150}, "Square310x310Logo.scale-100.png": {310, 310},
+		"Square71x71Logo.scale-100.png": {71, 71}, "StoreLogo.scale-100.png": {50, 50},
+		"Wide310x150Logo.scale-200.png": {620, 300}, "StoreLogo.scale-200.png": {100, 100},
+		"Square44x44Logo.targetsize-256_altform-unplated.png": {256, 256},
+	}
+	for name, size := range want {
+		f, err := os.Open(filepath.Join(dir, name))
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		img, err := png.Decode(f)
+		f.Close()
+		if err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		b := img.Bounds()
+		if b.Dx() != size[0] || b.Dy() != size[1] {
+			t.Errorf("%s is %dx%d, want %dx%d", name, b.Dx(), b.Dy(), size[0], size[1])
+		}
+		// Transparent corners, the cobalt tile in the middle.
+		if _, _, _, a := img.At(0, 0).RGBA(); a != 0 {
+			t.Errorf("%s: corner is not transparent", name)
+		}
+		if _, _, _, a := img.At(b.Dx()/2, b.Dy()/2).RGBA(); a == 0 {
+			t.Errorf("%s: nothing drawn in the middle", name)
+		}
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != len(msixAssets()) {
+		t.Errorf("%d files written, want %d", len(entries), len(msixAssets()))
+	}
+}
