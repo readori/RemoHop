@@ -13,17 +13,21 @@ For a tag `vX.Y.Z` the release has these assets (names carry no version, so
 | `remohop_linux_{amd64,arm64}.tar.gz` | `scripts/build-release.sh package` |
 | `remohop_darwin_universal.tar.gz` (arm64 + x86_64, Developer ID signed, notarized) | built and signed in the CI repo, wrapped by `build-release.sh darwin` |
 | `remohop_windows_{amd64,arm64}.zip` (unsigned for now) | `build-release.sh package` |
+| `RemoHop-windows-{amd64,arm64}.zip`: quick support, `RemoHop.exe` (unsigned for now) | `build-release.sh build` (via `packaging/quick/build.sh`) + `package` |
+| `RemoHop-macos.zip`: quick support, `RemoHop.app` universal, Developer ID signed, notarized, stapled (`ditto` zip) | built, signed, notarized and stapled in the CI repo, checked and copied by `build-release.sh darwin-app` |
+| `remohop-quick_linux_{amd64,arm64}.tar.gz`: quick support for Linux | `build-release.sh build` + `package` |
 | `remohop_<ver>_{amd64,arm64}.deb`, `remohop-<ver>-1.{x86_64,aarch64}.rpm`, `remohop_<ver>_{x86_64,aarch64}.apk` | nfpm, from `packaging/nfpm.yaml` |
 | `remohop_sbom.cdx.json` | `scripts/sbom.sh` (CycloneDX, from `go version -m`) |
 | `install.sh`, `install.ps1` | copied from `packaging/` by `scripts/finalize-release.sh` |
-| `SHA256SUMS` | `finalize-release.sh`, over every file above |
+| `SHA256SUMS` | `finalize-release.sh`, over every file above (it refuses to run when one of the version-free archives is missing) |
 | `SHA256SUMS.sigstore.json` | cosign keyless signature bundle over `SHA256SUMS` |
 
 Also published, not as release assets: the image `ghcr.io/<owner>/remohop-signal:<tag>` (multi-arch,
 signed, SBOM + provenance attached), and a workflow artifact `package-manager-manifests` (stable tags only).
 
-Every archive contains the binary, `LICENSE` (AGPL-3.0) and `THIRD_PARTY_LICENSES.txt`
-(`packaging/third_party_licenses.sh`). Archives and the SBOM are reproducible: the same commit
+Every archive contains the binary, `LICENSE` (AGPL-3.0), `NOTICE` and `THIRD_PARTY_LICENSES.txt`
+(`packaging/third_party_licenses.sh`); `RemoHop.app` carries the same three files in `Contents/Resources`,
+inside the signature. Archives and the SBOM are reproducible: the same commit
 and Go toolchain give byte-identical files (`SOURCE_DATE_EPOCH` is the commit time).
 
 ## Cutting a release
@@ -34,8 +38,14 @@ and Go toolchain give byte-identical files (`SOURCE_DATE_EPOCH` is the commit ti
 3. Tag and push: `git tag -s v1.2.3 -m v1.2.3 && git push origin v1.2.3`. Tags with a `-` (`v1.2.3-rc.1`)
    become prereleases and are not tagged `latest` in Docker or rendered into manifests.
 4. The workflow runs `build`, then `macos` (starts the signing workflow in the CI repo and waits, about
-   10 to 20 minutes), then `publish` (draft release, signature, publish), then `docker`.
-5. Verify (below), then submit the package-manager files (below).
+   10 to 20 minutes; it signs and notarizes the CLI and RemoHop.app), then `publish` (draft release, signature,
+   publish), then `docker`.
+5. Verify (below), then submit the package-manager files (below) and the Store package
+   ([windows/msix/README.md](windows/msix/README.md)).
+6. Website: set `RELEASED = True` in `site/build.py`, run `python3 site/build.py --release-docs` (rewrites the
+   "no release yet" statements in `README.md`, `README.zh-CN.md` and `docs/`, listed in `RELEASE_DOC_EDITS`), then
+   `python3 site/build.py`, and commit. As each package manager goes live, set its `"live": True` in `CHANNELS`
+   there; when the phone apps are in the stores, set `STORES_LIVE = True` and run `--release-docs` again.
 
 If `macos` fails, nothing is released; re-run the failed jobs. If only `docker` fails, the release is out;
 re-run that job.
@@ -62,9 +72,13 @@ is stored anywhere.
   App Store Connect key, which live there with a hardened workflow (no pull_request triggers, SHA-pinned
   actions, temporary keychain, strict request parsing). The release workflow calls it with `workflow_dispatch`
   (`ref=<commit>`, `version=<tag>`, `upload=true`, `correlation=<id>`); with `upload=true` it also uploads the
-  signed binary as the artifact `remohop-macos-universal` (3 days). The release job downloads it, checks the
-  recorded hashes, that it is a universal Mach-O and carries the version string, and wraps it into
-  `remohop_darwin_universal.tar.gz`. Requests that do not set `upload` upload nothing.
+  signed binary and `RemoHop-macos.zip` as the artifact `remohop-macos-universal` (3 days). The release job
+  downloads it, checks the recorded hashes, that the binary is a universal Mach-O and carries the version string,
+  and wraps it into `remohop_darwin_universal.tar.gz`; `build-release.sh darwin-app` checks the app's layout,
+  license files, stapled ticket, universal program and version, and copies the zip unchanged. The same run signs
+  `RemoHop.app` as a whole (hardened runtime, timestamp, no entitlements, identifier `com.remohop.quick` from
+  `Info.plist`), notarizes it, staples it, and checks a quarantined copy unpacked from the zip with `spctl`, its UI
+  server, and a LaunchServices start. Requests that do not set `upload` upload nothing.
 - *Alternative:* turn the CI workflow into a reusable workflow (`on: workflow_call`) and call it from
   `release.yml` with `uses: readori/test-env-setup/.github/workflows/sodesk-macos-release.yml@<sha>`. That removes
   the polling, but the Apple secrets would then have to be present in (or inherited by) the RemoHop repo, which
@@ -122,13 +136,15 @@ signed. Then drop the "unsigned" notes from `packaging/windows/README.txt`, the 
 Templates are in `packaging/templates/`. `scripts/gen-manifests.sh vX.Y.Z ASSETS_DIR OUT_DIR` fills versions, URLs and
 hashes from the release's `SHA256SUMS`; the release workflow runs it for stable tags and keeps the result as the
 artifact `package-manager-manifests`. Values that need a human decision stay as `REPLACE_ME...` markers (the script lists
-them): `WINGET_PUBLISHER`/`WINGET_PUBLISHER_NAME` environment variables, the tap owner and name, the AUR maintainer.
+them): today only the AUR maintainer. The winget publisher defaults to `Readori` (`WINGET_PUBLISHER`,
+`WINGET_PUBLISHER_NAME` override it).
 
 | Output | Goes to | Notes |
 |---|---|---|
-| `homebrew-tap/Formula/remohop.rb` | a repo named `homebrew-<tap>` | `brew install <owner>/<tap>/remohop`; tests `remohop version`. Add `brew test-bot` in the tap's CI. |
-| `scoop-bucket/bucket/remohop.json` | a repo used as a Scoop bucket | has `checkver`/`autoupdate`, so the bucket's Excavator bot can follow releases. |
-| `winget/manifests/<l>/<Publisher>/RemoHop/<ver>/*.yaml` | PR to `microsoft/winget-pkgs` | portable zip installer; validate with `winget validate --manifest DIR`; `wingetcreate update` can automate later PRs. |
+| `homebrew-tap/Formula/remohop.rb` | `readori/homebrew-tap` | `brew install readori/tap/remohop`; tests `remohop version`. Add `brew test-bot` in the tap's CI. |
+| `homebrew-tap/Casks/remohop-quick.rb` | `readori/homebrew-tap` | `brew install --cask readori/tap/remohop-quick`: RemoHop.app. Not called `remohop`, so it is not confused with the formula. `zap` removes only the `quick.*` files, never the CLI's identity. |
+| `scoop-bucket/bucket/remohop.json` | `readori/scoop-bucket` | `scoop bucket add readori https://github.com/readori/scoop-bucket`; has `checkver`/`autoupdate`, so the bucket's Excavator bot can follow releases. |
+| `winget/manifests/r/Readori/RemoHop/<ver>/*.yaml` | PR to `microsoft/winget-pkgs` | `Readori.RemoHop`, portable zip installer; validate with `winget validate --manifest DIR`; `wingetcreate update` can automate later PRs. |
 | `aur/remohop-bin/{PKGBUILD,.SRCINFO}` | `ssh://aur@aur.archlinux.org/remohop-bin.git` | prebuilt binaries; regenerate `.SRCINFO` with `makepkg --printsrcinfo` on Arch before pushing. |
 | `nix/remohop.nix` | your overlay/flake, later nixpkgs | binary package (fetchurl); a source `buildGoModule` package is better for nixpkgs once the repo is public. |
 
@@ -166,5 +182,9 @@ and nothing has to be downloaded and trusted besides pinned cosign.
 - Windows code signing (hook only), see above.
 - `install.ps1` has not been run on Windows yet. Run it once against a dry-run release before the first release.
 - apt/dnf repositories, a Homebrew core submission, Chocolatey, Flatpak/Snap.
-- With the first release, update the "no release has been published yet" statements in `README.md`, `README.zh-CN.md`,
-  `docs/zh/install.md`, `docs/en/install.md`, `docs/*/platforms.md`, `docs/*/mobile-apps.md` and `docs/security.md`.
+- With the first release, the "no release has been published yet" statements in `README.md`, `README.zh-CN.md`,
+  `docs/*/install.md`, `docs/*/platforms.md`, `docs/*/quick-support.md` and `docs/security.md` change: they are listed
+  in `RELEASE_DOC_EDITS` in `site/build.py` and applied with `--release-docs` (step 6 of "Cutting a release");
+  `docs/*/mobile-apps.md` follows `STORES_LIVE` the same way.
+- The Microsoft Store package of quick support: built and install-tested in CI, not submitted yet; see
+  [windows/msix/README.md](windows/msix/README.md).
