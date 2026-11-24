@@ -22,6 +22,18 @@
   'use strict';
   if (window.remohopMobile) return;
 
+  // ---- app mode ----
+  // The page's style.css styles html.app as a phone app (compact top bar,
+  // grouped lists, 16px fields, help on demand). Only the apps inject this
+  // script, so the browser page never gets the class.
+  // At document start the <html> element may not exist yet.
+  (function markApp() {
+    const mark = () => { if (!document.documentElement) return false; document.documentElement.classList.add('app'); return true; };
+    if (mark()) return;
+    const mo = new MutationObserver(() => { if (mark()) mo.disconnect(); });
+    mo.observe(document, {childList: true});
+  })();
+
   // ---- keep the gateway session across a new WebView ----
   // The page keeps its gateway session id in sessionStorage, which a new
   // WebView does not have: after the Activity is recreated (the system
@@ -83,6 +95,15 @@
     };
   })();
 
+  // ---- diagnostics: page errors go to the app's diagnostic log, which
+  // keeps them only while the user has it on (and redacts them) ----
+  function diagLog(text) {
+    if (native.available()) native.post('log', {text: String(text).slice(0, 1500)});
+  }
+  addEventListener('error', e => diagLog('page error: ' + (e.message || '') +
+    (e.filename ? ' (' + String(e.filename).split('/').pop() + ':' + e.lineno + ')' : '')));
+  addEventListener('unhandledrejection', e => diagLog('unhandled rejection: ' + (e.reason && (e.reason.message || e.reason))));
+
   // ---- the desktop WebSocket ----
   // desktop.js keeps its socket in a closure; wrapping the constructor is
   // how input reaches it without touching the gateway's assets.
@@ -140,8 +161,35 @@
       'm.empty': 'The remote clipboard is empty.',
       'm.copied.local': 'Copied {n} characters to this device.',
       'm.dlfailed': 'Download failed: {msg}',
-      'm.settings': 'App settings: language, rendezvous server, device name, identity',
-      'm.norv': 'No rendezvous server is set. Set your rendezvous server in the app\'s settings (⚙ at the top), or connect by address (host:port).',
+      'm.settings': 'Settings',
+      'm.back': 'Hosts',
+      'm.help': 'Help',
+      'm.colon': 'Type a colon',
+      'm.pair': 'Remember this host',
+      'm.saved': 'Saved hosts',
+      'm.active': 'Connected now',
+      'm.live': 'Connected · tap to return',
+      'm.more': 'Actions for {name}',
+      'm.cancel': 'Cancel',
+      'm.done': 'Done',
+      'm.disc.title': 'Disconnect from {host}?',
+      'm.disc.msg': 'The desktop, terminal sessions and transfers with this host end.',
+      'm.disc.ok': 'Disconnect',
+      'm.help.title': 'Connecting to a host',
+      'm.help.target.h': 'Host',
+      'm.help.target': 'Its 9-digit ID (needs a rendezvous server, set in Settings), a name you saved, or its address, such as 192.168.1.20:21118.',
+      'm.help.pass.h': 'Password',
+      'm.help.pass': 'The password set on the host. Leave it empty for a host this device is paired with. It is used for this login only and not stored.',
+      'm.help.pair.h': 'Remember this host',
+      'm.help.pair': 'Pairs this device with the host: the host gives it a token, so next time no password is needed. Remove it in Settings → Saved hosts.',
+      'm.help.sec.h': 'Security',
+      'm.help.sec': 'The session runs directly between this device and the host and is end-to-end encrypted; a relay, if one is used, cannot read it. RemoHop collects no data.',
+      'm.help.privacy': 'Privacy and about',
+      // The page's connection errors, in the app's words (they name Settings).
+      'reason.no_rendezvous': 'No rendezvous server is set, so a host can only be reached by its address (host:port). Set your server in Settings to connect by ID.',
+      'reason.rendezvous_unreachable': 'The rendezvous server set in Settings cannot be reached. Check its address and the network, or connect by address (host:port).',
+      'reason.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a rendezvous server (it may be a host). Fix it there, or connect to the host by its address (host:port).',
+      'reason.signal_is_host': 'The address in Settings → Rendezvous server is not a rendezvous server (it may be a host). Fix it there, or connect to the host by its address (host:port).',
     },
     zh: {
       'm.kbd.input': '远程桌面的键盘输入',
@@ -171,8 +219,34 @@
       'm.empty': '远程剪贴板是空的。',
       'm.copied.local': '已将 {n} 个字符复制到本设备。',
       'm.dlfailed': '下载失败：{msg}',
-      'm.settings': '应用设置：语言、汇合服务器、设备名称、身份',
-      'm.norv': '尚未设置汇合服务器。请在应用设置（顶部的 ⚙）中设置，或直接用地址（host:port）连接。',
+      'm.settings': '设置',
+      'm.back': '被控端列表',
+      'm.help': '帮助',
+      'm.colon': '输入冒号',
+      'm.pair': '记住这台被控端',
+      'm.saved': '已保存的被控端',
+      'm.active': '当前连接',
+      'm.live': '已连接 · 轻点返回',
+      'm.more': '{name} 的操作',
+      'm.cancel': '取消',
+      'm.done': '完成',
+      'm.disc.title': '断开与 {host} 的连接？',
+      'm.disc.msg': '与这台被控端的远程桌面、终端会话和文件传输都会结束。',
+      'm.disc.ok': '断开连接',
+      'm.help.title': '如何连接被控端',
+      'm.help.target.h': '被控端',
+      'm.help.target': '填写它的 9 位 ID（需要先在设置中填写汇合服务器）、你保存的名称，或它的地址，例如 192.168.1.20:21118。',
+      'm.help.pass.h': '密码',
+      'm.help.pass': '被控端上设置的密码。已与本设备配对的被控端可以留空。密码只用于这次登录，不会保存。',
+      'm.help.pair.h': '记住这台被控端',
+      'm.help.pair': '让本设备与被控端配对：被控端会发给本设备一个令牌，下次连接无需密码。可在“设置 → 已保存的被控端”中移除。',
+      'm.help.sec.h': '安全',
+      'm.help.sec': '会话直接在本设备与被控端之间建立，并且端到端加密；即使经过中继，中继也无法读取内容。RemoHop 不收集任何数据。',
+      'm.help.privacy': '隐私与关于',
+      'reason.no_rendezvous': '尚未设置汇合服务器，只能通过地址（host:port）连接被控端。要用 ID 连接，请在设置中填写你的汇合服务器。',
+      'reason.rendezvous_unreachable': '无法连接设置中的汇合服务器。请检查它的地址和网络，或直接用地址（host:port）连接。',
+      'reason.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是汇合服务器（可能是某台被控端）。请在那里修改，或直接用地址（host:port）连接被控端。',
+      'reason.signal_is_host': '“设置 → 汇合服务器”中填写的不是汇合服务器（可能是某台被控端）。请在那里修改，或直接用地址（host:port）连接被控端。',
     },
   };
   let I18N = null;
@@ -282,7 +356,7 @@
   let toastEl = null, toastTimer = 0;
   function toast(text) {
     if (!toastEl) {
-      toastEl = css(document.createElement('div'), {position: 'fixed', left: '50%', top: '12px', transform: 'translateX(-50%)',
+      toastEl = css(document.createElement('div'), {position: 'fixed', left: '50%', top: 'calc(env(safe-area-inset-top, 0px) + 64px)', transform: 'translateX(-50%)',
         maxWidth: '90vw', padding: '8px 14px', borderRadius: '8px', background: 'rgba(20,20,20,.92)', color: '#fff',
         font: '14px system-ui, sans-serif', zIndex: '2147483647', pointerEvents: 'none'});
       toastEl.setAttribute('role', 'status');
@@ -301,7 +375,7 @@
     canvas = $('d-canvas'); stage = $('d-stage');
     interceptDownloads();
     addSettingsButton();
-    watchConnectErrors();
+    setupAppChrome();
     if (!canvas || !stage) return;
     css(canvas, {touchAction: 'none', webkitUserSelect: 'none', userSelect: 'none', webkitTouchCallout: 'none'});
     setupGestures();
@@ -685,12 +759,243 @@
     b.addEventListener('click', () => native.post('openSettings'));
     top.appendChild(b);
   }
-  function watchConnectErrors() {
-    const el = $('connerr');
-    if (!el || !native.available()) return;
-    new MutationObserver(() => {
-      if (el.textContent.indexOf('no rendezvous server configured') >= 0 && el.getAttribute('data-i18n') !== 'm.norv') i18n().say(el, 'm.norv');
-    }).observe(el, {childList: true, characterData: true, subtree: true});
+  // ---- app chrome (styled by html.app rules in the page's style.css) ----
+  function setupAppChrome() {
+    const root = document.documentElement;
+    // No pinch zoom of the page, and no zooming into fields; the remote
+    // desktop zooms itself (setupGestures). viewport-fit=cover gives the
+    // page the safe-area insets, so the top bar fills the status bar area.
+    const vp = document.querySelector('meta[name=viewport]');
+    if (vp) vp.setAttribute('content', 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover');
+
+    // The title: "RemoHop", or the host's name in a session with the
+    // connection path under it.
+    const brand = document.querySelector('header.top .brand');
+    let titleName = null;
+    if (brand && !$('sdm-title')) {
+      for (const n of [...brand.childNodes]) if (n.nodeType === 3 && n.textContent.trim()) n.remove();
+      const t = document.createElement('span');
+      t.className = 'apptitle'; t.id = 'sdm-title';
+      titleName = document.createElement('span');
+      titleName.id = 'sdm-title-name'; titleName.textContent = 'RemoHop';
+      t.appendChild(titleName);
+      brand.insertBefore(t, brand.querySelector('.sub'));
+      const badge = $('pathbadge');
+      if (badge) t.appendChild(badge);
+    }
+    const nc = $('newconn');
+    if (nc) i18n().sayAttr(nc, 'aria-label', 'm.back');
+
+    // Help on demand instead of paragraphs: an ⓘ next to the heading.
+    const h = $('connect-h');
+    if (h && !$('sdm-info')) {
+      const row = document.createElement('div');
+      row.className = 'titlerow';
+      h.parentNode.insertBefore(row, h);
+      row.appendChild(h);
+      const info = document.createElement('button');
+      info.type = 'button'; info.id = 'sdm-info'; info.className = 'sdm-icon info';
+      i18n().sayAttr(info, 'aria-label', 'm.help');
+      info.addEventListener('click', showHelp);
+      row.appendChild(info);
+    }
+    // The address field: a ":" key next to it (the phone keyboard hides
+    // the colon on another layer), and typing slips fixed when it is left.
+    const tg = $('target');
+    if (tg && !$('sdm-colon')) {
+      const wrap = document.createElement('div');
+      wrap.className = 'fieldwrap';
+      tg.parentNode.insertBefore(wrap, tg);
+      wrap.appendChild(tg);
+      const k = document.createElement('button');
+      k.type = 'button'; k.id = 'sdm-colon'; k.className = 'fieldkey'; k.textContent = ':';
+      i18n().sayAttr(k, 'aria-label', 'm.colon');
+      k.addEventListener('pointerdown', e => e.preventDefault());
+      k.addEventListener('mousedown', e => e.preventDefault());
+      k.addEventListener('click', () => {
+        const a = tg.selectionStart == null ? tg.value.length : tg.selectionStart, b = tg.selectionEnd == null ? a : tg.selectionEnd;
+        tg.setRangeText(':', a, b, 'end');
+        tg.focus({preventScroll: true});
+        tg.dispatchEvent(new Event('input', {bubbles: true}));
+      });
+      wrap.appendChild(k);
+      tg.addEventListener('change', () => { if (window.SD && window.SD.normTarget) tg.value = window.SD.normTarget(tg.value); });
+    }
+    // Shorter labels.
+    const pairText = document.querySelector('#pairrow [data-i18n="connect.pair"]');
+    if (pairText) i18n().say(pairText, 'm.pair');
+    const ph = $('peers-h');
+    if (ph) i18n().say(ph, 'm.saved');
+    const banner = $('banner');
+    if (banner) banner.addEventListener('click', () => { banner.hidden = true; });
+
+    // A tap on Disconnect asks first (a script's click() does not).
+    window.addEventListener('click', async e => {
+      const d = e.target && e.target.closest && e.target.closest('#disconnect');
+      if (!d || !e.isTrusted || !window.SD || !window.SD.confirm) return;
+      e.stopImmediatePropagation(); e.preventDefault();
+      const host = titleName ? titleName.textContent : '';
+      if (await window.SD.confirm(tr('m.disc.title', {host}), tr('m.disc.msg'), tr('m.disc.ok'))) d.click();
+    }, true);
+
+    // Session state for the styles, the title and the list of open sessions.
+    const ws = $('workspace'), conn = $('connect'), sess = $('sessname'), hostsel = $('hostsel'), hb = $('hostbar');
+    const sync = () => {
+      const inSession = !!(ws && !ws.hidden);
+      root.classList.toggle('insession', inSession);
+      root.classList.toggle('multi', !!(hostsel && hostsel.options.length > 1));
+      if (titleName) titleName.textContent = inSession && sess && sess.textContent ? sess.textContent : 'RemoHop';
+      renderActive();
+    };
+    const mo = new MutationObserver(sync);
+    for (const el of [ws, conn, hb]) if (el) mo.observe(el, {attributes: true, attributeFilter: ['hidden']});
+    if (sess) mo.observe(sess, {childList: true, characterData: true, subtree: true});
+    if (hostsel) mo.observe(hostsel, {childList: true, subtree: true, characterData: true});
+    sync();
+    addEventListener('remohop:lang', () => { lastActive = ''; renderActive(); });
+
+    // Files: rows with an icon and one "more" button that opens the row's
+    // actions in a sheet (the page's own buttons stay, hidden, and do the work).
+    const fb = $('f-body');
+    if (fb) { new MutationObserver(() => decorateFiles(fb)).observe(fb, {childList: true}); decorateFiles(fb); }
+
+    // Connection errors go to the diagnostic log too.
+    const ce = $('connerr');
+    if (ce) {
+      new MutationObserver(() => {
+        const d = ce.querySelector('.errdetail code');
+        const t = (ce.textContent || '').trim();
+        if (t) diagLog('connect error: ' + (d ? (ce.querySelector('.errmain') || ce).textContent + ' | ' + d.textContent : t));
+      }).observe(ce, {childList: true});
+    }
+    trackViewport();
+  }
+
+  // The host sessions this page holds, as a list on the connect screen.
+  let lastActive = '';
+  function renderActive() {
+    const conn = $('connect'), hostsel = $('hostsel'), hb = $('hostbar');
+    if (!conn || !hostsel) return;
+    const opts = hb && !hb.hidden ? [...hostsel.options] : [];
+    const key = opts.map(o => o.value + '\u0000' + o.textContent).join('\u0001');
+    if (key === lastActive && (opts.length === 0) === !$('sdm-active')) return;
+    lastActive = key;
+    let box = $('sdm-active');
+    if (!opts.length) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'sdm-active'; box.className = 'peers';
+      const form = $('connectform');
+      conn.insertBefore(box, form);
+    }
+    box.textContent = '';
+    const head = document.createElement('h3');
+    i18n().say(head, 'm.active');
+    const ul = document.createElement('ul');
+    ul.className = 'peerlist';
+    for (const o of opts) {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'peer live';
+      const icon = document.createElement('span');
+      icon.className = 'peericon'; icon.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'peertext';
+      const name = document.createElement('strong');
+      name.textContent = o.textContent;
+      const sub = document.createElement('small');
+      i18n().say(sub, 'm.live');
+      text.append(name, sub);
+      b.append(icon, text);
+      b.addEventListener('click', () => { hostsel.value = o.value; hostsel.dispatchEvent(new Event('change')); });
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+    box.append(head, ul);
+  }
+
+  const FOLDER = /^\u{1F4C1}\s*/u;
+  function decorateFiles(fb) {
+    for (const row of fb.rows) {
+      if (row.dataset.sdm) continue;
+      row.dataset.sdm = '1';
+      const name = row.querySelector('td.name'), act = row.querySelector('td.act');
+      if (!name || !act) continue;
+      const link = name.querySelector('button.link');
+      const label = link || name;
+      const isDir = !!link || FOLDER.test(name.textContent);
+      if (FOLDER.test(label.textContent)) label.textContent = label.textContent.replace(FOLDER, '');
+      name.classList.add(isDir ? 'dir' : 'file');
+      const acts = [...act.querySelectorAll('button')];
+      if (!acts.length) continue;
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 'more';
+      i18n().sayAttr(more, 'aria-label', 'm.more', {name: label.textContent});
+      const open = () => sheet({title: label.textContent, close: tr('m.cancel'),
+        actions: acts.map(b => ({label: b.textContent, cls: b.getAttribute('data-i18n') === 'f.delete' ? 'danger' : '', run: () => b.click()}))});
+      more.addEventListener('click', open);
+      act.appendChild(more);
+      if (!link) name.addEventListener('click', open);
+    }
+  }
+
+  // sheet shows a bottom sheet: a title, nodes, action buttons and a close button.
+  function sheet({title, body, actions, close}) {
+    let d = $('sdm-sheet');
+    if (!d) {
+      d = document.createElement('dialog');
+      d.id = 'sdm-sheet';
+      // A tap outside the sheet (on the backdrop) closes it.
+      d.addEventListener('click', e => {
+        if (e.target !== d) return;
+        const r = d.getBoundingClientRect();
+        if (e.clientY < r.top || e.clientY > r.bottom || e.clientX < r.left || e.clientX > r.right) d.close();
+      });
+      document.body.appendChild(d);
+    }
+    d.textContent = '';
+    d.setAttribute('aria-label', title || '');
+    if (title) { const h = document.createElement('h2'); h.textContent = title; d.appendChild(h); }
+    for (const n of body || []) d.appendChild(n);
+    const box = document.createElement('div');
+    box.className = 'actions';
+    for (const a of actions || []) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = a.label;
+      if (a.cls) b.className = a.cls;
+      b.addEventListener('click', () => { d.close(); if (a.run) a.run(); });
+      box.appendChild(b);
+    }
+    const c = document.createElement('button');
+    c.type = 'button'; c.className = 'link'; c.textContent = close || tr('m.done');
+    c.addEventListener('click', () => d.close());
+    box.appendChild(c);
+    d.appendChild(box);
+    if (d.open) d.close();
+    d.showModal();
+    c.focus({preventScroll: true});
+  }
+
+  function showHelp() {
+    const el = (tag, k) => { const e = document.createElement(tag); e.textContent = tr(k); return e; };
+    const body = [];
+    for (const k of ['target', 'pass', 'pair', 'sec']) body.push(el('h3', 'm.help.' + k + '.h'), el('p', 'm.help.' + k));
+    sheet({title: tr('m.help.title'), body,
+      actions: native.available() ? [{label: tr('m.help.privacy'), run: () => native.post('openSettings', {page: 'privacy'})}] : []});
+  }
+
+  // On iOS the keyboard covers the page without resizing it: while it is
+  // up (and not on the desktop tab, whose key bar follows it), the session
+  // view takes the visible height, so the terminal and its keys stay above it.
+  function trackViewport() {
+    const vv = window.visualViewport, root = document.documentElement;
+    if (!vv) return;
+    const upd = () => {
+      root.style.setProperty('--app-h', Math.round(vv.height) + 'px');
+      root.classList.toggle('vkb', root.clientHeight - vv.height > 80 && !desktopVisible());
+    };
+    vv.addEventListener('resize', upd);
+    upd();
   }
 
   // ---- called by the app ----
@@ -706,6 +1011,8 @@
     // back handles the system back button: "handled" or "unhandled" (the
     // app then goes to the background, keeping its sessions).
     back() {
+      const sh = $('sdm-sheet');
+      if (sh && sh.open) { sh.close(); return 'handled'; }
       const dlg = $('dlg');
       if (dlg && dlg.open) { dlg.close(); return 'handled'; }
       if (keyboardShown()) { input.blur(); native.post('keyboard', {show: false}); return 'handled'; }

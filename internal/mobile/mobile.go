@@ -149,9 +149,10 @@ func pairLabel() string {
 
 // quietLogger drops everything below warnings. The gateway logs no URLs or
 // tokens, but a phone's log is readable by more than the user, so the core
-// stays quiet by default.
+// stays quiet by default. While the user has the diagnostic log on, every
+// record also goes, redacted, into that private log (see diag.go).
 func quietLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	return slog.New(newCoreHandler())
 }
 
 // StartGateway starts the in-process web gateway on 127.0.0.1 with a random

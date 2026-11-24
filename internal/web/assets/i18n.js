@@ -48,8 +48,9 @@
       'connect.lead': 'Enter the host\'s 9-digit ID, a name you paired, or its address.',
       'connect.target': 'Host ID, name or host:port',
       'connect.pass': 'Host password',
-      'connect.passhint': '(leave empty to use the pairing saved on this gateway)',
-      'connect.pair': 'Pair this gateway with the host (saves a token on the gateway so no password is needed next time)',
+      'connect.passhint': 'Leave empty to use the pairing saved on this gateway.',
+      'connect.pair': 'Pair this gateway with the host',
+      'connect.pair.hint': 'Saves a token on the gateway, so no password is needed next time.',
       'connect.btn': 'Connect',
       'connect.connecting': 'Connecting…',
       'connect.dialing': 'Connecting… {notice}',
@@ -84,6 +85,13 @@
       'reason.host_key_changed': 'The host\'s identity key changed since it was first seen. This could be an impersonation attempt.',
       'reason.too_many_sessions': 'This gateway is at its limit of host sessions.',
       'reason.timeout': 'Timed out.',
+      'reason.no_rendezvous': 'No rendezvous server is set, so a host can only be reached by its address (host:port).',
+      'reason.rendezvous_unreachable': 'The rendezvous server cannot be reached. Check its address and the network, or connect by address (host:port).',
+      'reason.signal_wrong_protocol': 'The rendezvous server setting does not point to a rendezvous server (it may be a host\'s address). Fix the setting, or connect to the host by address (host:port).',
+      'reason.signal_is_host': 'The rendezvous server setting does not point to a rendezvous server (it may be a host\'s address). Fix the setting, or connect to the host by address (host:port).',
+      'reason.remote_error': 'Could not connect to the host.',
+      'reason.bad_target': 'Enter a 9-digit ID, a saved name, or an address such as 192.168.1.5:21118.',
+      'connect.details': 'Details',
 
       // connection path (the gateway's own words, kept in English)
       'path.title': 'How the gateway reaches the host',
@@ -272,6 +280,7 @@
       'cancel': 'Cancel',
       'ok': 'OK',
 
+      'foot.summary': '<strong>The gateway sees everything you do here.</strong> How this works',
       'foot.how': '<strong>How this works.</strong> A browser cannot hole-punch or speak RemoHop\'s QUIC session, so this page talks to a <em>gateway</em> ' +
         '(<code>remohop web</code>) and the gateway speaks the normal P2P session to the host. That session is end-to-end encrypted between the gateway and the host, ' +
         'but <strong>the gateway sees everything</strong>: the screen, every keystroke, files, the clipboard and any password you type here. ' +
@@ -305,8 +314,9 @@
       'connect.lead': '输入被控端的 9 位 ID、配对时起的名称或它的地址。',
       'connect.target': '被控端 ID、名称或 host:port',
       'connect.pass': '被控端密码',
-      'connect.passhint': '（留空则使用此网关上保存的配对）',
-      'connect.pair': '将此网关与被控端配对（在网关上保存令牌，下次无需密码）',
+      'connect.passhint': '留空则使用此网关上保存的配对。',
+      'connect.pair': '将此网关与被控端配对',
+      'connect.pair.hint': '在网关上保存令牌，下次连接无需密码。',
       'connect.btn': '连接',
       'connect.connecting': '正在连接…',
       'connect.dialing': '正在连接… {notice}',
@@ -341,6 +351,13 @@
       'reason.host_key_changed': '被控端的身份密钥与首次连接时不同，可能有人在冒充它。',
       'reason.too_many_sessions': '此网关的被控端会话数已达上限。',
       'reason.timeout': '连接超时。',
+      'reason.no_rendezvous': '尚未设置汇合服务器，只能通过地址（host:port）连接被控端。',
+      'reason.rendezvous_unreachable': '无法连接汇合服务器。请检查服务器地址和网络，或直接用地址（host:port）连接。',
+      'reason.signal_wrong_protocol': '汇合服务器设置填写的不是汇合服务器（可能是某台被控端的地址）。请修改该设置，或直接用地址（host:port）连接被控端。',
+      'reason.signal_is_host': '汇合服务器设置填写的不是汇合服务器（可能是某台被控端的地址）。请修改该设置，或直接用地址（host:port）连接被控端。',
+      'reason.remote_error': '无法连接到被控端。',
+      'reason.bad_target': '请输入 9 位 ID、已保存的名称，或类似 192.168.1.5:21118 的地址。',
+      'connect.details': '详细信息',
 
       'path.title': '网关与被控端之间的连接方式',
       'path.lan': '局域网直连',
@@ -523,6 +540,7 @@
       'cancel': '取消',
       'ok': '确定',
 
+      'foot.summary': '<strong>网关能看到你在这里的一切操作。</strong>工作原理',
       'foot.how': '<strong>工作原理：</strong>浏览器无法打洞，也无法直接建立 RemoHop 的 QUIC 会话，所以本页面连接的是<em>网关</em>' +
         '（<code>remohop web</code>），再由网关与被控端建立常规的 P2P 会话。该会话在网关与被控端之间端到端加密，' +
         '但<strong>网关能看到一切</strong>：屏幕画面、每一次按键、文件、剪贴板，以及你在这里输入的任何密码。' +

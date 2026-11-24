@@ -264,9 +264,43 @@
 
   // ---- connecting ----
   let attemptId = null, polling = false;
-  // Connection failures with a known code are explained in the page's own
-  // words (reason.* in i18n.js), followed by the gateway's detail.
-  const reason = (code, detail) => I.has('reason.' + code, 'en') ? {k: 'pair2', v: {a: {k: 'reason.' + code}, b: detail || ''}} : null;
+  // Connection failures are explained in the page's own words: reason.* in
+  // i18n.js for a known code, the host's own words for a refusal, a generic
+  // line otherwise. The gateway's technical text goes under "Details" (for
+  // support), not in the message itself.
+  function reasonKey(code, msg) {
+    if (code && I.has('reason.' + code, 'en')) return 'reason.' + code;
+    // Older gateways (and cases without a code yet) say it only in words.
+    if (/no rendezvous server configured/i.test(msg)) return 'reason.no_rendezvous';
+    if (code === 'bad_target' || /^unknown target /i.test(msg)) return 'reason.bad_target';
+    if (/no application protocol/i.test(msg)) return 'reason.signal_wrong_protocol';
+    if (/rendezvous server .*unreachable/i.test(msg)) return 'reason.rendezvous_unreachable';
+    return null;
+  }
+  function showConnErr(e) {
+    const box = $('connerr');
+    I.plain(box, '');
+    const code = e && e.code, msg = (e && e.message) || (e ? String(e) : '');
+    const main = document.createElement('div');
+    main.className = 'errmain';
+    const key = reasonKey(code, msg);
+    if (key) I.say(main, key);
+    else if (code === 'host_refused' || code === 'feature_off') I.say(main, 'refused', {msg});
+    else if (code && I.has('err.' + code, 'zh')) I.say(main, 'err.' + code);
+    else I.say(main, 'connect.failed');
+    box.appendChild(main);
+    if (msg && msg !== main.textContent) {
+      const d = document.createElement('details');
+      d.className = 'errdetail';
+      const sum = document.createElement('summary');
+      I.say(sum, 'connect.details');
+      const pre = document.createElement('code');
+      pre.textContent = msg + (code ? ' [' + code + ']' : '');
+      d.append(sum, pre);
+      box.appendChild(d);
+    }
+  }
+  SD.showConnErr = showConnErr;
   function showConnect() {
     $('connect').hidden = false; $('workspace').hidden = true; $('hostbar').hidden = !st.conns.length;
     $('hostbar').querySelector('#newconn').hidden = true;
@@ -274,9 +308,22 @@
   }
   $('newconn').addEventListener('click', showConnect);
 
+  // normTarget fixes what phone keyboards make of an address: full-width
+  // punctuation from a Chinese keyboard, and "1.2.3.4.21118" typed with a
+  // dot for the colon (four octets and a port can only mean IPv4:PORT).
+  function normTarget(v) {
+    v = String(v || '').replace(/\uff1a/g, ':').replace(/[\u3002\uff0e]/g, '.').trim();
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,5})$/.exec(v);
+    if (m && m.slice(1, 5).every(o => +o <= 255) && +m[5] >= 1 && +m[5] <= 65535) v = m.slice(1, 5).join('.') + ':' + m[5];
+    return v;
+  }
+  SD.normTarget = normTarget;
+
   $('connectform').addEventListener('submit', async ev => {
     ev.preventDefault();
     if (attemptId) return;
+    const fixed = normTarget($('target').value);
+    if (fixed !== $('target').value) $('target').value = fixed;
     I.plain($('connerr'), ''); I.say($('connstatus'), 'connect.connecting');
     $('connectbtn').disabled = true; $('cancelconn').hidden = false;
     const body = {target: $('target').value, password: $('hostpass').value, pair: $('pair').checked};
@@ -287,7 +334,7 @@
       await poll();
     } catch (e) {
       endAttempt();
-      I.say($('connerr'), 'raw', {s: reason(e.code, e.message) || SD.errVar(e)});
+      showConnErr(e);
     }
   });
   $('cancelconn').addEventListener('click', async () => {
@@ -301,7 +348,7 @@
     polling = true;
     while (attemptId && polling) {
       let j;
-      try { j = await SD.json('GET', 'connect/' + attemptId); } catch (e) { endAttempt(); SD.sayErr($('connerr'), e); return; }
+      try { j = await SD.json('GET', 'connect/' + attemptId); } catch (e) { endAttempt(); showConnErr(e); return; }
       if (j.state === 'waiting_approval') I.say($('connstatus'), 'connect.waiting');
       else if (j.state === 'dialing') {
         if (j.notices && j.notices.length) I.say($('connstatus'), 'connect.dialing', {notice: j.notices[j.notices.length - 1]});
@@ -321,7 +368,7 @@
         endAttempt();
         const e = j.error || {};
         if (j.state === 'canceled') I.say($('connerr'), 'connect.canceled');
-        else I.say($('connerr'), 'raw', {s: reason(e.code, e.message) || (e.message ? SD.errVar(e) : {k: 'connect.failed'})});
+        else showConnErr(e);
         return;
       }
       await new Promise(r => setTimeout(r, 600));
