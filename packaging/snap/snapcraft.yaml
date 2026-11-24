@@ -61,7 +61,7 @@ parts:
     override-pull: |
       set -eu
       VERSION=v1.0.0
-      SUMS_SHA256=18bbd539ceb2cc5f2a84d0f7e9726cca711bb73f2764257d594499c90d06c489
+      SUMS_SHA256=972e06b80827b5b5517026499f90d1f6f39e2dd9bb73d4f9a98c1d226d721c4a
       base="https://github.com/readori/RemoHop/releases/download/$VERSION"
       case "$CRAFT_ARCH_BUILD_FOR" in
         amd64 | arm64) ;;
