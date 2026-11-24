@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Features and limits | RemoHop</title>
 <meta name="description" content="RemoHop&#x27;s common commands, the browser client, how a connection is made, platform support, installation and known limits.">
-<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +37,7 @@
 <ul>
 <li><a href="/en/features/" aria-current="page">Features</a></li>
 <li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/download/">Download</a></li>
 <li><a href="/en/apps/">Apps</a></li>
 <li><a href="/en/security/">Security</a></li>
 <li><a href="/en/self-hosting/">Self-hosting</a></li>
@@ -108,7 +109,7 @@ Linux x86_64
 <div>
 <h3>Not a fit yet</h3>
 <ul>
-<li>You want a graphical installer that works after one download. Today there is a command line, and you compile it.</li>
+<li>You want a graphical installer that works after one download. Today there is a command line that you compile until the first release is out.</li>
 <li>You want to control a phone or tablet. The mobile apps are controllers; a phone cannot be a host.</li>
 <li>You need a product with a third-party audit. RemoHop has not had one.</li>
 <li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
@@ -314,12 +315,12 @@ remohop log</code></pre>
 <p>There are controller apps for Android and iOS, neither with a store release yet. See <a href="/en/apps/">Apps</a>.</p>
 
 <h2 id="install">Install</h2>
-<p>There are no published downloads yet. Build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
+<p>The first release is being prepared; the <a href="/en/download/">download page</a> lists what it will contain. Until then, build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
 <pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
 cd RemoHop
 make build        <span class="c"># writes bin/remohop (CGO_ENABLED=0)</span>
 make cross        <span class="c"># optional: linux, macOS and Windows targets into dist/</span></code></pre>
-<p>The repository already has <code>.deb</code> and <code>.rpm</code> packaging and a release workflow that runs when a <code>v*</code> tag is pushed, but that workflow has never run and the binaries are not code-signed. Once there is a release, archives and <code>SHA256SUMS</code> will be on <a href="https://github.com/readori/RemoHop/releases">GitHub Releases</a>, and this section will link to them.</p>
+<p>The release workflow, run when a <code>v*</code> tag is pushed, builds archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, and signs <code>SHA256SUMS</code>. The macOS files are signed with a Developer ID and notarized; the Windows ones are not code-signed yet.</p>
 <p>For setting up the server, starting a host and pairing, continue with the <a href="/en/docs/">quick start</a>.</p>
 
 <h2 id="license">Open source and commercial license</h2>
@@ -327,7 +328,7 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 
 <h2 id="status">Status and limits</h2>
 <ul>
-<li>No releases, no code signing, no built-in default server.</li>
+<li>No release yet (the first is being prepared), no code signing for Windows, no built-in default server.</li>
 <li>No independent security audit.</li>
 <li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
 <li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
@@ -347,6 +348,7 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 <ul>
 <li><a href="/en/features/">Features</a></li>
 <li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/download/">Download</a></li>
 <li><a href="/en/apps/">Apps</a></li>
 <li><a href="/en/security/">Security</a></li>
 <li><a href="/en/self-hosting/">Self-hosting</a></li>

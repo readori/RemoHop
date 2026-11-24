@@ -58,7 +58,7 @@ Linux x86_64
 <div>
 <h3>目前不适合</h3>
 <ul>
-<li>想要下载即用的图形界面安装包。现在只有命令行，而且<!--src-->要自己编译<!--/src--><!--nosrc-->还没有发布<!--/nosrc-->。</li>
+<li>想要下载即用的图形界面安装包。<!--norel-->现在只有命令行，而且<!--src-->在首个发布版本出来之前要自己编译<!--/src--><!--nosrc-->还没有发布<!--/nosrc--><!--/norel--><!--rel-->现在有命令行和快速协助窗口，但没有安装程序<!--/rel-->。</li>
 <li>要控制手机或平板。移动应用只是控制端，手机不能被控。</li>
 <li>需要经过第三方审计的产品。RemoHop 还没有做过独立审计。</li>
 <li>被控机用的是原生 Wayland 桌面。屏幕采集目前只支持 X11、macOS 和 Windows。</li>
@@ -260,20 +260,28 @@ remohop log</code></pre>
 </tbody>
 </table>
 </div>
-<p>Android 和 iOS 上有控制端应用，都还没有商店版本，见<a href="{{L:apps}}">移动应用</a>。</p>
+<p>Android 和 iOS 上有控制端应用，<!--nostore-->都还没有商店版本<!--/nostore--><!--store-->已在 App Store 和 Google Play 上架<!--/store-->，见<a href="{{L:apps}}">移动应用</a>。</p>
 
 <h2 id="install">安装</h2>
+<!--rel-->
+<p>全部下载都在<a href="{{L:download}}">下载页</a>上：安装脚本，Linux、macOS 和 Windows 的压缩包，<code>.deb</code>/<code>.rpm</code>/<code>.apk</code> 软件包，以及快速协助程序，都列在带签名的 <code>SHA256SUMS</code> 里。在 Linux 和 macOS 上：</p>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>得到的是一个静态链接的程序，已经在 <code>PATH</code> 里。macOS 的下载已签名并经过公证，Windows 的下载尚未做代码签名。也可以从源码编译，见<a href="{{L:docs/building}}">从源码编译</a>。</p>
+<!--/rel-->
+<!--norel-->
 <!--src-->
-<p>目前没有可下载的发布版本，需要用 <code>go.mod</code> 里指定的 Go 版本（1.26）从源码编译。得到的是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。</p>
+<p>首个发布版本正在准备中，<a href="{{L:download}}">下载页</a>列出了它会包含的文件。在此之前，需要用 <code>go.mod</code> 里指定的 Go 版本（1.26）从源码编译。得到的是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。</p>
 <pre><code>git clone {{REPO}}
 cd RemoHop
 make build        <span class="c"># 生成 bin/remohop（CGO_ENABLED=0）</span>
 make cross        <span class="c"># 可选：linux、macOS、Windows 各架构，输出到 dist/</span></code></pre>
-<p>仓库里已经有 <code>.deb</code>、<code>.rpm</code> 的打包配置和一个推送 <code>v*</code> 标签时触发的发布工作流，但它还没有运行过，程序也没有做代码签名。发布之后，压缩包和 <code>SHA256SUMS</code> 会出现在 <a href="{{REPO}}/releases">GitHub Releases</a>，这一节到时会换成下载链接。</p>
+<p>推送 <code>v*</code> 标签时触发的发布工作流会构建 Linux、macOS 和 Windows 的压缩包、<code>.deb</code>/<code>.rpm</code>/<code>.apk</code> 软件包和快速协助程序，并给 <code>SHA256SUMS</code> 签名。macOS 的文件用 Developer ID 签名并经过公证；Windows 的文件尚未做代码签名。</p>
 <!--/src-->
 <!--nosrc-->
 <p>目前没有可下载的发布版本，程序也还没有做代码签名。各平台应用上架后，这一节会换成下载链接，源码也会在那时以 AGPL-3.0 公开。得到的会是一个静态链接的程序，放进每台机器的 <code>PATH</code> 即可。在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
 <!--/nosrc-->
+<!--/norel-->
 <p>接下来怎么配置服务器、启动被控机和配对，见<a href="{{L:docs}}">快速开始</a>。</p>
 
 <h2 id="license"><!--src-->开源与商业授权<!--/src--><!--nosrc-->许可证与商业授权<!--/nosrc--></h2>
@@ -281,7 +289,7 @@ make cross        <span class="c"># 可选：linux、macOS、Windows 各架构�
 
 <h2 id="status">状态与限制</h2>
 <ul>
-<li>没有发布版本，没有代码签名，没有内置默认服务器。</li>
+<li><!--norel-->还没有发布版本（首个版本正在准备中），<!--/norel-->Windows 程序没有代码签名，没有内置默认服务器。</li>
 <li>没有经过独立的安全审计。</li>
 <li>NAT 穿透测试用的是 Linux 网络命名空间。真实的家用路由器和 IPv6 路径没有测试过。</li>
 <li>实体 Mac 上的一切、Windows 的 WebDAV 挂载和图形输入、除一台 macOS 虚拟机里的 VideoToolbox 以外的 GPU 编码器、4K 60 fps，都没有测试过。</li>

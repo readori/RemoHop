@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>安装 | RemoHop</title>
 <meta name="description" content="每次推送 v* 标签，发布工作流都会构建发布版本。目前还没有发布过任何版本，下面的下载命令要等首个发布版本之后才能用；在此之前请从源码编译。">
-<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,6 +37,7 @@
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>
@@ -65,14 +66,15 @@
 </table>
 </div>
 <p>安装脚本会下载与你的系统和 CPU 对应的压缩包，用发布页的 <code>SHA256SUMS</code> 校验；如果装了 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a>，还会校验该文件的签名；然后把 <code>remohop</code> 复制到 <code>~/.local/bin</code>（root 用户为 <code>/usr/local/bin</code>；Windows 为 <code>%LOCALAPPDATA%\Programs\RemoHop</code>，并加入当前用户的 <code>PATH</code>）。脚本从不使用 <code>sudo</code>，也不会修改 shell 配置文件。选项：<code>--version vX.Y.Z</code>、<code>--bindir DIR</code>、<code>--verify require</code>（签名校验不通过就失败）；<code>install.ps1</code> 对应 <code>-Version</code>、<code>-BinDir</code>、<code>-Verify</code>、<code>-NoPath</code>。</p>
-<p>包管理器（计划中；tap、bucket 和软件包尚未发布，下表是模板，见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>）：</p>
+<p>包管理器（计划中；tap、bucket 和软件包尚未发布，见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/README.md">packaging/README.md</a>）：</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="包管理器 / 发布后的命令">
 <table>
 <thead><tr><th scope="col">包管理器</th><th scope="col">发布后的命令</th></tr></thead>
 <tbody>
-<tr><td>Homebrew（macOS、Linux）</td><td><code>brew install &lt;owner&gt;/&lt;tap&gt;/remohop</code></td></tr>
-<tr><td>Scoop（Windows）</td><td><code>scoop bucket add &lt;名称&gt; &lt;bucket 地址&gt;</code>，然后 <code>scoop install remohop</code></td></tr>
-<tr><td>winget（Windows）</td><td><code>winget install &lt;Publisher&gt;.RemoHop</code></td></tr>
+<tr><td>Homebrew（macOS、Linux）</td><td><code>brew install readori/tap/remohop</code></td></tr>
+<tr><td>Homebrew cask（macOS，快速协助）</td><td><code>brew install --cask readori/tap/remohop-quick</code></td></tr>
+<tr><td>Scoop（Windows）</td><td><code>scoop bucket add readori https://github.com/readori/scoop-bucket</code>，然后 <code>scoop install remohop</code></td></tr>
+<tr><td>winget（Windows）</td><td><code>winget install Readori.RemoHop</code></td></tr>
 <tr><td>AUR（Arch）</td><td><code>yay -S remohop-bin</code></td></tr>
 <tr><td>Nix</td><td>对生成的 <code>remohop.nix</code> 使用 <code>callPackage</code></td></tr>
 </tbody>
@@ -83,8 +85,22 @@
 <li><strong>macOS：</strong> 发布版本只有一个通用二进制（同时支持 Apple 芯片和 Intel），由发布工作流用 Developer ID 签名并提交 Apple 公证。首次运行时 Gatekeeper 会联网检查公证结果；裸可执行文件无法携带离线票据。</li>
 <li><strong>Windows：</strong> 二进制<strong>尚未做代码签名</strong>，首次运行时 SmartScreen 可能给出警告。在签名就绪之前，请用校验和与 cosign 签名来验证下载。</li>
 <li><strong>Linux 软件包</strong>会安装 <code>remohop</code> 和 systemd 单元文件，但不会启用任何东西。让被控端开机或登录时自启的受支持方式是 <code>remohop service install</code>。</li>
-<li><strong>手动验证下载：</strong></li>
 </ul>
+<h2 id="快速协助">快速协助</h2>
+<p>给被协助的人双击打开的程序（见<a href="/docs/quick-support/">快速协助</a>）在每个发布版本里单独提供：</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="系统 / 文件 / 然后">
+<table>
+<thead><tr><th scope="col">系统</th><th scope="col">文件</th><th scope="col">然后</th></tr></thead>
+<tbody>
+<tr><td>Windows 10/11</td><td><code>RemoHop-windows-amd64.zip</code>（ARM64：<code>RemoHop-windows-arm64.zip</code>）</td><td>解压，双击 <code>RemoHop.exe</code>；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”）</td></tr>
+<tr><td>macOS 12+</td><td><code>RemoHop-macos.zip</code>（Apple 芯片和 Intel）</td><td>解压，打开 <code>RemoHop.app</code>；已用 Developer ID 签名、经 Apple 公证并附带公证票据</td></tr>
+<tr><td>Linux</td><td><code>remohop-quick_linux_amd64.tar.gz</code>（ARM64：<code>..._arm64.tar.gz</code>）</td><td>解压，运行 <code>./remohop-quick</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>下载地址都是 <code>https://github.com/readori/RemoHop/releases/latest/download/&lt;文件名&gt;</code>，都列在发布页的 <code>SHA256SUMS</code> 里。Microsoft Store 版本正在准备中。</p>
+<h2 id="校验下载">校验下载</h2>
+<p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中，这个文件带有 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a> 无密钥签名，证明它出自本仓库针对该标签运行的发布工作流。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和要校验的文件下载到同一个目录，然后执行：</p>
 <pre tabindex="0"><code class="language-bash">sha256sum --ignore-missing -c SHA256SUMS
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
@@ -105,6 +121,7 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
 <li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>

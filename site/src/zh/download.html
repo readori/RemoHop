@@ -1,0 +1,57 @@
+<h1>下载 RemoHop</h1>
+<!--norel-->
+<div class="note warn">
+<p><strong>首个发布版本正在准备中。</strong>RemoHop 1.0 将发布在 GitHub Releases 上；在那之前，下面列出的文件还不存在，列出来是为了让你知道会有什么。现在可以<a href="{{L:docs/building}}">从源码编译 RemoHop</a>。</p>
+</div>
+<!--/norel-->
+<!--rel-->
+<p>所有文件都在 <a href="{{REPO}}/releases/latest">GitHub Releases</a> 上，下面的链接总是指向最新版本。每个文件都列在发布页的 <code>SHA256SUMS</code> 里，这个文件带有签名（见<a href="#verify">校验下载</a>）。</p>
+<!--/rel-->
+<p>两种下载，对应两种人：被协助的人只需要<a href="#quick">快速协助</a>，一个双击就能打开的窗口；协助别人或者连接自己机器的人，用<a href="#cli">命令行程序 <code>remohop</code></a>、它提供的浏览器客户端，或者<a href="#mobile">手机应用</a>。</p>
+
+<h2 id="quick">快速协助：给被协助的人</h2>
+<p>一个双击打开的程序。它显示 9 位 ID 和临时密码，让对方念给协助者听，每次有人连接都会先问一下。不需要安装。详见<a href="{{L:docs/quick-support}}">快速协助说明</a>。</p>
+{{DL:quick}}
+<p>在 macOS 上，第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限。双方要用同一台汇合服务器。</p>
+
+<h2 id="cli">命令行程序 <code>remohop</code></h2>
+<p>被控端、客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都在这一个静态链接的程序里。安装脚本会下载与你的系统和 CPU 对应的压缩包，用 <code>SHA256SUMS</code> 校验（如果装了 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a>，还会校验该文件的签名），然后把 <code>remohop</code> 复制到 <code>~/.local/bin</code> 或 <code>%LOCALAPPDATA%\Programs\RemoHop</code>。脚本从不使用 <code>sudo</code>。运行前请先读一遍。</p>
+<h3>Linux 和 macOS</h3>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<h3>Windows（PowerShell）</h3>
+<pre><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
+<h3>压缩包</h3>
+<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。每个压缩包里还有 <code>LICENSE</code>、<code>NOTICE</code> 和 <code>THIRD_PARTY_LICENSES.txt</code>。</p>
+{{DL:cli}}
+<h3>Linux 软件包</h3>
+<p>x86-64 和 ARM64 的 <code>.deb</code>、<code>.rpm</code>、<code>.apk</code>。文件名里带版本号（例如 <code>remohop_1.0.0_amd64.deb</code>），所以请到<!--rel--><a href="{{REPO}}/releases/latest">发布页</a><!--/rel--><!--norel-->发布页<!--/norel-->下载。它们安装 <code>remohop</code> 和 systemd 单元，但不启用任何东西；<code>remohop service install</code> 让被控端开机自启。详见<a href="{{L:docs/install}}">安装</a>。</p>
+
+<h2 id="channels">包管理器、应用商店和容器</h2>
+<p>这些渠道在首个发布版本之后陆续开通。哪个开通了，这里就会显示它的安装命令。</p>
+{{DL:channels}}
+
+<h2 id="mobile">手机应用</h2>
+<p>Android 和 iOS / iPadOS 上的控制端：在手机或平板上连接并操作你的电脑。手机本身不能被控。</p>
+<!--store-->
+<div class="actions">
+<a class="btn primary" href="{{APP_STORE}}">App Store（iPhone、iPad）</a>
+<a class="btn" href="{{GOOGLE_PLAY}}">Google Play（Android）</a>
+</div>
+<!--/store-->
+<!--nostore-->
+<p><span class="chip wait">即将上架</span></p>
+<p>两个应用都还没有上架。上架后，这里会链接到 App Store 和 Google Play。应用能做什么，见<a href="{{L:apps}}">移动应用</a>。</p>
+<!--/nostore-->
+
+<h2 id="verify">校验下载</h2>
+<p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>
+<pre><code>sha256sum --ignore-missing -c SHA256SUMS
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
+<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。macOS 的下载另外用 Developer ID 签名并经过 Apple 公证；Windows 程序尚未做代码签名。详见<a href="{{L:docs/install}}#校验下载">安装</a>和<a href="{{L:security}}">安全模型</a>。</p>
+
+<h2 id="source">源码</h2>
+<p>RemoHop 是以 GNU AGPL-3.0 发布的自由软件，完整源码在 <a href="{{REPO}}">github.com/readori/RemoHop</a><!--rel-->，每个发布页都附有该版本的源码压缩包<!--/rel-->。想自己编译，见<a href="{{L:docs/building}}">从源码编译</a>。AGPL 不适合的场景可以购买商业授权，见<a href="{{L:licensing}}">许可证</a>。</p>

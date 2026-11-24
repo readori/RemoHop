@@ -2,9 +2,17 @@
 <p>This page covers the five steps from nothing to a first connection. For the full syntax of a command, run <code>remohop help &lt;command&gt;</code>. Everything else is in the documentation, one page per topic, <a href="#more">listed below</a>.</p>
 <p>The walkthrough assumes three machines: a small server with a public address for the rendezvous server (<code>sig.example.net</code> below), the host you want to control, and your own workstation. On a LAN you can <a href="#direct">skip the server</a>.</p>
 
+<!--rel-->
+<h2 id="build">1. Install</h2>
+<p>On every machine, install <code>remohop</code> with the install script (Windows: <code>install.ps1</code>), a package or an archive from the <a href="{{L:download}}#cli">download page</a>:</p>
+<pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>It puts <code>remohop</code> in <code>~/.local/bin</code> (as root: <code>/usr/local/bin</code>). To build it yourself instead, see <a href="{{L:docs/building}}">Building from source</a>.</p>
+<!--/rel-->
+<!--norel-->
 <!--src-->
 <h2 id="build">1. Build</h2>
-<p>There are no published downloads yet. Build with the Go version named in <code>go.mod</code> (1.26):</p>
+<p>The first release is being prepared (see <a href="{{L:download}}">Download</a>). Until then, build with the Go version named in <code>go.mod</code> (1.26):</p>
 <pre><code>git clone {{REPO}}
 cd RemoHop
 make build</code></pre>
@@ -15,6 +23,7 @@ make build</code></pre>
 <p>There are no published downloads yet. Once the apps are out, this step will say where to download RemoHop, and the source will be published under the AGPL-3.0 at the same time. Questions in the meantime: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
 <p>The steps below assume the <code>remohop</code> program is on the <code>PATH</code> of every machine.</p>
 <!--/nosrc-->
+<!--/norel-->
 
 <h2 id="signal">2. Run a rendezvous server</h2>
 <p>On a machine with a public IP, open UDP ports <code>21116</code> and <code>21117</code>, then run:</p>

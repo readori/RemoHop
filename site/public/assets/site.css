@@ -198,6 +198,8 @@
   .table-wrap { overflow-x: auto; }
   .table-wrap > table { margin: 0; min-inline-size: 34rem; }
   .table-wrap.wide > table { min-inline-size: 46rem; }
+  .table-wrap.dl > table { min-inline-size: 0; }
+  td.file code { white-space: nowrap; }
 
   .diagram { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
   .diagram svg { inline-size: 100%; min-inline-size: 38rem; font-family: var(--sans); }
