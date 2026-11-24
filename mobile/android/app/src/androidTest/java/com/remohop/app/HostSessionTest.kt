@@ -388,9 +388,13 @@ class HostSessionTest {
         waitFor(s, restored, "the floating button leaves full screen and restores the layout", 10)
         click(s, "d-fs")
         waitFor(s, isFs, "full screen again", 10)
-        inst.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
-        waitFor(s, restored, "the back key leaves full screen (and the app stays in front)", 10)
-        assertTrue("the app is still in front after back left full screen", hasFocus(s))
+        // The app's own back handling (what the back gesture and key reach,
+        // through the OnBackInvokedCallback on 13+). Not a key event: on the
+        // first full screen the system shows its "viewing full screen" hint,
+        // which would take that key and the window focus.
+        @Suppress("DEPRECATION")
+        s.onActivity { it.onBackPressed() }
+        waitFor(s, restored, "back leaves full screen and keeps the session on screen", 10)
     }
 
     private fun sessionUsable(s: ActivityScenario<MainActivity>, cfg: Config, a: Int, b: Int, label: String) {
