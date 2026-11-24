@@ -344,9 +344,17 @@ func (s *Server) Sessions() []connInfo {
 	return out
 }
 
+// DisconnectTarget ends the host sessions to target (a canonical target:
+// 9-digit ID or host:port), as when the user forgets that host.
+func (s *Server) DisconnectTarget(target string) {
+	s.disconnectWhere(func(p *pooled) bool { return p.snapshot().Target == target })
+}
+
 // DisconnectAll ends every host session, as the user's Disconnect does
 // (the Android app's notification offers it).
-func (s *Server) DisconnectAll() {
+func (s *Server) DisconnectAll() { s.disconnectWhere(func(*pooled) bool { return true }) }
+
+func (s *Server) disconnectWhere(match func(*pooled) bool) {
 	s.mu.Lock()
 	sessions := make([]*webSession, 0, len(s.sessions))
 	for _, ws := range s.sessions {
@@ -355,9 +363,11 @@ func (s *Server) DisconnectAll() {
 	s.mu.Unlock()
 	for _, ws := range sessions {
 		ws.mu.Lock()
-		keys := make([]string, 0, len(ws.conns))
-		for k := range ws.conns {
-			keys = append(keys, k)
+		var keys []string
+		for k, p := range ws.conns {
+			if match(p) {
+				keys = append(keys, k)
+			}
 		}
 		ws.mu.Unlock()
 		for _, k := range keys {

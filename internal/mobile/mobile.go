@@ -802,7 +802,8 @@ func SetAlias(target, alias string) error {
 }
 
 // Forget discards what is saved for a host (pinned key, pairing token,
-// alias), named by target or alias, and returns how many entries went.
+// alias), named by target or alias, and returns how many entries went. Its
+// open sessions end too.
 func Forget(ref string) (int, error) {
 	d, err := configDir()
 	if err != nil {
@@ -812,7 +813,20 @@ func Forget(ref string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return st.Forget(strings.TrimSpace(ref))
+	ref = strings.TrimSpace(ref)
+	target := cli.NormalizeTarget(ref)
+	if p, ok, err := st.ByAlias(ref); err == nil && ok {
+		target = p.Target
+	}
+	n, err := st.Forget(ref)
+	if err == nil {
+		// Forgetting a host also ends the sessions to it: they would
+		// otherwise reconnect with credentials the user just deleted.
+		if srv := current(); srv != nil {
+			srv.DisconnectTarget(target)
+		}
+	}
+	return n, err
 }
 
 func codeOf(err error) string {

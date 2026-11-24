@@ -108,6 +108,9 @@ class SessionService : Service() {
         }
         if (text == lastText) return
         lastText = text
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) return // the notification is not shown anyway; the service still keeps the sessions
         getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification(text))
     }
 

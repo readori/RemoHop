@@ -255,3 +255,21 @@ func TestSessionsJSONAndDisconnectAll(t *testing.T) {
 		t.Fatalf("the page still lists %+v", st)
 	}
 }
+
+// Forgetting a host in Settings ends its sessions (they would reconnect
+// with what was just deleted).
+func TestForgetEndsSessions(t *testing.T) {
+	initDir(t)
+	h := runHost(t, hostd.Config{Password: hostPassword})
+	c := pageOn(t)
+	key := c.connect(h.Addr().String(), hostPassword)
+	if err := SetAlias(key, "lab"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Forget("lab"); err != nil {
+		t.Fatal(err)
+	}
+	if s := c.states(); len(s) != 0 {
+		t.Fatalf("after Forget: %+v", s)
+	}
+}
