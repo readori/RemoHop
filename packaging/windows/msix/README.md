@@ -62,12 +62,15 @@ that it works from inside the package (below).
 - **No AppData virtualization.** `desktop6:FileSystemWriteVirtualization` and `RegistryWriteVirtualization` are
   `disabled`, with the restricted capability `unvirtualizedResources` (Windows 10 2004 / build 19041 or later, which
   is the package's `MinVersion`). With the default virtualization, new files in `%APPDATA%` go to a private
-  per-package folder. Two things would break: Microsoft Edge, which runs outside the package, could not read the
-  redirect file the window is opened through (`internal/quick/open.go`), and the packaged app and an installed
-  `remohop` CLI would keep two identities (two IDs) for one computer. The CI run checks that `quick.url` lands in the
-  real `%APPDATA%\remohop` and that the Edge window opens the page. Partner Center needs a justification for this
-  capability too: "shares its configuration and identity in %APPDATA%\remohop with the RemoHop command-line tool and
-  hands a local file to Microsoft Edge to open its window".
+  per-package folder (`%LOCALAPPDATA%\Packages\<family name>\LocalCache\Roaming\remohop`). The comparison run
+  (`build.ps1 -Virtualized`, request `VIRTUALIZED=1`) showed exactly that: the app's state directory, which
+  holds its identity key, went there (the run found `quick.url` in it, not in the real `%APPDATA%`). An installed `remohop` CLI (zip, `install.ps1`, Scoop, winget) and the
+  "already running" check between the two would then see a different identity (a second ID for one computer), and anything outside the package that is
+  handed a file from there (the redirect file Edge opens, `internal/quick/open.go`) depends on running inside the
+  package's view. With virtualization off, the CI run checks that `quick.url` lands in the real `%APPDATA%\remohop`
+  and that the Edge app window opens the page (the page reports in to the app). Partner Center asks for a
+  justification for this capability: "shares its configuration and device identity in %APPDATA%\remohop with the
+  RemoHop command-line tool, and hands a local file to Microsoft Edge to open its window".
 - **Approval dialogs** are `MessageBox` calls from the app's own process; nothing about MSIX changes them.
 - **Firewall.** No `windows.firewallRules` extension: like the zip download, Windows Firewall may ask about network
   access on the first start, and connections work with either answer on most networks because the host connects
