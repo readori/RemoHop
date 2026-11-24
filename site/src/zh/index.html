@@ -1,0 +1,117 @@
+<section class="wrap home-hero">
+<div class="hero-text">
+<h1>远程连上你的电脑</h1>
+<p class="lede">用浏览器、手机或命令行操作另一台电脑：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，被控机不用注册账号，服务器也由你自己运行。</p>
+<div class="actions">
+<a class="btn primary" href="{{L:docs}}">快速开始</a>
+<a class="btn" href="{{L:features}}">功能与限制</a>
+</div>
+<p class="meta"><!--src-->开源（AGPL-3.0）· 一个 Go 程序 · <a href="{{REPO}}">源码在 GitHub</a><!--/src--><!--nosrc-->一个 Go 程序 · 源码将在各平台应用上架后以 AGPL-3.0 公开<!--/nosrc--></p>
+</div>
+<figure class="preview">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="浏览器客户端 remohop web 的“桌面”标签页：页面中间是远程 Linux 机器的屏幕，上面开着两个终端窗口；页面顶部显示被控机名称和连接路径 direct。">
+</picture>
+<figcaption>浏览器客户端的桌面标签页，实际截图。</figcaption>
+</figure>
+</section>
+
+<div class="wrap">
+<div class="note status-note">
+<p><strong>现状（2026 年 11 月）：</strong>还没有可下载的发布版本<!--src-->，需要从源码编译<!--/src-->；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="{{L:features}}#status">完整的限制清单</a></p>
+</div>
+</div>
+
+<section class="strip" aria-label="三个特点">
+<div class="wrap facts">
+<div class="fact">
+<h2>被控端说了算</h2>
+<p>被控机的主人可以要求每次连接都在本机点“允许”，逐项关掉功能，随时撤销配对。快速协助的每一次连接都要对方同意。</p>
+</div>
+<div class="fact">
+<h2>一个 <code>remohop</code> 程序</h2>
+<p>被控端、命令行客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都是同一个静态链接的程序。</p>
+</div>
+<div class="fact">
+<h2>可以自己部署</h2>
+<p>没有内置服务器，也不需要账号。局域网里按地址直连；跨网络时用你自己运行的汇合服务器，一台最小的虚拟机就够。</p>
+</div>
+</div>
+</section>
+
+<section class="wrap band" id="use" aria-labelledby="use-h">
+<h2 id="use-h">你要做什么？</h2>
+<div class="split">
+<article class="panel">
+<p class="kicker">快速协助</p>
+<h3>帮别人操作电脑</h3>
+<p>对方打开 RemoHop 快速协助，窗口里大字显示 9 位 ID 和临时密码，念给你听。你用这两样连接时，对方会看到你的设备名称、设备密钥和地址，点了“允许”才连得上，60 秒没人答复就自动拒绝。</p>
+<p>默认可以看屏幕、用鼠标键盘、传文件；运行命令和访问对方的网络，要对方另外勾选。关掉窗口就停止共享。</p>
+<p class="small">你这边用命令行、浏览器客户端或手机应用连接，双方要用同一台汇合服务器。</p>
+<p class="links"><a href="{{L:docs/quick-support}}">快速协助说明</a></p>
+</article>
+<article class="panel">
+<p class="kicker">被控端 + 客户端</p>
+<h3>连自己的机器</h3>
+<p>在要控制的机器上运行 <code>remohop host</code>，它给出 ID 和临时密码。在自己的机器上配对一次，之后连接不再需要密码。</p>
+<pre class="cmd"><code><span class="c"># 被控机</span>
+<span class="p">$ </span>remohop host
+<span class="c"># 你的机器</span>
+<span class="p">$ </span>remohop 276941009 pair --name dev
+<span class="p">$ </span>remohop dev shell
+<span class="p">$ </span>remohop web --target dev</code></pre>
+<p class="small">同一个局域网里可以不用服务器：被控机运行 <code>remohop host --no-signal --listen :21118</code>，客户端用地址代替 ID。</p>
+<p class="links"><a href="{{L:docs}}">快速开始</a><a href="{{L:features}}#commands">常用命令</a></p>
+</article>
+</div>
+</section>
+
+<section class="band alt" id="get" aria-labelledby="get-h">
+<div class="wrap">
+<h2 id="get-h">获取 RemoHop</h2>
+<p class="section-lede"><!--src-->还没有可下载的发布版本，下面三样目前都要从源码构建。发布之后，这里会换成下载链接。<!--/src--><!--nosrc-->还没有可下载的发布版本。各平台应用上架后，这里会换成下载链接。<!--/nosrc--><!-- TODO(owner): replace with download links after the first release --></p>
+<div class="cards">
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>命令行程序 <code>remohop</code></h3>
+<p class="platforms">Linux · macOS · Windows</p>
+<!--src-->
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<pre class="cmd"><code>git clone {{REPO}}
+cd RemoHop
+make build</code></pre>
+<!--/src-->
+<!--nosrc-->
+<p>被控端、客户端、浏览器网关和汇合服务器都在这一个程序里。发布之后在这里下载；在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
+<!--/nosrc-->
+<p class="links"><a href="{{L:features}}#install">安装</a><a href="{{L:features}}#platforms">平台支持</a></p>
+</article>
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>快速协助</h3>
+<p class="platforms">Windows · macOS · Linux</p>
+<p>给被协助的人双击打开的窗口。<!--src--><code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序，都还没有代码签名。<!--/src--><!--nosrc-->Windows 上是 <code>RemoHop.exe</code>，macOS 上是 <code>RemoHop.app</code>，Linux 上是 <code>remohop quick</code>，都还没有代码签名。<!--/nosrc--></p>
+<p class="links"><a href="{{L:docs/quick-support}}">快速协助说明</a><!--src--><a href="{{REPO}}/blob/main/packaging/quick/README.md">打包说明</a><!--/src--></p>
+</article>
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>手机控制端</h3>
+<p class="platforms">Android · iOS / iPadOS</p>
+<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。iOS 版正在准备 TestFlight，Android 版没有上架任何商店。</p>
+<p class="links"><a href="{{L:apps}}">移动应用</a></p>
+</article>
+</div>
+</div>
+</section>
+
+<section class="wrap band more" aria-labelledby="more-h">
+<h2 id="more-h">接着看</h2>
+<ul class="more-list">
+<li><a href="{{L:features}}">功能与限制</a><span>常用命令、连接怎么建立、平台支持、已知限制。</span></li>
+<li><a href="{{L:security}}">安全模型</a><span>保护什么、不保护什么，包括浏览器网关这个例外。</span></li>
+<li><a href="{{L:self-hosting}}">自建汇合服务器</a><span>端口、内存、中继，以及对公众提供中继时的限额。</span></li>
+<li><a href="{{L:licensing}}">许可证</a><span><!--src-->AGPL-3.0，另有商业授权。<!--/src--><!--nosrc-->源码将以 AGPL-3.0 公开，另有商业授权。<!--/nosrc--></span></li>
+</ul>
+</section>

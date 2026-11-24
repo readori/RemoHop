@@ -1,0 +1,54 @@
+# RemoHop rendezvous server (remohop signal) with docker compose.
+#
+#   docker compose up -d                      # rendezvous + relay, UDP only
+#   docker compose --profile tunnel up -d     # also the Cloudflare Tunnel for the websocket bridge
+#   docker compose logs signal | grep 'server key'
+#
+# Copy this file, then fill in the REPLACE_ME values. Open the UDP ports below in BOTH the
+# host firewall and the cloud provider's security list.
+name: remohop
+
+services:
+  signal:
+    # Until the repository is public, build locally instead:
+    #   build: { context: ../.., dockerfile: packaging/docker/Dockerfile }
+    image: ghcr.io/readori/remohop-signal:REPLACE_ME_VERSION   # e.g. v1.2.3; pin a tag or a digest
+    restart: unless-stopped
+    command:
+      - --relay
+      - --relay-ports=40000-40099
+      - --ws-listen=0.0.0.0:8080                  # the websocket bridge; not published below
+      - --ws-real-ip-header=CF-Connecting-IP      # per-address limits use the client's real IP
+    ports:
+      - "21116:21116/udp"    # rendezvous
+      - "21117:21117/udp"    # NAT-type detection
+      - "40000-40099:40000-40099/udp"   # relay sessions (must match --relay-ports)
+    volumes:
+      - signal-data:/data    # the server key and the ID table: keep it, or every host gets a new ID
+    # Hardening: the image is already non-root and static; these make it strict.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    mem_limit: 512m
+    # The image defines HEALTHCHECK (a real handshake with the server on loopback).
+    # On Linux, `network_mode: host` is the most faithful setup for a UDP service (no NAT or
+    # userland proxy between clients and the server, so their source addresses are exact):
+    #   network_mode: host     # and delete `ports:` above
+
+  # Only for networks that allow nothing but HTTPS: Cloudflare Tunnel to the bridge. Create the
+  # tunnel in the Cloudflare Zero Trust dashboard, add a public hostname (relay.example.com)
+  # pointing to http://signal:8080, and put its token in .env as TUNNEL_TOKEN (never commit it).
+  cloudflared:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:REPLACE_ME_TAG   # pin a release tag from Docker Hub
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}   # required when this profile is used
+    depends_on:
+      signal:
+        condition: service_healthy
+
+volumes:
+  signal-data:

@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RemoHop: reach your computers from anywhere</title>
+<meta name="description" content="RemoHop is an open-source peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary.">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="RemoHop: reach your computers from anywhere">
+<meta property="og:description" content="RemoHop is an open-source peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary.">
+<meta property="og:url" content="https://remohop.com/en/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home" aria-current="page"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1" class="home">
+<section class="wrap home-hero">
+<div class="hero-text">
+<h1>Reach your computers from anywhere</h1>
+<p class="lede">Use another computer from a browser, a phone or the command line: see its desktop, open a terminal, move files, forward ports. The two machines connect directly over an end-to-end encrypted session. The host needs no account, and the server is one you run yourself.</p>
+<div class="actions">
+<a class="btn primary" href="/en/docs/">Quick start</a>
+<a class="btn" href="/en/features/">Features and limits</a>
+</div>
+<p class="meta">Open source (AGPL-3.0) · one Go binary · <a href="https://github.com/readori/RemoHop">source on GitHub</a></p>
+</div>
+<figure class="preview">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="The Desktop tab of the remohop web browser client. The middle of the page shows the screen of a remote Linux machine with two terminal windows open; the top of the page shows the host's name and the connection path, direct.">
+</picture>
+<figcaption>The browser client's Desktop tab, an unedited capture.</figcaption>
+</figure>
+</section>
+
+<div class="wrap">
+<div class="note status-note">
+<p><strong>Where it stands (November 2026):</strong> there are no published downloads yet, so you build from source. There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="/en/features/#status">Full list of limits</a></p>
+</div>
+</div>
+
+<section class="strip" aria-label="Three things to know">
+<div class="wrap facts">
+<div class="fact">
+<h2>The host decides</h2>
+<p>The host's owner can require a local "Allow" for every connection, switch features off one by one and revoke a pairing at any time. In quick support, every single connection needs the other person's OK.</p>
+</div>
+<div class="fact">
+<h2>One <code>remohop</code> program</h2>
+<p>The host, the command-line client, the browser gateway, the rendezvous server and the MCP server for AI agents are all the same static binary.</p>
+</div>
+<div class="fact">
+<h2>Yours to run</h2>
+<p>No built-in server and no account. On a LAN you connect by address; across networks you use a rendezvous server you run yourself, and the smallest VM is enough.</p>
+</div>
+</div>
+</section>
+
+<section class="wrap band" id="use" aria-labelledby="use-h">
+<h2 id="use-h">What do you want to do?</h2>
+<div class="split">
+<article class="panel">
+<p class="kicker">Quick support</p>
+<h3>Help someone with their computer</h3>
+<p>They open RemoHop Quick Support, which shows a 9-digit ID and a temporary password in large type, and read both to you. When you connect, they see your device name, device key and address, and you get in only after they press Allow. Nobody answering for 60 seconds counts as a refusal.</p>
+<p>By default you can see the screen, use the mouse and keyboard, and move files. Running commands and reaching their network need an extra tick from them. Closing the window stops sharing.</p>
+<p class="small">You connect from the command line, the browser client or a phone app. Both sides need to use the same rendezvous server.</p>
+<p class="links"><a href="/en/docs/quick-support/">Quick support guide</a></p>
+</article>
+<article class="panel">
+<p class="kicker">Host + client</p>
+<h3>Reach your own machines</h3>
+<p>Run <code>remohop host</code> on the machine you want to reach; it prints an ID and a temporary password. Pair once from your own machine, and later connections need no password.</p>
+<pre class="cmd"><code><span class="c"># the host</span>
+<span class="p">$ </span>remohop host
+<span class="c"># your machine</span>
+<span class="p">$ </span>remohop 276941009 pair --name dev
+<span class="p">$ </span>remohop dev shell
+<span class="p">$ </span>remohop web --target dev</code></pre>
+<p class="small">On one LAN you can skip the server: run <code>remohop host --no-signal --listen :21118</code> on the host and use its address instead of the ID.</p>
+<p class="links"><a href="/en/docs/">Quick start</a><a href="/en/features/#commands">Common commands</a></p>
+</article>
+</div>
+</section>
+
+<section class="band alt" id="get" aria-labelledby="get-h">
+<div class="wrap">
+<h2 id="get-h">Get RemoHop</h2>
+<p class="section-lede">There are no published downloads yet; all three are built from source for now. This section will link to the downloads after the first release.</p>
+<div class="cards">
+<article class="panel">
+<p class="chip wait">Not released yet</p>
+<h3>The <code>remohop</code> program</h3>
+<p class="platforms">Linux · macOS · Windows</p>
+<p>Host, client, browser gateway and rendezvous server in one binary. Build it with the Go version in <code>go.mod</code> (1.26):</p>
+<pre class="cmd"><code>git clone https://github.com/readori/RemoHop
+cd RemoHop
+make build</code></pre>
+<p class="links"><a href="/en/features/#install">Install</a><a href="/en/features/#platforms">Platform support</a></p>
+</article>
+<article class="panel">
+<p class="chip wait">Not released yet</p>
+<h3>Quick Support</h3>
+<p class="platforms">Windows · macOS · Linux</p>
+<p>The window the person being helped double-clicks. <code>make quick</code> builds <code>RemoHop.exe</code>, <code>RemoHop.app</code> and a Linux program, none of them code-signed yet.</p>
+<p class="links"><a href="/en/docs/quick-support/">Quick support guide</a><a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">Packaging notes</a></p>
+</article>
+<article class="panel">
+<p class="chip wait">Not released yet</p>
+<h3>Phone controller</h3>
+<p class="platforms">Android · iOS / iPadOS</p>
+<p>Connect to and operate your computers from a phone or tablet; the phone itself cannot be controlled. TestFlight for iOS is in preparation, and the Android app is in no store yet.</p>
+<p class="links"><a href="/en/apps/">Apps</a></p>
+</article>
+</div>
+</div>
+</section>
+
+<section class="wrap band more" aria-labelledby="more-h">
+<h2 id="more-h">Read next</h2>
+<ul class="more-list">
+<li><a href="/en/features/">Features and limits</a><span>Common commands, how a connection is made, platform support, known limits.</span></li>
+<li><a href="/en/security/">Security model</a><span>What is protected and what is not, including the browser gateway.</span></li>
+<li><a href="/en/self-hosting/">Self-hosting</a><span>Ports, memory, the relay, and limits for a public relay.</span></li>
+<li><a href="/en/licensing/">Licensing</a><span>AGPL-3.0, with a commercial license available.</span></li>
+</ul>
+</section>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

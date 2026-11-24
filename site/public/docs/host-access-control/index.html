@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>被控端访问控制 | RemoHop</title>
+<meta name="description" content="被控机的主人决定已连接的客户端能做什么。下面的命令在被控机上执行，立即生效，对已经连上的会话同样有效：">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/host-access-control/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/host-access-control/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/host-access-control/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/host-access-control/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="被控端访问控制 | RemoHop">
+<meta property="og:description" content="被控机的主人决定已连接的客户端能做什么。下面的命令在被控机上执行，立即生效，对已经连上的会话同样有效：">
+<meta property="og:url" content="https://remohop.com/docs/host-access-control/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/host-access-control/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="被控端访问控制">被控端访问控制</h1>
+<p>被控机的主人决定已连接的客户端能做什么。下面的命令在被控机上执行，立即生效，对已经连上的会话同样有效：</p>
+<pre tabindex="0"><code class="language-bash">remohop config feature input off
+remohop config ask on
+remohop config otp on</code></pre>
+<div class="table-wrap" tabindex="0" role="region" aria-label="控制项 / 命令 / 效果">
+<table>
+<thead><tr><th scope="col">控制项</th><th scope="col">命令</th><th scope="col">效果</th></tr></thead>
+<tbody>
+<tr><td>功能开关</td><td><code>remohop config feature NAME on|off</code></td><td>NAME 可以是 <code>shell</code>、<code>file</code>、<code>forward</code>、<code>clip</code>、<code>screen</code>、<code>input</code>、<code>info</code>、<code>vpn</code>、<code>serial</code>、<code>usb</code>，默认全部开启</td></tr>
+<tr><td>VPN 路由</td><td><code>remohop config vpn-exit on</code></td><td>允许 VPN 客户端访问被控机自身局域网以外的网络，并把被控机当作出口；默认关闭</td></tr>
+<tr><td>连接审批</td><td><code>remohop config ask on</code></td><td>每次密码登录都要在被控机上确认：在 <code>remohop host</code> 所在的终端回答，或用 <code>remohop host approve N</code> / <code>remohop host deny N</code></td></tr>
+<tr><td>已知客户端也要审批</td><td><code>remohop config ask-paired on</code></td><td>在 <code>ask on</code> 的基础上，已配对的客户端和已授权的密钥也需要审批</td></tr>
+<tr><td>一次性密码</td><td><code>remohop config otp on</code></td><td>临时密码每次登录后更换；<code>remohop otp</code> 打印当前密码，<code>remohop otp new</code> 立即更换</td></tr>
+<tr><td>固定密码</td><td><code>remohop passwd</code></td><td>设置固定密码，<code>--clear</code> 清除；<code>remohop status</code> 从不打印固定密码</td></tr>
+<tr><td>配对管理</td><td><code>remohop host paired</code>、<code>remohop host revoke NAME</code></td><td>列出、移除已配对的客户端和已授权的密钥</td></tr>
+<tr><td>USB 设备</td><td><code>remohop usb allow BUSID</code>、<code>remohop usb allowed</code></td><td>客户端挂接某个设备之前，必须先允许它</td></tr>
+<tr><td>账号设备</td><td><code>remohop config account-trust on</code></td><td>让本账号的其他设备像已授权的密钥一样登录，默认关闭（见<a href="/docs/accounts/">账号</a>）</td></tr>
+<tr><td>审计日志</td><td><code>remohop log</code></td><td>登录成功与被拒、审批结果、每个会话首次使用某项功能、会话结束</td></tr>
+</tbody>
+</table>
+</div>
+<p>另外两项设置：<code>remohop config set name office-pc</code> 给设备起一个名字，对方会在 <code>ping</code>、审批提示和 <code>remohop status</code> 中看到它；<code>remohop config set term-keep 2h</code> 修改分离后的 shell 在被控机上保留多久。</p>
+<p>客户端也可以只凭身份密钥登录，完全不存在可被猜测的密码。在客户端打印公钥，在被控机上授权它，再回到客户端记录 <code>authorize</code> 打印出的主机密钥行：</p>
+<pre tabindex="0"><code class="language-bash">remohop key export
+remohop authorize "remohop-key ... laptop"
+remohop peers trust 276941009 "remohop-key ... host"</code></pre>
+<p>第一条和第三条在客户端执行，第二条在被控机上执行。<code>remohop key export --private FILE</code> 和 <code>remohop key import FILE --yes</code> 用于把身份迁移到另一台机器，<code>remohop key gen --yes</code> 生成新的身份。每项控制分别防范什么，见 <a href="/en/docs/security/">security.md</a>。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/host-access-control.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

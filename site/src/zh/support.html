@@ -1,0 +1,40 @@
+<h1>支持与联系</h1>
+<p>RemoHop 由 Readori 发布。有问题可以写信，也可以在 Telegram 上找我们：</p>
+<p><a class="btn primary" href="mailto:{{EMAIL}}">{{EMAIL}}</a> <a class="btn" href="{{TELEGRAM}}" rel="noopener">Telegram：@remohop</a></p>
+<p>中文或英文都可以。安全问题和需要附带日志的报告请用邮件。这是一个小团队维护的项目，没有承诺的响应时间。</p>
+
+<h2 id="first">先自己查一下</h2>
+<ul>
+<li><a href="{{E:docs/troubleshooting}}">故障排查文档（英文）</a>按错误信息逐条解释：连不上、密码被拒、没有直连路径、挂载、VPN、远程桌面黑屏、ffmpeg 和编码器。</li>
+<li><code>remohop &lt;ID&gt; ping</code> 会显示当前路径是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>，多数连接问题从这里就能看出原因。</li>
+<li>在任何命令前加 <code>-v</code>（或设置 <code>REMOHOP_DEBUG=1</code>）可以在 stderr 上看到调试日志。</li>
+<li><a href="{{L:features}}#status">功能与限制</a>一页的“状态与限制”列出了已知没有测试过的平台和功能。</li>
+</ul>
+
+<h2 id="report">报告问题时请附上</h2>
+<ol>
+<li>客户端上 <code>remohop -v &lt;出问题的命令&gt;</code> 的输出。</li>
+<li>被控机上 <code>remohop status</code>、<code>remohop log</code> 和 <code>remohop config</code> 的输出。</li>
+<li><code>remohop version</code><!--src-->，或者你编译时所用的提交<!--/src--><!--nosrc-->的输出<!--/nosrc-->。</li>
+<li>两端的操作系统和版本；移动应用请写明机型和系统版本。</li>
+<li>两端的网络情况：家用宽带、公司网络、移动网络，是否经过代理，用的是谁的汇合服务器。</li>
+<li>你预期发生什么，实际发生了什么。</li>
+</ol>
+<p class="note warn"><strong>发送前请删掉机密。</strong>不要把密码、配对令牌、<code>identity.key</code> 的内容、网关地址里的令牌或 Cloudflare Access 的密钥发给我们。ID 和公网 IP 地址如果不想透露，也可以打码。</p>
+
+<h2 id="security">安全问题</h2>
+<p>发现安全漏洞时，请<strong>不要</strong>在公开的 issue 或论坛里披露，直接发邮件到 <a href="mailto:{{EMAIL}}?subject=RemoHop%20security">{{EMAIL}}</a>，标题里带上“security”。请写明受影响的版本或提交、复现步骤和你判断的影响。我们会回信确认收到，并在修复后与你商量公开的时间。安全模型见<a href="{{L:security}}">安全</a>一页。</p>
+
+<h2 id="other">其他事项</h2>
+<dl>
+<dt>商业授权</dt>
+<dd>写信到 <a href="mailto:{{EMAIL}}?subject=RemoHop%20commercial%20license">{{EMAIL}}</a>，说明用途。见<a href="{{L:licensing}}">许可证</a>。</dd>
+<dt>隐私与数据删除</dt>
+<dd>见<a href="{{L:privacy}}">隐私政策</a>。应用和软件不向我们回传数据；要删除 Readori 服务器上的账号，执行 <code>remohop account delete --yes</code>，或写信给我们。</dd>
+<dt>滥用举报</dt>
+<dd>如果有人通过 Readori 运营的服务器滥用服务，请把时间（含时区）、相关的 IP 地址或 ID 发给我们。</dd>
+<!--src-->
+<dt>贡献代码</dt>
+<dd>见仓库里的 <a href="{{REPO}}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>。合并之前需要签署贡献者许可协议。</dd>
+<!--/src-->
+</dl>

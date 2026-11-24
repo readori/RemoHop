@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Networking: the mesh (remohop net) and Tailscale | RemoHop</title>
+<meta name="description" content="RemoHop has two ways to carry IP traffic, and it gets along with Tailscale:">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/net/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Networking: the mesh (remohop net) and Tailscale | RemoHop">
+<meta property="og:description" content="RemoHop has two ways to carry IP traffic, and it gets along with Tailscale:">
+<meta property="og:url" content="https://remohop.com/en/docs/net/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="networking-the-mesh-remohop-net-and-tailscale">Networking: the mesh (<code>remohop net</code>) and Tailscale</h1>
+<p>RemoHop has two ways to carry IP traffic, and it gets along with Tailscale:</p>
+<ul>
+<li><strong><code>remohop &lt;ID&gt; vpn up</code></strong> joins this machine and one host point to point (see <a href="/en/docs/vpn/">VPN</a>).</li>
+<li><strong><code>remohop net</code></strong> joins all devices of your account into one private network: every device gets a stable address and a name like <code>laptop.remohop</code>, and any device can reach any other. It covers the everyday uses of Tailscale for one person's devices; what it does not cover is listed under <a href="#what-remohop-net-is-not">What remohop net is not</a>.</li>
+<li><strong>Tailscale</strong> can run on the same machines. RemoHop detects it and uses a shared tailnet as a direct path for its own sessions; see <a href="#using-remohop-with-tailscale">Using RemoHop with Tailscale</a>.</li>
+</ul>
+<p><code>remohop doctor</code> explains how all of this looks from the machine it runs on.</p>
+<h2 id="remohop-net">remohop net</h2>
+<h3 id="requirements">Requirements</h3>
+<ul>
+<li>An account (<code>remohop login</code>, see <a href="/en/docs/accounts/">Accounts</a>) with every device in it. The mesh is exactly the account's devices, as listed in the account's signed device log.</li>
+<li>On every device: the host daemon (<code>remohop host</code>, or the service installed with <code>remohop service install --system</code>), running as root or with <code>CAP_NET_ADMIN</code>. The mesh runs inside the host process; that is also how devices reach each other.</li>
+<li>Linux. macOS and Windows do not run the mesh yet (see <a href="#limits-and-what-was-tested">Limits</a>).</li>
+</ul>
+<p>The host's config directory is the device: log in, and run <code>remohop net</code>, with the same directory the host uses. For a system service that is <code>sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop ...</code> (as <code>remohop service status</code> prints).</p>
+<h3 id="quick-start">Quick start</h3>
+<p>On every device:</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop net up
+remohop net status
+remohop net peers
+ping nas.remohop</code></pre>
+<p><code>remohop net up</code> switches the mesh on in the configuration (<code>remohop config get net</code>); the running host brings it up within two seconds and again at every start. <code>remohop net down</code> takes it down and keeps it down.</p>
+<h3 id="addresses-and-names">Addresses and names</h3>
+<ul>
+<li>Every device gets an IPv4 address in <code>10.78.0.0/16</code> and an IPv6 unique-local address in a /64 of its own account (<code>fdXX:XXXX:XXXX::/64</code>, derived from the account ID).</li>
+<li>The address is derived from the device's identity key (SHA-256 of the key). Devices are taken in the order the account's log added them, every device ever added included; a device whose first choice is taken by an earlier one takes the next value of its key's sequence. Every device computes the same table from the same signed log, nobody's address changes when a device joins or leaves, and each side of a link checks that the other claims the address it computed for it.</li>
+<li>The network can be moved for the whole account with <code>"prefix4"</code> in the policy (a private network between /8 and /24); a mesh network that overlaps a network the machine already routes is refused with an explanation. The VPN keeps <code>10.77.0.0/16</code> and Tailscale <code>100.64.0.0/10</code>, so all three can coexist.</li>
+<li>Names: the name a device had when it joined the account (<code>remohop config name</code> at <code>remohop login</code> time), turned into a DNS label; duplicates get <code>-2</code>, <code>-3</code>. <code>remohop net peers</code> shows them.</li>
+</ul>
+<h3 id="dns-per-operating-system">DNS, per operating system</h3>
+<p>Each device runs a small DNS responder on its own mesh address, port 53, that answers A and AAAA for <code>NAME.remohop</code> and refuses everything else, so it can never stand in for your normal resolver. How the system is pointed at it is the <code>net-dns</code> setting (<code>remohop net up --dns MODE</code>), conservative by default:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Mode / Linux / Effect">
+<table>
+<thead><tr><th scope="col">Mode</th><th scope="col">Linux</th><th scope="col">Effect</th></tr></thead>
+<tbody>
+<tr><td><code>auto</code> (default)</td><td>with systemd-resolved: <code>resolvectl dns</code>/<code>domain ~remohop</code>/<code>default-route false</code> on the mesh interface</td><td>only <code>.remohop</code> goes to the responder; the settings belong to the interface and vanish with it, so nothing can be left behind</td></tr>
+<tr><td><code>auto</code></td><td>without systemd-resolved</td><td>nothing is changed; <code>remohop net status</code> says so. Point a resolver at <code>MESH-ADDRESS:53</code> for <code>.remohop</code> yourself, or use <code>hosts</code></td></tr>
+<tr><td><code>hosts</code></td><td></td><td>a block between <code># BEGIN remohop-net</code> and <code># END remohop-net</code> in <code>/etc/hosts</code>, rewritten as devices come and go, removed by <code>remohop net down</code> (and by the next start after a crash)</td></tr>
+<tr><td><code>off</code></td><td></td><td>only the responder</td></tr>
+</tbody>
+</table>
+</div>
+<p>macOS (<code>/etc/resolver/remohop</code>) and Windows (NRPT rules) would be the equivalents of <code>auto</code>; they are not implemented because the mesh does not run there yet.</p>
+<h3 id="how-links-work">How links work</h3>
+<ul>
+<li>A link between two devices is an ordinary RemoHop session from one device's host daemon to the other's, opened when the first packet needs it: rendezvous, hole punching, then the relay or the websocket bridge if that is all that works, and a tailnet path when both are on one. It is end-to-end encrypted and authenticated like every session.</li>
+<li>The login uses the device's identity key, and the other host checks it against the account's signed device log. Such a login is <strong>limited to the mesh</strong>: the session can carry the mesh service (and ping), nothing else. A mesh device gets no shell or files on another unless that host's owner grants that separately (a password, a pairing, <code>remohop authorize</code>, or <code>remohop config account-trust on</code>).</li>
+<li>Packets travel in QUIC datagrams when they fit, otherwise on the link's stream; TCP is clamped to datagram size (as the VPN does). Interface MTU 1400.</li>
+<li>Keep-alives every 4 seconds; a link that hears nothing for 15 seconds is closed and the next packet opens a new one (also after the other device was killed or changed networks). Idle links close after 3 minutes; the link to an exit node in use, and with <code>--accept-routes</code> links to all online devices, stay up.</li>
+<li>When both devices open a link at the same moment, both keep the one opened by the device with the smaller identity key.</li>
+<li>A device that is removed from the account loses its links within 30 seconds (the mesh re-reads the account's devices every 30 seconds) and can no longer log in for the mesh.</li>
+</ul>
+<h3 id="access-control">Access control</h3>
+<p>Without a policy every device of the mesh may reach every port of every other, like a LAN. A policy restricts that:</p>
+<pre tabindex="0"><code class="language-json">{
+  "version": 2,
+  "rules": [
+    {"from": ["laptop", "phone"], "to": ["nas"], "ports": ["22/tcp", "445/tcp", "icmp"]},
+    {"from": ["*"], "to": ["printer"], "ports": ["631/tcp"]},
+    {"from": ["laptop"], "to": ["192.168.1.0/24"]}
+  ]
+}</code></pre>
+<pre tabindex="0"><code class="language-bash">remohop net policy set policy.json
+remohop net policy
+remohop net policy reset</code></pre>
+<ul>
+<li><strong>Selectors</strong>: <code>"*"</code>, a device's mesh name (without <code>.remohop</code>), or its identity fingerprint. In <code>"to"</code>, a CIDR selects destinations behind a subnet router or exit node; those match only CIDRs and <code>"*"</code>.</li>
+<li><strong>Ports</strong>: <code>"*"</code> or absent for all, <code>"22"</code>, <code>"22/tcp"</code>, <code>"8000-8100/udp"</code>, <code>"icmp"</code> (ping).</li>
+<li><strong>Enforced on the receiving device</strong>, for every packet that arrives over the mesh. Replies to connections the device opened itself always pass, as do ICMP errors and echo replies. A later IP fragment (no ports) passes if the sender may reach the destination at all. An empty rule list lets nothing in.</li>
+<li><strong>Signed and shared</strong>: <code>remohop net policy set</code> signs the policy with this device's key, as the next version. Devices hand it to each other when a link comes up, and a device that installs a new policy connects to every online device once to deliver it. A device adopts a policy only if it is signed by a current member of its account and has a higher version than its own (for equal versions, all settle on the same one). Any member can set the policy, as any member can approve or remove devices.</li>
+<li>Sources are checked too: a packet must come from the sending device's own mesh address (or, as a reply, from a network it routes for this device), so one device cannot pose as another.</li>
+</ul>
+<h3 id="subnet-routes-and-exit-node-linux-ipv4">Subnet routes and exit node (Linux, IPv4)</h3>
+<pre tabindex="0"><code class="language-bash">sudo remohop net up --route 192.168.1.0/24 --exit     # the office machine
+sudo remohop net up --accept-routes                   # a device that wants the office LAN
+sudo remohop net up --use-exit office                 # a device that sends all traffic via the office
+sudo remohop net up --no-exit-node --no-accept-routes # back to plain</code></pre>
+<ul>
+<li>A subnet router or exit node forwards for the mesh and hides it behind its own address, with the same firewall rules and clean-up as the VPN's <code>--route</code>/<code>--exit</code> on a host (iptables or nft; recorded and undone after a crash too).</li>
+<li><code>--accept-routes</code> installs the routes other devices offer; when two offer the same network, the first wins.</li>
+<li><code>--use-exit NAME</code> sends all traffic through that device once its link is up. The device's local networks, the paths of its current links and the rendezvous server stay off that route. DNS keeps using the current resolvers.</li>
+<li>Routed and exit traffic also passes the receiving device's policy (<code>"to": ["192.168.1.0/24"]</code> or <code>"*"</code>).</li>
+</ul>
+<h3 id="status-and-service">Status and service</h3>
+<ul>
+<li><code>remohop net status</code> (<code>--json</code>): address, name, interface, network, policy, what this device offers and uses, notes (DNS, IPv6).</li>
+<li><code>remohop net peers</code> (<code>--json</code>): every other device with its address, whether it is online, its link (<code>up</code>, <code>connecting</code>, <code>-</code> for none yet, <code>failed</code> with the reason) and the link's path (<code>lan</code>, <code>direct</code>, <code>punched</code>, <code>relayed</code>, <code>tailnet</code>).</li>
+<li>The mesh starts with the host service by itself when <code>net</code> is on: no separate service.</li>
+</ul>
+<h2 id="using-remohop-with-tailscale">Using RemoHop with Tailscale</h2>
+<p>RemoHop and Tailscale can run side by side; neither depends on the other.</p>
+<ul>
+<li><strong>Detection.</strong> RemoHop looks for Tailscale through its local API socket (<code>/var/run/tailscale/tailscaled.sock</code> on Linux), its CLI (<code>tailscale status --json</code>), and as a fallback its network interface (<code>tailscale0</code>, <code>Tailscale</code> on Windows, a macOS <code>utun</code> with an address in <code>100.64.0.0/10</code> or <code>fd7a:115c:a1e0::/48</code>). Nothing is linked from Tailscale. <code>REMOHOP_TAILSCALE=off</code> makes RemoHop ignore it.</li>
+<li><strong>Tailnet addresses as candidates.</strong> A host lists its tailnet address among its candidate addresses, first, so it survives the limit of six. When the client is on the same tailnet (the address belongs to a peer in its own <code>tailscale status</code>), it prefers that path: a punched path that answers first waits up to a second for the tailnet path, the punch gets at least 3 seconds even between NATs that cannot be punched, and the "go straight to the relay" shortcut after an earlier failed punch is skipped. <code>remohop &lt;ID&gt; ping</code> shows <code>tailnet path</code>, <code>remohop status</code> on the host <code>tailnet</code>.</li>
+<li><strong>Security is unchanged.</strong> The tailnet is only a path. The RemoHop session over it is the same QUIC session with the same login (password, pairing or key) and host key pinning as over any other path; Tailscale's own encryption is an additional layer, and what Tailscale says about a peer is never taken as proof of who it is.</li>
+<li><strong>Exit nodes.</strong> If Tailscale sends this machine's traffic through an exit node, RemoHop sessions to machines outside the tailnet go that way too, and hole punching sees the exit node's NAT. <code>remohop doctor</code> points this out.</li>
+<li><strong>MagicDNS and <code>.remohop</code>.</strong> The mesh answers only <code>.remohop</code>; MagicDNS keeps its own suffix. With systemd-resolved both are per-interface routing domains and do not collide.</li>
+<li><strong>Address ranges.</strong> Tailscale uses <code>100.64.0.0/10</code> and <code>fd7a:115c:a1e0::/48</code>; the mesh uses <code>10.78.0.0/16</code> and an <code>fd</code> prefix of its own; the point-to-point VPN <code>10.77.0.0/16</code>.</li>
+<li><strong>Userspace networking.</strong> A Tailscale in userspace-networking mode (no <code>tailscale0</code> interface, as in some containers) gives the machine no tailnet address that RemoHop's sockets can use; RemoHop then ignores it for paths.</li>
+<li><strong>Not implemented:</strong> a client that reaches the rendezvous server only through its websocket bridge (UDP blocked) does not try the tailnet path, although Tailscale itself might get through; such sessions use the relay.</li>
+</ul>
+<p>Tested in the NAT lab (<code>test/natlab/natlab.sh tailnet</code>) with a fake Tailscale: an interface named <code>tailscale0</code> with 100.x addresses joining host and client over a deliberately slow link, and stub status files. The session takes the tailnet although the punched path is faster, takes the punched path when the preference is switched off, and connects over the tailnet between two symmetric NATs. Not tested against a real tailscaled.</p>
+<h2 id="what-remohop-net-is-not">What remohop net is not</h2>
+<p><code>remohop net</code> is deliberately the one-person, own-devices part of what Tailscale offers. Not replicated:</p>
+<ul>
+<li><strong>Single sign-on, users and groups.</strong> The mesh is one account's devices; there are no identity providers, no user roles, no tags or groups in the policy.</li>
+<li><strong>Sharing with other people</strong>, devices of other accounts, or explicitly invited guests. (The design leaves room for it: addresses are derived from keys and checked by both ends; what is missing is how a guest learns and verifies the mesh it joins.)</li>
+<li><strong>An admin console</strong> or central device management. Every device is managed on itself; the policy travels between devices.</li>
+<li><strong>Funnel, Serve, HTTPS certificates, Taildrop, Tailscale SSH</strong>, app connectors, network flow logs, posture checks.</li>
+<li><strong>Its own relays.</strong> Links use the rendezvous server's relay and websocket bridge, which its operator must have enabled.</li>
+<li><strong>macOS, Windows, iOS and Android</strong> as mesh devices, IPv6 exit traffic, and DNS through the exit node.</li>
+<li><strong>Key expiry and device approval flows</strong> beyond the account's own (a new device is approved with <code>remohop account approve</code>; a lost one removed with <code>remohop account remove</code>).</li>
+</ul>
+<h3 id="roadmap-phase-2">Roadmap (phase 2)</h3>
+<p>Team features are postponed on purpose, until the single-account mesh has seen real use:</p>
+<ol>
+<li>Shared devices and guests across accounts (invitation by fingerprint, verified address claims, policy selectors per account).</li>
+<li>Groups and tags in the policy; a policy history and <code>remohop net policy diff</code>.</li>
+<li>macOS (utun, <code>/etc/resolver/remohop</code>) and Windows (Wintun, NRPT) data planes.</li>
+<li>IPv6 subnet routes and exit traffic; DNS through the exit node.</li>
+<li>A team view of devices and links (still without a central server that holds keys).</li>
+</ol>
+<h2 id="security-notes">Security notes</h2>
+<ul>
+<li>The rendezvous server cannot add a device to the mesh: membership is the account's signed log (see <a href="/en/docs/security/#accounts">security.md</a>), and every link's login proves the device key in the TLS handshake of the session. A server can withhold log entries, which delays a removal on some devices, and a device whose log was last verified more than 7 days ago refuses to run the mesh until it can refresh it.</li>
+<li>A mesh login is limited to the mesh service. It is not a <code>remohop authorize</code> and does not need <code>account-trust</code>.</li>
+<li>The policy is enforced where packets arrive; a compromised member device can do what any member can (set a policy, remove devices), as for accounts.</li>
+<li>Exit and subnet routing reuse the VPN's forwarding rules: forward from the mesh interface, masquerade, only replies back, and while forwarding is on, a guard keeps the machine's other interfaces from forwarding anything not headed into a tunnel.</li>
+</ul>
+<h2 id="limits-and-what-was-tested">Limits and what was tested</h2>
+<ul>
+<li><strong>Tested</strong> in the NAT lab (<code>sudo test/natlab/natlab.sh mesh</code>), Linux network namespaces with real kernel NATs: three devices of one account behind three different NATs form a mesh, links come up only on traffic, the devices ping each other by name (through each one's own responder), a mesh login cannot open a shell, a policy set on one device reaches another, which then blocks a port and lets another through, a reset reopens it, a device whose host is killed and restarted is reachable again, one device serves its LAN and is the exit node of another (internet traffic seen from its NAT), and after <code>remohop net down</code> routes, firewall rules and forwarding settings on all three are exactly as before.</li>
+<li><strong>Not tested:</strong> IPv6 inside the mesh (the lab's kernel has no IPv6), systemd-resolved split DNS (not present in the lab), <code>net-dns hosts</code> on a real system, relayed and websocket-bridged links in a mesh (the session machinery is the same as for <code>remohop &lt;ID&gt; ...</code>), large accounts, mobile networks, physical machines.</li>
+<li>Linux only. The VPN's macOS and Windows tunnel devices exist, but the mesh's interface, route and DNS setup is written for Linux.</li>
+<li>One link per pair of devices; traffic between two devices goes directly between them, never through a third mesh device (except via an exit node or subnet router).</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/net.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

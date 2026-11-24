@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>RemoHop web client</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+<header class="top">
+  <h1 class="brand"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39"/></svg>RemoHop <span class="sub" data-i18n="brand.sub">web client</span></h1>
+  <div class="hostbar" id="hostbar" hidden>
+    <label for="hostsel" class="vh" data-i18n="host.label">Connected host</label>
+    <select id="hostsel"></select>
+    <button type="button" id="newconn" data-i18n="host.newconn">Connect another</button>
+    <button type="button" id="disconnect" data-i18n="host.disconnect">Disconnect</button>
+  </div>
+  <button type="button" id="logout" hidden data-i18n="host.logout">Sign out</button>
+  <div class="langsw" id="langsw" role="group" aria-label="Language" data-i18n-aria-label="lang.group"><button type="button" data-lang="zh" lang="zh-CN" aria-pressed="false">中文</button><button type="button" data-lang="en" lang="en" aria-pressed="true">English</button></div>
+</header>
+
+<div id="banner" class="banner" role="status" aria-live="polite" hidden></div>
+
+<main id="main" tabindex="-1">
+  <section id="loading" aria-live="polite"><p data-i18n="loading">Loading…</p></section>
+
+  <section id="login" class="card narrow" hidden aria-labelledby="login-h">
+    <h2 id="login-h" data-i18n="login.h">Gateway login</h2>
+    <p class="hint" data-i18n-rich="login.hint">This gateway requires its own password (the one in its <code>--password-file</code>), not a host password.</p>
+    <form id="loginform" autocomplete="off">
+      <label for="gwpass" data-i18n="login.pass">Gateway password</label>
+      <input id="gwpass" type="password" autocomplete="current-password" required>
+      <button type="submit" class="primary" data-i18n="login.btn">Log in</button>
+      <p id="loginerr" class="err" role="alert"></p>
+    </form>
+  </section>
+
+  <section id="connect" class="card narrow" hidden aria-labelledby="connect-h">
+    <h2 id="connect-h" data-i18n="connect.h">Connect to a host</h2>
+    <p class="hint lead" data-i18n="connect.lead">Enter the host's 9-digit ID, a name you paired, or its address.</p>
+    <form id="connectform" autocomplete="off">
+      <label for="target" data-i18n="connect.target">Host ID, name or host:port</label>
+      <input id="target" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123 456 789" required>
+      <label for="hostpass"><span data-i18n="connect.pass">Host password</span> <span class="hint" id="passhint" data-i18n="connect.passhint">(leave empty to use the pairing saved on this gateway)</span></label>
+      <input id="hostpass" type="password" autocomplete="off">
+      <label class="check" id="pairrow"><input id="pair" type="checkbox"> <span data-i18n="connect.pair">Pair this gateway with the host (saves a token on the gateway so no password is needed next time)</span></label>
+      <div class="formbuttons">
+        <button type="submit" class="primary" id="connectbtn" data-i18n="connect.btn">Connect</button>
+        <button type="button" id="cancelconn" hidden data-i18n="cancel">Cancel</button>
+      </div>
+    </form>
+    <div id="connstatus" class="status" role="status" aria-live="polite"></div>
+    <div id="connerr" class="err" role="alert"></div>
+    <div id="peerrow" class="peers" hidden>
+      <h3 id="peers-h" data-i18n="peers.h">Saved on this gateway</h3>
+      <ul id="peercards" class="peerlist" aria-labelledby="peers-h"></ul>
+      <label for="peersel" hidden data-i18n="peers.h">Saved on this gateway</label>
+      <select id="peersel" hidden><option value="" data-i18n="peers.type">(type below)</option></select>
+    </div>
+  </section>
+
+  <section id="workspace" hidden>
+    <div class="sessionbar">
+      <span class="sesslabel" data-i18n="sess.label">Connected to</span>
+      <strong id="sessname" class="sessname"></strong>
+      <span id="pathbadge" class="badge" title="How the gateway reaches the host" data-i18n-title="path.title"></span>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Features" data-i18n-aria-label="tabs.label" id="tablist">
+      <button role="tab" id="tab-desktop" aria-controls="panel-desktop" aria-selected="false" tabindex="-1" data-i18n="tab.desktop">Desktop</button>
+      <button role="tab" id="tab-terminal" aria-controls="panel-terminal" aria-selected="false" tabindex="-1" data-i18n="tab.terminal">Terminal</button>
+      <button role="tab" id="tab-files" aria-controls="panel-files" aria-selected="false" tabindex="-1" data-i18n="tab.files">Files</button>
+      <button role="tab" id="tab-clipboard" aria-controls="panel-clipboard" aria-selected="false" tabindex="-1" data-i18n="tab.clipboard">Clipboard</button>
+      <button role="tab" id="tab-info" aria-controls="panel-info" aria-selected="false" tabindex="-1" data-i18n="tab.info">Info</button>
+    </div>
+
+    <div role="tabpanel" id="panel-desktop" aria-labelledby="tab-desktop" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Desktop controls" data-i18n-aria-label="d.controls">
+        <label class="check"><input type="checkbox" id="d-viewonly"> <span data-i18n="d.viewonly">View only</span></label>
+        <button type="button" id="d-fit" aria-pressed="true" data-i18n="d.fit">Fit</button>
+        <button type="button" id="d-fs" data-i18n="d.fs">Fullscreen</button>
+        <button type="button" id="d-key" title="Ask the host for a fresh key frame" data-i18n-title="d.refresh.title" data-i18n="d.refresh">Refresh</button>
+        <button type="button" id="d-cad" title="Send Ctrl+Alt+Del" data-i18n-title="d.cad.title">Ctrl+Alt+Del</button>
+        <label class="vh" for="d-quality" data-i18n="d.quality">Quality</label>
+        <select id="d-quality"><option value="0" data-i18n="d.q.native">Native size</option><option value="1080" data-i18n="d.q.max" data-i18n-vars='{"p":1080}'>Max 1080p</option><option value="720" data-i18n="d.q.max" data-i18n-vars='{"p":720}'>Max 720p</option><option value="480" data-i18n="d.q.max" data-i18n-vars='{"p":480}'>Max 480p</option></select>
+        <label class="vh" for="d-display" data-i18n="d.monitor">Monitor</label>
+        <select id="d-display" hidden></select>
+        <button type="button" id="d-stats" aria-pressed="false" data-i18n="d.stats">Stats</button>
+        <button type="button" id="d-reconnect" hidden data-i18n="d.reconnect">Reconnect</button>
+      </div>
+      <div id="d-stage" class="stage">
+        <canvas id="d-canvas" tabindex="0" width="16" height="9" aria-label="Remote desktop. Keyboard and mouse go to the remote machine while this has focus." data-i18n-aria-label="d.canvas"></canvas>
+        <pre id="d-hud" class="hud" hidden></pre>
+        <div id="d-msg" class="overlay" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="panel-terminal" aria-labelledby="tab-terminal" hidden>
+      <div class="toolbar" role="toolbar" aria-label="Terminal controls" data-i18n-aria-label="t.controls">
+        <label class="vh" for="t-sessions" data-i18n="t.session">Session</label>
+        <select id="t-sessions"></select>
+        <button type="button" id="t-new" data-i18n="t.new">New session</button>
+        <button type="button" id="t-kill" data-i18n="t.kill">Kill session</button>
+        <button type="button" id="t-copy" title="Copy the selected text (Ctrl+Shift+C)" data-i18n-title="t.copy.title" data-i18n="t.copy">Copy</button>
+        <button type="button" id="t-paste" title="Paste (Ctrl+V or Ctrl+Shift+V)" data-i18n-title="t.paste.title" data-i18n="t.paste">Paste</button>
+        <button type="button" id="t-smaller" aria-label="Smaller text" data-i18n-aria-label="t.smaller">A-</button>
+        <button type="button" id="t-bigger" aria-label="Bigger text" data-i18n-aria-label="t.bigger">A+</button>
+        <span id="t-status" class="status" role="status" aria-live="polite"></span>
+      </div>
+      <div id="t-host" class="termhost"></div>
+      <div id="t-keys" class="keyrow" aria-label="Extra keys" data-i18n-aria-label="t.keys">
+        <button type="button" data-k="Escape">Esc</button>
+        <button type="button" data-k="Tab">Tab</button>
+        <button type="button" id="t-ctrl" aria-pressed="false">Ctrl</button>
+        <button type="button" data-k="ArrowUp" aria-label="Up" data-i18n-aria-label="t.up">&uarr;</button>
+        <button type="button" data-k="ArrowDown" aria-label="Down" data-i18n-aria-label="t.down">&darr;</button>
+        <button type="button" data-k="ArrowLeft" aria-label="Left" data-i18n-aria-label="t.left">&larr;</button>
+        <button type="button" data-k="ArrowRight" aria-label="Right" data-i18n-aria-label="t.right">&rarr;</button>
+        <button type="button" data-t="|">|</button>
+        <button type="button" data-t="~">~</button>
+        <button type="button" data-t="/">/</button>
+        <button type="button" data-t="-">-</button>
+      </div>
+      <p id="t-err" class="err" role="alert"></p>
+    </div>
+
+    <div role="tabpanel" id="panel-files" aria-labelledby="tab-files" hidden>
+      <div class="toolbar" role="toolbar" aria-label="File controls" data-i18n-aria-label="f.controls">
+        <button type="button" id="f-up" data-i18n="f.up">Up</button>
+        <label class="vh" for="f-path" data-i18n="f.path">Path</label>
+        <input id="f-path" type="text" class="grow" spellcheck="false" autocomplete="off">
+        <button type="button" id="f-go" data-i18n="f.go">Go</button>
+        <button type="button" id="f-refresh" data-i18n="f.refresh">Refresh</button>
+        <button type="button" id="f-mkdir" data-i18n="f.mkdir">New folder</button>
+        <button type="button" id="f-upload" data-i18n="f.upload">Upload…</button>
+        <input type="file" id="f-file" multiple hidden>
+      </div>
+      <div id="f-drop" class="drop">
+        <table class="files">
+          <caption class="vh" data-i18n="f.caption">Remote directory listing</caption>
+          <thead><tr><th scope="col" data-i18n="f.name">Name</th><th scope="col" class="num" data-i18n="f.size">Size</th><th scope="col" class="mtime" data-i18n="f.mtime">Modified</th><th scope="col" data-i18n="f.actions">Actions</th></tr></thead>
+          <tbody id="f-body"></tbody>
+        </table>
+        <p id="f-empty" class="hint" hidden data-i18n="f.empty">This folder is empty.</p>
+        <p class="hint" data-i18n="f.drop">Drop files here to upload them to this folder. An existing file is never replaced without asking.</p>
+      </div>
+      <ul id="f-uploads" class="uploads" aria-label="Uploads" data-i18n-aria-label="f.uploads"></ul>
+      <p id="f-err" class="err" role="alert"></p>
+    </div>
+
+    <div role="tabpanel" id="panel-clipboard" aria-labelledby="tab-clipboard" hidden>
+      <div class="card">
+        <h2 data-i18n="c.remote.h">Remote clipboard</h2>
+        <div class="toolbar"><button type="button" id="c-fetch" data-i18n="c.fetch">Fetch remote clipboard</button>
+        <button type="button" id="c-copy" data-i18n="c.copy">Copy to this device</button></div>
+        <label for="c-remote" class="vh" data-i18n="c.remote">Remote clipboard text</label>
+        <textarea id="c-remote" readonly rows="6" placeholder="Nothing fetched yet." data-i18n-placeholder="c.remote.ph"></textarea>
+        <h2 data-i18n="c.send.h">Send text to the remote clipboard</h2>
+        <label for="c-local" class="vh" data-i18n="c.local">Text to send</label>
+        <textarea id="c-local" rows="6" placeholder="Type or paste text to put on the remote clipboard." data-i18n-placeholder="c.local.ph"></textarea>
+        <div class="toolbar"><button type="button" id="c-paste" data-i18n="c.paste">Paste from this device</button>
+        <button type="button" id="c-send" class="primary" data-i18n="c.send">Send to remote</button></div>
+        <p id="c-status" class="status" role="status" aria-live="polite"></p>
+        <p id="c-err" class="err" role="alert"></p>
+      </div>
+    </div>
+
+    <div role="tabpanel" id="panel-info" aria-labelledby="tab-info" hidden>
+      <div class="card">
+        <div class="toolbar"><button type="button" id="i-refresh" data-i18n="i.refresh">Refresh</button>
+        <button type="button" id="i-shot" class="primary" data-i18n="i.shot">Take screenshot</button></div>
+        <dl id="i-list" class="info"></dl>
+        <p id="i-err" class="err" role="alert"></p>
+        <figure id="i-fig" hidden><img id="i-img" alt="Screenshot of the remote screen" data-i18n-alt="i.img"><figcaption id="i-cap"></figcaption></figure>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <form method="dialog" id="dlg-form">
+    <h2 id="dlg-title"></h2>
+    <p id="dlg-msg"></p>
+    <input id="dlg-input" type="text" hidden>
+    <label class="check" id="dlg-all-row" hidden><input type="checkbox" id="dlg-all"> <span data-i18n="dlg.all">Apply to all remaining files</span></label>
+    <div class="dlg-buttons" id="dlg-buttons"></div>
+  </form>
+</dialog>
+
+<footer class="foot">
+  <p class="how" data-i18n-rich="foot.how"><strong>How this works.</strong> A browser cannot hole-punch or speak RemoHop's QUIC session, so this page talks to a <em>gateway</em>
+  (<code>remohop web</code>) and the gateway speaks the normal P2P session to the host. That session is end-to-end encrypted between the gateway and the host,
+  but <strong>the gateway sees everything</strong>: the screen, every keystroke, files, the clipboard and any password you type here.
+  Use only a gateway you control. Exposing one beyond localhost requires TLS and its own login; anyone who logs in to a gateway can use its saved pairings.</p>
+  <p class="hint" id="ver"></p>
+</footer>
+<script src="assets/i18n.js"></script>
+<script src="assets/term_core.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/term.js"></script>
+<script src="assets/desktop.js"></script>
+<script src="assets/files.js"></script>
+</body>
+</html>

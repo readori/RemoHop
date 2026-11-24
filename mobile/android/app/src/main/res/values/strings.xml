@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">RemoHop</string>
+    <string name="settings">RemoHop settings</string>
+    <string name="gateway_failed">RemoHop could not start: %1$s</string>
+    <string name="choose_files">Choose files to upload</string>
+    <string name="downloading">Downloading %1$s…</string>
+    <string name="download_failed">Download failed: %1$s</string>
+    <string name="saved">Saved.</string>
+
+    <string name="rendezvous_heading">Rendezvous server</string>
+    <string name="rendezvous_hint">The server that introduces this phone to your hosts by their 9-digit ID. RemoHop has no default server: run your own with `remohop signal`. Without one you can still connect by address (host:port).</string>
+    <string name="rendezvous_example" translatable="false">rendezvous.example.net:21116</string>
+    <string name="rendezvous_pin">Server key (optional, printed by remohop signal)</string>
+    <string name="relay">Allow relayed connections (still end-to-end encrypted) when no direct path works</string>
+    <string name="device_heading">This device</string>
+    <string name="device_name">Device name shown to hosts (optional)</string>
+    <string name="save">Save</string>
+    <string name="saved_settings">Settings saved.</string>
+    <string name="identity_heading">Identity</string>
+    <string name="identity_hint">Hosts pin this key. To log in without any password, run `remohop authorize \"LINE\"` on a host with the line copied below.</string>
+    <string name="copy_key">Copy key line</string>
+    <string name="copied">Copied.</string>
+    <string name="pair_heading">Pair with a host</string>
+    <string name="pair_hint">Log in once with the host\'s password; the host gives this phone a token, so later connections need no password. You can also tick “Pair this gateway” when connecting.</string>
+    <string name="pair_target">Host ID, name or host:port</string>
+    <string name="pair_password">Host password (used once, not stored)</string>
+    <string name="pair_alias">Name for this host (optional)</string>
+    <string name="pair">Pair</string>
+    <string name="cancel">Cancel</string>
+    <string name="pairing">Connecting… the host may ask its owner to approve.</string>
+    <string name="paired">Paired with %1$s (host key %2$s).</string>
+    <string name="hosts_heading">Saved hosts</string>
+    <string name="refresh">Refresh</string>
+    <string name="no_hosts">No saved hosts yet.</string>
+    <string name="forget">Forget</string>
+    <string name="forget_confirm">Forget %1$s? Its pinned key and pairing token are deleted from this phone.</string>
+    <string name="privacy_note">RemoHop talks only to the hosts you connect to and the rendezvous server you set here. Everything it stores (identity, pairings, settings) stays in this app\'s private storage. The app runs a local gateway on 127.0.0.1 that only the page with its random per-launch token can use.</string>
+    <string name="language_heading">Language</string>
+    <string name="lang_system">Follow system</string>
+    <!-- Each language in its own words, whatever the app's language. -->
+    <string name="lang_zh" translatable="false">简体中文</string>
+    <string name="lang_en" translatable="false">English</string>
+
+    <string name="forget_host">Forget %1$s</string>
+    <!-- How a saved host logs in and whether it is online (the core's words, in English). -->
+    <string name="login_pairing">pairing</string>
+    <string name="login_key">key</string>
+    <string name="login_password">password</string>
+    <string name="presence_online">online</string>
+    <string name="presence_offline">offline</string>
+    <string name="presence_unknown">unknown</string>
+    <string name="presence_not_checked">not checked</string>
+    <string name="presence_rate_limited">rate limited</string>
+    <string name="presence_error">error</string>
+    <!-- Pairing failures by code; English shows the core's own message instead. -->
+    <string name="pair_err_bad_password">Wrong password.</string>
+    <string name="pair_err_unknown_id">No host with that ID exists.</string>
+    <string name="pair_err_host_offline">That host is not online.</string>
+    <string name="pair_err_no_path">No direct path to the host could be found.</string>
+    <string name="pair_err_no_rendezvous">No rendezvous server is set: enter one above, or pair by address (host:port).</string>
+    <string name="pair_err_host_key_changed">The host\'s identity key changed since it was first seen. This could be an impersonation attempt.</string>
+    <string name="pair_err_denied">The host\'s owner denied the pairing, or nobody answered in time.</string>
+    <string name="pair_err_locked_out">The host has locked this device out after too many wrong passwords. Wait a while, then try again.</string>
+    <string name="pair_err_password_required">Enter the host\'s password.</string>
+    <string name="pair_err_timeout">Timed out.</string>
+    <string name="pair_err_canceled">Canceled.</string>
+</resources>

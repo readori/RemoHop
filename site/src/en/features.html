@@ -1,0 +1,294 @@
+<h1>Features and limits</h1>
+<p>What RemoHop does, how it does it, which platforms it has been checked on, and what it does not do yet. If this is your first time, start with the <a href="{{L:docs}}">quick start</a>; <code>remohop help &lt;command&gt;</code> prints the full syntax of every command.</p>
+<ul class="toc">
+<li><a href="#session">A session</a></li>
+<li><a href="#who">Who it is for</a></li>
+<li><a href="#commands">Commands</a></li>
+<li><a href="#web">Browser client</a></li>
+<li><a href="#how">How it connects</a></li>
+<li><a href="#security">Security</a></li>
+<li><a href="#platforms">Platforms</a></li>
+<li><a href="#install">Install</a></li>
+<li><a href="#license">License</a></li>
+<li><a href="#status">Status and limits</a></li>
+</ul>
+
+<h2 id="session">What a session looks like</h2>
+<div class="pair">
+<figure>
+<p class="term-title">the host</p>
+<pre><code><span class="p">$ </span>remohop host
+RemoHop host ready
+  ID:        276 941 009
+  Password:  xrb8-upuu  (temporary, changes on restart)
+  Direct:    203.0.113.7:51820
+  Identity:  7197:70c3:1130:65a3:9c97
+Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
+<figcaption>Sample output from the documentation. The ID belongs to the host's identity key and survives restarts. The temporary password is new on every start.</figcaption>
+</figure>
+<figure>
+<p class="term-title">your machine</p>
+<pre><code><span class="p">$ </span>remohop 127.0.0.1:21118 pair --name dev
+paired with 127.0.0.1:21118 (host identity 1242:02f7:9189:2d5f:d900)
+no password needed from now on: remohop dev &lt;command&gt;
+<span class="p">$ </span>remohop dev ping -c 3
+PING 127.0.0.1:21118 over direct path 0.0.0.0:55618 -&gt; 127.0.0.1:21118 (peer-to-peer, no relay)
+reply from 127.0.0.1:21118: seq=0 time=0.27 ms
+reply from 127.0.0.1:21118: seq=1 time=0.51 ms
+reply from 127.0.0.1:21118: seq=2 time=0.68 ms
+3 probes, rtt min/avg/max = 0.27/0.49/0.68 ms
+<span class="p">$ </span>remohop dev shell -c 'uname -sm &amp;&amp; uptime'
+Linux x86_64
+ 23:01:39 up 19 min,  0 user,  load average: 0.35, 0.16, 0.23</code></pre>
+<figcaption>Output of a real session with host and client on the loopback interface of one Linux machine. That is why it uses an address instead of an ID, and why the latency says nothing about a real network.</figcaption>
+</figure>
+</div>
+
+<h2 id="who">Who it is for</h2>
+<div class="cols-2">
+<div>
+<h3>A good fit</h3>
+<ul>
+<li>You manage a few machines of your own from a command line: a home server, an office workstation, a board behind NAT.</li>
+<li>You want an AI agent (Claude Code, Cursor and others) to run commands, read and write files, or look at the screen of another machine.</li>
+<li>You would rather not hand session content to someone else's server, and you are willing to run a very small rendezvous server.</li>
+<li>You need more than a screen: port forwards, a mounted directory, a serial port, the clipboard or a VPN link.</li>
+</ul>
+</div>
+<div>
+<h3>Not a fit yet</h3>
+<ul>
+<li>You want a graphical installer that works after one download. Today there is a command line<!--src-->, and you compile it<!--/src--><!--nosrc-->, and it is not released yet<!--/nosrc-->.</li>
+<li>You want to control a phone or tablet. The mobile apps are controllers; a phone cannot be a host.</li>
+<li>You need a product with a third-party audit. RemoHop has not had one.</li>
+<li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
+</ul>
+</div>
+</div>
+
+<h2 id="commands">Common jobs and their commands</h2>
+<p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. The examples use the alias <code>dev</code> in place of an ID. It comes from <code>remohop 276941009 pair --name dev</code>: you type the password once when pairing and not again.</p>
+
+<div class="tasks">
+<section class="task">
+<div>
+<h3>Terminal and background jobs</h3>
+<p>The interactive shell is persistent. It keeps running on the host after you disconnect, for 30 minutes by default, and replays the output you missed when you come back. On a Windows host the shell is PowerShell.</p>
+</div>
+<div>
+<pre><code>remohop dev shell
+remohop dev shell -c 'make test' --cwd src/app --timeout 10m
+remohop dev spawn --name build make -j8
+remohop dev logs -f build</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>Files</h3>
+<p>Remote paths start with <code>:</code>. An interrupted transfer of a file of 8 MiB or more resumes when you run the same command again. Mounts use FUSE on Linux and the operating system's own WebDAV client on macOS and Windows.</p>
+</div>
+<div>
+<pre><code>remohop dev cp ./build.tar.gz :/tmp/
+remohop dev cp -rp :project .
+remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site
+remohop dev mount :~/src/app ~/mnt/app</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>Port forwards and VPN</h3>
+<p>Forwards work like <code>ssh -L</code> and <code>ssh -R</code>, and UDP is supported. The VPN is an IPv4 link inside the session (<code>10.77.0.2</code> on your side, <code>10.77.0.1</code> on the host). Linux on both ends is the tested combination. The macOS client and the Windows Wintun adapter are verified on hosted CI machines only, not yet in long-term use on real networks.</p>
+</div>
+<div>
+<pre><code>remohop dev forward -b 18080:8080
+remohop dev forward -b --udp 5353:53
+remohop dev forward -R 9000:3000
+sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>Screen and remote desktop</h3>
+<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p.</p>
+</div>
+<div>
+<pre><code>remohop dev desktop --max-height 1080 --fps 30
+remohop dev desktop --codec h264 --record meeting.mp4
+remohop dev screenshot -o /tmp/screen.png
+remohop dev click 412 230</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>Clipboard</h3>
+<p>Two-way sync of text and images. Everything that passes through is kept in a local history, and you can fetch or resend an entry by number.</p>
+</div>
+<div>
+<pre><code>remohop dev clip sync
+remohop dev clip get -o shot.png
+remohop clip history -n 5
+remohop dev clip history send 2</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>Serial ports and USB</h3>
+<p>A serial port on the remote machine becomes a local virtual one that any terminal program can open (your machine must run Linux or macOS). USB/IP needs Linux and root on both ends and has only been tested against simulated systems.</p>
+</div>
+<div>
+<pre><code>remohop dev serial -b ttyUSB0 115200 --local /tmp/board
+picocom /tmp/board
+sudo remohop dev usb attach -b 1-2</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>AI agents</h3>
+<p><code>remohop mcp</code> is an MCP server over stdio with 28 tools: run commands, read and write files, forward ports, take screenshots, click and type. It uses only the pairings you saved beforehand and takes no password argument. <!--src-->The repository also has six Agent Skills.<!--/src--><!--nosrc-->Six Agent Skills will be published with the source.<!--/nosrc--></p>
+</div>
+<div>
+<pre><code>claude mcp add remohop -- remohop mcp
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+</div>
+</section>
+
+<section class="task">
+<div>
+<h3>The host decides</h3>
+<p>The host's owner can switch features off one by one, require approval at the host for every login, use one-time passwords and read an audit log. Changes apply at once, also to sessions that are already connected.</p>
+</div>
+<div>
+<pre><code>remohop config feature input off
+remohop config ask on
+remohop config otp on
+remohop log</code></pre>
+</div>
+</section>
+</div>
+
+<h2 id="web">In a browser: <code>remohop web</code></h2>
+<p><code>remohop web</code> serves a browser client from your machine, with remote desktop, terminal, files, clipboard and system information. By default it listens only on <code>127.0.0.1</code> and its URL carries an unguessable token. The Android and iOS apps run this same gateway inside the app process; see <a href="{{L:apps}}">Apps</a>.</p>
+<figure class="shot">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="The Desktop tab of remohop web. The middle of the page shows the screen of a remote Linux machine with two terminal windows, one listing project files and one showing load and disk use every two seconds. Above the tabs the page shows the host, studio, and the connection path, direct.">
+</picture>
+<figcaption>An unedited capture of the Desktop tab: Chromium, through <code>remohop web</code>, connected to a Linux host on the loopback interface of the same machine (an Xvfb virtual display, 1280×720).</figcaption>
+</figure>
+<figure class="shot">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-terminal-640.avif 640w, /assets/img/web-terminal-1120.avif 1120w, /assets/img/web-terminal-2240.avif 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-terminal-640.webp 640w, /assets/img/web-terminal-1120.webp 1120w, /assets/img/web-terminal-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
+<img src="/assets/img/web-terminal-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="The Terminal tab of remohop web: a persistent terminal session named main in which ls -l, uname and df have been run.">
+</picture>
+<figcaption>The Terminal tab, same session.</figcaption>
+</figure>
+<p class="note warn">A browser cannot hole-punch or speak RemoHop's QUIC session, so the <code>remohop web</code> process is the real client. It sees the screen, every keystroke, files, and any host password you type into the page. Use only a gateway you control.</p>
+
+<h2 id="how">How a connection is made</h2>
+<div class="diagram" tabindex="0" role="group" aria-label="Connection diagram, scrolls sideways">
+<svg viewBox="0 0 760 320" role="img" aria-labelledby="dg-t dg-d">
+<title id="dg-t">How RemoHop connects two machines</title>
+<desc id="dg-d">The controller and the host set up a direct QUIC session by UDP hole punching. It is end-to-end encrypted. Each of them exchanges signalling with the rendezvous server. The relay on the rendezvous server is off by default, is used only when hole punching fails, and forwards ciphertext only.</desc>
+<rect class="box" x="20" y="36" width="220" height="118" rx="6"/>
+<text class="h" x="36" y="62">Controller (your machine)</text>
+<text class="m" x="36" y="86">remohop &lt;ID&gt; shell / desktop</text>
+<text class="m" x="36" y="106">remohop web · remohop mcp</text>
+<text class="l" x="36" y="130">or the Android or iOS app</text>
+<rect class="box" x="520" y="36" width="220" height="118" rx="6"/>
+<text class="h" x="536" y="62">Host</text>
+<text class="m" x="536" y="86">remohop host</text>
+<text class="l" x="536" y="110">shell, files, forwards, desktop,</text>
+<text class="l" x="536" y="128">clipboard, VPN, serial, USB</text>
+<path class="direct" d="M252 95H508"/>
+<path class="head" d="M242 95l12-7v14zM518 95l-12-7v14z"/>
+<text class="a" x="380" y="80" text-anchor="middle">UDP hole punching + QUIC (TLS 1.3)</text>
+<text class="l" x="380" y="116" text-anchor="middle">end-to-end encrypted · direct by default</text>
+<rect class="box srv" x="270" y="222" width="220" height="78" rx="6"/>
+<text class="h" x="286" y="248">Rendezvous server</text>
+<text class="m" x="286" y="270">remohop signal</text>
+<text class="l" x="286" y="289">who is where; never the content</text>
+<path class="sig" d="M60 154V262H270M700 154V262H490"/>
+<text class="l" x="74" y="282">signalling: look up an ID</text>
+<text class="l" x="686" y="282" text-anchor="end">signalling: register ID, address</text>
+<path class="relay" d="M240 138C300 138 340 172 340 222M520 138C460 138 420 172 420 222"/>
+<text class="l" x="508" y="182">Relay (off by default):</text>
+<text class="l" x="508" y="198">used only when punching</text>
+<text class="l" x="508" y="214">fails; ciphertext only</text>
+</svg>
+</div>
+<ol>
+<li>The host registers with the rendezvous server and gets its 9-digit ID.</li>
+<li>The client asks the rendezvous server for that ID. The server tells each side the other's candidate addresses.</li>
+<li>Both sides send probes to those addresses, which opens a hole in each NAT. The client sets up a QUIC connection over the first path that answers.</li>
+<li>On that connection the two ends run a password-authenticated key exchange (CPace). A man in the middle, the rendezvous server included, cannot complete it.</li>
+</ol>
+<p>Hole punching can fail, for example when both sides are behind symmetric NAT. If the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8 Mbit/s per session by default). <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
+<p>Networks that let only HTTPS out, such as CI runners and corporate networks, can use the server's websocket bridge. Hole punching is impossible through the bridge, so those sessions are always relayed, and still ciphertext. If you can reach the host directly you need no server at all: <code>remohop host --no-signal --listen :21118</code>, then use the address in place of an ID.</p>
+
+<h2 id="security">Security in plain words</h2>
+<ul>
+<li><strong>Only the two ends can read the content.</strong> A session runs in QUIC with TLS 1.3 inside. The rendezvous server and the relay see ciphertext.</li>
+<li><strong>The password never goes over the wire.</strong> Login is a CPace key exchange bound to that one connection. Recording a failed login gives an attacker nothing to test guesses against offline.</li>
+<li><strong>Online guessing is rate limited.</strong> From the third consecutive failure a source is locked out for 10 seconds, doubling each time up to 10 minutes. A temporary password is 8 random characters, about 40 bits.</li>
+<li><strong>Host keys are pinned on first login.</strong> If the host later presents a different key, the client refuses before it sends any login message.</li>
+<li><strong>Pairing replaces the password.</strong> The client stores a random 256-bit token bound to its own identity, and the host can revoke it at any time with <code>remohop host revoke</code>.</li>
+</ul>
+<p>What it does not protect matters as much. A client that has logged in can do whatever the user running <code>remohop host</code> can do, within the features the host allows, and there is no finer permission model below the feature switches. The rendezvous server sees metadata: which IDs are online, their public addresses, and when they connect to each other. The <a href="{{L:security}}">security model</a> page has the full account.</p>
+
+<h2 id="platforms">Platform support</h2>
+<p id="pf-cap">Linux is the reference platform. macOS and Windows are covered by automated tests on hosted runners; nobody has checked them item by item on a physical machine.</p>
+<div class="table-wrap wide" tabindex="0" role="region" aria-labelledby="pf-cap">
+<table>
+<thead>
+<tr><th scope="col"></th><th scope="col">Linux</th><th scope="col">macOS</th><th scope="col">Windows</th></tr>
+</thead>
+<tbody>
+<tr><th scope="row">Shell</th><td>PTY</td><td>PTY</td><td>ConPTY; commands run in PowerShell</td></tr>
+<tr><th scope="row">Files, forwards, clipboard, screenshot</th><td>Yes</td><td>Yes</td><td>Yes; downloads do not resume on a Windows client</td></tr>
+<tr><th scope="row">Mount</th><td>FUSE</td><td>Built-in WebDAV</td><td>WebDAV on a drive letter; never actually run</td></tr>
+<tr><th scope="row">Remote desktop (host)</th><td>X11; no native Wayland</td><td>Needs Screen Recording and Accessibility permissions; verified on a hosted VM only</td><td>ddagrab capture; input never actually run</td></tr>
+<tr><th scope="row">VPN</th><td>Yes (TUN)</td><td>Client (utun), verified on a hosted VM only</td><td>Client (bring your own Wintun driver); unverified</td></tr>
+<tr><th scope="row">USB/IP</th><td>Yes; tested against simulated systems only</td><td>No</td><td>No</td></tr>
+<tr><th scope="row">System service</th><td>systemd</td><td>launchd</td><td>Windows service; cannot see the desktop</td></tr>
+</tbody>
+</table>
+</div>
+<p>There are controller apps for Android and iOS, neither with a store release yet. See <a href="{{L:apps}}">Apps</a>.</p>
+
+<h2 id="install">Install</h2>
+<!--src-->
+<p>There are no published downloads yet. Build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
+<pre><code>git clone {{REPO}}
+cd RemoHop
+make build        <span class="c"># writes bin/remohop (CGO_ENABLED=0)</span>
+make cross        <span class="c"># optional: linux, macOS and Windows targets into dist/</span></code></pre>
+<p>The repository already has <code>.deb</code> and <code>.rpm</code> packaging and a release workflow that runs when a <code>v*</code> tag is pushed, but that workflow has never run and the binaries are not code-signed. Once there is a release, archives and <code>SHA256SUMS</code> will be on <a href="{{REPO}}/releases">GitHub Releases</a>, and this section will link to them.</p>
+<!--/src-->
+<!--nosrc-->
+<p>There are no published downloads yet, and the binaries are not code-signed yet. Once the apps are out, this section will link to the downloads, and the source will be published under the AGPL-3.0 at the same time. It will be one statically linked binary to put on the <code>PATH</code> of each machine. Questions in the meantime: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
+<!--/nosrc-->
+<p>For setting up the server, starting a host and pairing, continue with the <a href="{{L:docs}}">quick start</a>.</p>
+
+<h2 id="license"><!--src-->Open source and commercial license<!--/src--><!--nosrc-->License and commercial license<!--/nosrc--></h2>
+<p>RemoHop is dual-licensed. <!--src-->Everyone may use, modify and redistribute it under the GNU AGPL-3.0, commercially too.<!--/src--><!--nosrc-->The source will be published under the GNU AGPL-3.0 once the apps are out; from then on everyone may use, modify and redistribute it, commercially too.<!--/nosrc--> Mind the AGPL's network clause: if you let other people use a <strong>modified</strong> <code>remohop signal</code> or <code>remohop web</code>, you must offer those users the source of your modified version. Running an unmodified RemoHop adds no obligation. Where the AGPL does not fit, a commercial license is available from Readori: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>. See <a href="{{L:licensing}}">Licensing</a>.</p>
+
+<h2 id="status">Status and limits</h2>
+<ul>
+<li>No releases, no code signing, no built-in default server.</li>
+<li>No independent security audit.</li>
+<li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
+<li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
+<li>Serial ports were verified with pseudo-terminals and picocom, not a real UART. USB/IP was verified with the real kernel on a hosted runner, not on physical USB hardware.</li>
+<li>The iOS app has only run in a CI simulator, and the Android app has had no real-device test.</li>
+<li>Shell sessions do not survive a restart of the host.</li>
+<li>Using a mobile device as a host is not implemented.</li>
+</ul>
+<p>This list follows the <a href="{{L:docs/platforms}}">platform support and limitations</a> page of the documentation, which is the authoritative version. If something goes wrong, see <a href="{{L:support}}">Support</a>.</p>

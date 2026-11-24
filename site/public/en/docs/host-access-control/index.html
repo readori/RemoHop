@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Host access control | RemoHop</title>
+<meta name="description" content="The owner of a host decides what connected clients may do. These commands run on the host and take effect at once, also for sessions already connected:">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/host-access-control/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/host-access-control/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/host-access-control/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/host-access-control/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Host access control | RemoHop">
+<meta property="og:description" content="The owner of a host decides what connected clients may do. These commands run on the host and take effect at once, also for sessions already connected:">
+<meta property="og:url" content="https://remohop.com/en/docs/host-access-control/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/host-access-control/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="host-access-control">Host access control</h1>
+<p>The owner of a host decides what connected clients may do. These commands run on the host and take effect at once, also for sessions already connected:</p>
+<pre tabindex="0"><code class="language-bash">remohop config feature input off
+remohop config ask on
+remohop config otp on</code></pre>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Control / Command / Effect">
+<table>
+<thead><tr><th scope="col">Control</th><th scope="col">Command</th><th scope="col">Effect</th></tr></thead>
+<tbody>
+<tr><td>Feature switches</td><td><code>remohop config feature NAME on|off</code></td><td>NAME is <code>shell</code>, <code>file</code>, <code>forward</code>, <code>clip</code>, <code>screen</code>, <code>input</code>, <code>info</code>, <code>vpn</code>, <code>serial</code> or <code>usb</code>; all are on by default</td></tr>
+<tr><td>VPN routing</td><td><code>remohop config vpn-exit on</code></td><td>let VPN clients reach networks beyond the host's own LAN, and use the host as an exit; off by default</td></tr>
+<tr><td>Approval</td><td><code>remohop config ask on</code></td><td>every password login waits for a yes at the host: answer in the <code>remohop host</code> terminal, or with <code>remohop host approve N</code> / <code>remohop host deny N</code></td></tr>
+<tr><td>Approval for known clients</td><td><code>remohop config ask-paired on</code></td><td>with <code>ask on</code>, paired clients and authorised keys need approval too</td></tr>
+<tr><td>One-time password</td><td><code>remohop config otp on</code></td><td>the temporary password is replaced after each login; <code>remohop otp</code> prints the current one, <code>remohop otp new</code> replaces it</td></tr>
+<tr><td>Fixed password</td><td><code>remohop passwd</code></td><td>set or (<code>--clear</code>) remove it; <code>remohop status</code> never prints a fixed password</td></tr>
+<tr><td>Pairings</td><td><code>remohop host paired</code>, <code>remohop host revoke NAME</code></td><td>list and remove paired clients and authorised keys</td></tr>
+<tr><td>USB devices</td><td><code>remohop usb allow BUSID</code>, <code>remohop usb allowed</code></td><td>allow each device before a client may attach it</td></tr>
+<tr><td>Account devices</td><td><code>remohop config account-trust on</code></td><td>accept the account's other devices like authorised keys; off by default (see <a href="/en/docs/accounts/">Accounts</a>)</td></tr>
+<tr><td>Audit log</td><td><code>remohop log</code></td><td>logins accepted and refused, approval decisions, first use of each feature, session ends</td></tr>
+</tbody>
+</table>
+</div>
+<p>Two more settings: <code>remohop config set name office-pc</code> gives the device a name shown to peers (in <code>ping</code>, approval prompts and <code>remohop status</code>), and <code>remohop config set term-keep 2h</code> changes how long a detached shell stays on the host.</p>
+<p>A client can also log in with its identity key alone, with no password to guess. On the client, print the public key; on the host, authorise it; back on the client, record the host's key line that <code>authorize</code> printed:</p>
+<pre tabindex="0"><code class="language-bash">remohop key export
+remohop authorize "remohop-key ... laptop"
+remohop peers trust 276941009 "remohop-key ... host"</code></pre>
+<p>The first and third commands run on the client, the second on the host. <code>remohop key export --private FILE</code> and <code>remohop key import FILE --yes</code> move an identity to another machine; <code>remohop key gen --yes</code> replaces it. <a href="/en/docs/security/">security.md</a> explains what each control protects against.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/host-access-control.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

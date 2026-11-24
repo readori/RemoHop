@@ -1,0 +1,83 @@
+<h1>Privacy policy</h1>
+<p class="updated">Last updated: {{UPDATED}}</p>
+<p>This policy explains how the RemoHop software, the RemoHop apps for Android and iOS, this website, and servers operated by Readori handle data. The publisher is Readori. Contact: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>
+
+<h2 id="short">The short version</h2>
+<ul>
+<li>Your sessions (screen, keystrokes, files, clipboard, terminal content) are end-to-end encrypted between your two devices. Readori cannot see them, and neither can a relay server.</li>
+<li>The software and the apps contain no analytics, advertising or crash-reporting components and send no usage data to Readori.</li>
+<li>Identity keys, pairing tokens and settings are stored only on your own devices.</li>
+<li>RemoHop has no built-in default server. When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. Whoever operates that server is the one who processes it.</li>
+<li>Accounts are optional. A server with accounts enabled stores a hash of your email address and your device list.</li>
+<li>We do not sell data, and we do not use it for advertising or for tracking across apps.</li>
+</ul>
+
+<h2 id="software">1. The software (<code>remohop</code>)</h2>
+<p><code>remohop</code> talks to two kinds of peers only: the devices you connect to, and the rendezvous server you configured yourself (<code>remohop config set signal</code>). It does not check for updates and does not report statistics or crashes.</p>
+<p>In its configuration directory on your machine it stores this machine's identity key, the public keys and pairing tokens of saved hosts, settings, the clipboard history if you use the clipboard commands, and on a host the audit log. These files stay on your device and are readable by their owner only.</p>
+<p>The owner of a host can see everything a client sends to it. That is what remote control means. Before you connect to someone else's machine, make sure you trust them.</p>
+
+<h2 id="apps">2. The Android and iOS apps</h2>
+<p>The apps are controllers. Each runs a gateway inside the app process that listens only on the device's own <code>127.0.0.1</code> and sets up the encrypted session directly with the computer you connect to. No Readori server is in between.</p>
+<h3>Data kept on the device</h3>
+<ul>
+<li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on).</li>
+<li>This data is kept in the app's private directory. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
+<li>The web view inside the app keeps no cookies or caches. A host password you type is used for that one login and not stored.</li>
+<li>Uninstalling the app deletes all of the above.</li>
+</ul>
+<h3>System permissions</h3>
+<ul>
+<li><strong>Local network (iOS):</strong> to connect directly to computers on your LAN.</li>
+<li><strong>Camera and photos (iOS):</strong> accessed through the system picker, and only when you choose to upload a photo or video to a remote computer. The file goes to the computer you are connected to, not to Readori.</li>
+<li><strong>Clipboard:</strong> read or written only when you use the clipboard function in the app. The content goes to the computer you are connected to.</li>
+<li><strong>Internet access (Android):</strong> to make connections.</li>
+</ul>
+<h3>What the apps do not do</h3>
+<p>The apps collect no analytics, contain no advertising or third-party SDKs, do not read contacts, location, the microphone or the advertising identifier, and do not track you across apps. The apps currently have no account login.</p>
+<p>If you install through TestFlight or an app store, Apple or Google handle installation and diagnostic data under their own privacy policies, and may give the developer anonymous crash reports if you agreed to share them. That processing is outside this policy.</p>
+
+<h2 id="server">3. Rendezvous server and relay</h2>
+<p>The data below is processed only when you point a device at a rendezvous server. <strong>If that server is run by you or by a third party, that operator's notice applies</strong>, and Readori has no access to the data. When you connect by <code>host:port</code>, no server is involved at all.</p>
+<p>The rest of this section applies to a public rendezvous server operated by Readori.<!-- TODO(owner): name the public server's hostname here once it is announced; if Readori will not run one, remove the Readori-operated parts of this section. --> Its address will be listed on this page once it is announced. RemoHop <!--src-->as it is in the source repository <!--/src--><!--nosrc-->itself <!--/nosrc-->has no default server and does not connect to a Readori server by itself; if an official build ever ships with a default server, we will say so here and in the release notes.</p>
+<h3>What the server cannot see</h3>
+<p>Connections between your devices are end-to-end encrypted. The server cannot read or change what you send, cannot see your screen or files, and cannot learn your passwords. This includes relayed connections: a relay forwards ciphertext.</p>
+<h3>What the server processes</h3>
+<ul>
+<li><strong>For devices that register as hosts:</strong> the device's public identity key, its 9-digit ID, its IP address while it is online, and when it was last seen.</li>
+<li><strong>For connection requests:</strong> which IP address asked for which ID.</li>
+<li><strong>For relayed connections:</strong> the IP addresses of both devices, the start time, the duration and the amount of data.</li>
+<li><strong>For connections through the websocket endpoint:</strong> your IP address as reported by Cloudflare, connection times and the amount of data.</li>
+<li><strong>If you create an account:</strong> a hash of your email address, your devices' public keys and names, and the account's signed device list. Your email address is used to send login codes. Login codes are not stored.</li>
+</ul>
+<h3>Logs and retention</h3>
+<p>The server logs devices coming online and going offline, relayed connections and websocket connections, with the IP addresses and data volumes listed above. <strong>Logs are kept for 14 days and then deleted.</strong><!-- TODO(owner): confirm the retention period (14 days follows the MaxRetentionSec=14day suggestion in docs/public-server.md) and actually set it in the server's journald configuration. --> Hourly statistics hold counts only, without IP addresses. An ID that has not been used for 90 days is released, and its registration record is deleted with it.</p>
+<h3>Why</h3>
+<p>To provide the service; to keep it within its limits (per-address caps and a monthly traffic budget); and to stop abuse. Where the GDPR applies, the legal bases are performing the service you asked for and our legitimate interest in keeping the service secure and free of abuse.</p>
+
+<h2 id="website">4. This website</h2>
+<p>This website is static. It uses no cookies, no analytics scripts, no third-party fonts or other third-party resources, and it has no forms. As with any website, the hosting provider (Cloudflare) processes your IP address and request details when it serves a page, for delivery and security.<!-- TODO(owner): change this if the site is not hosted on Cloudflare Pages. --></p>
+
+<h2 id="email">5. Email you send us</h2>
+<p>When you write to {{EMAIL}}, we receive your email address and the content of your message, and we use them only to answer and to handle your request. Please do not send passwords, pairing tokens or private keys. Support email is kept for at most 24 months, and you can ask us to delete it sooner.<!-- TODO(owner): confirm the retention period for support email. --></p>
+
+<h2 id="sharing">6. Sharing</h2>
+<p>We do not sell data and do not share it with advertisers or data brokers. The server data above goes only to the providers that supply our infrastructure (the server's hosting provider; Cloudflare, which carries the websocket endpoint and this website; and, with accounts enabled, the mail provider that delivers login codes), and to authorities where the law requires it.<!-- TODO(owner): list the actual hosting and mail providers here once the public server is live. --></p>
+
+<h2 id="choices">7. Your choices</h2>
+<ul>
+<li>Run your own rendezvous server (<code>remohop signal</code>) and point your devices at it. See <a href="{{L:self-hosting}}">Self-hosting</a>.</li>
+<li>Turn relaying off on your device: <code>remohop config relay off</code>, or switch off “Allow relayed connections” in the app's settings.</li>
+<li>Delete an account: <code>remohop account delete --yes</code>.</li>
+<li>Create a new identity and give up the old ID: <code>remohop key gen --yes</code>.</li>
+<li>To access, correct or delete data about you, or to object to its processing, write to <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>. Server data is recorded by IP address, ID or public identity key, so please include the relevant identifier so that we can find it. You also have the right to complain to your local data protection authority.</li>
+</ul>
+
+<h2 id="children">8. Children</h2>
+<p>RemoHop is a tool for technical users. It is not directed at children under 13, and we do not knowingly collect data from children.</p>
+
+<h2 id="changes">9. Changes</h2>
+<p>When this policy changes in substance, we update the date at the top of this page. Earlier versions <!--src-->can be found in the commit history of the source repository<!--/src--><!--nosrc-->are available on request<!--/nosrc-->.</p>
+
+<h2 id="contact">10. Contact</h2>
+<p>For privacy questions, deletion requests and abuse reports: <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>.</p>

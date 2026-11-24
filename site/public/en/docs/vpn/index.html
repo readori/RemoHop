@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>VPN | RemoHop</title>
+<meta name="description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/vpn/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/vpn/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/vpn/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/vpn/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="VPN | RemoHop">
+<meta property="og:description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
+<meta property="og:url" content="https://remohop.com/en/docs/vpn/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/vpn/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="vpn">VPN</h1>
+<p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. <code>dev</code> is the example alias from <code>remohop &lt;ID&gt; pair --name dev</code> (see <a href="/en/docs/quick-start/">Quick start</a>). Run <code>remohop help &lt;command&gt;</code> for the full syntax.</p>
+<p><code>remohop &lt;ID&gt; vpn up</code> joins this machine and the host with a virtual IPv4 link inside the encrypted session: this side is <code>10.77.0.2</code>, the host <code>10.77.0.1</code>. On Linux both sides need root or <code>CAP_NET_ADMIN</code>; on Windows, Administrator.</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop dev vpn up -b
+sudo remohop dev vpn up --route 192.168.1.0/24 -b
+sudo remohop dev vpn up --exit --bypass 10.0.0.0/8
+remohop vpn
+sudo remohop dev vpn down</code></pre>
+<ul>
+<li><code>--route CIDR</code> reaches a network on the host's side; the host forwards for it.</li>
+<li><code>--exit</code> sends all of this machine's traffic through the host.</li>
+<li>Routes beyond the host's own networks and <code>--exit</code> need <code>remohop config vpn-exit on</code> on the host, which is off by default. The host can switch the whole feature off with <code>remohop config feature vpn off</code>.</li>
+<li>Every interface, route and firewall rule the tunnel creates is removed when it ends. If <code>remohop</code> is killed outright, the next <code>remohop</code> command run with the same privilege removes what was left.</li>
+</ul>
+<p>Linux on both ends is the tested combination. Other platforms:</p>
+<ul>
+<li><strong>Windows</strong> can be the controlling machine (with <code>--route</code> and <code>--exit</code>) and can be reached itself. It cannot forward for <code>--route</code> or <code>--exit</code> as a host. It needs the Wintun driver, which <code>remohop</code> neither includes nor downloads. Get Wintun 0.14.1 from <a href="https://www.wintun.net">https://www.wintun.net</a>, check the zip's SHA-256 (<code>07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51</code>), and put <code>wintun\bin\&lt;arch&gt;\wintun.dll</code> next to <code>remohop.exe</code> or in the remohop config directory. <code>REMOHOP_WINTUN_DIR</code> names another directory to search. <code>remohop</code> also checks the DLL's own SHA-256 and refuses a file that does not match. The end-to-end test needs a real Windows machine and is skipped by default; this is not verified.</li>
+<li><strong>macOS</strong> uses utun. The client (including <code>--route</code>), and a macOS host that is reached itself, are verified by automated tests on a hosted macOS VM: a real utun interface, routes, packets both ways, and clean-up after <code>vpn down</code> and after a killed process. <code>--exit</code> has not been run on a real network (its exception routes are tested, taking over the default route is not), and nothing has been run on a physical Mac. As a host it cannot forward for VPN clients.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/vpn.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Writes the license texts of every third-party module linked into remohop, for
+# every release target, to stdout. Release archives ship its output as
+# THIRD_PARTY_LICENSES.txt next to the binary, which the MIT, BSD, ISC and
+# Apache licenses of those modules require.
+#
+# Usage: packaging/third_party_licenses.sh > THIRD_PARTY_LICENSES.txt
+set -euo pipefail
+cd "$(dirname "$0")/.."
+cache=$(go env GOMODCACHE)
+mods=$(for os in linux darwin windows; do
+	GOOS=$os go list -deps -f '{{with .Module}}{{.Path}}@{{.Version}}{{end}}' ./cmd/remohop
+done | grep '@v' | grep -v '^github.com/readori/RemoHop@' | sort -u)
+
+echo "Third-party software in remohop"
+echo "==========================="
+echo
+echo "remohop is licensed under the GNU Affero General Public License, version 3"
+echo "(see LICENSE). It includes the following modules under their own licenses."
+echo "The Go standard library and runtime are under the BSD-3-Clause license of"
+echo "the Go project (https://go.dev/LICENSE)."
+for m in $mods; do
+	# The module cache escapes upper-case letters as !lower.
+	dir="$cache/$(printf '%s' "$m" | sed 's/[A-Z]/!\L&/g')"
+	f=$(ls "$dir"/LICENSE* "$dir"/LICENCE* "$dir"/COPYING* 2>/dev/null | head -n 1 || true)
+	echo
+	echo "------------------------------------------------------------------------"
+	echo "$m"
+	echo "------------------------------------------------------------------------"
+	if [ -n "$f" ]; then cat "$f"; else echo "(no license file found in the module; check upstream)"; fi
+done

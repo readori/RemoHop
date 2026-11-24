@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>RemoHop</title>
+<link rel="icon" href="assets/icon.svg">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <img src="assets/icon.svg" alt="" width="34" height="34">
+    <h1 data-t="title">RemoHop Quick Support</h1>
+    <button id="lang" class="link" type="button" aria-label="Language">中文</button>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <p id="status" class="status" role="status" aria-live="polite"><span class="dot"></span><span id="statustext"></span></p>
+
+    <section id="requests" aria-live="assertive"></section>
+
+    <section id="ready" hidden>
+      <div class="creds">
+        <div class="card cred">
+          <div class="label" data-t="your_id">Your ID</div>
+          <output id="id" class="big"></output>
+          <div class="credbuttons"><button id="copyid" class="small" type="button" data-t="copy">Copy</button></div>
+        </div>
+        <div class="card cred">
+          <div class="label" data-t="password">Password</div>
+          <output id="pw" class="big"></output>
+          <div class="credbuttons"><button id="copypw" class="small" type="button" data-t="copy">Copy</button>
+            <button id="regen" class="small" type="button" data-t="new_password">Create a new password</button></div>
+        </div>
+      </div>
+      <p class="hint creds-hint" data-t="creds_hint"></p>
+
+      <div class="card" id="sessioncard">
+        <h2 data-t="connected_title">Who is connected</h2>
+        <p id="nosessions" class="hint" data-t="nobody">Nobody is connected.</p>
+        <ul id="sessions" class="list"></ul>
+      </div>
+
+      <div class="card">
+        <h2 data-t="allow_title">A helper you allow may</h2>
+        <label class="check"><input type="checkbox" checked disabled><span data-t="opt_screen">See your screen</span></label>
+        <label class="check"><input type="checkbox" id="opt-input"><span data-t="opt_input">Use your mouse and keyboard</span></label>
+        <label class="check"><input type="checkbox" id="opt-files"><span data-t="opt_files">Transfer files and use the clipboard</span></label>
+        <label class="check"><input type="checkbox" id="opt-advanced"><span><span data-t="opt_advanced">Run commands and reach your network</span>
+          <span class="hint block" data-t="opt_advanced_hint"></span></span></label>
+      </div>
+
+      <details class="card">
+        <summary data-t="details">Connection details</summary>
+        <ul id="net" class="plain"></ul>
+      </details>
+    </section>
+
+    <section id="setup" class="card" hidden>
+      <h2 data-t="setup_title">One step before you start</h2>
+      <p data-t="setup_text"></p>
+      <form id="setupform">
+        <label for="server" data-t="setup_label">Server address</label>
+        <input id="server" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="support.example.com">
+        <p id="setuperr" class="err" role="alert"></p>
+        <button class="primary" type="submit" data-t="setup_go">Continue</button>
+      </form>
+    </section>
+
+    <section id="message" class="card" hidden>
+      <h2 id="msgtitle"></h2>
+      <p id="msgtext"></p>
+      <p id="msgdetail" class="hint"></p>
+    </section>
+
+    <p id="actionerr" class="err" role="alert"></p>
+  </main>
+
+  <footer class="bottom">
+    <button id="stop" class="danger" type="button" data-t="stop">Stop sharing</button>
+    <p class="hint" id="closehint" data-t="close_hint"></p>
+    <p class="hint" id="version"></p>
+  </footer>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

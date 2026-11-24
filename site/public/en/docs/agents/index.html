@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Handing a machine to an AI agent | RemoHop</title>
+<meta name="description" content="RemoHop lets an AI agent (Claude Code, Claude Desktop, Cursor, VS Code, or any other MCP client) operate a remote machine through remohop mcp. This page…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/agents/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Handing a machine to an AI agent | RemoHop">
+<meta property="og:description" content="RemoHop lets an AI agent (Claude Code, Claude Desktop, Cursor, VS Code, or any other MCP client) operate a remote machine through remohop mcp. This page…">
+<meta property="og:url" content="https://remohop.com/en/docs/agents/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="handing-a-machine-to-an-ai-agent">Handing a machine to an AI agent</h1>
+<p>RemoHop lets an AI agent (Claude Code, Claude Desktop, Cursor, VS Code, or any other MCP client) operate a remote machine through <code>remohop mcp</code>. This page covers how to do that safely: how the machine's owner gives the agent limited, expiring access, how to watch and stop it, and how to register the MCP server with each client.</p>
+<ul>
+<li><a href="#the-short-version">The short version</a></li>
+<li><a href="#grants">Grants</a></li>
+<li><a href="#approving-actions">Approving actions</a></li>
+<li><a href="#audit-log-and-recordings">Audit log and recordings</a></li>
+<li><a href="#stopping-everything">Stopping everything</a></li>
+<li><a href="#on-the-agents-machine">On the agent's machine</a></li>
+<li><a href="#client-setup">Client setup</a>: <a href="#claude-code">Claude Code</a>, <a href="#claude-desktop">Claude Desktop</a>, <a href="#cursor">Cursor</a>, <a href="#vs-code">VS Code</a>, <a href="#other-mcp-clients">other clients</a></li>
+<li><a href="#what-the-agent-sees">What the agent sees</a></li>
+<li><a href="#limits-of-the-protection">Limits of the protection</a></li>
+</ul>
+<h2 id="the-short-version">The short version</h2>
+<p>On the machine the agent should work on (the host), as the user that runs <code>remohop host</code>:</p>
+<pre tabindex="0"><code class="language-bash">remohop host grant claude-session --for 2h \
+    --allow shell:run-only,files:read:~/project,screenshot</code></pre>
+<p>It prints a code that starts with <code>remohopg1-</code>. On the machine where the agent runs:</p>
+<pre tabindex="0"><code class="language-bash">remohop peers redeem 276941009 remohopg1-...
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>The agent can now run commands (no interactive terminal), read files below <code>~/project</code> and take screenshots on that machine for two hours. Everything else is refused by the host. <code>remohop host revoke claude-session</code> ends it early; <code>remohop host panic</code> ends every agent session at once.</p>
+<h2 id="grants">Grants</h2>
+<p>A grant is a credential with limits. The host stores it and enforces it on every stream and every command or file operation; nothing on the agent's side can widen it.</p>
+<pre tabindex="0"><code>remohop host grant NAME --allow LIST [--for DURATION] [--cmd COMMAND]...
+                    [--approve each|first|none] [--sessions N] [--record]
+                    [--key "KEY-LINE"]</code></pre>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Flag / Meaning">
+<table>
+<thead><tr><th scope="col">Flag</th><th scope="col">Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>--allow LIST</code></td><td>What the grant allows, comma-separated, repeatable. See the table below.</td></tr>
+<tr><td><code>--for DURATION</code></td><td>How long the grant is valid: <code>30m</code>, <code>2h</code>, <code>24h</code>. Default <code>1h</code>. Sessions end when it expires.</td></tr>
+<tr><td><code>--cmd COMMAND</code></td><td>Allow only commands that start with this program (and optional leading arguments). Repeatable. Implies <code>shell:run-only</code>.</td></tr>
+<tr><td><code>--approve MODE</code></td><td><code>each</code>: the owner approves every command and every file change. <code>first</code>: the first one of each session. <code>none</code> (default).</td></tr>
+<tr><td><code>--sessions N</code></td><td>Concurrent sessions allowed. Default 2.</td></tr>
+<tr><td><code>--record</code></td><td>Record the output of commands and terminals as asciicast v2 files.</td></tr>
+<tr><td><code>--key "KEY-LINE"</code></td><td>Bind the code to one client identity (the line <code>remohop key export</code> prints there). Without it, the first machine to log in with the code is bound to it, and the code is useless to anyone else from then on.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Allow-list items:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Item / Allows">
+<table>
+<thead><tr><th scope="col">Item</th><th scope="col">Allows</th></tr></thead>
+<tbody>
+<tr><td><code>shell</code></td><td>Commands, background jobs and interactive terminals.</td></tr>
+<tr><td><code>shell:run-only</code></td><td>Commands and background jobs; no interactive terminal and no <code>-t</code> terminal for commands.</td></tr>
+<tr><td><code>shell:cmd=PROGRAM</code></td><td>Only commands whose first words are <code>PROGRAM</code>, e.g. <code>shell:cmd=git</code>, <code>"shell:cmd=go test"</code>. Same as <code>--cmd</code>.</td></tr>
+<tr><td><code>files</code></td><td>Read and write any file the host's user can.</td></tr>
+<tr><td><code>files:read</code></td><td>Read any file.</td></tr>
+<tr><td><code>files:read:PATH</code></td><td>Read files below <code>PATH</code> only.</td></tr>
+<tr><td><code>files:write:PATH</code></td><td>Read and write files below <code>PATH</code> only.</td></tr>
+<tr><td><code>screenshot</code></td><td>Screenshots only.</td></tr>
+<tr><td><code>screen</code></td><td>Screenshots and desktop viewing, without keyboard and mouse.</td></tr>
+<tr><td><code>desktop</code></td><td><code>screen</code> plus keyboard and mouse.</td></tr>
+<tr><td><code>input</code></td><td>Keyboard and mouse.</td></tr>
+<tr><td><code>clip</code></td><td>The clipboard.</td></tr>
+<tr><td><code>info</code></td><td>System information.</td></tr>
+<tr><td><code>forward</code>, <code>vpn</code>, <code>serial</code>, <code>usb</code></td><td>Port forwarding (and Wake-on-LAN), the VPN, serial ports, USB devices. Never included unless named.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Anything not listed is refused, including pairing: a granted session cannot mint itself an ordinary pairing that would outlive the grant. The host's own feature switches (<code>remohop config feature NAME off</code>) still apply on top of every grant.</p>
+<p>File roots are checked after resolving symbolic links, both of the path and of its parent directory, so a link inside a root cannot lead out of it. Paths containing <code>..</code> are refused. Directories above a root may be looked at (stat) so a client can find its way to the root, but not listed.</p>
+<p>With a command allow-list, a command must be a single simple command: <code>;</code>, <code>&amp;</code>, <code>|</code>, <code>&lt;</code>, <code>&gt;</code>, parentheses and braces outside quotes, and <code>$</code>, backticks or line breaks anywhere, are refused, and custom environment variables are not accepted. Quotes group words as usual (<code>git commit -m "fix: x"</code> is fine).</p>
+<p>Examples:</p>
+<pre tabindex="0"><code class="language-bash"># Read-only code review of one repository, with screenshots
+remohop host grant reviewer --for 4h --allow files:read:~/src/app,screenshot
+
+# A CI-style agent that may only test and inspect git, writing to one directory
+remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --cmd "git diff" \
+    --allow files:write:~/src/app/out,files:read:~/src/app
+
+# Full shell, but the owner approves every command and file change, and it is recorded
+remohop host grant pairing-session --for 1h --allow shell,files --approve each --record</code></pre>
+<p>Managing grants:</p>
+<pre tabindex="0"><code class="language-bash">remohop host grants             # state (active, expired, suspended), expiry, sessions, binding
+remohop host grants --json
+remohop host revoke NAME        # delete it; its live sessions end at once
+remohop host grant NAME ...     # reissue: replaces the grant and its code; old sessions end</code></pre>
+<p>From the agent's machine, <code>remohop &lt;ID&gt; limits</code> shows what its credential allows.</p>
+<h2 id="approving-actions">Approving actions</h2>
+<p>With <code>--approve each</code> (or <code>first</code>), a command or file change waits until the owner answers. The request reaches the owner in three ways:</p>
+<ul>
+<li>the terminal running <code>remohop host</code> asks <code>Allow? Type y or n</code>;</li>
+<li><code>remohop host approve</code> lists waiting requests; <code>remohop host approve N</code> or <code>remohop host deny N</code> answers one;</li>
+<li>a desktop notification, where one can be shown (<code>notify-send</code> on Linux desktops, the notification centre on macOS; not on Windows).</li>
+</ul>
+<p>Requests that nobody answers within 30 seconds are refused, and the agent is told so. One approval of a file change covers further changes to the same path for a minute, so a single upload (create, write, set times, rename) is asked about once. With <code>first</code>, one approval covers the rest of the session. Reading files needs no approval. In an interactive terminal (grants with full <code>shell</code>), opening the terminal is approved, not each keystroke.</p>
+<h2 id="audit-log-and-recordings">Audit log and recordings</h2>
+<p>Every action under a grant is written to the host's audit log (<code>audit.jsonl</code> in the config directory, readable by its user only) with the grant's name: logins, each command, each file opened or changed, each other service used, refusals with their reason, approval decisions, recordings started and the session's end.</p>
+<pre tabindex="0"><code class="language-bash">remohop host audit --grant claude-session        # the last 100 entries of that grant, and its recordings
+remohop host audit --grant claude-session 1000 --json</code></pre>
+<p>With <code>--record</code>, the output of every command and interactive terminal under the grant is saved as an <a href="https://docs.asciinema.org/manual/asciicast/v2/">asciicast v2</a> file in <code>recordings/NAME/</code> inside the config directory (files mode 0600). Play one back with <code>asciinema play FILE</code>, or read it as text: it is JSON lines. A recording stops at 64 MiB. Background jobs (<code>remohop_spawn</code>) are not recorded this way; their output is kept in the host's job logs (<code>jobs/</code> in the config directory) as for any job. The audit log is rotated at 1 MB (one old file is kept), so a busy grant can push older entries out; copy the log away if you need to keep it.</p>
+<h2 id="stopping-everything">Stopping everything</h2>
+<pre tabindex="0"><code class="language-bash">remohop host panic          # suspend every grant and end every granted session now
+remohop host panic --all    # ... and every other session too
+remohop host resume         # lift the suspension of all grants (or: remohop host resume NAME)</code></pre>
+<p><code>panic</code> suspends first and then ends the sessions, so nothing slips in between. It needs no running GUI and no hotkey; it works from any terminal of the host's user, including over SSH. If the host is not reachable on its control socket, the suspension still applies within five seconds.</p>
+<h2 id="on-the-agents-machine">On the agent's machine</h2>
+<p>Redeem the code once:</p>
+<pre tabindex="0"><code class="language-bash">remohop peers redeem 276941009 remohopg1-...   # or HOST:PORT, or --alias office
+remohop 276941009 limits                       # check what it allows</code></pre>
+<p>The code is stored like a pairing (in <code>peers.json</code>, mode 0600) and replaces any pairing saved for that host. The first login binds it to this machine's identity key.</p>
+<p>If the same computer also has full access to that host (a pairing of yours), give the agent its own configuration directory, so it holds only the grant:</p>
+<pre tabindex="0"><code class="language-bash">export REMOHOP_CONFIG_DIR=~/.config/remohop-agent   # %APPDATA%\remohop-agent on Windows
+remohop config set signal rendezvous.example.net    # if you use a rendezvous server
+remohop peers redeem 276941009 remohopg1-...</code></pre>
+<p>and pass the same <code>REMOHOP_CONFIG_DIR</code> to the MCP server in the client configuration below (<code>env</code>).</p>
+<p><code>remohop mcp --read-only</code> additionally hides every tool that changes something (commands, writes, input, clipboard changes, forwards). That is a convenience on the agent's side; the grant is what the host enforces.</p>
+<h2 id="client-setup">Client setup</h2>
+<p><code>remohop</code> must be on the client's <code>PATH</code>, or give its absolute path (<code>which remohop</code>, or <code>where remohop</code> on Windows). Replace <code>276941009</code> with the host's ID, alias or <code>HOST:PORT</code>; omit <code>--target</code> to let the agent pass a target on every call.</p>
+<h3 id="claude-code">Claude Code</h3>
+<pre tabindex="0"><code class="language-bash">claude mcp add remohop -- remohop mcp --target 276941009
+# available in every project:
+claude mcp add --scope user remohop -- remohop mcp --target 276941009
+# with a separate configuration directory and read-only tools:
+claude mcp add remohop -e REMOHOP_CONFIG_DIR=$HOME/.config/remohop-agent -- remohop mcp --target 276941009 --read-only</code></pre>
+<p>Check it with <code>claude mcp list</code>, or <code>/mcp</code> inside a session.</p>
+<h3 id="claude-desktop">Claude Desktop</h3>
+<p>Edit <code>claude_desktop_config.json</code> (Settings, Developer, Edit Config). It is in <code>~/Library/Application Support/Claude/</code> on macOS and <code>%APPDATA%\Claude\</code> on Windows. Claude Desktop does not read your shell's <code>PATH</code>, so use the absolute path:</p>
+<pre tabindex="0"><code class="language-json">{
+  "mcpServers": {
+    "remohop": {
+      "command": "/usr/local/bin/remohop",
+      "args": ["mcp", "--target", "276941009"],
+      "env": { "REMOHOP_CONFIG_DIR": "/Users/me/.config/remohop-agent" }
+    }
+  }
+}</code></pre>
+<p>On Windows use <code>"command": "C:\\Program Files\\RemoHop\\remohop.exe"</code> (or wherever <code>remohop.exe</code> is) and a Windows path in <code>env</code>. Leave out <code>env</code> when the agent uses your normal configuration. Restart Claude Desktop after editing.</p>
+<h3 id="cursor">Cursor</h3>
+<p><code>~/.cursor/mcp.json</code> for all projects, or <code>.cursor/mcp.json</code> in one project:</p>
+<pre tabindex="0"><code class="language-json">{
+  "mcpServers": {
+    "remohop": {
+      "command": "remohop",
+      "args": ["mcp", "--target", "276941009"],
+      "env": { "REMOHOP_CONFIG_DIR": "/home/me/.config/remohop-agent" }
+    }
+  }
+}</code></pre>
+<h3 id="vs-code">VS Code</h3>
+<p><code>.vscode/mcp.json</code> in the workspace (or run "MCP: Add Server" from the command palette for a user-wide server):</p>
+<pre tabindex="0"><code class="language-json">{
+  "servers": {
+    "remohop": {
+      "type": "stdio",
+      "command": "remohop",
+      "args": ["mcp", "--target", "276941009"],
+      "env": { "REMOHOP_CONFIG_DIR": "/home/me/.config/remohop-agent" }
+    }
+  }
+}</code></pre>
+<p>Or from a terminal:</p>
+<pre tabindex="0"><code class="language-bash">code --add-mcp '{"name":"remohop","command":"remohop","args":["mcp","--target","276941009"]}'</code></pre>
+<p>Use the tools in Copilot Chat's agent mode.</p>
+<h3 id="other-mcp-clients">Other MCP clients</h3>
+<p>Any client that starts stdio servers works: the command is <code>remohop</code>, the arguments <code>mcp</code> plus optional <code>--target ID</code>, <code>--read-only</code> and <code>--idle-timeout DURATION</code>. Nothing but protocol messages is written to stdout; diagnostics go to stderr (<code>-v</code> for debug logs).</p>
+<h2 id="what-the-agent-sees">What the agent sees</h2>
+<ul>
+<li><code>remohop_limits</code> asks the host what the agent may do: the grant's name, expiry, allowed and denied capabilities, command allow-list, file roots, approval mode and whether output is recorded. The server's instructions tell the agent to call it and to treat refusals as final.</li>
+<li>A refused action fails with a sentence that names the limit and the grant, for example <code>files:write is not allowed by grant claude-session (/home/me/project/README is outside the writable roots: /home/me/project/out)</code> or <code>command "rm -rf build" is not allowed by grant ci-bot (allowed commands: go test; git status)</code>, followed by advice not to work around it.</li>
+<li>A denied or unanswered approval says so (<code>the host's owner denied: exec: git push</code>), and the agent is told not to repeat the action unless the person asks.</li>
+<li>When a grant expires, is revoked or suspended, the session ends and further calls explain that the access has ended.</li>
+</ul>
+<h2 id="limits-of-the-protection">Limits of the protection</h2>
+<p>Grants narrow what an authenticated client may do; they are enforced by the host process, which runs with its user's privileges. Know what they do not do:</p>
+<ul>
+<li><strong>A command allow-list is a guard rail, not a sandbox.</strong> It decides which program is started. A permitted program that can run others (<code>git</code> with aliases, hooks or <code>-c</code>, <code>make</code>, <code>find -exec</code>, <code>npm run</code>, any interpreter) carries that power along. Allow such programs only when that is acceptable. Write access combines with this: an agent that may write in a repository can add git hooks or aliases (<code>.git/hooks</code>, <code>.git/config</code>) that an allowed <code>git</code> command then runs, and one that may write to a directory on <code>PATH</code> can plant a program under an allowed name. Do not give write roots that contain such files when you rely on the allow-list. The check assumes the host user's shell is POSIX-like (sh, bash, zsh, dash) or PowerShell.</li>
+<li><strong><code>shell</code> and <code>shell:run-only</code> without an allow-list can do anything the host's user can</strong>, including reading and writing files outside the file roots. File roots only constrain the file tools. Combine roots with <code>--cmd</code>, or with no shell, when files matter.</li>
+<li><strong>Background jobs are the host user's.</strong> A granted session with <code>shell:run-only</code> can list and stop every background job on the host (it is logged), not only its own. Interactive terminals are separated: a granted session sees and attaches only to terminals it started.</li>
+<li><strong>File roots are checked when an operation is asked for.</strong> Another process on the host that swaps a symbolic link in at the same moment, or a hard link that already points outside, is not caught.</li>
+<li><strong>Approvals rely on the person reading them.</strong> Approving <code>exec: ./deploy.sh</code> approves whatever that script does.</li>
+<li><strong>Recordings and the audit log live on the host</strong>, readable by its user, and are as trustworthy as that account. A full-shell grant can, in principle, edit them; prefer <code>shell:run-only</code> with <code>--cmd</code> when the record matters.</li>
+<li><strong>The agent's machine holds a credential.</strong> Anyone who can read its <code>peers.json</code> and identity key can use the grant until it expires or is revoked. Keep grants short.</li>
+</ul>
+<p>See <a href="/en/docs/security/">security.md</a> for the rest of RemoHop's security model.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/agents.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

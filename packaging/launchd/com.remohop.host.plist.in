@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Template for a per-user LaunchAgent. `remohop service install` writes this for
+  you; use this file only to install by hand. Replace @REMOHOP@ with the binary's
+  absolute path and @HOME@ with the user's home directory, save as
+  ~/Library/LaunchAgents/com.remohop.host.plist, then:
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.remohop.host.plist
+    launchctl kickstart -k gui/$(id -u)/com.remohop.host
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.remohop.host</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>@REMOHOP@</string>
+		<string>host</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>ThrottleInterval</key>
+	<integer>10</integer>
+	<key>AbandonProcessGroup</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>@HOME@/Library/Logs/remohop/remohop.log</string>
+	<key>StandardErrorPath</key>
+	<string>@HOME@/Library/Logs/remohop/remohop.log</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+</dict>
+</plist>

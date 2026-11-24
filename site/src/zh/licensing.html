@@ -1,0 +1,42 @@
+<h1>许可证</h1>
+<p>RemoHop 采用双许可：一份开源许可证，一份商业授权。<!--nosrc-->源码将在各平台应用上架后以 AGPL-3.0 公开，下面说明的是届时适用的条件。<!--/nosrc-->具有法律效力的是许可证原文，这一页只是帮助阅读的说明。</p>
+
+<h2 id="agpl">开源：GNU AGPL-3.0</h2>
+<!--src-->
+<p>所有人都可以按 GNU Affero General Public License 第 3 版（AGPL-3.0-only）使用、研究、修改和再分发 RemoHop。全文见仓库里的 <a href="{{REPO}}/blob/main/LICENSE">LICENSE</a>。</p>
+<!--/src-->
+<!--nosrc-->
+<p>源码公开后，所有人都可以按 GNU Affero General Public License 第 3 版（AGPL-3.0-only）使用、研究、修改和再分发 RemoHop。许可证全文会随源码一起发布，现在可以在 <a href="https://www.gnu.org/licenses/agpl-3.0.html">gnu.org</a> 上阅读。</p>
+<!--/nosrc-->
+<ul>
+<li>你可以出于任何目的运行 RemoHop，包括商用。</li>
+<li>如果你分发 RemoHop，无论是否修改过，都必须按 AGPL-3.0 提供对应的源代码。</li>
+<li><strong>通过网络提供也算。</strong>如果你修改了 RemoHop 并让别人通过网络使用它，例如为他人运行修改过的 <code>remohop signal</code> 汇合服务器或 <code>remohop web</code> 网关，就必须向这些用户提供修改后版本的源代码（AGPL-3.0 第 13 条）。</li>
+<li>运行未修改的 RemoHop，或者只是自己使用，除许可证要求的声明之外没有额外义务。</li>
+</ul>
+
+<h2 id="commercial">商业授权</h2>
+<p>AGPL-3.0 不适合你的用途时，可以向版权方 Readori 购买商业授权。常见的情况：</p>
+<ul>
+<li>把 RemoHop 放进闭源产品里一起发布；</li>
+<li>为他人运行修改过的服务器，但不想公开修改；</li>
+<li>通过条款与 AGPL 冲突的应用商店分发。</li>
+</ul>
+<p>商业授权请联系：<a href="mailto:{{EMAIL}}?subject=RemoHop%20commercial%20license">{{EMAIL}}</a>。信里请说明你打算怎么用 RemoHop（嵌入产品、托管服务还是内部分发）和大致规模。</p>
+
+<h2 id="contrib">贡献代码</h2>
+<p><!--nosrc-->源码公开之后才能贡献代码。<!--/nosrc-->因为 RemoHop 同时以商业授权提供，贡献的代码必须由一份签署过的贡献者许可协议（CLA）覆盖，使版权方可以按两种许可证分发它。你保留自己作品的版权。<!--src-->详见仓库里的 <a href="{{REPO}}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>；<!--/src-->关于 CLA 的问题可以写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
+
+<h2 id="third-party">第三方软件</h2>
+<p>RemoHop 链接的 Go 模块采用 MIT、BSD-2-Clause、BSD-3-Clause、ISC 和 Apache-2.0 许可证，都与 AGPL-3.0 兼容。发布的压缩包里会附带它们的许可证全文（<code>THIRD_PARTY_LICENSES.txt</code>）。</p>
+<p>RemoHop 不包含也不分发 ffmpeg。远程桌面调用的是被控机上已经安装的 <code>ffmpeg</code>，它作为独立的程序运行。把某个 ffmpeg 构建和 RemoHop 捆绑在一起的人，需要自行承担那个构建的许可证条款：带 libx264 的 ffmpeg 采用 GPL。</p>
+<p>Windows 上的 VPN 客户端需要 Wintun 驱动，<code>remohop</code> 不包含也不下载它。</p>
+
+<h2 id="attribution">二次开发必须署名</h2>
+<p>依据 AGPL-3.0 第 7 条，RemoHop 附加了以下条款，适用于所有基于 RemoHop 的作品（分支、修改版，或包含 RemoHop 代码的产品）：</p>
+<ol>
+<li><strong>标明项目名称和开源地址。</strong>例如：“基于 RemoHop（https://github.com/readori/RemoHop），© Readori，按 AGPL-3.0 授权。”源代码里要保留 <code>NOTICE</code> 文件并写进 README；作品展示法律声明的地方（“关于”或“设置”页面、<code>version</code> 或 <code>help</code> 命令的输出、网页界面的页脚）也要写明。不得删除已有的版权和署名声明。</li>
+<li><strong>修改版要标明已修改。</strong>不得自称是原版 RemoHop，也不得暗示由 Readori 制作或认可。</li>
+<li><strong>名称和标志另行保留。</strong>AGPL-3.0 不授予把“RemoHop”“Readori”名称或标志用作其他产品名称或品牌的权利（上面要求的署名除外），请为你的作品另取名字。</li>
+</ol>
+<p>完整条款见<!--src--> <a href="{{REPO}}/blob/main/LICENSING.md">LICENSING.md</a><!--/src--><!--nosrc-->仓库中的 LICENSING.md<!--/nosrc-->。通过商业授权获得的软件不适用这些条款。</p>

@@ -1,0 +1,74 @@
+<h1>快速开始</h1>
+<p>这一页只讲从零到第一次连上要做的五步。每个命令的完整语法用 <code>remohop help &lt;命令&gt;</code> 查看，其余内容在按主题分页的文档里，<a href="#more">目录在页面下方</a>。</p>
+<p>假设有三台机器：一台带公网地址的小服务器运行汇合服务器（下文写作 <code>sig.example.net</code>），一台被控机，一台你自己的工作机。只在局域网里用的话，可以<a href="#direct">跳过服务器</a>。</p>
+
+<!--src-->
+<h2 id="build">1. 编译</h2>
+<p>还没有可下载的发布版本。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<pre><code>git clone {{REPO}}
+cd RemoHop
+make build</code></pre>
+<p>结果是 <code>bin/remohop</code>，以 <code>CGO_ENABLED=0</code> 构建。把它放进每台机器的 <code>PATH</code>。直接执行 <code>go build -o remohop ./cmd/remohop</code> 也可以。</p>
+<!--/src-->
+<!--nosrc-->
+<h2 id="build">1. 获取 remohop</h2>
+<p>还没有可下载的发布版本。各平台应用上架后，这里会给出下载方式，源码也会在那时以 AGPL-3.0 公开。在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
+<p>下面几步假设每台机器的 <code>PATH</code> 里都已经有 <code>remohop</code> 这个程序。</p>
+<!--/nosrc-->
+
+<h2 id="signal">2. 运行汇合服务器</h2>
+<p>在有公网 IP 的机器上开放 UDP 端口 <code>21116</code> 和 <code>21117</code>，然后运行：</p>
+<pre><code>remohop signal</code></pre>
+<p>服务器启动时会打印自己的公钥，客户端可以用 <code>remohop config set signal-pin KEY</code> 固定它。要为无法直连的会话提供中继，改用 <code>remohop signal --relay</code>。长期运行见<a href="{{L:self-hosting}}">自建服务器</a>。</p>
+
+<h2 id="host">3. 启动被控机</h2>
+<pre><code>remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> 在前台运行，打印 ID 和临时密码。想开机自启就装成系统服务：</p>
+<pre><code>remohop service install
+remohop status --show-password</code></pre>
+<p>它会写入 systemd 单元（Linux）、launchd 任务（macOS）或 Windows 服务。服务有自己独立的身份、ID 和密码，和手动启动的 <code>remohop host</code> 不是同一个实例。系统级服务和 Windows 服务看不到桌面会话，需要截图或远程桌面时请用用户级服务。</p>
+<p>需要固定密码时执行 <code>remohop passwd</code>，它以不回显的方式询问，之后也不会再把密码打印出来。</p>
+
+<h2 id="connect">4. 连接并配对</h2>
+<pre><code>remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> 显示到被控机的路径。第一次连接需要密码，它会提示输入。</li>
+<li><code>pair --name dev</code> 只需输入一次密码，随后在本机保存一个绑定到本机身份的配对令牌，并保存别名 <code>dev</code>。</li>
+<li>之后 <code>remohop dev ...</code> 不再需要密码。<code>remohop devices</code> 列出已保存的主机以及它们是否在线。</li>
+</ul>
+
+<h2 id="use">5. 开始用</h2>
+<pre><code>remohop dev shell                       <span class="c"># 持久终端；先按回车再输入 ~. 分离</span>
+remohop dev cp ./build.tar.gz :/tmp/    <span class="c"># 远程路径以 : 开头</span>
+remohop dev forward -b 18080:8080       <span class="c"># 把远程的 8080 映射到本机 18080</span>
+remohop dev desktop                     <span class="c"># 在浏览器里查看并控制远程屏幕</span>
+remohop web --target dev                <span class="c"># 浏览器客户端：桌面、终端、文件、剪贴板</span></code></pre>
+
+<h2 id="direct">不用服务器：局域网或公网 IP 直连</h2>
+<p>能直接通过地址访问被控机时，不需要汇合服务器。在被控机上：</p>
+<pre><code>remohop host --no-signal --listen :21118</code></pre>
+<p>在客户端用地址代替 ID，仍然需要密码：</p>
+<pre><code>remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+
+<h2 id="agents">让 AI 代理使用</h2>
+<p>先配对，再把 MCP 服务器加进代理宿主程序。以 Claude Code 为例：</p>
+<pre><code>claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>读取 <code>mcpServers</code> 配置的客户端（例如 Cursor）：</p>
+<pre><code>{
+  "mcpServers": {
+    "remohop": { "command": "remohop", "args": ["mcp"] }
+  }
+}</code></pre>
+<p>代理会以运行被控端的那个用户的权限在远程机器上操作。只为希望代理访问的机器配对，关掉它用不到的功能（例如 <code>remohop config feature input off</code>），不再需要时用 <code>remohop host revoke</code> 撤销。</p>
+
+<h2 id="more">完整文档</h2>
+<p>使用指南按主题分页，中英文两个版本内容相同；深入的参考文档目前只有英文。遇到错误时先看<a href="{{E:docs/troubleshooting}}">故障排查</a>（英文）。</p>
+{{GUIDES}}
+<!--src-->
+<p>Agent Skills 的安装方式和 28 个 MCP 工具的完整列表见仓库里的 <a href="{{REPO}}/blob/main/skills/README.md">skills/README.md</a>。</p>
+<!--/src-->

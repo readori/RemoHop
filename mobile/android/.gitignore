@@ -1,0 +1,11 @@
+# Build outputs and local machine state; nothing generated is committed.
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+# Produced by build.sh (gomobile bind).
+app/libs/

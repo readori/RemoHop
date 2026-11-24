@@ -1,0 +1,4 @@
+/* Permission texts (Info.plist), Simplified Chinese. */
+"NSLocalNetworkUsageDescription" = "RemoHop 会直接连接你在本地网络中控制的电脑。";
+"NSCameraUsageDescription" = "拍一张照片，上传到远程电脑。";
+"NSPhotoLibraryUsageDescription" = "选择要上传到远程电脑的照片和视频。";

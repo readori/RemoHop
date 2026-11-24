@@ -1,0 +1,4 @@
+/* Permission texts (Info.plist), English. */
+"NSLocalNetworkUsageDescription" = "RemoHop connects directly to computers you control on your local network.";
+"NSCameraUsageDescription" = "Take a photo to upload it to a remote computer.";
+"NSPhotoLibraryUsageDescription" = "Choose photos and videos to upload to a remote computer.";

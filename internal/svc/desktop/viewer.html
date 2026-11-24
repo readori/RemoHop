@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RemoHop</title>
+<style>
+html,body{margin:0;height:100%;background:#111;color:#ddd;font:13px system-ui,sans-serif;overflow:hidden}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+canvas{display:block;outline:none;touch-action:none}
+#hud{position:fixed;top:6px;left:6px;background:rgba(0,0,0,.65);padding:4px 8px;border-radius:4px;font:12px ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none}
+#bar{position:fixed;top:6px;right:6px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:calc(100% - 12px);opacity:.35;transition:opacity .2s}
+#bar:hover,#bar:focus-within{opacity:1}
+button,select,input{background:#333;color:#ddd;border:1px solid #555;border-radius:4px;padding:3px 8px;cursor:pointer;font:inherit}
+button:hover,select:hover{background:#444}
+button:disabled,select:disabled{opacity:.45;cursor:not-allowed}
+button.on{background:#7a2020;border-color:#c44}
+#typebox{position:fixed;top:40px;right:6px;display:flex;gap:4px;background:rgba(0,0,0,.8);padding:6px;border-radius:4px}
+#typebox input{width:320px;cursor:text}
+#toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);padding:6px 12px;border-radius:4px;max-width:80%;white-space:pre-wrap}
+#msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(0,0,0,.75);font-size:16px;text-align:center;padding:20px}
+#drop{position:fixed;inset:12px;border:3px dashed #6cf;border-radius:10px;background:rgba(20,60,90,.78);display:flex;align-items:center;justify-content:center;font-size:20px;text-align:center;padding:20px;pointer-events:none;z-index:5}
+#uploads{position:fixed;left:6px;bottom:6px;display:flex;flex-direction:column;gap:4px;max-width:min(420px,calc(100% - 12px));z-index:4}
+.up{background:rgba(0,0,0,.85);padding:5px 8px;border-radius:4px;font-size:12px;word-break:break-all}
+.up progress{width:100%;height:6px;display:block;margin-top:3px}
+.up.err{border-left:3px solid #e55}.up.ok{border-left:3px solid #5c5}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="screen" tabindex="0" width="16" height="9"></canvas></div>
+<div id="hud" class="hidden"></div>
+<div id="bar">
+  <button id="bview" title="Stop or resume sending mouse and keyboard input">View only</button>
+  <select id="skeys" title="Send key combinations the browser keeps for itself">
+    <option value="">Keys…</option>
+    <option value="ctrl_alt_del">Ctrl+Alt+Del</option>
+    <option value="alt_tab">Alt+Tab</option>
+    <option value="super">Windows / Super</option>
+    <option value="alt_f4">Alt+F4</option>
+    <option value="ctrl_esc">Ctrl+Esc</option>
+    <option value="print">Print Screen</option>
+  </select>
+  <select id="sfkey" title="Ctrl+Alt+F-key (switch virtual terminal)"><option value="">Ctrl+Alt+F…</option></select>
+  <button id="btype" title="Type text on the remote machine">Type</button>
+  <button id="bclipsend" title="Send this machine's clipboard text to the remote clipboard">Send clipboard</button>
+  <button id="bclipget" title="Copy the remote clipboard text to this machine's clipboard">Get clipboard</button>
+  <button id="bup" title="Copy files to the Downloads folder of the remote machine (or drop them on the page)">Upload…</button>
+  <button id="baudio" title="Play the remote machine's audio on this computer">Audio</button>
+  <button id="bmute" class="hidden" title="Silence the audio without stopping it">Mute</button>
+  <select id="squal" title="Quality preset">
+    <option value="">Quality…</option>
+    <option value="clear">Clear (sharp, 30 fps)</option>
+    <option value="balanced">Balanced</option>
+    <option value="smooth">Smooth (60 fps, ≤720p)</option>
+  </select>
+  <select id="sdisp" title="Monitor to show" class="hidden"></select>
+  <button id="block" title="Lock the remote screen">Lock</button>
+  <button id="bblock" title="Block the remote keyboard and mouse">Block input</button>
+  <button id="bblack" title="Black out the remote screen">Blackout</button>
+  <button id="brec" title="Record what you see to an MP4 file on this machine">Record</button>
+  <button id="bkey" title="Ask the host for a key frame">Refresh</button>
+  <button id="bhud" title="Show or hide statistics">Stats</button>
+  <button id="bfs" title="Toggle full screen">Fullscreen</button>
+</div>
+<div id="typebox" class="hidden"><input id="typetext" placeholder="Text to type on the remote machine" maxlength="4000"><button id="typego">Send</button><button id="typeno">Cancel</button></div>
+<input id="fileinput" type="file" multiple class="hidden">
+<div id="drop" class="hidden">Drop files to copy them to the Downloads folder of the remote machine</div>
+<div id="uploads"></div>
+<div id="toast" class="hidden"></div>
+<div id="msg"><div id="msgtext">Connecting…</div><button id="bre" class="hidden">Reconnect</button></div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id);
+  const canvas = $('screen');
+  const g = canvas.getContext('2d', {alpha: false, desynchronized: true});
+  const nowUs = () => (performance.timeOrigin + performance.now()) * 1000;
+
+  let ws = null, decoder = null, cfg = null, hello = null;
+  let configuring = false, pendingVideo = [], waitKey = true, ended = false;
+  let inputOK = false, canInput = false, viewOnly = false, lastKeyReq = 0, lastBehind = 0, retry = null;
+  let decodable = null;             // codecs this browser decodes, probed once
+  let nextID = 1, recording = false, toastTimer = null;
+  const pendingReq = new Map();     // request id -> callback(reply)
+  let skippedSeq = -1;              // newest frame skipped but not yet acked
+  const meta = new Map();           // chunk timestamp -> {seq, cap, arr}
+  const pressed = new Set();        // DOM codes held down
+  const buttons = new Set();        // mouse buttons held down
+  // Counters for the overlay (and for automated tests via window.remohop).
+  const st = {decoded: 0, received: 0, skipped: 0, errors: 0, bytes: 0,
+              fps: 0, mbps: 0, latency: 0, decodeMs: 0, host: null, rtt: 0,
+              winFrames: 0, winBytes: 0, winStart: performance.now()};
+  window.remohop = {stats: () => ({...st, hello, decodable, recording, viewOnly,
+                                  configured: !!decoder && decoder.state === 'configured'}),
+                   audio: () => ({...au.s, on: au.on, muted: au.muted, ctxState: au.ctx ? au.ctx.state : 'none'}),
+                   upload: files => uploadFiles([...files])};
+
+  function message(text, canReconnect) {
+    $('msgtext').textContent = text;
+    $('bre').classList.toggle('hidden', !canReconnect);
+    $('msg').classList.toggle('hidden', text === null);
+  }
+
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+  // request sends a message the viewer answers, and resolves with the
+  // reply (whose error field says what went wrong).
+  function request(o) {
+    return new Promise(resolve => {
+      if (!ws || ws.readyState !== 1) { resolve({error: 'not connected'}); return; }
+      const id = nextID++;
+      pendingReq.set(id, resolve);
+      send({...o, id});
+    });
+  }
+
+  function toast(text) {
+    $('toast').textContent = text;
+    $('toast').classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 5000);
+  }
+
+  // The codecs this browser can decode, asked of WebCodecs before the
+  // session starts so the host picks one of them.
+  async function probeDecoders() {
+    if (decodable) return decodable;
+    const out = [];
+    if (typeof VideoDecoder !== 'undefined') {
+      const tries = {av1: 'av01.0.08M.08', h264: 'avc1.64002a'};
+      for (const [name, codec] of Object.entries(tries)) {
+        for (const hw of ['prefer-hardware', 'no-preference']) {
+          if (await supported({codec, codedWidth: 1920, codedHeight: 1080, hardwareAcceleration: hw, optimizeForLatency: true})) {
+            out.push(name);
+            break;
+          }
+        }
+      }
+    }
+    decodable = out;
+    return out;
+  }
+
+  // Skipped frames are acknowledged only once the decoder has caught up:
+  // acking them at once would tell the host we keep up when we do not.
+  function ackSkipped() {
+    if (skippedSeq >= 0 && (!decoder || decoder.decodeQueueSize === 0)) {
+      send({type: 'ack', seq: skippedSeq});
+      skippedSeq = -1;
+    }
+  }
+  setInterval(ackSkipped, 50);
+
+  function behind() {
+    const t = performance.now();
+    if (t - lastBehind > 1000) { lastBehind = t; send({type: 'behind'}); }
+  }
+
+  function requestKey() {
+    const t = performance.now();
+    if (t - lastKeyReq > 1000) { lastKeyReq = t; send({type: 'keyframe'}); }
+  }
+
+  function connect() {
+    clearTimeout(retry);
+    ended = false;
+    message('Connecting…', false);
+    const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host +
+      location.pathname.replace(/\/?$/, '/') + 'ws';
+    ws = new WebSocket(url);
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = async () => {
+      const decode = await probeDecoders();
+      send({type: 'caps', decode});
+    };
+    ws.onmessage = e => {
+      if (typeof e.data === 'string') onText(JSON.parse(e.data));
+      else if (new Uint8Array(e.data, 0, 1)[0] === 0x41) onAudio(e.data);
+      else onVideo(e.data);
+    };
+    ws.onclose = () => {
+      releaseAll();
+      resetDecoder();
+      audioReset();
+      if (!ended) {
+        message('Disconnected — reconnecting…', true);
+        retry = setTimeout(connect, 2000);
+      }
+    };
+  }
+
+  function onText(m) {
+    switch (m.type) {
+      case 'hello': onHello(m); break;
+      case 'audio_end':
+        audioReset();
+        au.wanted = false;
+        toast('Audio stopped: ' + (m.error || 'the host ended it'));
+        audioButtons();
+        break;
+      case 'stats': st.host = m.host; st.rtt = m.rtt_ms; break;
+      case 'reply': {
+        const cb = pendingReq.get(m.id);
+        pendingReq.delete(m.id);
+        if (cb) cb(m);
+        break;
+      }
+      case 'recording':
+        recording = m.on;
+        $('brec').classList.toggle('on', recording);
+        $('brec').textContent = recording ? 'Stop recording' : 'Record';
+        if (m.error) toast('Recording stopped: ' + m.error);
+        else if (!m.on && m.files && m.files.length) toast('Recorded: ' + m.files.join(', '));
+        break;
+      case 'end':
+        ended = true;
+        message('Session ended: ' + (m.error || 'closed'), true);
+        ws.close();
+        break;
+    }
+  }
+
+  function resetDecoder() {
+    if (decoder && decoder.state !== 'closed') decoder.close();
+    decoder = null;
+    meta.clear();
+    pendingVideo = [];
+    waitKey = true;
+  }
+
+  function newDecoder() {
+    decoder = new VideoDecoder({output: onFrame, error: e => {
+      st.errors++;
+      console.warn('decoder error', e);
+      // The decoder is closed after an error: rebuild it and resync on a
+      // key frame.
+      newDecoder();
+      decoder.configure(cfg);
+      waitKey = true;
+      requestKey();
+    }});
+  }
+
+  async function supported(c) {
+    try { return (await VideoDecoder.isConfigSupported(c)).supported; } catch (e) { return false; }
+  }
+
+  // Base64 (how Go marshals []byte) to bytes.
+  function bytesOf(b64) {
+    const s = atob(b64 || '');
+    const out = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+    return out;
+  }
+
+  // Enable the controls the host offers, and say why the others are off.
+  function updateControls(h) {
+    canInput = h.input && !h.view_only;
+    inputOK = canInput && !viewOnly;
+    canvas.style.cursor = inputOK ? 'none' : 'default';
+    const un = h.unsupported || {};
+    const gate = (id, name) => {
+      const off = !inputOK || !!un[name];
+      $(id).disabled = off;
+      if (un[name]) $(id).title = $(id).dataset.title + ' — unavailable: ' + un[name];
+      else $(id).title = $(id).dataset.title + (canInput ? '' : ' — unavailable: ' + (h.input_error || 'view only'));
+    };
+    for (const id of ['bup', 'bview', 'skeys', 'sfkey', 'btype', 'block', 'bblock', 'bblack', 'bclipsend', 'bclipget', 'squal', 'sdisp', 'brec']) {
+      if (!$(id).dataset.title) $(id).dataset.title = $(id).title;
+    }
+    $('bview').disabled = !canInput;
+    $('bview').classList.toggle('on', viewOnly);
+    $('skeys').disabled = $('sfkey').disabled = !inputOK;
+    $('skeys').options[1].disabled = !!un.ctrl_alt_del;
+    if (un.ctrl_alt_del) $('skeys').options[1].textContent = 'Ctrl+Alt+Del (unavailable: ' + un.ctrl_alt_del + ')';
+    gate('btype', 'type');
+    gate('block', 'lock');
+    gate('bblock', 'block_input');
+    gate('bblack', 'blackout');
+    const ds = h.displays || [];
+    const sel = $('sdisp');
+    sel.classList.toggle('hidden', ds.length < 2);
+    sel.textContent = '';
+    const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+    // Every monitor in one picture (-1), where the host can; the pointer
+    // then covers the whole virtual desktop.
+    if (!un.all_monitors) opt(-1, 'All monitors');
+    ds.forEach((d, i) => opt(i + 1, `Monitor ${i + 1} (${d.width}×${d.height})`));
+    // Display 0 is the host's default: every monitor on X11 (the host says
+    // so with all_displays), the primary one elsewhere.
+    sel.value = String(h.all_displays ? -1 : (h.display || 1));
+    $('bup').disabled = !!h.view_only;
+    $('bup').title = $('bup').dataset.title + (h.view_only ? ' — unavailable: view-only session' : '');
+  }
+
+  async function onHello(h) {
+    hello = h;
+    updateControls(h);
+    if (typeof VideoDecoder === 'undefined') {
+      fatal('This browser has no WebCodecs VideoDecoder. Use a recent Chrome, Edge, Firefox or Safari.');
+      return;
+    }
+    const want = {codec: h.codec, codedWidth: h.width, codedHeight: h.height,
+                  optimizeForLatency: true, hardwareAcceleration: 'prefer-hardware'};
+    // H.264 frames arrive as length-prefixed NAL units: the avcC record
+    // as description tells the decoder so (no Annex-B start codes).
+    if (h.codec.startsWith('avc1')) want.description = bytesOf(h.codec_config);
+    const sameDesc = (a, b) => (!a && !b) || (a && b && a.length === b.length && a.every((v, i) => v === b[i]));
+    if (cfg && cfg.codec === want.codec && cfg.codedWidth === want.codedWidth &&
+        cfg.codedHeight === want.codedHeight && sameDesc(cfg.description, want.description) &&
+        decoder && decoder.state === 'configured') {
+      waitKey = true; // same stream format; the encoder restart starts with a key frame
+      return;
+    }
+    configuring = true;
+    if (!await supported(want)) {
+      want.hardwareAcceleration = 'no-preference';
+      if (!await supported(want)) {
+        configuring = false;
+        fatal(`This browser cannot decode ${h.codec} with WebCodecs.`);
+        return;
+      }
+    }
+    cfg = want;
+    canvas.width = h.width;
+    canvas.height = h.height;
+    layout();
+    if (!decoder || decoder.state === 'closed') newDecoder();
+    decoder.configure(cfg);
+    waitKey = true;
+    configuring = false;
+    message(null);
+    const queued = pendingVideo;
+    pendingVideo = [];
+    queued.forEach(onVideo);
+    if (h.warning) console.warn('host:', h.warning);
+    if (h.audio_auto && !au.autoDone) { au.autoDone = true; au.wanted = true; }
+    if (au.wanted && !au.on && !au.requesting) setAudio(true, true);
+  }
+
+  function fatal(text) {
+    ended = true;
+    message(text, false);
+    if (ws) ws.close();
+  }
+
+  function onVideo(buf) {
+    if (configuring) { pendingVideo.push(buf); return; }
+    const dv = new DataView(buf);
+    if (buf.byteLength < 30 || dv.getUint8(0) !== 0x56) return;
+    const key = (dv.getUint8(1) & 1) === 1;
+    const seq = dv.getUint32(2);
+    const pts = Number(dv.getBigInt64(6));
+    const cap = Number(dv.getBigInt64(14));
+    const arr = Number(dv.getBigInt64(22));
+    const data = new Uint8Array(buf, 30);
+    st.received++;
+    st.bytes += data.length;
+    st.winBytes += data.length;
+    const skip = () => { st.skipped++; skippedSeq = seq; };
+    if (!decoder || decoder.state !== 'configured') return skip();
+    if (waitKey && !key) return skip();
+    // Falling behind: rather than queueing in the decoder (latency), skip
+    // to the next key frame.
+    if (!key && decoder.decodeQueueSize > 2) {
+      waitKey = true;
+      behind();
+      return skip();
+    }
+    waitKey = false;
+    meta.set(pts, {seq, cap, arr});
+    if (meta.size > 240) meta.delete(meta.keys().next().value);
+    try {
+      decoder.decode(new EncodedVideoChunk({type: key ? 'key' : 'delta', timestamp: pts, data}));
+    } catch (e) {
+      st.errors++;
+      waitKey = true;
+      requestKey();
+      skip();
+    }
+  }
+
+  function onFrame(frame) {
+    const m = meta.get(frame.timestamp);
+    meta.delete(frame.timestamp);
+    g.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    frame.close();
+    st.decoded++;
+    st.winFrames++;
+    if (m) {
+      send({type: 'ack', seq: Math.max(m.seq, skippedSeq)});
+      if (m.seq >= skippedSeq) skippedSeq = -1;
+      const now = nowUs();
+      st.decodeMs = ewma(st.decodeMs, (now - m.arr) / 1000);
+      if (m.cap > 0) st.latency = ewma(st.latency, (now - m.cap) / 1000);
+    }
+  }
+
+  const ewma = (old, v) => old === 0 ? v : old + (v - old) / 8;
+
+  // Layout: fit the remote screen into the window, keeping its aspect.
+  function layout() {
+    const w = canvas.width, h = canvas.height;
+    const s = Math.min(innerWidth / w, innerHeight / h);
+    canvas.style.width = Math.floor(w * s) + 'px';
+    canvas.style.height = Math.floor(h * s) + 'px';
+  }
+  addEventListener('resize', layout);
+
+  // Overlay
+  function hud() {
+    const t = performance.now(), dt = (t - st.winStart) / 1000;
+    if (dt >= 0.5) {
+      st.fps = st.winFrames / dt;
+      st.mbps = st.winBytes * 8 / dt / 1e6;
+      st.winFrames = 0; st.winBytes = 0; st.winStart = t;
+    }
+    if (!hello || $('hud').classList.contains('hidden')) return;
+    const h = st.host || {};
+    $('hud').textContent =
+      `${hello.width}×${hello.height}  ${hello.codec}\n` +
+      `${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'}  target ${(hello.bitrate / 1e6).toFixed(1)} Mbit/s\n` +
+      `${st.fps.toFixed(0)} fps  ${st.mbps.toFixed(2)} Mbit/s\n` +
+      `latency ${st.latency ? st.latency.toFixed(0) + ' ms' : 'n/a'}  rtt ${st.rtt.toFixed(1)} ms  decode ${st.decodeMs.toFixed(1)} ms\n` +
+      `host: ${(h.fps || 0).toFixed(0)} fps  dropped ${h.dropped || 0}  encode ${(h.pipeline_ms || 0).toFixed(0)} ms\n` +
+      (au.on ? `audio opus  buffer ${au.s.bufMs.toFixed(0)} ms  delay ${au.s.delayMs.toFixed(0)} ms  skew ${au.s.skewMs.toFixed(0)} ms${au.muted ? '  muted' : ''}\n` : '') +
+      (inputOK ? 'input on' : 'view only' + (viewOnly ? ' (toggled)' : hello.input_error ? ': ' + hello.input_error : ''));
+  }
+  setInterval(hud, 500);
+
+  $('bhud').onclick = () => { $('hud').classList.toggle('hidden'); hud(); canvas.focus(); };
+  $('bkey').onclick = () => { lastKeyReq = 0; requestKey(); canvas.focus(); };
+  $('bre').onclick = () => connect();
+
+  // Controls
+  $('bview').onclick = () => {
+    viewOnly = !viewOnly;
+    if (viewOnly) releaseAll();
+    send({type: 'view_only', on: viewOnly});
+    if (hello) updateControls(hello);
+    canvas.focus();
+  };
+  // Key combinations: press in order, release in reverse.
+  const combos = {
+    ctrl_alt_del: ['ControlLeft', 'AltLeft', 'Delete'],
+    alt_tab: ['AltLeft', 'Tab'],
+    super: ['MetaLeft'],
+    alt_f4: ['AltLeft', 'F4'],
+    ctrl_esc: ['ControlLeft', 'Escape'],
+    print: ['PrintScreen'],
+  };
+  function sendCombo(codes) {
+    if (!inputOK) return;
+    codes.forEach(code => send({type: 'key', code, down: true}));
+    [...codes].reverse().forEach(code => send({type: 'key', code, down: false}));
+  }
+  for (let i = 1; i <= 12; i++) {
+    const o = document.createElement('option');
+    o.value = 'F' + i; o.textContent = 'Ctrl+Alt+F' + i;
+    $('sfkey').appendChild(o);
+  }
+  $('skeys').onchange = () => { const c = combos[$('skeys').value]; $('skeys').value = ''; if (c) sendCombo(c); canvas.focus(); };
+  $('sfkey').onchange = () => { const f = $('sfkey').value; $('sfkey').value = ''; if (f) sendCombo(['ControlLeft', 'AltLeft', f]); canvas.focus(); };
+
+  $('btype').onclick = () => { $('typebox').classList.remove('hidden'); $('typetext').focus(); };
+  $('typeno').onclick = () => { $('typebox').classList.add('hidden'); canvas.focus(); };
+  async function typeIt() {
+    const text = $('typetext').value;
+    $('typebox').classList.add('hidden');
+    canvas.focus();
+    if (!text) return;
+    $('typetext').value = '';
+    const r = await request({type: 'type', text});
+    if (r.error) toast('Typing failed: ' + r.error);
+  }
+  $('typego').onclick = typeIt;
+  $('typetext').addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter') typeIt();
+    if (e.key === 'Escape') $('typeno').onclick();
+  });
+
+  $('block').onclick = async () => {
+    const r = await request({type: 'lock'});
+    toast(r.error ? 'Lock failed: ' + r.error : 'Remote screen locked');
+  };
+  const toggles = {bblock: 'block_input', bblack: 'blackout'};
+  for (const [id, type] of Object.entries(toggles)) {
+    $(id).onclick = async () => {
+      const on = !$(id).classList.contains('on');
+      const r = await request({type, on});
+      if (r.error) toast(r.error); else $(id).classList.toggle('on', on);
+    };
+  }
+
+  // Quality presets, through the host's encoder configuration.
+  $('squal').onchange = () => {
+    const q = $('squal').value;
+    $('squal').value = '';
+    if (!q || !hello) return;
+    const w = hello.screen_width || hello.width, h = hello.screen_height || hello.height;
+    const presets = {
+      // Twice the automatic bits per pixel, at half the frame rate.
+      clear: {fps: 30, scale: 1, max_height: -1, bitrate: Math.round(Math.min(80e6, Math.max(1e6, w * h * 30 * 0.12)))},
+      balanced: {fps: 60, scale: 1, max_height: -1, bitrate: -1},
+      smooth: {fps: 60, scale: 1, max_height: 720, bitrate: -1},
+    };
+    send({type: 'config', ...presets[q]});
+    toast('Quality: ' + q);
+    canvas.focus();
+  };
+  $('sdisp').onchange = async () => {
+    const r = await request({type: 'config', display: Number($('sdisp').value)});
+    if (r.error) { toast('Cannot switch monitor: ' + r.error); if (hello) $('sdisp').value = String(hello.display || 0); }
+    canvas.focus();
+  };
+
+  // Clipboard: only on an explicit click, through the browser's clipboard
+  // permission; never synchronised automatically.
+  $('bclipsend').onclick = async () => {
+    let text;
+    try { text = await navigator.clipboard.readText(); } catch (e) { toast('Cannot read this machine\'s clipboard: ' + e.message); return; }
+    const r = await request({type: 'clip_send', text});
+    toast(r.error ? 'Sending the clipboard failed: ' + r.error : 'Clipboard sent to the remote machine');
+  };
+  $('bclipget').onclick = async () => {
+    const r = await request({type: 'clip_get'});
+    if (r.error) { toast('Getting the remote clipboard failed: ' + r.error); return; }
+    try {
+      await navigator.clipboard.writeText(r.text || '');
+      toast('Remote clipboard copied to this machine');
+    } catch (e) {
+      toast('Cannot write this machine\'s clipboard (' + e.message + '). Remote clipboard:\n' + (r.text || ''));
+    }
+  };
+
+  $('brec').onclick = async () => {
+    const r = await request({type: 'record', on: !recording});
+    if (r.error) toast('Recording: ' + r.error);
+  };
+  $('bfs').onclick = async () => {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    await document.documentElement.requestFullscreen();
+    // In full screen, Keyboard Lock lets Escape, Alt+Tab, Ctrl+W... reach
+    // the remote machine (Chromium only).
+    if (navigator.keyboard && navigator.keyboard.lock) navigator.keyboard.lock().catch(() => {});
+    canvas.focus();
+  };
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
+    layout();
+  });
+
+  // Input
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    return {x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)),
+            y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))};
+  }
+  canvas.addEventListener('pointermove', e => {
+    if (!inputOK) return;
+    send({type: 'move', ...pos(e)});
+  });
+  canvas.addEventListener('pointerdown', e => {
+    canvas.focus();
+    if (!inputOK) return;
+    e.preventDefault();
+    canvas.setPointerCapture(e.pointerId);
+    buttons.add(e.button);
+    send({type: 'button', button: e.button, down: true, ...pos(e)});
+  });
+  canvas.addEventListener('pointerup', e => {
+    if (!inputOK) return;
+    e.preventDefault();
+    buttons.delete(e.button);
+    send({type: 'button', button: e.button, down: false, ...pos(e)});
+  });
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('auxclick', e => e.preventDefault());
+  canvas.addEventListener('wheel', e => {
+    if (!inputOK) return;
+    e.preventDefault();
+    // Normalise to wheel notches: Chromium reports ~100 px per notch,
+    // line mode is ~3 lines per notch.
+    const k = e.deltaMode === 1 ? 1 / 3 : e.deltaMode === 2 ? 1 : 1 / 100;
+    send({type: 'wheel', dx: e.deltaX * k, dy: e.deltaY * k});
+  }, {passive: false});
+  canvas.addEventListener('keydown', e => {
+    if (!inputOK) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.repeat || !e.code) return; // the host's own autorepeat handles held keys
+    pressed.add(e.code);
+    send({type: 'key', code: e.code, down: true});
+  });
+  canvas.addEventListener('keyup', e => {
+    if (!inputOK) return;
+    e.preventDefault();
+    if (!e.code) return;
+    pressed.delete(e.code);
+    send({type: 'key', code: e.code, down: false});
+  });
+  // Let go of everything held (the host releases in place, without moving
+  // the pointer) when focus leaves, so no key or button stays stuck down.
+  function releaseAll() {
+    if (!pressed.size && !buttons.size) return;
+    pressed.clear();
+    buttons.clear();
+    send({type: 'release_all'});
+  }
+  canvas.addEventListener('blur', releaseAll);
+  addEventListener('blur', releaseAll);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+
+  // ---- Audio: Opus packets from the host, decoded with WebCodecs and
+  // played with the Web Audio API.
+  //
+  // Each packet carries the time its sound was captured on the host (already
+  // translated to this machine's clock). The sound is scheduled to leave the
+  // speakers at capture time + a delay, so playback is steady whatever the
+  // arrival jitter: the delay is the larger of a jitter buffer (40 ms plus
+  // three times the measured arrival jitter, at most 300 ms) and the video's
+  // own capture-to-display latency, so lips and sound line up. Packets that
+  // come too late to be scheduled are played at once and the schedule slips;
+  // when more than 120 ms of sound is queued beyond the target, the excess
+  // is dropped.
+  const au = {ctx: null, gain: null, dec: null, wanted: false, on: false, requesting: false, muted: false,
+              autoDone: false, cursor: 0, jitter: 0, prevTransit: null, delayUs: 0,
+              s: {packets: 0, decoded: 0, bytes: 0, underruns: 0, trimmed: 0, errors: 0, rms: 0, peak: 0,
+                  bufMs: 0, delayMs: 0, skewMs: 0, jitterMs: 0, source: ''}};
+
+  function audioButtons() {
+    const b = $('baudio');
+    b.classList.toggle('on', au.on);
+    const stalled = au.on && au.ctx && au.ctx.state === 'suspended';
+    b.textContent = !au.on ? 'Audio' : stalled ? 'Audio (click the page to start)' : 'Audio on';
+    $('bmute').classList.toggle('hidden', !au.on);
+    $('bmute').classList.toggle('on', au.muted);
+    $('bmute').textContent = au.muted ? 'Unmute' : 'Mute';
+  }
+  setInterval(() => {
+    if (au.ctx) au.s.bufMs = Math.max(0, (au.cursor - au.ctx.currentTime) * 1000);
+    audioButtons();
+  }, 500);
+  // Browsers start audio only after a user gesture on the page.
+  for (const ev of ['pointerdown', 'keydown']) {
+    addEventListener(ev, () => { if (au.ctx && au.ctx.state === 'suspended') au.ctx.resume().then(audioButtons); }, true);
+  }
+
+  function audioReset() {
+    if (au.dec && au.dec.state !== 'closed') au.dec.close();
+    au.dec = null;
+    au.on = false;
+    au.requesting = false;
+    au.cursor = 0;
+    au.prevTransit = null;
+    audioButtons();
+  }
+
+  async function setAudio(on, quiet) {
+    if (!on) {
+      au.wanted = false;
+      send({type: 'audio', on: false});
+      audioReset();
+      return;
+    }
+    if (typeof AudioDecoder === 'undefined' || typeof AudioContext === 'undefined') {
+      toast('This browser has no WebCodecs AudioDecoder, so audio is unavailable. Use a recent Chrome, Edge or Safari.');
+      au.wanted = false;
+      return;
+    }
+    const cfg = {codec: 'opus', sampleRate: 48000, numberOfChannels: 2};
+    let ok = false;
+    try { ok = (await AudioDecoder.isConfigSupported(cfg)).supported; } catch (e) { /* unsupported */ }
+    if (!ok) { toast('This browser cannot decode Opus audio with WebCodecs.'); au.wanted = false; return; }
+    au.wanted = true;
+    au.requesting = true;
+    if (!au.ctx) {
+      au.ctx = new AudioContext({latencyHint: 'interactive', sampleRate: 48000});
+      au.gain = au.ctx.createGain();
+      au.gain.connect(au.ctx.destination);
+    }
+    if (au.ctx.state === 'suspended') au.ctx.resume().catch(() => {});
+    const r = await request({type: 'audio', on: true});
+    au.requesting = false;
+    if (r.error) {
+      au.wanted = false;
+      toast('Audio: ' + r.error);
+      audioButtons();
+      return;
+    }
+    if (au.dec && au.dec.state !== 'closed') au.dec.close();
+    au.dec = new AudioDecoder({output: onAudioData, error: e => { au.s.errors++; console.warn('audio decoder', e); }});
+    au.dec.configure(cfg);
+    au.on = true;
+    au.cursor = 0;
+    au.s.source = (r.audio && r.audio.source) || '';
+    if (r.audio && r.audio.warning && !quiet) toast(r.audio.warning);
+    audioButtons();
+  }
+
+  function onAudio(buf) {
+    if (!au.dec || au.dec.state !== 'configured' || buf.byteLength < 22) return;
+    const dv = new DataView(buf);
+    const cap = Number(dv.getBigInt64(5));
+    const arr = Number(dv.getBigInt64(13));
+    const data = new Uint8Array(buf, 21);
+    au.s.packets++;
+    au.s.bytes += data.length;
+    // Arrival jitter as in RFC 3550: how much the transit time varies.
+    const transit = arr - cap;
+    if (au.prevTransit !== null) au.jitter += (Math.abs(transit - au.prevTransit) - au.jitter) / 16;
+    au.prevTransit = transit;
+    au.s.jitterMs = au.jitter / 1000;
+    if (au.dec.decodeQueueSize > 10) { au.s.trimmed++; return; }
+    try {
+      au.dec.decode(new EncodedAudioChunk({type: 'key', timestamp: cap, data}));
+    } catch (e) { au.s.errors++; }
+  }
+
+  function onAudioData(ad) {
+    try {
+      const n = ad.numberOfFrames, chs = ad.numberOfChannels;
+      const buf = au.ctx.createBuffer(chs, n, ad.sampleRate);
+      const tmp = new Float32Array(n);
+      let sq = 0;
+      for (let c = 0; c < chs; c++) {
+        ad.copyTo(tmp, {planeIndex: c, format: 'f32-planar'});
+        buf.copyToChannel(tmp, c);
+        if (c === 0) for (let i = 0; i < n; i++) { sq += tmp[i] * tmp[i]; au.s.peak = Math.max(au.s.peak * 0.9995, Math.abs(tmp[i])); }
+      }
+      const rms = Math.sqrt(sq / n);
+      au.s.rms = au.s.rms === 0 ? rms : au.s.rms + (rms - au.s.rms) / 8;
+      au.s.decoded++;
+      scheduleAudio(buf, ad.timestamp);
+    } finally {
+      ad.close();
+    }
+  }
+
+  function scheduleAudio(buf, capUs) {
+    const ctx = au.ctx;
+    const videoUs = st.latency > 0 ? st.latency * 1000 : 0;
+    const target = Math.max(Math.min(300000, Math.max(40000, 40000 + 3 * au.jitter)), videoUs + 5000);
+    au.delayUs = au.delayUs === 0 ? target : au.delayUs + (target - au.delayUs) / 32;
+    const outLat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
+    const t = ctx.currentTime;
+    const when = t + (capUs + au.delayUs - nowUs()) / 1e6 - outLat;
+    let start;
+    if (au.cursor === 0 || au.cursor < t) {
+      if (au.cursor !== 0) au.s.underruns++;
+      start = Math.max(when, t + 0.005);
+    } else if (Math.abs(when - au.cursor) <= 0.02) {
+      start = au.cursor;                       // gapless
+    } else if (when > au.cursor) {
+      start = when;                            // a pause in the sound, or the delay grew
+    } else if (au.cursor - when > 0.12) {
+      au.s.trimmed++;                          // too much queued: drop to cut the delay
+      return;
+    } else {
+      start = au.cursor;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(au.gain);
+    src.start(start);
+    au.cursor = start + buf.duration;
+    au.s.delayMs = au.delayUs / 1000;
+    au.s.skewMs = (au.delayUs - videoUs) / 1000;
+  }
+
+  $('baudio').onclick = () => { setAudio(!au.on && !au.requesting); canvas.focus(); };
+  $('bmute').onclick = () => {
+    au.muted = !au.muted;
+    if (au.gain) au.gain.gain.setTargetAtTime(au.muted ? 0 : 1, au.ctx.currentTime, 0.01);
+    audioButtons();
+    canvas.focus();
+  };
+
+  // ---- File upload: drop files on the page, or use the Upload button.
+  // Each file is POSTed to the viewer, which copies it to the remote
+  // machine's Downloads folder with the file service; the progress is that
+  // of the copy to the host.
+  const uploadBase = location.pathname.replace(/\/?$/, '/') + 'upload';
+  let uploadChain = Promise.resolve();
+
+  function uploadFiles(files) {
+    if (!files.length) return;
+    if (hello && hello.view_only) { toast('This is a view-only session: files cannot be uploaded.'); return; }
+    for (const f of files) uploadChain = uploadChain.then(() => uploadOne(f));
+  }
+
+  function uploadOne(file) {
+    return new Promise(resolve => {
+      const row = document.createElement('div');
+      row.className = 'up';
+      const label = document.createElement('div');
+      const bar = document.createElement('progress');
+      bar.max = Math.max(file.size, 1);
+      bar.value = 0;
+      row.append(label, bar);
+      $('uploads').appendChild(row);
+      const mb = n => n >= 1 << 20 ? (n / (1 << 20)).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB';
+      label.textContent = `${file.name}: 0 / ${mb(file.size)}`;
+      const done = (cls, text, keep) => {
+        row.classList.add(cls);
+        label.textContent = text;
+        bar.remove();
+        setTimeout(() => row.remove(), keep);
+        resolve();
+      };
+      const x = new XMLHttpRequest();
+      x.open('POST', uploadBase + '?name=' + encodeURIComponent(file.name));
+      x.setRequestHeader('X-RemoHop-Upload', '1');
+      x.upload.onprogress = e => {
+        bar.value = e.loaded;
+        label.textContent = `${file.name}: ${mb(e.loaded)} / ${mb(file.size)}`;
+      };
+      x.onload = () => {
+        let r = {};
+        try { r = JSON.parse(x.responseText); } catch (e) { /* not JSON */ }
+        if (x.status === 200) done('ok', `Saved ${r.path} (${mb(r.size)})`, 12000);
+        else done('err', `${file.name}: ${r.error || 'upload failed (HTTP ' + x.status + ')'}`, 20000);
+      };
+      x.onerror = () => done('err', `${file.name}: the connection to remohop was lost`, 20000);
+      x.send(file);
+    });
+  }
+
+  $('bup').onclick = () => $('fileinput').click();
+  $('fileinput').onchange = () => { uploadFiles([...$('fileinput').files]); $('fileinput').value = ''; canvas.focus(); };
+  const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  let dragDepth = 0;
+  addEventListener('dragenter', e => { if (hasFiles(e)) { e.preventDefault(); dragDepth++; $('drop').classList.remove('hidden'); } });
+  addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+  addEventListener('dragleave', e => { if (hasFiles(e) && --dragDepth <= 0) { dragDepth = 0; $('drop').classList.add('hidden'); } });
+  addEventListener('drop', e => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth = 0;
+    $('drop').classList.add('hidden');
+    const files = [];
+    let folders = 0;
+    for (const it of e.dataTransfer.items || []) {
+      const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
+      if (entry && entry.isDirectory) { folders++; continue; }
+      const f = it.getAsFile();
+      if (f) files.push(f);
+    }
+    if (!e.dataTransfer.items) files.push(...e.dataTransfer.files);
+    if (folders) toast('Folders cannot be dropped: drop the files, or zip the folder first.');
+    uploadFiles(files);
+  });
+
+  connect();
+  canvas.focus();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Quick start | RemoHop</title>
+<meta name="description" content="This walkthrough uses a rendezvous server on a machine with a public address (sig.example.net below) and two machines: the one you control and your own…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/quick-start/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/quick-start/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/quick-start/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/quick-start/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Quick start | RemoHop">
+<meta property="og:description" content="This walkthrough uses a rendezvous server on a machine with a public address (sig.example.net below) and two machines: the one you control and your own…">
+<meta property="og:url" content="https://remohop.com/en/docs/quick-start/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/quick-start/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="quick-start">Quick start</h1>
+<p>This walkthrough uses a rendezvous server on a machine with a public address (<code>sig.example.net</code> below) and two machines: the one you control and your own workstation.</p>
+<h2 id="1-install">1. Install</h2>
+<p>Install <code>remohop</code> on every machine that uses it (see <a href="/en/docs/install/">Install</a>); no other software is needed.</p>
+<h2 id="2-run-a-rendezvous-server">2. Run a rendezvous server</h2>
+<p>On a machine with a public IP, open two UDP ports (<code>21116</code> and <code>21117</code> by default) and run:</p>
+<pre tabindex="0"><code class="language-bash">remohop signal</code></pre>
+<p>The server prints its public key, which clients may pin (see <a href="/en/docs/security/#rendezvous-server">security.md</a>). To also relay sessions that cannot connect directly, start it with <code>remohop signal --relay</code> (see <a href="/en/docs/how-it-works/#relay">Relay</a>). For a long-running server on a small VM, see <a href="/en/docs/self-hosting/">Self-hosting the rendezvous server</a>.</p>
+<h2 id="3-start-the-host">3. Start the host</h2>
+<p>On the machine to control:</p>
+<pre tabindex="0"><code class="language-bash">remohop config set signal sig.example.net
+remohop host</code></pre>
+<p><code>remohop host</code> runs in the foreground and prints something like this (the ID and password are generated):</p>
+<pre tabindex="0"><code>RemoHop host ready
+  ID:        276 941 009
+  Password:  xrb8-upuu  (temporary, changes on restart)
+  Direct:    203.0.113.7:51820
+  Identity:  7197:70c3:1130:65a3:9c97
+Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
+<p>The ID belongs to the host's identity key and stays the same across restarts. The temporary password changes on every start. For a fixed password, run <code>remohop passwd</code>, which asks for it without echo and never prints it afterwards.</p>
+<h2 id="4-or-run-the-host-as-a-service">4. Or run the host as a service</h2>
+<p>To have the host running from boot or login without a terminal:</p>
+<pre tabindex="0"><code class="language-bash">remohop service install
+remohop status --show-password</code></pre>
+<p><code>remohop service install</code> writes a systemd unit (Linux), a launchd job (macOS) or a Windows service, enables it and starts it. The service has its own identity, ID and password, separate from a <code>remohop host</code> you start by hand; <code>remohop status</code> shows them. A system-wide service (<code>--system</code>) or a Windows service cannot see the desktop session, so use a per-user service (the default unless you are root) when screenshots or the remote desktop matter. On Windows, <code>remohop service install --unattended</code> instead gives the service's clients the console session, including the sign-in screen, the lock screen and UAC prompts (off by default; read <a href="/en/docs/security/#windows-unattended-access">security.md</a> first). See <code>remohop help service</code> for per-platform details.</p>
+<h2 id="5-connect-from-your-machine">5. Connect from your machine</h2>
+<pre tabindex="0"><code class="language-bash">remohop config set signal sig.example.net
+remohop 276941009 ping
+remohop 276941009 pair --name dev
+remohop dev info</code></pre>
+<ul>
+<li><code>ping</code> shows the path to the host. The first connection needs the password, so it prompts for it.</li>
+<li><code>pair --name dev</code> asks for the password once, stores a pairing token bound to your machine, and saves the alias <code>dev</code>.</li>
+<li>After pairing, <code>remohop dev ...</code> connects without a password. <code>remohop devices</code> lists your saved hosts and whether they are online.</li>
+</ul>
+<h2 id="without-a-rendezvous-server-lan-or-public-ip">Without a rendezvous server (LAN or public IP)</h2>
+<p>RemoHop does not need a rendezvous server when the host is reachable by address. On the host:</p>
+<pre tabindex="0"><code class="language-bash">remohop host --no-signal --listen :21118</code></pre>
+<p>From the client, use the address in place of the ID. The password is still required:</p>
+<pre tabindex="0"><code class="language-bash">remohop 192.168.1.5:21118 pair --name lab
+remohop lab info</code></pre>
+<h2 id="status-and-devices">Status and devices</h2>
+<pre tabindex="0"><code class="language-bash">remohop dev info
+remohop dev ping -c 10
+remohop status
+remohop devices</code></pre>
+<p><code>info</code> describes the remote machine. <code>ping</code> measures the round-trip time and reports the path: <code>lan</code>, <code>direct</code> and <code>punched</code> are peer to peer; <code>relayed</code> goes through the rendezvous server's relay. <code>remohop status</code> shows this machine's host daemon, its ID and its sessions. <code>remohop devices</code> lists your saved hosts, asks the rendezvous server which of them are online, and shows background commands running to each.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/quick-start.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

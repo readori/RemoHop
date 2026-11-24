@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RemoHop architecture | RemoHop</title>
+<meta name="description" content="RemoHop is a P2P remote-control tool. One static Go binary, remohop, is the controlling CLI, the controlled host daemon, the rendezvous server, the browser…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/architecture/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="RemoHop architecture | RemoHop">
+<meta property="og:description" content="RemoHop is a P2P remote-control tool. One static Go binary, remohop, is the controlling CLI, the controlled host daemon, the rendezvous server, the browser…">
+<meta property="og:url" content="https://remohop.com/en/docs/architecture/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/#more" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="remohop-architecture">RemoHop architecture</h1>
+<p>RemoHop is a P2P remote-control tool. One static Go binary, <code>remohop</code>, is the
+controlling CLI, the controlled host daemon, the rendezvous server, the
+browser gateway and the MCP server. The user guide is in <a href="/en/docs/#more">en/</a>
+and <a href="/docs/#more">zh/</a>; this page is for people reading the code.</p>
+<pre tabindex="0"><code> controlling machine                                       controlled machine
+┌──────────────────────────┐   UDP hole punch + QUIC     ┌──────────────────────────┐
+│ remohop &lt;ID&gt; shell ...   │◄═══════════════════════════►│ remohop host             │
+│ remohop mcp  (AI agents) │   end-to-end encrypted      │  shell / fs / forward    │
+└─────────┬────────────────┘                             │  clip / desktop ...      │
+          │                                              └────────────┬─────────────┘
+          │  signalling (who is where)                                │
+          └──────────────►  remohop signal  ◄─────────────────────────┘
+                    (optional relay and websocket bridge, off by default)</code></pre>
+<h2 id="layers">Layers</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Layer / Package / Job">
+<table>
+<thead><tr><th scope="col">Layer</th><th scope="col">Package</th><th scope="col">Job</th></tr></thead>
+<tbody>
+<tr><td>Framing</td><td><code>internal/wire</code></td><td>length-prefixed JSON messages and typed binary frames</td></tr>
+<tr><td>Session</td><td><code>internal/peer</code></td><td><code>Conn</code>: an authenticated session multiplexing service streams</td></tr>
+<tr><td>Rendezvous</td><td><code>internal/signal</code></td><td>ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts (<code>remohop signal</code>)</td></tr>
+<tr><td>NAT traversal</td><td><code>internal/nat</code></td><td>candidate gathering, UDP hole punching</td></tr>
+<tr><td>Websocket bridge</td><td><code>internal/wsdgram</code></td><td>UDP datagrams over a WebSocket (HTTPS proxy aware), for networks without UDP</td></tr>
+<tr><td>Authentication</td><td><code>internal/auth</code></td><td>identity keys, password PAKE bound to the TLS channel, pairing</td></tr>
+<tr><td>Host daemon</td><td><code>internal/hostd</code></td><td><code>remohop host</code>: registers, accepts sessions, serves <code>peer.HostServices</code></td></tr>
+<tr><td>Dialling</td><td><code>internal/dial</code></td><td><code>remohop &lt;ID&gt; ...</code>: resolve, punch, connect, authenticate → <code>*peer.Conn</code></td></tr>
+<tr><td>Services</td><td><code>internal/svc/*</code></td><td>one package per feature, owning host handler + client API + CLI</td></tr>
+<tr><td>X11 discovery</td><td><code>internal/x11disp</code></td><td>which display a daemon should use, and its Xauthority cookie</td></tr>
+<tr><td>CLI</td><td><code>internal/cli</code>, <code>cmd/remohop</code></td><td>command registry and dispatcher</td></tr>
+<tr><td>Background</td><td><code>internal/bg</code></td><td><code>-b</code> detaching, <code>remohop ps</code>, <code>remohop stop</code></td></tr>
+<tr><td>MCP</td><td><code>internal/mcp</code></td><td><code>remohop mcp</code>: the services as MCP tools for AI agents</td></tr>
+<tr><td>Accounts</td><td><code>internal/account</code></td><td>client side of accounts (<code>remohop login</code>, <code>remohop account</code>), the signed membership log, host-side account-trust</td></tr>
+<tr><td>Mesh</td><td><code>internal/mesh</code></td><td><code>remohop net</code>: the mesh network of an account's devices, running inside the host daemon (see <a href="/en/docs/net/">net.md</a>)</td></tr>
+<tr><td>Tailscale</td><td><code>internal/tailnet</code></td><td>detects a running Tailscale and offers its addresses as candidate paths</td></tr>
+<tr><td>Web gateway</td><td><code>internal/web</code></td><td><code>remohop web</code>: a browser UI that is the client of a normal session</td></tr>
+<tr><td>Quick support</td><td><code>internal/quick</code>, <code>cmd/remohop-quick</code></td><td><code>remohop quick</code> and the double-click <code>RemoHop.exe</code> / <code>RemoHop.app</code></td></tr>
+<tr><td>OS services</td><td><code>internal/service</code>, <code>internal/unattended</code></td><td><code>remohop service install</code> (systemd, launchd, Windows service); Windows console access for <code>--unattended</code></td></tr>
+<tr><td>Input</td><td><code>internal/inject</code></td><td>pointer and keyboard injection (XTEST on X11, Quartz events on macOS, SendInput on Windows)</td></tr>
+<tr><td>Permissions</td><td><code>internal/perm</code></td><td>which feature switch each host service belongs to</td></tr>
+<tr><td>Mobile core</td><td><code>internal/mobile</code>, <code>mobile/</code></td><td>the in-process gateway of the Android and iOS apps</td></tr>
+<tr><td>Grants</td><td><code>internal/grant</code></td><td>scoped, expiring access for agents: allow-list parsing, path and command checks, the <code>Guard</code> services ask, asciicast recording (stored and enforced by <code>internal/hostd</code>, see <a href="/en/docs/agents/">agents.md</a>)</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="services">Services</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Package / Commands / Notes">
+<table>
+<thead><tr><th scope="col">Package</th><th scope="col">Commands</th><th scope="col">Notes</th></tr></thead>
+<tbody>
+<tr><td><code>svc/shell</code></td><td><code>shell</code>, <code>spawn</code>, <code>jobs</code>, <code>logs</code>, <code>kill</code></td><td>PTY sessions that outlive the connection; exec with separate stdout/stderr; detached jobs with on-disk logs</td></tr>
+<tr><td><code>svc/fs</code></td><td><code>ls</code>, <code>cp</code>, <code>send</code>, <code>sync</code>, <code>mount</code>, <code>umount</code></td><td><code>rfs</code> is the pipelined file protocol, <code>xfer</code> copies and syncs, <code>mount</code> is the FUSE filesystem or a loopback WebDAV server</td></tr>
+<tr><td><code>svc/forward</code></td><td><code>forward</code>, <code>unforward</code></td><td>one stream per TCP connection, UDP forwards; reverse forwards call back into the client</td></tr>
+<tr><td><code>svc/clip</code></td><td><code>clip</code></td><td>text and image sync, one-shot get/set, local history</td></tr>
+<tr><td><code>svc/screenshot</code></td><td><code>screenshot</code></td><td>pure-Go X11 capture on Linux; platform capture on macOS and Windows</td></tr>
+<tr><td><code>svc/input</code></td><td><code>click</code>, <code>move</code>, <code>type</code>, <code>press</code>, <code>scroll</code></td><td>single pointer and keyboard actions through <code>internal/inject</code></td></tr>
+<tr><td><code>svc/desktop</code></td><td><code>desktop</code></td><td>H.264 or AV1 video (and optional Opus audio) from an <code>ffmpeg</code> subprocess on the host, WebCodecs viewer served on the client's loopback, input through <code>internal/inject</code></td></tr>
+<tr><td><code>svc/vpn</code></td><td><code>vpn</code></td><td>IP packets through the session (TUN on Linux, utun on macOS, Wintun on Windows)</td></tr>
+<tr><td><code>svc/serial</code></td><td><code>serial</code></td><td>a host serial port as a local virtual port</td></tr>
+<tr><td><code>svc/usb</code></td><td><code>usb</code></td><td>USB/IP export of allowed host devices (Linux)</td></tr>
+<tr><td><code>svc/wake</code></td><td><code>wake</code>, <code>wol</code></td><td>Wake-on-LAN, sent locally or by the host</td></tr>
+<tr><td><code>svc/sysinfo</code></td><td><code>info</code></td><td>what kind of machine the host is</td></tr>
+</tbody>
+</table>
+</div>
+<p>The desktop service is the one place the binary leans on an external
+program: capturing and encoding in <code>ffmpeg</code> is what makes hardware video
+encoders reachable without cgo. The host needs <code>ffmpeg</code> only for <code>desktop</code>.</p>
+<h2 id="session-model">Session model</h2>
+<p>A <code>peer.Conn</code> is one QUIC connection. Every feature opens its own
+bidirectional streams with <code>conn.Open(ctx, "service", req)</code>:</p>
+<ol>
+<li>opener writes a JSON header <code>{"service": "...", "req": {...}}</code></li>
+<li>acceptor looks the service up and answers <code>{"ok": true}</code> or
+<code>{"ok": false, "error": "..."}</code></li>
+<li>from there the stream carries whatever the service defines, built from
+<code>wire.WriteJSON/ReadJSON</code> and <code>wire.WriteFrame/ReadFrame</code></li>
+</ol>
+<p>Hosts expose <code>peer.HostServices</code> (services register with <code>peer.Handle</code> from
+<code>init()</code>). Clients expose nothing unless they opt in per session with
+<code>conn.HandleLocal</code>, so a host can never open a shell on the machine that is
+controlling it.</p>
+<h2 id="connection-establishment">Connection establishment</h2>
+<ol>
+<li><strong>Host</strong> generates an Ed25519 identity, opens one UDP socket and connects
+to the rendezvous server over QUIC <em>from that socket</em>. The server sees the
+socket's public (reflexive) address, verifies key possession and assigns a
+stable 9-digit ID to the key.</li>
+<li><strong>Client</strong> does the same from its own socket and asks for the ID.</li>
+<li>The server sends each side the other's candidates (reflexive address plus
+local interface addresses). It never sees session traffic.</li>
+<li>Both sides send punch probes to every candidate from the same socket, then
+the client opens a QUIC connection to the host on the first path that
+answers. Both ends of that connection reuse the punched socket.</li>
+<li><strong>Authentication</strong>: QUIC's TLS 1.3 gives encryption but the peers have no
+PKI, so on the first stream they run CPace (a balanced PAKE) over the
+password, with the TLS exporter of this exact connection mixed in. A
+man-in-the-middle — including a malicious rendezvous server — ends up with
+different exporters on its two legs and fails the key confirmation, and
+learns nothing that helps guess the password offline. The host rate-limits
+failed attempts.</li>
+<li>The credential is either the host's temporary password or a high-entropy
+token minted by <code>remohop &lt;ID&gt; pair</code>, so paired clients (and AI agents)
+reconnect without prompts.</li>
+</ol>
+<p>If no direct path can be punched (for example two symmetric NATs), the
+client uses the rendezvous server's relay when its operator enabled one
+(<code>remohop signal --relay</code>); the relay carries the same QUIC session and sees only
+ciphertext. Without a relay the connection fails with a diagnostic. A peer
+whose network blocks UDP can reach the server through its websocket bridge
+(<code>internal/wsdgram</code>); such sessions always use the relay. A shared Tailscale
+tailnet is used as one more candidate path when both machines are on it.</p>
+<h2 id="trust-boundaries">Trust boundaries</h2>
+<ul>
+<li><strong>Rendezvous server: untrusted.</strong> It learns who is online and their
+addresses, and a relay also sees the size and timing of relayed sessions.
+It cannot read or join a session, and a malicious one gets no password
+guesses, because the key exchange is bound to the end-to-end TLS connection.
+See <a href="/en/docs/security/">security.md</a>.</li>
+<li><strong>Strangers on the host's UDP port: untrusted.</strong> Until login completes a
+connection can open a bounded number of streams, send bounded messages and
+hold one of a bounded number of pending slots; no service is reachable.</li>
+<li><strong>Authenticated client: trusted by the host within the enabled features.</strong>
+It acts with the host user's privileges, unless it logged in with a grant
+(<code>internal/grant</code>), which narrows what it may do.</li>
+<li><strong>Host: not trusted by the client.</strong> It can open only the callbacks the
+client registered, its file names are validated before anything is written
+locally, and text it supplies is sanitised before reaching the terminal.</li>
+</ul>
+<h2 id="testing">Testing</h2>
+<ul>
+<li>Unit and integration tests run against real QUIC on loopback
+(<code>peertest.Pair</code>), real PTYs, real FUSE mounts and a real X server (Xvfb).</li>
+<li>NAT traversal is tested twice: against simulated NATs of every type inside
+one process (<code>internal/nat/vnet</code>), and with the real binary across two
+Linux-kernel NATs in network namespaces (<code>test/natlab/natlab.sh</code>).</li>
+</ul>
+<h2 id="conventions-for-feature-packages">Conventions for feature packages</h2>
+<ul>
+<li>A service package owns <strong>everything</strong> for its feature: the host handler
+(<code>peer.Handle</code>), an exported Go client API taking a <code>*peer.Conn</code> (the MCP
+server calls it), and its CLI commands (<code>cli.Register</code>).</li>
+<li>Pure Go, <code>CGO_ENABLED=0</code>. Linux is the reference platform; the package must
+still compile for <code>GOOS=darwin</code> and <code>GOOS=windows</code> (stubs that return a
+clear "not supported on this platform" error are fine).</li>
+<li>Tests use <code>peertest.Pair(t)</code> for a real loopback session and
+<code>cli.Env{DialFunc: ...}</code> to drive commands.</li>
+<li>CLI: human-readable output on stdout, diagnostics on stderr via
+<code>env.Errorf</code>, <code>--json</code> wherever an agent would want to parse the result,
+exit codes from <code>internal/cli</code> (<code>ExitOK</code>, <code>ExitError</code>, <code>ExitUsage</code>,
+<code>ExitConnect</code>).</li>
+<li>Remote paths are written with a leading colon (<code>:/var/log</code>), local paths
+without.</li>
+<li>Long-lived client commands take <code>-b/--background</code> through <code>internal/bg</code>.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/ARCHITECTURE.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

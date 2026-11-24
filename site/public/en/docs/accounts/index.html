@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Accounts (optional) | RemoHop</title>
+<meta name="description" content="An account only groups your own devices, so that each can list the others and see which are online (remohop devices). It grants no access: connecting to a…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/accounts/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/accounts/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/accounts/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/accounts/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Accounts (optional) | RemoHop">
+<meta property="og:description" content="An account only groups your own devices, so that each can list the others and see which are online (remohop devices). It grants no access: connecting to a…">
+<meta property="og:url" content="https://remohop.com/en/docs/accounts/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/accounts/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="accounts-optional">Accounts (optional)</h1>
+<p>An account only groups your own devices, so that each can list the others and see which are online (<code>remohop devices</code>). It grants no access: connecting to a host still needs a password, pairing token or key that the host accepts.</p>
+<p>Accounts live on the rendezvous server. Its operator turns them on with <code>remohop signal --accounts</code> (SMTP and an allowed-address rule are also required; see <code>remohop help signal</code>).</p>
+<pre tabindex="0"><code class="language-bash">remohop login me@example.com
+remohop account
+remohop account approve 3f9a:01bc:77d2:e410:9c55
+remohop account remove old-laptop
+remohop logout</code></pre>
+<ul>
+<li>The server mails the login code: 8 digits, valid 10 minutes, single use.</li>
+<li>The first device to log in creates the account. Every further device must be approved by a device already in it.</li>
+<li>Joining needs a full-fingerprint comparison on both devices. The new device shows the <strong>account fingerprint</strong>: confirm it equals the one <code>remohop account</code> shows on your other device. It also prints <strong>its own identity fingerprint</strong>: on the other device run <code>remohop account approve FINGERPRINT</code> with the complete value. A prefix is refused.</li>
+<li>Membership is a hash-chained log signed by the account's own devices. The server stores and relays it but holds no member key, so it cannot add a device.</li>
+<li>Trusting account devices is opt-in per host. <code>remohop config account-trust on</code> (default off) makes a host accept the account's other devices like keys authorised with <code>remohop authorize</code>. The host re-checks the signed list about once a minute. After <code>remohop account remove</code>, hosts with the option stop accepting that device at their next check.</li>
+<li>A server can still refuse service, and can withhold the newest log entries (a removal, for example) from a device. A host that cannot reach the server keeps the last verified list for up to 7 days, then trusts no account device. Full discussion: <a href="/en/docs/security/#accounts">security.md</a>.</li>
+</ul>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/accounts.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

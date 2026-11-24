@@ -1,0 +1,6 @@
+# gomobile output (build-xcframework.sh) and Xcode per-user state.
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+RemoHop.xcodeproj/project.xcworkspace/xcuserdata/

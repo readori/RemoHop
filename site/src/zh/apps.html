@@ -1,0 +1,62 @@
+<h1>Android 与 iOS 控制端应用</h1>
+<p>手机应用用来在手机或平板上连接并操作你的电脑。它们只是<strong>控制端</strong>：手机不能被控。</p>
+
+<div class="note">
+<p><strong>发布状态：</strong>iOS 版正在准备通过 TestFlight 测试，还没有上架 App Store；Android 版没有上架任何应用商店，也没有可下载的 APK。<!--src-->现在想用，只能自己从源码构建。<!--/src-->上架后，这一页会换成商店链接。</p>
+</div>
+
+<h2 id="what">应用里有什么</h2>
+<p>两个应用的结构相同：一个原生外壳，加一个显示 <code>remohop web</code> 网关的 WebView。网关和 Go 核心直接运行在应用进程里，只监听手机自己的 <code>127.0.0.1</code>，所以会话仍然是手机和被控机之间端到端加密的点对点连接，中间没有 Readori 的服务器。</p>
+<ul>
+<li><strong>远程桌面：</strong>查看并控制电脑屏幕，可以全屏、切换画质和显示器。</li>
+<li><strong>终端：</strong>持久的 shell 会话，带 Esc、Tab、Ctrl、方向键等辅助按键。</li>
+<li><strong>文件：</strong>浏览、上传、下载、新建文件夹、重命名和删除。</li>
+<li><strong>剪贴板：</strong>在手机和电脑之间传文本。</li>
+<li><strong>系统信息和截图。</strong></li>
+<li><strong>界面语言：</strong>应用及其页面都有简体中文和英文，默认跟随系统，可在设置里切换。</li>
+<li><strong>设置（原生界面）：</strong>界面语言、汇合服务器地址和公钥、是否允许中继、设备名、本机身份指纹、用密码配对、已保存的主机。</li>
+</ul>
+
+<h2 id="limits">目前的限制</h2>
+<ul>
+<li>只是控制端。把 Android 或 iOS 设备作为被控机没有实现。</li>
+<li>没有内置服务器。要么在设置里填你自己的汇合服务器，要么用 <code>主机:端口</code> 直接连接。</li>
+<li>没有账号登录功能。</li>
+<li>iOS 应用只在 CI 的 iOS 模拟器里运行过：应用内的测试用地址和密码连接一台 <code>remohop host</code>，在终端里执行一条命令，并在“文件”里列出一个目录。还没有在实体 iPhone 或 iPad 上验证过。</li>
+<li>Android 应用没有在真机上测试过。</li>
+</ul>
+
+<h2 id="requirements">系统要求</h2>
+<div class="table-wrap" tabindex="0" role="region" aria-label="系统要求">
+<table>
+<thead><tr><th scope="col"></th><th scope="col">iOS / iPadOS</th><th scope="col">Android</th></tr></thead>
+<tbody>
+<tr><th scope="row">最低系统版本</th><td>iOS 16.0</td><td>Android 8.0（API 26）</td></tr>
+<tr><th scope="row">设备</th><td>iPhone 和 iPad</td><td>手机和平板</td></tr>
+<tr><th scope="row">应用标识</th><td><code>com.remohop.app</code></td><td><code>com.remohop.app</code></td></tr>
+<tr><th scope="row">系统权限</th><td>本地网络；上传照片时由系统选择器访问相机或照片</td><td>网络访问、网络状态</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2 id="privacy">应用和你的数据</h2>
+<p>应用只和两类对象通信：你连接的被控机，以及你在设置里填写的汇合服务器。身份密钥、配对令牌和设置保存在应用的私有目录里，不参与系统备份。应用里没有分析统计、广告或崩溃上报的 SDK。完整说明见<a href="{{L:privacy}}">隐私政策</a>。</p>
+
+<!--src-->
+<h2 id="build">自己构建</h2>
+<h3>Android</h3>
+<p>需要 Go、JDK 17 以上、Android SDK 和 NDK，并设置 <code>ANDROID_HOME</code>。默认生成 debug APK 并运行 JVM 单元测试：</p>
+<pre><code>mobile/android/build.sh</code></pre>
+<h3>iOS</h3>
+<p>在 macOS 上先生成 Go 核心的 xcframework，再用 Xcode 构建工程：</p>
+<pre><code>mobile/ios/build-xcframework.sh
+open mobile/ios/RemoHop.xcodeproj</code></pre>
+<!--/src-->
+
+<h2 id="first-use">第一次使用</h2>
+<ol>
+<li>在电脑上运行 <code>remohop host</code>，记下 ID（或地址）和密码。</li>
+<li>在应用的设置里填入你的汇合服务器；和电脑在同一个局域网时可以不填，直接用 <code>192.168.1.5:21118</code> 这样的地址（电脑上用 <code>remohop host --no-signal --listen :21118</code> 启动）。</li>
+<li>在连接页输入 ID 或地址和密码。勾选配对后，下次不需要密码。</li>
+</ol>
+<p>遇到问题请看<a href="{{L:support}}">支持</a>。真机上的问题报告对我们尤其有用。</p>

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>AI agents | RemoHop</title>
+<meta name="description" content="remohop mcp runs RemoHop as an MCP server on stdio. The agent host starts it. Register it with Claude Code:">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/ai-agents/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/ai-agents/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/ai-agents/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/ai-agents/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="AI agents | RemoHop">
+<meta property="og:description" content="remohop mcp runs RemoHop as an MCP server on stdio. The agent host starts it. Register it with Claude Code:">
+<meta property="og:url" content="https://remohop.com/en/docs/ai-agents/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/ai-agents/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="ai-agents">AI agents</h1>
+<h2 id="mcp-server">MCP server</h2>
+<p><code>remohop mcp</code> runs RemoHop as an MCP server on stdio. The agent host starts it. Register it with Claude Code:</p>
+<pre tabindex="0"><code class="language-bash">claude mcp add remohop -- remohop mcp
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+<p>For Cursor and other clients that read an <code>mcpServers</code> configuration:</p>
+<pre tabindex="0"><code class="language-json">{
+  "mcpServers": {
+    "remohop": {
+      "command": "remohop",
+      "args": ["mcp"]
+    }
+  }
+}</code></pre>
+<p>Add <code>"--target", "276941009"</code> to <code>args</code> to set a default machine. The server uses the pairings you created with <code>remohop &lt;ID&gt; pair</code>, so pair first. It cannot prompt for a password and the tools never accept one. If a machine is not paired, or the host has switched a feature off, the tool error says what a person has to run.</p>
+<p>The 29 tools fall into these groups. Every tool takes a <code>target</code> (ID, alias or <code>host:port</code>) unless <code>--target</code> is set.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Group / Tools">
+<table>
+<thead><tr><th scope="col">Group</th><th scope="col">Tools</th></tr></thead>
+<tbody>
+<tr><td>Machines</td><td><code>remohop_info</code>, <code>remohop_peers</code>, <code>remohop_limits</code></td></tr>
+<tr><td>Shell and jobs</td><td><code>remohop_exec</code>, <code>remohop_spawn</code>, <code>remohop_jobs</code>, <code>remohop_job_logs</code>, <code>remohop_job_kill</code>, <code>remohop_job_wait</code></td></tr>
+<tr><td>Files</td><td><code>remohop_read_file</code>, <code>remohop_write_file</code>, <code>remohop_list_dir</code>, <code>remohop_upload</code>, <code>remohop_download</code>, <code>remohop_send</code></td></tr>
+<tr><td>Network</td><td><code>remohop_forward_start</code>, <code>remohop_forward_list</code>, <code>remohop_forward_stop</code>, <code>remohop_wake</code></td></tr>
+<tr><td>Clipboard</td><td><code>remohop_clipboard_get</code>, <code>remohop_clipboard_set</code>, <code>remohop_clipboard_history</code></td></tr>
+<tr><td>Screen and GUI</td><td><code>remohop_screenshot</code>, <code>remohop_displays</code>, <code>remohop_click</code>, <code>remohop_move</code>, <code>remohop_scroll</code>, <code>remohop_type</code>, <code>remohop_key</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>The pointer tools take coordinates in the last screenshot image by default. The tool table is in <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a>.</p>
+<h2 id="agent-skills">Agent Skills</h2>
+<p><code>skills/</code> contains six Agent Skills that teach an agent to use the CLI: <code>remohop-shell</code>, <code>remohop-port-forward</code>, <code>remohop-clipboard</code>, <code>remohop-screenshot</code>, <code>remohop-gui</code> and <code>remohop-files</code>. For Claude Code (run from the repository root):</p>
+<pre tabindex="0"><code class="language-bash">mkdir -p ~/.claude/skills
+for s in skills/remohop-*; do ln -sfn "$PWD/$s" ~/.claude/skills/$(basename "$s"); done</code></pre>
+<p>See <a href="https://github.com/readori/RemoHop/blob/main/skills/README.md">skills/README.md</a> for other agents and the setup steps.</p>
+<h2 id="agent-security">Agent security</h2>
+<p>An agent with a pairing acts on the remote machine with the privileges of the user running the host. To hand a machine to an agent with less than that, issue a grant on the host: it limits what the agent may use (commands only or an allow-list of commands, files below given directories, screenshots, ...), expires, can ask you to approve each command and file change, records the session, and is written to the audit log under its name.</p>
+<pre tabindex="0"><code class="language-bash">remohop host grant claude-session --for 2h --allow shell:run-only,files:read:~/project,screenshot   # on the host
+remohop peers redeem 276941009 remohopg1-...                                                        # on the agent's machine
+remohop host panic                                                                                  # on the host: end every agent session now</code></pre>
+<p>The host enforces the grant; <code>remohop_limits</code> tells the agent what it allows, and refusals name the limit (<code>files:write is not allowed by grant claude-session</code>). <code>remohop mcp --read-only</code> also hides every tool that changes something. <a href="/en/docs/agents/">agents.md</a> covers grants, approvals, the audit log and recordings, the kill switch, and exact setup for Claude Code, Claude Desktop, Cursor and VS Code. Without grants: pair only the machines you want the agent to reach, switch off the features it does not need (<code>remohop config feature input off</code>), and revoke pairings you no longer need with <code>remohop host revoke</code>. See <a href="/en/docs/security/#what-an-authenticated-client-can-do">security.md</a>.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/ai-agents.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

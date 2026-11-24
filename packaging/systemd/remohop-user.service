@@ -1,0 +1,17 @@
+# Per-user RemoHop host. Not enabled by the package; to use it, as the user:
+#   systemctl --user enable --now remohop.service
+# and, to start at boot without logging in:
+#   sudo loginctl enable-linger $USER
+[Unit]
+Description=RemoHop host (remote control)
+Documentation=https://github.com/readori/RemoHop
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/remohop host
+Restart=on-failure
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=default.target

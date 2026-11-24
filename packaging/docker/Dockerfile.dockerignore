@@ -1,0 +1,9 @@
+# Only what the build needs; everything else (dist, mobile apps, site, tests, .git)
+# stays out of the build context. Used automatically by BuildKit for Dockerfile.
+*
+!go.mod
+!go.sum
+!LICENSE
+!cmd
+!internal
+!packaging/docker/healthcheck

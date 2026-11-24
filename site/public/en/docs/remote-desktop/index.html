@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Screen and remote desktop | RemoHop</title>
+<meta name="description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/en/docs/remote-desktop/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/remote-desktop/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/remote-desktop/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/remote-desktop/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Screen and remote desktop | RemoHop">
+<meta property="og:description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
+<meta property="og:url" content="https://remohop.com/en/docs/remote-desktop/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/" aria-current="true">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="/en/support/">Support</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/docs/remote-desktop/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
+<h1 id="screen-and-remote-desktop">Screen and remote desktop</h1>
+<p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. <code>dev</code> is the example alias from <code>remohop &lt;ID&gt; pair --name dev</code> (see <a href="/en/docs/quick-start/">Quick start</a>). Run <code>remohop help &lt;command&gt;</code> for the full syntax.</p>
+<p>Capture a screenshot, of a display or a region:</p>
+<pre tabindex="0"><code class="language-bash">remohop dev screenshot -o /tmp/screen.png
+remohop dev screenshot --max-width 1280 --format jpeg --json
+remohop dev screenshot -R 0,0,800,600 -o /tmp/corner.png</code></pre>
+<p>Show the remote screen in a browser tab and control it:</p>
+<pre tabindex="0"><code class="language-bash">remohop dev desktop
+remohop dev desktop --max-height 1080 --fps 30
+remohop dev desktop --codec h264 --record meeting.mp4
+remohop dev desktop --audio --display all
+remohop dev desktop --bench --bench-duration 20s</code></pre>
+<ul>
+<li>
+<p><strong>Codec.</strong> AV1 when the host has a GPU AV1 encoder; otherwise low-latency H.264, hardware-encoded where available, else libx264. On a CPU-only host, H.264 measured about half the latency of software AV1 or less. <code>--codec av1</code> forces AV1.</p>
+</li>
+<li>
+<p><strong>Viewer.</strong> The page has buttons for key combinations a browser keeps to itself (Ctrl+Alt+Del, Alt+Tab, the Windows key), Unicode typing, quality presets, monitor switching, locking the remote screen, clipboard transfer, file upload, audio and recording.</p>
+</li>
+<li>
+<p><strong>Recording.</strong> <code>--record FILE.mp4</code> (or the Record button) writes the received stream to a fragmented MP4 on this machine without re-encoding.</p>
+</li>
+<li>
+<p><strong>Audio.</strong> <code>--audio</code> (or the page's Audio button; Mute silences it without stopping it) forwards what the host plays: the host captures its output with ffmpeg, encodes Opus (libopus, low-delay mode, 20 ms frames, 96 kbit/s) and sends it on its own stream next to the video, so a late video frame never delays sound. The page decodes it with WebCodecs and plays it through Web Audio with a jitter buffer, scheduling every packet against its capture time and the video's own latency so picture and sound stay together. Audio is off unless asked for, belongs to the host's <code>screen</code> feature (a host with <code>screen</code> off serves none), can be switched off alone with <code>REMOHOP_DESKTOP_AUDIO=off</code> on the host, and only ever captures the machine's output, never a microphone. When the host cannot capture, <code>--audio</code> stops with the reason and what to install, and the page's button shows the same message. What the host needs:</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Host / How the output is captured">
+<table>
+<thead><tr><th scope="col">Host</th><th scope="col">How the output is captured</th></tr></thead>
+<tbody>
+<tr><td>Linux</td><td>PulseAudio, or PipeWire with <code>pipewire-pulse</code>, reachable from the process running <code>remohop</code> (it records the monitor of the default output), and an ffmpeg with libpulse and libopus. Tested with a PulseAudio null sink.</td></tr>
+<tr><td>Windows</td><td>ffmpeg's WASAPI loopback if the build has it, else a DirectShow loopback device: <code>virtual-audio-capturer</code> (the free screen-capture-recorder driver) or the sound card's "Stereo Mix" once enabled. Each candidate is test-run before use. Not verified on a real Windows machine.</td></tr>
+<tr><td>macOS</td><td>macOS cannot record its own output: install a loopback driver such as BlackHole, create a Multi-Output Device (speakers plus BlackHole) in Audio MIDI Setup, select it as the output, and give <code>remohop</code> the Microphone permission. Without such a device <code>--audio</code> says so; a microphone is never picked on its own. Not verified on a real Mac.</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>REMOHOP_DESKTOP_AUDIO_SOURCE</code> on the host names a different source (a PulseAudio source, a DirectShow device, an AVFoundation device name or index).</p>
+</li>
+<li>
+<p><strong>Monitors.</strong> The page's monitor menu switches while the session runs, between one monitor and <strong>All monitors</strong>, a single picture of the whole virtual desktop (also with monitors of different sizes and positions; the gaps are black). Pointer input is mapped onto what is shown. <code>--display all</code> or <code>--display N</code> starts on one; the command lists the host's monitors. All monitors is one X11 root window on Linux and a GDI capture of the virtual-desktop bounding box on Windows (Desktop Duplication is per monitor, so this view uses more CPU; not verified on a multi-monitor Windows machine). macOS has no all-monitors view: AVFoundation captures one display at a time, and the host reports that instead of offering it.</p>
+</li>
+<li>
+<p><strong>Files.</strong> Drop files from your file manager onto the page, or use its Upload button, to copy them to the host user's Downloads folder (<code>--upload-dir DIR</code> picks another host directory) with a progress row per file. It goes through the host's file service, so it needs the <code>file</code> feature, never overwrites (an existing name gets <code> (1)</code>), and is refused in a view-only session. Limits: files only (no folders: zip one first); and no copy-and-paste of files. The page hands Ctrl+V to the remote machine, the remote clipboard carries text and images but no file lists, and a browser exposes pasted files only to a paste event, which the remote-keyboard capture would cancel. Drop or Upload, then paste the file's path from the remote file manager.</p>
+</li>
+<li>
+<p><strong>Numbers.</strong> <code>remohop &lt;ID&gt; desktop --bench</code> (<code>--bench-duration 20s</code>, <code>--audio</code>, <code>--json</code>) opens a session without a browser and reports frame rate, video bitrate and capture-to-received latency (host clock to arrival, with the session's clock-offset estimate), plus the host's own pipeline delay and drops. Measured in a Linux container (4 vCPU, ffmpeg 6.1.1, Xvfb 1280x720 with a changing picture, loopback QUIC between the two ends, <code>REMOHOP_BENCH_REPORT=1 go test ./internal/svc/desktop -run TestBenchReportXvfb -v</code>):</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Stream / fps / video / capture to received (mean, p95)">
+<table>
+<thead><tr><th scope="col">Stream</th><th scope="col">fps</th><th scope="col">video</th><th scope="col">capture to received (mean, p95)</th></tr></thead>
+<tbody>
+<tr><td>H.264 libx264, 60 fps</td><td>60.0</td><td>2.4 Mbit/s</td><td>5.9 ms, 8.5 ms</td></tr>
+<tr><td>H.264 libx264, 30 fps</td><td>30.0</td><td>1.5 Mbit/s</td><td>6.7 ms, 9.0 ms</td></tr>
+<tr><td>AV1 SVT-AV1 (software), 30 fps</td><td>30.0</td><td>1.7 Mbit/s</td><td>70.0 ms, 72.1 ms</td></tr>
+</tbody>
+</table>
+</div>
+<p>These stop at the moment a frame reaches the viewer process, and x11grab stamps a frame when it grabs it, up to one frame period after the screen changed. The true change-to-picture figure, measured in headless Chromium 157 (H.264, 800x300, 30 fps; the test flashes a patch of the remote screen and a <code>requestAnimationFrame</code> loop notes when the canvas shows it, so it includes up to 33 ms of grab wait and up to 16 ms of detection): median 31 ms, p95 47 ms over 40 flashes (<code>go test ./internal/svc/desktop -run TestViewerPageXvfb -v</code>). Audio at 96 kbit/s adds 50 packets per second; its capture time is estimated from packet arrival (the host assumes a 37 ms capture-and-encode pipeline), so its capture-to-received mean of 47 ms is mostly that assumption, not an independent measurement. Real links add their own round trip, and a GPU encoder changes the encode figure.</p>
+</li>
+</ul>
+<p>The viewer listens on <code>127.0.0.1</code> behind a random URL; Ctrl-C ends it. The host needs ffmpeg with an H.264 or AV1 encoder; see <a href="/en/docs/troubleshooting/#ffmpeg-and-encoders">troubleshooting.md</a>.</p>
+<p>A macOS host needs the Screen Recording permission to capture and Accessibility for input. macOS gives the screen to one capture at a time, so all sessions of a macOS host share a single capture; <code>REMOHOP_MAC_DIRECT_CAPTURE=1</code> on the host turns that off (one capture per session) if the shared one misbehaves.</p>
+<h2 id="gui-automation">GUI automation</h2>
+<p>These commands drive the remote pointer and keyboard. Coordinates are pixels of the selected display as a full-size screenshot shows it, with 0,0 at the top left:</p>
+<pre tabindex="0"><code class="language-bash">remohop dev click 412 230
+remohop dev move 800 12
+remohop dev type "hello world"
+remohop dev press ctrl+a Delete
+remohop dev scroll 0 5</code></pre>
+<p>If you measured coordinates in a downscaled screenshot, pass its size:</p>
+<pre tabindex="0"><code class="language-bash">remohop dev screenshot --max-width 1280 -o s.png
+remohop dev click 640 360 --scale-from 1280x720</code></pre>
+<p>Use <code>-d</code> with a monitor index or name from <code>screenshot --list</code>. Do not type secrets with <code>type</code>: the text passes through your terminal or agent transcript.</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/remote-desktop.md">Source file (GitHub)</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+<li><a href="/en/apps/">Apps</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/self-hosting/">Self-hosting</a></li>
+<li><a href="https://github.com/readori/RemoHop">Source (GitHub)</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="/en/privacy/">Privacy policy</a></li>
+<li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/licensing/">Licensing</a></li>
+</ul>
+</div>
+<div>
+<h2>Contact</h2>
+<ul>
+<li><a href="/en/support/">Support</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+</div>
+</footer>
+</body>
+</html>

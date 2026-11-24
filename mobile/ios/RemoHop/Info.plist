@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged with the keys Xcode generates from the INFOPLIST_KEY_* build settings. -->
+<plist version="1.0">
+<dict>
+	<!-- English and Simplified Chinese (en.lproj and zh-Hans.lproj hold the
+	     permission texts; the screens switch language in Settings). -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
+	<!-- Plain HTTP only to the in-process gateway on 127.0.0.1; everything else
+	     follows ATS (the P2P sessions are QUIC over UDP and not subject to it). -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>RemoHop connects directly to computers you control on your local network.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo to upload it to a remote computer.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose photos and videos to upload to a remote computer.</string>
+</dict>
+</plist>

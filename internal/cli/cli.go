@@ -1,0 +1,361 @@
+// Package cli is the `remohop` command framework: a registry that feature
+// packages add their subcommands to from init(), and the dispatcher that
+// turns `remohop [global flags] [<ID>] <command> [args]` into a call.
+package cli
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"sort"
+	"strings"
+	"sync"
+	"unicode/utf8"
+
+	"github.com/readori/RemoHop/internal/peer"
+)
+
+// Exit codes shared by every command.
+const (
+	ExitOK      = 0
+	ExitError   = 1   // the command ran and failed
+	ExitUsage   = 2   // bad flags or arguments
+	ExitConnect = 255 // could not reach or authenticate to the remote peer
+)
+
+// Version is the build version, set with -ldflags "-X .../internal/cli.Version=...".
+var Version = "dev"
+
+// Globals are the flags accepted before the target or command.
+type Globals struct {
+	Verbose  bool
+	Signal   string // rendezvous server address override
+	Password string // password for the target, overriding saved credentials
+}
+
+// Env is what a command runs with.
+type Env struct {
+	// Target is the remote peer the command addresses: a 9-digit ID, a saved
+	// alias, or a direct host:port. Empty for local commands.
+	Target  string
+	Globals Globals
+
+	Stdin  io.Reader
+	Stdout io.Writer
+	Stderr io.Writer
+
+	// DialFunc connects to a target. The dispatcher fills it with Dialer;
+	// tests substitute a function returning a peertest connection.
+	DialFunc func(ctx context.Context, env *Env) (*peer.Conn, error)
+
+	once    sync.Once
+	conn    *peer.Conn
+	connErr error
+}
+
+// Dialer is the production implementation of Env.DialFunc. internal/dial
+// installs it from init().
+var Dialer func(ctx context.Context, env *Env) (*peer.Conn, error)
+
+// Conn returns the session with Target, establishing it on first use. Every
+// call returns the same session.
+func (e *Env) Conn(ctx context.Context) (*peer.Conn, error) {
+	e.once.Do(func() {
+		switch {
+		case e.Target == "":
+			e.connErr = fmt.Errorf("no target: usage is `remohop <ID> <command>`")
+		case e.DialFunc == nil:
+			e.connErr = fmt.Errorf("no dialer configured")
+		default:
+			e.conn, e.connErr = e.DialFunc(ctx, e)
+		}
+	})
+	return e.conn, e.connErr
+}
+
+// Close ends the session opened by Conn, if any.
+func (e *Env) Close() {
+	if e.conn != nil {
+		e.conn.Close()
+	}
+}
+
+// Errorf prints a "remohop: ..." diagnostic to Stderr. The message is passed
+// through Sanitize, because diagnostics routinely quote text that came from
+// the remote peer or the rendezvous server.
+func (e *Env) Errorf(format string, args ...any) {
+	fmt.Fprintf(e.Stderr, "remohop: %s\n", Sanitize(fmt.Sprintf(format, args...)))
+}
+
+// Sanitize makes text from an untrusted peer safe to print on a terminal. It
+// replaces control characters (keeping newline and tab), the C1 range, and
+// the Unicode bidirectional overrides with '?', so the text cannot move the
+// cursor, retitle the window, write the clipboard through OSC 52, or
+// disguise what is displayed. Commands must apply it to any peer-supplied
+// string they print themselves; raw payloads the user asked for (terminal
+// output, file contents, clipboard text) are of course left alone.
+func Sanitize(s string) string {
+	clean := true
+	for _, r := range s {
+		if unsafeRune(r) {
+			clean = false
+			break
+		}
+	}
+	if clean && utf8.ValidString(s) {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s { // invalid bytes decode as RuneError
+		if unsafeRune(r) || r == utf8.RuneError {
+			b.WriteByte('?')
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func unsafeRune(r rune) bool {
+	switch {
+	case r == '\n' || r == '\t':
+		return false
+	case r < 0x20 || r == 0x7f:
+		return true
+	case r >= 0x80 && r <= 0x9f: // C1 controls, including the 8-bit CSI/OSC
+		return true
+	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069: // bidi overrides and isolates
+		return true
+	case r == 0x200e || r == 0x200f || r == 0x061c: // directional marks
+		return true
+	}
+	return false
+}
+
+// Command is one `remohop` subcommand.
+type Command struct {
+	Name    string
+	Summary string // one line, shown in `remohop help`
+	Usage   string // full usage text, shown by `remohop help <name>`
+	// Remote commands are invoked as `remohop <ID> <name> ...` and use env.Conn.
+	Remote bool
+	Hidden bool
+	// RemoteRun, on a local command, is what `remohop <ID> <name> ...` runs: the
+	// same verb done by the remote machine (`remohop wake MAC` sends the packet
+	// from here, `remohop <ID> wake MAC` asks that host to send it).
+	RemoteRun func(ctx context.Context, env *Env, args []string) int
+	// Run executes the command and returns the process exit code. args are
+	// the arguments after the command name.
+	Run func(ctx context.Context, env *Env, args []string) int
+}
+
+var (
+	regMu    sync.RWMutex
+	registry = map[string]*Command{}
+)
+
+// Register adds a command. It panics on a duplicate name so collisions show
+// up at startup rather than as a silently shadowed command.
+func Register(c *Command) {
+	regMu.Lock()
+	defer regMu.Unlock()
+	if _, dup := registry[c.Name]; dup {
+		panic("cli: duplicate command " + c.Name)
+	}
+	registry[c.Name] = c
+}
+
+// Lookup finds a command by name.
+func Lookup(name string) *Command {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	return registry[name]
+}
+
+// Commands lists every registered command sorted by name.
+func Commands() []*Command {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	out := make([]*Command, 0, len(registry))
+	for _, c := range registry {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+// Main parses args (without the program name), runs the selected command and
+// returns the exit code.
+func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	env := &Env{Stdin: stdin, Stdout: stdout, Stderr: stderr, DialFunc: Dialer}
+	env.Globals.Signal = os.Getenv("REMOHOP_SIGNAL")
+	env.Globals.Password = os.Getenv("REMOHOP_PASSWORD")
+	if os.Getenv("REMOHOP_DEBUG") != "" {
+		env.Globals.Verbose = true
+	}
+
+	args, err := parseGlobals(&env.Globals, args)
+	if err != nil {
+		env.Errorf("%v", err)
+		return ExitUsage
+	}
+	level := slog.LevelWarn
+	if env.Globals.Verbose {
+		level = slog.LevelDebug
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: level})))
+
+	if len(args) == 0 {
+		printHelp(stderr)
+		return ExitUsage
+	}
+	switch args[0] {
+	case "help", "-h", "--help":
+		return runHelp(env, args[1:])
+	case "version", "--version":
+		fmt.Fprintf(stdout, "remohop %s\n", Version)
+		return ExitOK
+	}
+
+	// `remohop <command> ...` for local commands, `remohop <target> <command> ...`
+	// for remote ones. A local command name always wins, so a saved alias can
+	// never shadow one.
+	if c := Lookup(args[0]); c != nil && !c.Remote {
+		return c.Run(ctx, env, args[1:])
+	}
+	if c := Lookup(args[0]); c != nil && c.Remote {
+		env.Errorf("%q needs a target: remohop <ID> %s ...", c.Name, c.Name)
+		return ExitUsage
+	}
+	if len(args) < 2 {
+		env.Errorf("unknown command %q (see `remohop help`)", args[0])
+		return ExitUsage
+	}
+	c := Lookup(args[1])
+	if c == nil {
+		env.Errorf("unknown command %q (see `remohop help`)", args[1])
+		return ExitUsage
+	}
+	run := c.Run
+	if !c.Remote {
+		if c.RemoteRun == nil {
+			env.Errorf("%q does not take a target: remohop %s ...", c.Name, c.Name)
+			return ExitUsage
+		}
+		run = c.RemoteRun
+	}
+	env.Target = NormalizeTarget(args[0])
+	defer env.Close()
+	return run(ctx, env, args[2:])
+}
+
+func parseGlobals(g *Globals, args []string) ([]string, error) {
+	for len(args) > 0 {
+		a := args[0]
+		name, val, hasVal := strings.Cut(a, "=")
+		takeVal := func() (string, error) {
+			if hasVal {
+				return val, nil
+			}
+			if len(args) < 2 {
+				return "", fmt.Errorf("flag %s needs a value", name)
+			}
+			v := args[1]
+			args = args[1:]
+			return v, nil
+		}
+		var err error
+		switch name {
+		case "-v", "--verbose":
+			g.Verbose = true
+		case "--signal":
+			g.Signal, err = takeVal()
+		case "--password":
+			g.Password, err = takeVal()
+		default:
+			return args, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		args = args[1:]
+	}
+	return args, nil
+}
+
+// NormalizeTarget strips the spaces and dashes people put in a 9-digit ID
+// ("123 456 789", "123-456-789"). Anything that is not such an ID is
+// returned unchanged.
+func NormalizeTarget(t string) string {
+	digits := strings.Map(func(r rune) rune {
+		if r == ' ' || r == '-' {
+			return -1
+		}
+		return r
+	}, t)
+	if IsID(digits) {
+		return digits
+	}
+	return t
+}
+
+// IsID reports whether s is a well-formed 9-digit RemoHop ID.
+func IsID(s string) bool {
+	if len(s) != 9 || s[0] == '0' {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func runHelp(env *Env, args []string) int {
+	if len(args) == 0 {
+		printHelp(env.Stdout)
+		return ExitOK
+	}
+	c := Lookup(args[0])
+	if c == nil {
+		env.Errorf("unknown command %q", args[0])
+		return ExitUsage
+	}
+	if c.Usage != "" {
+		fmt.Fprintln(env.Stdout, strings.TrimRight(c.Usage, "\n"))
+	} else {
+		fmt.Fprintf(env.Stdout, "%s: %s\n", c.Name, c.Summary)
+	}
+	return ExitOK
+}
+
+func printHelp(w io.Writer) {
+	fmt.Fprint(w, `RemoHop - lightweight P2P remote control
+
+Usage:
+  remohop [flags] <ID> <command> [args]   act on a remote machine
+  remohop [flags] <command> [args]        local commands
+
+Flags:
+  -v, --verbose        debug logging on stderr (or REMOHOP_DEBUG=1)
+      --signal ADDR    rendezvous server (or REMOHOP_SIGNAL)
+      --password PW    password for <ID> (or REMOHOP_PASSWORD)
+
+`)
+	section := func(title string, remote bool) {
+		fmt.Fprintln(w, title)
+		for _, c := range Commands() {
+			if c.Remote == remote && !c.Hidden {
+				fmt.Fprintf(w, "  %-12s %s\n", c.Name, c.Summary)
+			}
+		}
+		fmt.Fprintln(w)
+	}
+	section("Remote commands (remohop <ID> ...):", true)
+	section("Local commands:", false)
+	fmt.Fprintln(w, "Run `remohop help <command>` for details.")
+}

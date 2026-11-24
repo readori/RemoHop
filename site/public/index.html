@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RemoHop：远程连上你的电脑</title>
+<meta name="description" content="RemoHop 是开源的点对点远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。">
+<link rel="stylesheet" href="/assets/site.css?v=9bcd68e8b7">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="RemoHop：远程连上你的电脑">
+<meta property="og:description" content="RemoHop 是开源的点对点远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。">
+<meta property="og:url" content="https://remohop.com/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页" aria-current="page"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1" class="home">
+<section class="wrap home-hero">
+<div class="hero-text">
+<h1>远程连上你的电脑</h1>
+<p class="lede">用浏览器、手机或命令行操作另一台电脑：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，被控机不用注册账号，服务器也由你自己运行。</p>
+<div class="actions">
+<a class="btn primary" href="/docs/">快速开始</a>
+<a class="btn" href="/features/">功能与限制</a>
+</div>
+<p class="meta">开源（AGPL-3.0）· 一个 Go 程序 · <a href="https://github.com/readori/RemoHop">源码在 GitHub</a></p>
+</div>
+<figure class="preview">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="浏览器客户端 remohop web 的“桌面”标签页：页面中间是远程 Linux 机器的屏幕，上面开着两个终端窗口；页面顶部显示被控机名称和连接路径 direct。">
+</picture>
+<figcaption>浏览器客户端的桌面标签页，实际截图。</figcaption>
+</figure>
+</section>
+
+<div class="wrap">
+<div class="note status-note">
+<p><strong>现状（2026 年 11 月）：</strong>还没有可下载的发布版本，需要从源码编译；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="/features/#status">完整的限制清单</a></p>
+</div>
+</div>
+
+<section class="strip" aria-label="三个特点">
+<div class="wrap facts">
+<div class="fact">
+<h2>被控端说了算</h2>
+<p>被控机的主人可以要求每次连接都在本机点“允许”，逐项关掉功能，随时撤销配对。快速协助的每一次连接都要对方同意。</p>
+</div>
+<div class="fact">
+<h2>一个 <code>remohop</code> 程序</h2>
+<p>被控端、命令行客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都是同一个静态链接的程序。</p>
+</div>
+<div class="fact">
+<h2>可以自己部署</h2>
+<p>没有内置服务器，也不需要账号。局域网里按地址直连；跨网络时用你自己运行的汇合服务器，一台最小的虚拟机就够。</p>
+</div>
+</div>
+</section>
+
+<section class="wrap band" id="use" aria-labelledby="use-h">
+<h2 id="use-h">你要做什么？</h2>
+<div class="split">
+<article class="panel">
+<p class="kicker">快速协助</p>
+<h3>帮别人操作电脑</h3>
+<p>对方打开 RemoHop 快速协助，窗口里大字显示 9 位 ID 和临时密码，念给你听。你用这两样连接时，对方会看到你的设备名称、设备密钥和地址，点了“允许”才连得上，60 秒没人答复就自动拒绝。</p>
+<p>默认可以看屏幕、用鼠标键盘、传文件；运行命令和访问对方的网络，要对方另外勾选。关掉窗口就停止共享。</p>
+<p class="small">你这边用命令行、浏览器客户端或手机应用连接，双方要用同一台汇合服务器。</p>
+<p class="links"><a href="/docs/quick-support/">快速协助说明</a></p>
+</article>
+<article class="panel">
+<p class="kicker">被控端 + 客户端</p>
+<h3>连自己的机器</h3>
+<p>在要控制的机器上运行 <code>remohop host</code>，它给出 ID 和临时密码。在自己的机器上配对一次，之后连接不再需要密码。</p>
+<pre class="cmd"><code><span class="c"># 被控机</span>
+<span class="p">$ </span>remohop host
+<span class="c"># 你的机器</span>
+<span class="p">$ </span>remohop 276941009 pair --name dev
+<span class="p">$ </span>remohop dev shell
+<span class="p">$ </span>remohop web --target dev</code></pre>
+<p class="small">同一个局域网里可以不用服务器：被控机运行 <code>remohop host --no-signal --listen :21118</code>，客户端用地址代替 ID。</p>
+<p class="links"><a href="/docs/">快速开始</a><a href="/features/#commands">常用命令</a></p>
+</article>
+</div>
+</section>
+
+<section class="band alt" id="get" aria-labelledby="get-h">
+<div class="wrap">
+<h2 id="get-h">获取 RemoHop</h2>
+<p class="section-lede">还没有可下载的发布版本，下面三样目前都要从源码构建。发布之后，这里会换成下载链接。</p>
+<div class="cards">
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>命令行程序 <code>remohop</code></h3>
+<p class="platforms">Linux · macOS · Windows</p>
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
+<pre class="cmd"><code>git clone https://github.com/readori/RemoHop
+cd RemoHop
+make build</code></pre>
+<p class="links"><a href="/features/#install">安装</a><a href="/features/#platforms">平台支持</a></p>
+</article>
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>快速协助</h3>
+<p class="platforms">Windows · macOS · Linux</p>
+<p>给被协助的人双击打开的窗口。<code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序，都还没有代码签名。</p>
+<p class="links"><a href="/docs/quick-support/">快速协助说明</a><a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">打包说明</a></p>
+</article>
+<article class="panel">
+<p class="chip wait">尚未发布</p>
+<h3>手机控制端</h3>
+<p class="platforms">Android · iOS / iPadOS</p>
+<p>在手机或平板上连接并操作你的电脑，手机本身不能被控。iOS 版正在准备 TestFlight，Android 版没有上架任何商店。</p>
+<p class="links"><a href="/apps/">移动应用</a></p>
+</article>
+</div>
+</div>
+</section>
+
+<section class="wrap band more" aria-labelledby="more-h">
+<h2 id="more-h">接着看</h2>
+<ul class="more-list">
+<li><a href="/features/">功能与限制</a><span>常用命令、连接怎么建立、平台支持、已知限制。</span></li>
+<li><a href="/security/">安全模型</a><span>保护什么、不保护什么，包括浏览器网关这个例外。</span></li>
+<li><a href="/self-hosting/">自建汇合服务器</a><span>端口、内存、中继，以及对公众提供中继时的限额。</span></li>
+<li><a href="/licensing/">许可证</a><span>AGPL-3.0，另有商业授权。</span></li>
+</ul>
+</section>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:support@readori.com">support@readori.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>
