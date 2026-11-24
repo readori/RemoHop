@@ -11,7 +11,6 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.webkit.WebView
-import android.widget.RadioButton
 import android.widget.TextView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -56,6 +55,14 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class StoreScreenshotsTest {
     private val inst: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    /** The app asks for the notification permission once a session exists (SessionService); a test has no one to answer. */
+    @org.junit.Before
+    fun grantNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            inst.uiAutomation.grantRuntimePermission(inst.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     private val args = InstrumentationRegistry.getArguments()
 
     private fun arg(name: String): String? = args.getString(name)?.trim()?.takeIf { it.isNotEmpty() }
@@ -371,15 +378,25 @@ class StoreScreenshotsTest {
             var fingerprint = ""
             var checked = false
             var focused = false
+            // The settings list: the Language row shows the choice, the
+            // Identity key row the start of the fingerprint once it loaded.
+            val langName = if (zh) "简体中文" else "English"
+            val fp = Regex("^[0-9a-f]{4}:[0-9a-f]{4}…$")
+            fun texts(v: android.view.View, out: MutableList<String>) {
+                if (v is TextView) out += v.text.toString()
+                if (v is android.view.ViewGroup) for (i in 0 until v.childCount) texts(v.getChildAt(i), out)
+            }
             val end = System.currentTimeMillis() + 20_000
             while (System.currentTimeMillis() < end) {
                 s.onActivity { a ->
                     title = a.title?.toString() ?: ""
-                    fingerprint = a.findViewById<TextView>(R.id.fingerprint)?.text?.toString() ?: ""
-                    checked = a.findViewById<RadioButton>(if (zh) R.id.lang_zh else R.id.lang_en)?.isChecked == true
+                    val all = mutableListOf<String>()
+                    texts(a.window.decorView, all)
+                    fingerprint = all.firstOrNull { fp.matches(it) } ?: ""
+                    checked = all.contains(langName)
                     focused = a.hasWindowFocus()
                 }
-                if (fingerprint.isNotEmpty() && focused) break
+                if (fingerprint.isNotEmpty() && checked && focused) break
                 Thread.sleep(250)
             }
             assertTrue("settings: the language choice shows $lang", checked)

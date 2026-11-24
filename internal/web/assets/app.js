@@ -33,10 +33,64 @@
     try { const j = await r.json(); if (j.error) { code = j.error.code; msg = j.error.message; } } catch (e) { /* not JSON */ }
     return new ApiError(r.status, code, msg);
   }
+  // ---- reaching the gateway ----
+  // A fetch that gets no HTTP answer at all ("Load failed" in WebKit,
+  // "Failed to fetch" in Chrome) means the gateway did not answer. In the
+  // phone apps that is what happens when the system took the in-process
+  // gateway's listening socket away while the app was in the background:
+  // the app is asked to check and reopen it (remohop-mobile.js
+  // ensureGateway, over the app's bridge) and the request is sent once more.
+  // If that fails too, the page says so with a Retry button instead of the
+  // browser's raw text.
+  const LOST = 'The gateway is not answering. Try again.';
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  async function ensureGateway() {
+    const m = window.remohopMobile;
+    if (m && typeof m.ensureGateway === 'function') {
+      try { await Promise.race([m.ensureGateway(), wait(8000)]); return; } catch (e) { /* not in the app, or it failed: retry anyway */ }
+    }
+    await wait(700);
+  }
+  let lostBar = null;
+  function gatewayLost(on) {
+    if (!on) { if (lostBar) lostBar.hidden = true; return; }
+    if (!lostBar) {
+      lostBar = document.createElement('div');
+      lostBar.className = 'banner bad';
+      lostBar.setAttribute('role', 'alert');
+      const msg = document.createElement('span');
+      I.say(msg, 'gw.lost');
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.id = 'gwretry';
+      I.say(btn, 'gw.retry');
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try { await ensureGateway(); if (st.csrf) await SD.api('GET', 'connections'); else await start(); } catch (e) { /* the bar stays */ }
+        btn.disabled = false;
+      });
+      lostBar.append(msg, ' ', btn);
+      $('banner').after(lostBar);
+    }
+    lostBar.hidden = false;
+  }
+  async function gwFetch(u, init) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const r = await fetch(u, init);
+        gatewayLost(false);
+        return r;
+      } catch (e) {
+        if (e && e.name === 'AbortError') throw e;
+        if (attempt > 0) { gatewayLost(true); throw new ApiError(0, 'gateway_unreachable', LOST); }
+        await ensureGateway();
+      }
+    }
+  }
+
   SD.api = async function (method, path, body, params) {
     const init = {method, headers: SD.headers(body === undefined ? {} : {'Content-Type': 'application/json'}), credentials: 'same-origin'};
     if (body !== undefined) init.body = JSON.stringify(body);
-    const r = await fetch(SD.url(path, params), init);
+    const r = await gwFetch(SD.url(path, params), init);
     if (!r.ok) {
       const e = await parseErr(r);
       if (e.code === 'login_required' || (e.code === 'bad_csrf')) sessionLost();
@@ -125,7 +179,7 @@
 
   async function start() {
     try {
-      const r = await fetch(SD.url('session'), {method: 'POST', credentials: 'same-origin',
+      const r = await gwFetch(SD.url('session'), {method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json'}, body: JSON.stringify({sid: load('sd.sid') || ''})});
       if (r.status === 401) { showLogin(); return; }
       if (!r.ok) throw await parseErr(r);
@@ -199,13 +253,21 @@
       renderPeerCards();
     } catch (e) { /* the form still works without the list */ }
   }
-  // The saved hosts as cards under the form. Choosing one fills the form;
-  // a host this gateway is paired with (or authorised by key) connects
-  // straight away, since it needs no password.
+  // The saved hosts under the form, in two lists with plain states: paired
+  // (or authorised by key) hosts connect straight away, since they need no
+  // password; the others ("recent") fill in the form and wait for the
+  // password, with no connection attempt and so no error.
   function renderPeerCards() {
-    const ul = $('peercards');
-    ul.textContent = '';
-    for (const p of st.peers) {
+    const ready = p => p.paired || p.key_login;
+    const lists = [[$('peercards'), $('peers-h'), st.peers.filter(ready)], [$('peercards-recent'), $('peers-recent-h'), st.peers.filter(p => !ready(p))]];
+    for (const [ul, h, list] of lists) {
+      ul.textContent = '';
+      ul.hidden = h.hidden = !list.length;
+      for (const p of list) renderPeerCard(ul, p);
+    }
+  }
+  function renderPeerCard(ul, p) {
+    {
       const li = document.createElement('li');
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'peer';
@@ -216,19 +278,15 @@
       const name = document.createElement('strong');
       name.textContent = p.alias || p.target;
       const sub = document.createElement('small');
-      if (p.alias) sub.textContent = p.target; else I.say(sub, p.paired ? 'peer.paired' : p.key_login ? 'peer.key' : 'peer.saved');
+      const ready = p.paired || p.key_login;
+      I.say(sub, p.alias ? 'peer.sub.alias' : 'raw', {target: p.target, s: {k: ready ? 'peer.ready' : 'peer.needspw'}, state: {k: ready ? 'peer.ready' : 'peer.needspw'}});
       text.append(name, sub);
       b.append(icon, text);
-      const ready = p.paired || p.key_login;
-      if (ready) {
-        const tag = document.createElement('span');
-        tag.className = 'tag'; I.say(tag, p.paired ? 'peer.tag.paired' : 'peer.tag.key');
-        b.appendChild(tag);
-      }
       I.sayAttr(b, 'aria-label', ready ? 'peer.aria.ready' : 'peer.aria.form', {label: (p.alias ? p.alias + ', ' : '') + p.target});
       b.addEventListener('click', () => {
         $('target').value = p.alias || p.target;
         $('peersel').value = p.target;
+        I.plain($('connerr'), '');
         if (ready && !attemptId) { $('hostpass').value = ''; $('connectform').requestSubmit(); } else $('hostpass').focus();
       });
       li.appendChild(b);
@@ -241,6 +299,7 @@
     if (!st.csrf) return;
     try { refreshConns((await SD.json('GET', 'connections')).conns); } catch (e) { /* sessionLost handles auth */ }
   }
+  SD.heartbeat = heartbeat; // a tab whose socket closed asks whether the session is still there
 
   function refreshConns(list) {
     const old = st.cur;
@@ -260,13 +319,77 @@
       return;
     }
     if (st.cur) sel.value = st.cur;
+    followState();
+  }
+
+  // In the phone apps the gateway re-establishes a session that dropped:
+  // its state is then "reconnecting" or "waiting_approval" (the host asks
+  // its owner again), and "failed" if it cannot be done. The page says so
+  // in the banner, keeps the workspace, polls faster, and re-opens the tab
+  // once the session is "connected" again (the terminal re-attaches to its
+  // shell, files reload, the desktop restarts).
+  const connStates = {};
+  let fastPoll = null;
+  function followState() {
+    const c = st.conns.find(x => x.key === st.cur);
+    const state = (c && c.state) || 'connected';
+    const now = c ? state + '/' + (c.reconnects || 0) : '';
+    const prev = c ? (connStates[c.key] || 'connected/' + (c.reconnects || 0)) : '';
+    if (c) connStates[c.key] = now;
+    if (c && now !== prev) {
+      if (state === 'reconnecting') { callTabs('hide'); banner('sess.reconnecting', {target: c.target}, false); }
+      else if (state === 'waiting_approval') { callTabs('hide'); banner('sess.reapproval', {target: c.target}, false); }
+      else if (state === 'failed') { callTabs('hide'); banner('sess.lost', {target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
+      else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'files'); }
+    }
+    if (state !== 'connected' && state !== 'failed' && !fastPoll) fastPoll = setTimeout(() => { fastPoll = null; heartbeat(); }, 2000);
   }
 
   // ---- connecting ----
   let attemptId = null, polling = false;
-  // Connection failures with a known code are explained in the page's own
-  // words (reason.* in i18n.js), followed by the gateway's detail.
-  const reason = (code, detail) => I.has('reason.' + code, 'en') ? {k: 'pair2', v: {a: {k: 'reason.' + code}, b: detail || ''}} : null;
+  // Connection failures are explained in the page's own words: reason.* in
+  // i18n.js for a known code, the host's own words for a refusal, a generic
+  // line otherwise. The gateway's technical text goes under "Details" (for
+  // support), not in the message itself.
+  function reasonKey(code, msg) {
+    if (code === 'bad_target') return 'reason.bad_target';
+    // Cases the gateway has no code for yet (they come as remote_error)
+    // are recognised by their words.
+    if (!code || code === 'remote_error') {
+      if (/no rendezvous server configured/i.test(msg)) return 'reason.no_rendezvous';
+      if (/unknown target /i.test(msg)) return 'reason.bad_target';
+      if (/no application protocol/i.test(msg)) return 'reason.signal_wrong_protocol';
+      if (/rendezvous server .*unreachable/i.test(msg)) return 'reason.rendezvous_unreachable';
+    }
+    if (code && I.has('reason.' + code, 'en')) return 'reason.' + code;
+    return null;
+  }
+  function showConnErr(e) {
+    const box = $('connerr');
+    I.plain(box, '');
+    const code = e && e.code, msg = (e && e.message) || (e ? String(e) : '');
+    const main = document.createElement('div');
+    main.className = 'errmain';
+    const key = reasonKey(code, msg);
+    if (key) I.say(main, key);
+    else if (code === 'host_refused' || code === 'feature_off') I.say(main, 'refused', {msg});
+    else if (code && I.has('err.' + code, 'zh')) I.say(main, 'err.' + code);
+    else I.say(main, 'connect.failed');
+    box.appendChild(main);
+    // An expected case (the host needs its password): no technical detail.
+    if (code === 'password_required') { $('hostpass').focus(); return; }
+    if (msg && msg !== main.textContent) {
+      const d = document.createElement('details');
+      d.className = 'errdetail';
+      const sum = document.createElement('summary');
+      I.say(sum, 'connect.details');
+      const pre = document.createElement('code');
+      pre.textContent = msg + (code ? ' [' + code + ']' : '');
+      d.append(sum, pre);
+      box.appendChild(d);
+    }
+  }
+  SD.showConnErr = showConnErr;
   function showConnect() {
     $('connect').hidden = false; $('workspace').hidden = true; $('hostbar').hidden = !st.conns.length;
     $('hostbar').querySelector('#newconn').hidden = true;
@@ -274,12 +397,26 @@
   }
   $('newconn').addEventListener('click', showConnect);
 
+  // normTarget fixes what phone keyboards make of an address: full-width
+  // punctuation from a Chinese keyboard, and "1.2.3.4.21118" typed with a
+  // dot for the colon (four octets and a port can only mean IPv4:PORT).
+  function normTarget(v) {
+    v = String(v || '').replace(/\uff1a/g, ':').replace(/[\u3002\uff0e]/g, '.').trim();
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,5})$/.exec(v);
+    if (m && m.slice(1, 5).every(o => +o <= 255) && +m[5] >= 1 && +m[5] <= 65535) v = m.slice(1, 5).join('.') + ':' + m[5];
+    return v;
+  }
+  SD.normTarget = normTarget;
+
   $('connectform').addEventListener('submit', async ev => {
     ev.preventDefault();
     if (attemptId) return;
+    const fixed = normTarget($('target').value);
+    if (fixed !== $('target').value) $('target').value = fixed;
     I.plain($('connerr'), ''); I.say($('connstatus'), 'connect.connecting');
     $('connectbtn').disabled = true; $('cancelconn').hidden = false;
-    const body = {target: $('target').value, password: $('hostpass').value, pair: $('pair').checked};
+    // Pairing needs a password login; with none (a paired host) there is nothing to remember.
+    const body = {target: $('target').value, password: $('hostpass').value, pair: $('pair').checked && $('hostpass').value !== ''};
     $('hostpass').value = '';
     try {
       const a = await SD.json('POST', 'connect', body);
@@ -287,7 +424,7 @@
       await poll();
     } catch (e) {
       endAttempt();
-      I.say($('connerr'), 'raw', {s: reason(e.code, e.message) || SD.errVar(e)});
+      showConnErr(e);
     }
   });
   $('cancelconn').addEventListener('click', async () => {
@@ -301,7 +438,7 @@
     polling = true;
     while (attemptId && polling) {
       let j;
-      try { j = await SD.json('GET', 'connect/' + attemptId); } catch (e) { endAttempt(); SD.sayErr($('connerr'), e); return; }
+      try { j = await SD.json('GET', 'connect/' + attemptId); } catch (e) { endAttempt(); showConnErr(e); return; }
       if (j.state === 'waiting_approval') I.say($('connstatus'), 'connect.waiting');
       else if (j.state === 'dialing') {
         if (j.notices && j.notices.length) I.say($('connstatus'), 'connect.dialing', {notice: j.notices[j.notices.length - 1]});
@@ -310,18 +447,32 @@
       if (j.state === 'connected') {
         endAttempt();
         I.plain($('connerr'), '');
-        if (j.notices && j.notices.length) banner('raw', {s: j.notices.join(' ')}, false);
+        // A "remember" that did not work is said in plain words (the session
+        // works, the host still needs its password next time): by its code
+        // (pair_refused: the host does not allow it), or for an older gateway
+        // by its notice.
+        const notices = (j.notices || []).filter(n => !/^pairing failed/.test(n));
+        const pairFailed = (j.pair && j.pair.ok === false) || notices.length < (j.notices || []).length;
+        const pairMsg = pairFailed ? (j.pair && j.pair.code === 'pair_refused' ? 'connect.pairrefused' : 'connect.pairfailed') : null;
+        if (notices.length) banner('raw', {s: notices.join(' ')}, false);
         await loadPeers();
         $('peerrow').hidden = !(st.peers && st.peers.length);
         refreshConns((await SD.json('GET', 'connections')).conns);
         selectConn(j.conn.key);
+        if (pairMsg) {
+          // Shown last, so it stays: with the first-connection notice when there is one.
+          const b = $('banner');
+          const first = !b.hidden && b.getAttribute('data-i18n') === 'sess.firstkey';
+          if (first) banner('pair2', {a: {k: pairMsg}, b: {k: 'sess.firstkey', v: JSON.parse(b.getAttribute('data-i18n-vars') || 'null')}}, false);
+          else banner(pairMsg, null, false);
+        }
         return;
       }
       if (j.state === 'failed' || j.state === 'canceled') {
         endAttempt();
         const e = j.error || {};
         if (j.state === 'canceled') I.say($('connerr'), 'connect.canceled');
-        else I.say($('connerr'), 'raw', {s: reason(e.code, e.message) || (e.message ? SD.errVar(e) : {k: 'connect.failed'})});
+        else showConnErr(e);
         return;
       }
       await new Promise(r => setTimeout(r, 600));
@@ -396,7 +547,7 @@
     I.plain(el, '');
     if (!e) return;
     if (e.code === 'feature_off' || e.code === 'host_refused') I.say(el, 'refused', {msg: e.message});
-    else if (e.code === 'disconnected') { SD.sayErr(el, e); heartbeat(); }
+    else if (e.code === 'disconnected' || e.code === 'reconnecting') { SD.sayErr(el, e); heartbeat(); }
     else SD.sayErr(el, e);
   };
 

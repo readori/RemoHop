@@ -61,6 +61,9 @@ struct GatewayWebView: UIViewRepresentable {
             web.navigationDelegate = self
             web.uiDelegate = self
             web.allowsBackForwardNavigationGestures = false
+            // The page draws under the status bar and home indicator itself
+            // (viewport-fit=cover and env(safe-area-inset-*) in app mode).
+            web.scrollView.contentInsetAdjustmentBehavior = .never
             web.allowsLinkPreview = false
             web.isOpaque = false
             #if DEBUG
@@ -96,6 +99,13 @@ struct GatewayWebView: UIViewRepresentable {
         func receive(_ message: WKScriptMessage, reply: @escaping @MainActor @Sendable (Any?, String?) -> Void) {
             let so = message.frameInfo.securityOrigin
             let source = Bridge.originString(protocol: so.protocol, host: so.host, port: so.port)
+            let handledLater = bridge?.handleAsync(body: message.body, sourceOrigin: source, isMainFrame: message.frameInfo.isMainFrame) { result in
+                switch result {
+                case .success(let obj): reply(obj, nil)
+                case .failure(let e): reply(nil, e.message)
+                }
+            }
+            if handledLater == true { return }
             guard let result = bridge?.handle(body: message.body, sourceOrigin: source, isMainFrame: message.frameInfo.isMainFrame) else {
                 reply(nil, "refused")
                 return
@@ -126,6 +136,7 @@ struct GatewayWebView: UIViewRepresentable {
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            Diag.log("web content process terminated")
             // The content process was killed (memory): load the page again.
             if let url = gatewayURL { webView.load(URLRequest(url: GatewayURLs.withLang(url, lang))) }
         }
@@ -160,7 +171,13 @@ struct GatewayWebView: UIViewRepresentable {
 
         func haptic() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
 
-        func openSettings() { model.showSettings = true }
+        func openSettings() { model.settingsPage = nil; model.showSettings = true }
+
+        func openSettings(page: String) { model.settingsPage = SettingsPage(bridge: page); model.showSettings = true }
+
+        func diagLog(_ text: String) { Diag.logPage(text) }
+
+        func ensureGateway(done: @escaping @MainActor (Bool) -> Void) { model.ensureGateway(done: done) }
     }
 }
 

@@ -13,6 +13,38 @@ final class BridgeTests: XCTestCase {
         func keyboard(show: Bool) { calls.append("keyboard:\(show)") }
         func haptic() { calls.append("haptic") }
         func openSettings() { calls.append("settings") }
+        func openSettings(page: String) { calls.append("settings:\(page)") }
+        func diagLog(_ text: String) { calls.append("log:\(text.count):\(text.prefix(12))") }
+        var ensureOK = true
+        func ensureGateway(done: @escaping @MainActor (Bool) -> Void) {
+            calls.append("ensure")
+            let ok = ensureOK
+            Task { @MainActor in done(ok) }
+        }
+    }
+
+    /// The page's "gateway.ensure" is answered once the app has checked the gateway.
+    @MainActor
+    func testEnsureGatewayAnsweredLater() async {
+        let h = FakeHost(), b = Bridge(host: h, origin: origin)
+        let msg: [String: Any] = ["method": "gateway.ensure"]
+        XCTAssertFalse(b.handleAsync(body: msg, sourceOrigin: "http://127.0.0.1:5001", isMainFrame: true) { _ in })
+        XCTAssertFalse(b.handleAsync(body: msg, sourceOrigin: origin, isMainFrame: false) { _ in })
+        XCTAssertFalse(b.handleAsync(body: ["method": "haptic"], sourceOrigin: origin, isMainFrame: true) { _ in })
+        XCTAssertTrue(h.calls.isEmpty)
+
+        let exp1 = expectation(description: "reply")
+        var got: Result<[String: Any], BridgeError>?
+        XCTAssertTrue(b.handleAsync(body: msg, sourceOrigin: origin, isMainFrame: true) { r in got = r; exp1.fulfill() })
+        await fulfillment(of: [exp1], timeout: 5)
+        XCTAssertNotNil(try? got?.get())
+
+        h.ensureOK = false
+        let exp2 = expectation(description: "failure reply")
+        XCTAssertTrue(b.handleAsync(body: msg, sourceOrigin: origin, isMainFrame: true) { r in got = r; exp2.fulfill() })
+        await fulfillment(of: [exp2], timeout: 5)
+        XCTAssertNil(try? got?.get())
+        XCTAssertEqual(h.calls, ["ensure", "ensure"])
     }
 
     func testClipboardRoundTrip() throws {
@@ -51,6 +83,19 @@ final class BridgeTests: XCTestCase {
         _ = b.handle(body: ["method": "haptic"], sourceOrigin: origin, isMainFrame: true)
         _ = b.handle(body: ["method": "openSettings"], sourceOrigin: origin, isMainFrame: true)
         XCTAssertEqual(h.calls, ["state:true,false", "keyboard:true", "haptic", "settings"])
+    }
+
+    func testSettingsPagesAndDiagnosticLog() {
+        let h = FakeHost(), b = Bridge(host: h, origin: origin)
+        _ = b.handle(body: ["method": "openSettings", "args": ["page": "privacy"]], sourceOrigin: origin, isMainFrame: true)
+        _ = b.handle(body: ["method": "openSettings", "args": ["page": "../../evil"]], sourceOrigin: origin, isMainFrame: true)
+        _ = b.handle(body: ["method": "log", "args": ["text": "page error: x"]], sourceOrigin: origin, isMainFrame: true)
+        let r = b.handle(body: ["method": "log", "args": ["text": String(repeating: "y", count: 5000)]], sourceOrigin: origin, isMainFrame: true)
+        XCTAssertNotNil(try? r?.get())
+        XCTAssertEqual(h.calls, ["settings:privacy", "settings", "log:13:page error: ", "log:\(Bridge.maxLog):yyyyyyyyyyyy"])
+        XCTAssertEqual(SettingsPage(bridge: "about"), .about)
+        XCTAssertNil(SettingsPage(bridge: "pair"))
+        XCTAssertNil(SettingsPage(bridge: nil))
     }
 
     func testBadInput() {

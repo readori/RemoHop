@@ -99,10 +99,22 @@ type connInfo struct {
 	Fingerprint string `json:"host_fingerprint,omitempty"`
 	Paired      bool   `json:"paired,omitempty"`
 	Remote      string `json:"remote,omitempty"`
+	// State is "connected", or in persistent mode (see keep.go)
+	// "reconnecting", "waiting_approval" (the host asks its owner again)
+	// or "failed" (it cannot be re-established; Error says why). The page
+	// shows anything but connected as a passing state, and a failure as
+	// the end of the session.
+	State string    `json:"state,omitempty"`
+	Error *apiError `json:"error,omitempty"`
+	// Retries counts the attempts of the current reconnection, and
+	// Reconnects the times the session was re-established: a page that
+	// sees it change re-opens what it showed.
+	Retries    int `json:"retries,omitempty"`
+	Reconnects int `json:"reconnects,omitempty"`
 }
 
 func describe(conn *peer.Conn, typed string) connInfo {
-	ci := connInfo{Key: typed, Target: typed, Path: "unknown"}
+	ci := connInfo{Key: typed, Target: typed, Path: "unknown", State: stateConnected}
 	if info := dial.InfoOf(conn); info != nil {
 		if info.Target != "" {
 			ci.Key, ci.Target = info.Target, info.Target
@@ -181,6 +193,10 @@ func classify(err error) *apiError {
 		return mk(http.StatusBadGateway, "host_unreachable")
 	case signal.CodeRateLimited:
 		return mk(http.StatusTooManyRequests, "rendezvous_rate_limited")
+	case signal.CodeIsHost: // the rendezvous setting names a host
+		return mk(http.StatusBadGateway, "signal_is_host")
+	case signal.CodeWrongProtocol:
+		return mk(http.StatusBadGateway, "signal_wrong_protocol")
 	}
 	switch {
 	case errors.Is(err, dial.ErrNoCredential):
@@ -221,7 +237,35 @@ type attempt struct {
 	notices []string
 	err     *apiError
 	conn    *connInfo
+	pair    *pairOutcome
 	done    time.Time
+}
+
+// pairOutcome is a pairing that did not work on a connection that did:
+// Code is "pair_refused" when the host does not allow it (Reason says why:
+// no_pairing, the host runs with --no-pairing, as quick support does; grant,
+// the login came through a grant) and "pair_failed" otherwise. The page
+// says so in its own words; the session itself is fine, and the host stays
+// one that needs its password.
+type pairOutcome struct {
+	OK      bool   `json:"ok"`
+	Code    string `json:"code"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message"`
+}
+
+func pairFailure(err error) *pairOutcome {
+	msg := cli.Sanitize(err.Error())
+	p := &pairOutcome{Code: "pair_failed", Message: msg}
+	switch {
+	case strings.Contains(msg, "does not allow pairing"):
+		p.Code, p.Reason = "pair_refused", "no_pairing"
+	case strings.Contains(msg, "not allowed by grant"):
+		p.Code, p.Reason = "pair_refused", "grant"
+	case strings.Contains(msg, "not available on this connection"):
+		p.Code, p.Reason = "pair_refused", "unavailable"
+	}
+	return p
 }
 
 func (a *attempt) finished() bool {
@@ -245,6 +289,9 @@ func (a *attempt) snapshot() map[string]any {
 	}
 	if a.conn != nil {
 		m["conn"] = a.conn
+	}
+	if a.pair != nil {
+		m["pair"] = a.pair
 	}
 	return m
 }
@@ -312,7 +359,9 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 	go func() {
 		defer cancel()
 		conn, err := s.cfg.Dial(ctx, DialRequest{Target: target, Password: password, Notify: a.notice})
-		password = ""
+		if !s.cfg.Persistent {
+			password = ""
+		}
 		if err != nil {
 			release()
 			if ctx.Err() == context.Canceled {
@@ -330,11 +379,19 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 			if err != nil {
 				// The session works; only the pairing failed. Say so.
 				a.notice("pairing failed: " + err.Error())
+				pf := pairFailure(err)
+				a.mu.Lock()
+				a.pair = pf
+				a.mu.Unlock()
 			} else {
 				ci.Paired = true
 			}
 		}
-		p := &pooled{key: ci.Key, conn: conn, info: ci}
+		p := newPooled(ci.Key, conn, ci)
+		if s.cfg.Persistent {
+			p.redial = s.redialer(ctx, conn, DialRequest{Target: target, Password: password}, ci.Paired)
+		}
+		password = ""
 		got, mine := s.adopt(ws, p, release)
 		if !mine {
 			conn.Close()
@@ -343,7 +400,7 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 				a.finish("canceled", &apiError{Status: 499, Code: "canceled", Message: "the browser session ended"}, nil, s.now())
 				return
 			}
-			ci = got.info
+			ci = got.snapshot()
 		}
 		a.finish("connected", nil, &ci, s.now())
 	}()

@@ -31,8 +31,41 @@ func StartGateway() (string, error) { return mobile.StartGateway() }
 // StopGateway stops the gateway and every host session.
 func StopGateway() { mobile.StopGateway() }
 
-// GatewayRunning reports whether the gateway serves.
+// GatewayRunning reports whether the gateway runs with an open listener
+// (no I/O: it cannot see a socket iOS took away; EnsureGateway can).
 func GatewayRunning() bool { return mobile.GatewayRunning() }
+
+// EnsureGateway returns the URL of a gateway that has just answered a
+// request: it starts one, or reopens a paused or dead listener (same port
+// and token when possible). Call it on every return to the foreground and
+// when the page cannot reach the gateway; load the URL only if it changed.
+func EnsureGateway() (string, error) { return mobile.EnsureGateway() }
+
+// PauseGateway closes the listener but keeps the gateway and its sessions
+// (iOS: call it when the app goes to the background).
+func PauseGateway() { mobile.PauseGateway() }
+
+// BreakGatewayListenerForTest breaks the listener as iOS does to a
+// suspended app (tests of EnsureGateway only).
+func BreakGatewayListenerForTest(stall bool) { mobile.BreakGatewayListenerForTest(stall) }
+
+// CheckSessions re-establishes host sessions that stopped answering (call
+// it when the network changes).
+func CheckSessions() { mobile.CheckSessions() }
+
+// SessionsJSON lists the host sessions: [{"key","target","state",...}].
+func SessionsJSON() (string, error) { return mobile.SessionsJSON() }
+
+// DisconnectAll ends every host session (the notification's Disconnect).
+func DisconnectAll() { mobile.DisconnectAll() }
+
+// DropSessionsForTest drops every host connection as an outage would; the
+// sessions reconnect by themselves (tests only).
+func DropSessionsForTest() { mobile.DropSessionsForTest() }
+
+// CheckRendezvous connects to a rendezvous server ("" = the configured one)
+// and reports the outcome as JSON {"ok","code","error"|"server","key"}.
+func CheckRendezvous(addr string) (string, error) { return mobile.CheckRendezvous(addr) }
 
 // GetSetting reads "signal", "signal-pin", "relay" or "name".
 func GetSetting(key string) (string, error) { return mobile.GetSetting(key) }

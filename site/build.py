@@ -70,7 +70,7 @@ GOOGLE_PLAY = "https://play.google.com/store/apps/details?id=com.remohop.app"
 
 EMAIL = "admin@remohop.com"
 TELEGRAM = "https://t.me/remohop"
-UPDATED = "2026-11-23"
+UPDATED = "2026-11-24"
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent

@@ -1,49 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">RemoHop</string>
-    <string name="settings">RemoHop settings</string>
+    <string name="settings">Settings</string>
     <string name="gateway_failed">RemoHop could not start: %1$s</string>
     <string name="choose_files">Choose files to upload</string>
     <string name="downloading">Downloading %1$s…</string>
     <string name="download_failed">Download failed: %1$s</string>
     <string name="saved">Saved.</string>
-
+    <string name="saved_short">Saved</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
+    <string name="not_set">Not set</string>
+    <string name="optional">Optional</string>
+    <string name="checking">Checking…</string>
+    <string name="value_ok">%1$s · OK</string>
+    <string name="value_problem">%1$s · Problem</string>
+    <string name="info_about_screen">About this screen</string>
+    <string name="sec_connection">Connection</string>
+    <string name="sec_hosts">Hosts</string>
+    <string name="sec_general">General</string>
+    <string name="sec_support">Support</string>
     <string name="rendezvous_heading">Rendezvous server</string>
-    <string name="rendezvous_hint">The server that introduces this phone to your hosts by their 9-digit ID. RemoHop has no default server: run your own with `remohop signal`. Without one you can still connect by address (host:port).</string>
     <string name="rendezvous_example" translatable="false">rendezvous.example.net:21116</string>
-    <string name="rendezvous_pin">Server key (optional, printed by remohop signal)</string>
-    <string name="relay">Allow relayed connections (still end-to-end encrypted) when no direct path works</string>
+    <string name="server">Server</string>
+    <string name="server_address">Address</string>
+    <string name="rendezvous_key">Server key</string>
+    <string name="relay_short">Relay when there is no direct path</string>
+    <string name="test_connection">Test connection</string>
+    <string name="rv_ok">Working</string>
+    <string name="rv_wrong_protocol">This is a host, not a server</string>
+    <string name="rv_unreachable">Unreachable</string>
+    <string name="rv_key_mismatch">Key does not match</string>
+    <string name="rv_failed">Check failed</string>
+    <string name="info_rendezvous">Finds your computers by their 9-digit ID. Not needed when you connect by address (host:port). RemoHop has no default server: use your own.</string>
+    <string name="info_rendezvous_key">The server\'s public key, if this device should accept only that server. Leave it empty to trust the address.</string>
+    <string name="info_relay">When no direct path works, the connection goes through the server. It stays end-to-end encrypted, but is slower.</string>
+    <string name="info_admin_title">For administrators</string>
+    <string name="info_rendezvous_admin">Run a server with `remohop signal`; it prints its address and key.</string>
     <string name="device_heading">This device</string>
-    <string name="device_name">Device name shown to hosts (optional)</string>
-    <string name="save">Save</string>
-    <string name="saved_settings">Settings saved.</string>
-    <string name="identity_heading">Identity</string>
-    <string name="identity_hint">Hosts pin this key. To log in without any password, run `remohop authorize \"LINE\"` on a host with the line copied below.</string>
+    <string name="device_name">Device name</string>
+    <string name="info_device_name">The name hosts show for this device when it pairs with them. Empty: the device model.</string>
+    <string name="identity_heading">Identity key</string>
+    <string name="fingerprint">Fingerprint</string>
     <string name="copy_key">Copy key line</string>
     <string name="copied">Copied.</string>
-    <string name="pair_heading">Pair with a host</string>
-    <string name="pair_hint">Log in once with the host\'s password; the host gives this phone a token, so later connections need no password. You can also tick “Pair this gateway” when connecting.</string>
-    <string name="pair_target">Host ID, name or host:port</string>
-    <string name="pair_password">Host password (used once, not stored)</string>
-    <string name="pair_alias">Name for this host (optional)</string>
-    <string name="pair">Pair</string>
-    <string name="cancel">Cancel</string>
-    <string name="pairing">Connecting… the host may ask its owner to approve.</string>
-    <string name="paired">Paired with %1$s (host key %2$s).</string>
+    <string name="key_line">Key line</string>
+    <string name="info_identity">This device\'s own key, created on first use and kept only here. Hosts remember it, so they can tell it is the same device next time.</string>
+    <string name="info_key_line">Lets this device log in to a host without any password. On the host, run `remohop authorize \"LINE\"` with the copied line.</string>
     <string name="hosts_heading">Saved hosts</string>
-    <string name="refresh">Refresh</string>
+    <string name="hosts_check_online">Check which are online</string>
     <string name="no_hosts">No saved hosts yet.</string>
     <string name="forget">Forget</string>
-    <string name="forget_confirm">Forget %1$s? Its pinned key and pairing token are deleted from this phone.</string>
-    <string name="privacy_note">RemoHop talks only to the hosts you connect to and the rendezvous server you set here. Everything it stores (identity, pairings, settings) stays in this app\'s private storage. The app runs a local gateway on 127.0.0.1 that only the page with its random per-launch token can use.</string>
-    <string name="language_heading">Language</string>
-    <string name="lang_system">Follow system</string>
-    <!-- Each language in its own words, whatever the app's language. -->
-    <string name="lang_zh" translatable="false">简体中文</string>
-    <string name="lang_en" translatable="false">English</string>
-
     <string name="forget_host">Forget %1$s</string>
-    <!-- How a saved host logs in and whether it is online (the core's words, in English). -->
+    <string name="forget_confirm">Forget %1$s? Its pinned key and pairing token are deleted from this device.</string>
+    <string name="info_hosts">Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Tap one to rename or forget it; use the refresh button to check which are online.</string>
+    <string name="pair_heading">Pair with a host</string>
+    <string name="pair_target">Host ID or address</string>
+    <string name="pair_password">Host password</string>
+    <string name="pair_alias">Name</string>
+    <string name="pair">Pair</string>
+    <string name="pairing">Connecting… the host may ask its owner to approve.</string>
+    <string name="paired_short">Paired with %1$s.</string>
+    <string name="info_pair">Log in once with the host\'s password. The host gives this device a token, so later connections need no password. The password is used once and not stored.</string>
+    <string name="info_pair_target">The host\'s 9-digit ID (needs a rendezvous server), a saved name, or its address such as 192.168.1.20:21118.</string>
     <string name="login_pairing">pairing</string>
     <string name="login_key">key</string>
     <string name="login_password">password</string>
@@ -53,16 +74,63 @@
     <string name="presence_not_checked">not checked</string>
     <string name="presence_rate_limited">rate limited</string>
     <string name="presence_error">error</string>
-    <!-- Pairing failures by code; English shows the core's own message instead. -->
     <string name="pair_err_bad_password">Wrong password.</string>
     <string name="pair_err_unknown_id">No host with that ID exists.</string>
     <string name="pair_err_host_offline">That host is not online.</string>
     <string name="pair_err_no_path">No direct path to the host could be found.</string>
-    <string name="pair_err_no_rendezvous">No rendezvous server is set: enter one above, or pair by address (host:port).</string>
+    <string name="pair_err_no_rendezvous">No rendezvous server is set: set one in Settings, or pair by address (host:port).</string>
     <string name="pair_err_host_key_changed">The host\'s identity key changed since it was first seen. This could be an impersonation attempt.</string>
     <string name="pair_err_denied">The host\'s owner denied the pairing, or nobody answered in time.</string>
     <string name="pair_err_locked_out">The host has locked this device out after too many wrong passwords. Wait a while, then try again.</string>
     <string name="pair_err_password_required">Enter the host\'s password.</string>
     <string name="pair_err_timeout">Timed out.</string>
     <string name="pair_err_canceled">Canceled.</string>
+    <string name="language_heading">Language</string>
+    <string name="lang_system">Follow system</string>
+    <string name="lang_zh" translatable="false">简体中文</string>
+    <string name="lang_en" translatable="false">English</string>
+    <string name="diag_title">Diagnostic logs</string>
+    <string name="diag_size">Log size</string>
+    <string name="diag_format">File format</string>
+    <string name="diag_share">Share diagnostic logs</string>
+    <string name="diag_email">Email support</string>
+    <string name="diag_email_subject">RemoHop diagnostic logs</string>
+    <string name="diag_email_body">Please describe what happened (what you did, what you expected, what you saw):</string>
+    <string name="diag_clear">Clear logs</string>
+    <string name="diag_clear_confirm">Delete the diagnostic log on this device?</string>
+    <string name="diag_what_title">What is recorded</string>
+    <string name="info_diag_what">While this is on, the app keeps a log of what it does (connection steps, errors, app events) on this device, up to about 1 MB. It is off by default, and turning it off deletes the log.</string>
+    <string name="diag_removed_title">What is removed</string>
+    <string name="info_diag_removed">Passwords, access tokens, pairing tokens and keys are removed before anything is written. Host IDs, host names and IP addresses stay in, because support needs them to follow a connection.</string>
+    <string name="diag_who_title">Who sees it</string>
+    <string name="info_diag_who">Nobody, unless you share it: the log is never uploaded. Share it or email it to support yourself when something does not work.</string>
+    <string name="privacy_title">Privacy</string>
+    <string name="privacy_no_tracking">No analytics, ads or tracking</string>
+    <string name="privacy_on_device">Your keys, pairings and settings stay on this device</string>
+    <string name="privacy_e2e">Sessions are end-to-end encrypted</string>
+    <string name="privacy_diag">Diagnostic logs stay here unless you share them</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="privacy_talks_title">What the app talks to</string>
+    <string name="info_privacy_talks">Only the hosts you connect to and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.</string>
+    <string name="privacy_gateway_title">The local gateway</string>
+    <string name="info_privacy_gateway">The app runs its remote-control page on a gateway inside the app itself (127.0.0.1). Only the app\'s own page, holding a random token made at each launch, can use it.</string>
+    <string name="info_privacy_diag">Off by default. When you turn them on they stay on this device, with passwords and tokens removed, and leave it only when you share them.</string>
+    <string name="about_title">About RemoHop</string>
+    <string name="about_version">Version %1$s (%2$d)</string>
+    <string name="about_version_label">Version</string>
+    <string name="about_build">Build</string>
+    <string name="about_core">Core</string>
+    <string name="about_website">Website</string>
+    <string name="about_source">Source code</string>
+    <string name="about_license">License: AGPL-3.0</string>
+    <string name="about_notices">Open-source notices</string>
+    <string name="about_third_party">Third-party licenses</string>
+    <string name="about_contact">Contact</string>
+    <string name="about_telegram">Telegram</string>
+    <string name="about_terms">Terms of use</string>
+    <string name="back">Back</string>
+    <string name="pair_target_required">Enter the host\'s ID or address.</string>
+    <string name="rv_not_server">Not a rendezvous server</string>
+    <string name="rename">Rename</string>
+    <string name="save">Save</string>
 </resources>

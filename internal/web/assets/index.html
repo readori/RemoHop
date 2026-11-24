@@ -33,7 +33,7 @@
     <form id="loginform" autocomplete="off">
       <label for="gwpass" data-i18n="login.pass">Gateway password</label>
       <input id="gwpass" type="password" autocomplete="current-password" required>
-      <button type="submit" class="primary" data-i18n="login.btn">Log in</button>
+      <div class="formbuttons"><button type="submit" class="primary" data-i18n="login.btn">Log in</button></div>
       <p id="loginerr" class="err" role="alert"></p>
     </form>
   </section>
@@ -43,10 +43,12 @@
     <p class="hint lead" data-i18n="connect.lead">Enter the host's 9-digit ID, a name you paired, or its address.</p>
     <form id="connectform" autocomplete="off">
       <label for="target" data-i18n="connect.target">Host ID, name or host:port</label>
-      <input id="target" type="text" inputmode="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="123 456 789" required>
-      <label for="hostpass"><span data-i18n="connect.pass">Host password</span> <span class="hint" id="passhint" data-i18n="connect.passhint">(leave empty to use the pairing saved on this gateway)</span></label>
-      <input id="hostpass" type="password" autocomplete="off">
-      <label class="check" id="pairrow"><input id="pair" type="checkbox"> <span data-i18n="connect.pair">Pair this gateway with the host (saves a token on the gateway so no password is needed next time)</span></label>
+      <input id="target" type="text" inputmode="url" enterkeyhint="go" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="123 456 789" required>
+      <label for="hostpass" data-i18n="connect.pass">Host password</label>
+      <input id="hostpass" type="password" autocomplete="off" aria-describedby="passhint">
+      <p class="fieldhint" id="passhint" data-i18n="connect.passhint">Leave empty to use the pairing saved on this gateway.</p>
+      <label class="check" id="pairrow"><input id="pair" type="checkbox" aria-describedby="pairhint"> <span class="checktext"><span data-i18n="connect.pair">Pair this gateway with the host</span>
+        <small class="fieldhint" id="pairhint" data-i18n="connect.pair.hint">Saves a token on the gateway, so no password is needed next time.</small></span></label>
       <div class="formbuttons">
         <button type="submit" class="primary" id="connectbtn" data-i18n="connect.btn">Connect</button>
         <button type="button" id="cancelconn" hidden data-i18n="cancel">Cancel</button>
@@ -55,8 +57,10 @@
     <div id="connstatus" class="status" role="status" aria-live="polite"></div>
     <div id="connerr" class="err" role="alert"></div>
     <div id="peerrow" class="peers" hidden>
-      <h3 id="peers-h" data-i18n="peers.h">Saved on this gateway</h3>
+      <h3 id="peers-h" data-i18n="peers.h">Paired: no password needed</h3>
       <ul id="peercards" class="peerlist" aria-labelledby="peers-h"></ul>
+      <h3 id="peers-recent-h" data-i18n="peers.recent.h">Recent</h3>
+      <ul id="peercards-recent" class="peerlist" aria-labelledby="peers-recent-h"></ul>
       <label for="peersel" hidden data-i18n="peers.h">Saved on this gateway</label>
       <select id="peersel" hidden><option value="" data-i18n="peers.type">(type below)</option></select>
     </div>
@@ -94,6 +98,7 @@
         <canvas id="d-canvas" tabindex="0" width="16" height="9" aria-label="Remote desktop. Keyboard and mouse go to the remote machine while this has focus." data-i18n-aria-label="d.canvas"></canvas>
         <pre id="d-hud" class="hud" hidden></pre>
         <div id="d-msg" class="overlay" role="status" aria-live="polite"></div>
+        <button type="button" id="d-exitfs" class="exitfs" aria-label="Exit full screen" data-i18n-aria-label="d.exitfs" title="Exit full screen" data-i18n-title="d.exitfs"></button>
       </div>
     </div>
 
@@ -190,10 +195,13 @@
 </dialog>
 
 <footer class="foot">
-  <p class="how" data-i18n-rich="foot.how"><strong>How this works.</strong> A browser cannot hole-punch or speak RemoHop's QUIC session, so this page talks to a <em>gateway</em>
+  <details class="how">
+  <summary data-i18n-rich="foot.summary"><strong>The gateway sees everything you do here.</strong> How this works</summary>
+  <p data-i18n-rich="foot.how"><strong>How this works.</strong> A browser cannot hole-punch or speak RemoHop's QUIC session, so this page talks to a <em>gateway</em>
   (<code>remohop web</code>) and the gateway speaks the normal P2P session to the host. That session is end-to-end encrypted between the gateway and the host,
   but <strong>the gateway sees everything</strong>: the screen, every keystroke, files, the clipboard and any password you type here.
   Use only a gateway you control. Exposing one beyond localhost requires TLS and its own login; anyone who logs in to a gateway can use its saved pairings.</p>
+  </details>
   <p class="hint" id="ver"></p>
 </footer>
 <script src="assets/i18n.js"></script>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="session_channel">已连接的被控端</string>
+    <string name="session_connected_generic">已连接到被控端</string>
+    <string name="session_connected">已连接到 %1$s</string>
+    <string name="session_connected_many">已连接到 %1$d 台被控端</string>
+    <string name="session_reconnecting">正在重新连接 %1$s…</string>
+    <string name="session_lost">与 %1$s 的连接已断开</string>
+    <string name="session_disconnect">断开连接</string>
+</resources>

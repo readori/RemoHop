@@ -50,6 +50,14 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class HostSessionTest {
     private val inst: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    /** The app asks for the notification permission once a session exists (SessionService); a test has no one to answer. */
+    @org.junit.Before
+    fun grantNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            inst.uiAutomation.grantRuntimePermission(inst.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     private val args = InstrumentationRegistry.getArguments()
 
     private class Config(val host: String, val password: String, val dir: String, val file: String, val backgroundSeconds: Int)
@@ -252,7 +260,9 @@ class HostSessionTest {
         repeat(3) { if (typeAndWait(s, command, expected, 10)) return }
         fails(
             "timed out: $label: terminal shows the host's command output", s,
-            "document.getElementById('t-status').textContent+' '+document.getElementById('t-err').textContent"
+            "document.getElementById('t-status').textContent+' '+document.getElementById('t-err').textContent+" +
+                "' | term '+document.getElementById('t-host').clientWidth+'x'+document.getElementById('t-host').clientHeight+" +
+                "' panel '+(document.getElementById('panel-terminal').hidden?'hidden':'shown')+' tail: '+document.getElementById('t-host').textContent.trim().slice(-80)"
         )
     }
 
@@ -370,7 +380,31 @@ class HostSessionTest {
         waitFor(s, settled, "the desktop tab settles (picture or an error message)", 30, "document.getElementById('d-msg').textContent")
         val outcome = if (ok(s, "!!(window.remohopMobile&&remohopMobile._desk&&remohopMobile._desk.hello)")) "desktop streaming" else text(s, "document.getElementById('d-msg').textContent").take(120)
         assertTrue("the page still fits the screen width", ok(s, "document.documentElement.scrollWidth<=innerWidth+1"))
+        fullscreen(s)
         return outcome
+    }
+
+    /** Full screen on the desktop tab can always be left: by the floating button, and by the system back key. */
+    private fun fullscreen(s: ActivityScenario<MainActivity>) {
+        val isFs = "!!(window.remohopMobile&&remohopMobile._fullscreen())"
+        val restored = "!remohopMobile._fullscreen()&&document.getElementById('d-stage').style.position===''&&!document.getElementById('workspace').hidden"
+        click(s, "d-fs")
+        waitFor(s, isFs, "the toolbar button enters full screen", 10)
+        assertTrue(
+            "full screen shows the floating exit button",
+            ok(s, "(function(){var b=document.getElementById('d-exitfs');return !!b&&getComputedStyle(b).display!=='none'&&b.getBoundingClientRect().width>=40})()")
+        )
+        click(s, "d-exitfs")
+        waitFor(s, restored, "the floating button leaves full screen and restores the layout", 10)
+        click(s, "d-fs")
+        waitFor(s, isFs, "full screen again", 10)
+        // The app's own back handling (what the back gesture and key reach,
+        // through the OnBackInvokedCallback on 13+). Not a key event: on the
+        // first full screen the system shows its "viewing full screen" hint,
+        // which would take that key and the window focus.
+        @Suppress("DEPRECATION")
+        s.onActivity { it.onBackPressed() }
+        waitFor(s, restored, "back leaves full screen and keeps the session on screen", 10)
     }
 
     private fun sessionUsable(s: ActivityScenario<MainActivity>, cfg: Config, a: Int, b: Int, label: String) {
@@ -455,6 +489,12 @@ class HostSessionTest {
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
             Thread.sleep(cfg.backgroundSeconds * 1000L)
+            assertTrue("the session service keeps the sessions in the background", SessionService.running)
+            // What iOS does to a suspended app (and what broke the iOS app's
+            // "Connect" after a trip to another app): the gateway's listening
+            // socket goes away under it, unnoticed by the server. On return,
+            // onResume's EnsureGateway must find and reopen it on the same port.
+            Remohopcore.breakGatewayListenerForTest(true)
             inst.targetContext.startActivity(
                 Intent(inst.targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
@@ -466,6 +506,21 @@ class HostSessionTest {
             Log.i(TAG, "terminal socket survived ${cfg.backgroundSeconds}s in background: $direct")
             sessionUsable(s, cfg, 8, 8, "after background")
             stage("background ${cfg.backgroundSeconds}s: session usable (open terminal worked directly: $direct)")
+
+            // 9. The owner's sequence: back from another app, then Connect.
+            disconnect(s)
+            connect(s, cfg.host, "", false)
+            sessionUsable(s, cfg, 9, 9, "connect after a lost listener")
+            stage("connect after the listener was lost in the background")
+
+            // 10. The connection drops under the session (iOS suspension, a network
+            // change): the gateway re-establishes it and the page re-opens its tab,
+            // with no action from the user.
+            openTab(s, "terminal")
+            Remohopcore.dropSessionsForTest()
+            sessionUsable(s, cfg, 10, 10, "after a dropped connection")
+            assertEquals("one host connection after reconnecting", "1", text(s, "String(document.getElementById('hostsel').options.length)"))
+            stage("dropped connection re-established without the user")
         }
     }
 

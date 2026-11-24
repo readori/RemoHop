@@ -1,12 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.RemoHop" parent="android:Theme.Material.NoActionBar">
-        <item name="android:colorPrimary">#9db0ff</item>
-        <item name="android:colorAccent">#9db0ff</item>
-        <item name="android:windowBackground">#121212</item>
-    </style>
-    <style name="Theme.RemoHop.Settings" parent="android:Theme.Material">
-        <item name="android:colorPrimary">#1e1e24</item>
-        <item name="android:colorAccent">#9db0ff</item>
+        <item name="android:colorPrimary">@color/md_primary</item>
+        <item name="android:colorAccent">@color/md_primary</item>
+        <item name="android:windowBackground">@color/rh_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

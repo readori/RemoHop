@@ -5,11 +5,14 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -65,8 +68,19 @@ class MainActivity : Activity(), BridgeHost {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var fullscreen = false
     private var pageLang: String? = null
+    /** [Core.generation] of the URL the WebView has. */
+    private var loadedGen = -1
     private lateinit var saver: DownloadSaver
     private val bg = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
+    private var askedNotifications = false
+    /** While resumed: start the foreground service once a host session exists (see SessionService). */
+    private val watch = object : Runnable {
+        override fun run() {
+            watchSessions()
+            main.postDelayed(this, WATCH_MS)
+        }
+    }
     private val script by lazy { assets.open("remohop-mobile.js").bufferedReader().use { it.readText() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,6 +89,7 @@ class MainActivity : Activity(), BridgeHost {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this)
         setContentView(root)
+        applyBarColors()
         // Edge to edge (enforced from Android 15): pad for the system bars,
         // and for the keyboard so the page resizes above it.
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
@@ -82,6 +97,7 @@ class MainActivity : Activity(), BridgeHost {
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
             if (fullscreen) v.setPadding(0, 0, 0, ime.bottom)
             else v.setPadding(bars.left, bars.top, bars.right, max(bars.bottom, ime.bottom))
+            barsBackground?.top = if (fullscreen) 0 else bars.top
             WindowInsetsCompat.CONSUMED
         }
         newWebView()
@@ -94,9 +110,34 @@ class MainActivity : Activity(), BridgeHost {
     private fun startGateway() {
         bg.execute {
             val url = runCatching { Core.gatewayUrl(this) }
+            val gen = Core.generation
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
-                url.onSuccess(::load).onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
+                url.onSuccess { loadedGen = gen; load(it) }.onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
+            }
+        }
+    }
+
+    /**
+     * Makes sure the gateway answers (reopening its listener if it failed)
+     * and loads the page again only if the gateway's URL changed. Runs on
+     * every return to the foreground and when the page asks (bridge
+     * "gateway.ensure"); [done] gets the outcome on the UI thread.
+     */
+    override fun ensureGateway(done: (Boolean) -> Unit) {
+        if (bg.isShutdown) return done(false)
+        bg.execute {
+            val url = runCatching { Core.gatewayUrl(this) }
+            val gen = Core.generation
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                val u = url.getOrNull()
+                if (u != null && (gen != loadedGen || origin == null)) {
+                    if (!::web.isInitialized || web.parent == null) newWebView()
+                    loadedGen = gen
+                    load(u)
+                }
+                done(u != null)
             }
         }
     }
@@ -119,8 +160,25 @@ class MainActivity : Activity(), BridgeHost {
         web.evaluateJavascript("window.remohopMobile&&remohopMobile.setLang(${JSONObject.quote(lang)})", null)
     }
 
+    private var barsBackground: BarsBackground? = null
+
+    /**
+     * The status bar area shows the page's top bar colour and the rest the
+     * page colour, with status bar icons that read on it, in light and dark.
+     */
+    private fun applyBarColors() {
+        val top = barsBackground?.top ?: 0
+        barsBackground = BarsBackground(getColor(R.color.rh_bar_top), getColor(R.color.rh_bg)).also { it.top = top; root.background = it }
+        val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, root).apply {
+            isAppearanceLightStatusBars = !night
+            isAppearanceLightNavigationBars = !night
+        }
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        applyBarColors()
         syncLang()
     }
 
@@ -148,6 +206,11 @@ class MainActivity : Activity(), BridgeHost {
             safeBrowsingEnabled = false // would send URLs to Google; the page is local
             mediaPlaybackRequiresUserGesture = true
             textZoom = 100
+            // No page zoom: the page is laid out for the phone, and the
+            // remote desktop zooms itself (pinch in remohop-mobile.js).
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
         }
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
@@ -162,6 +225,7 @@ class MainActivity : Activity(), BridgeHost {
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                Diag.log("web renderer gone (crashed: ${detail.didCrash()})")
                 // The renderer died (or was killed for memory): start over
                 // with a fresh WebView on the same gateway.
                 view.destroy()
@@ -185,8 +249,12 @@ class MainActivity : Activity(), BridgeHost {
                 }
             }
 
-            // Console messages name their source URL, which carries the token.
-            override fun onConsoleMessage(message: ConsoleMessage): Boolean = true
+            // Console messages name their source URL, which carries the token:
+            // only an error's text goes to the diagnostic log (the core redacts it).
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                if (message.messageLevel() == ConsoleMessage.MessageLevel.ERROR) Diag.logPage("console: " + message.message())
+                return true
+            }
             override fun onPermissionRequest(request: PermissionRequest) = request.deny()
             override fun onGeolocationPermissionsShowPrompt(o: String?, cb: GeolocationPermissions.Callback) = cb.invoke(o, false, false)
         }
@@ -258,18 +326,43 @@ class MainActivity : Activity(), BridgeHost {
         super.onResume()
         if (::web.isInitialized) web.onResume()
         syncLang()
-        // The gateway is process wide; if it stopped, start a new one.
-        if (origin != null) bg.execute {
-            if (!com.remohop.app.core.remohopcore.Remohopcore.gatewayRunning()) runOnUiThread { startGateway() }
-        }
+        // The gateway is process wide: check that it answers (it reopens a
+        // failed listener, or starts again) before the page needs it. It
+        // also re-establishes host sessions that dropped meanwhile.
+        if (origin != null) ensureGateway {}
+        main.removeCallbacks(watch)
+        main.post(watch)
     }
 
     override fun onPause() {
+        main.removeCallbacks(watch)
+        // Still visible, so still allowed to start a foreground service:
+        // the last chance before the background.
+        watchSessions()
         if (::web.isInitialized) web.onPause()
         super.onPause()
     }
 
+    private fun watchSessions() {
+        if (bg.isShutdown) return
+        bg.execute {
+            val has = SessionWatch.sessions().isNotEmpty()
+            if (has) SessionWatch.check(this)
+            runOnUiThread { if (has && !isDestroyed) askNotifications() }
+        }
+    }
+
+    /** Android 13+: the session notification needs the user's permission; asked once, when it is first needed. */
+    private fun askNotifications() {
+        if (Build.VERSION.SDK_INT < 33 || askedNotifications) return
+        askedNotifications = true
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIFICATIONS)
+        }
+    }
+
     override fun onDestroy() {
+        main.removeCallbacks(watch)
         if (::web.isInitialized) {
             root.removeAllViews()
             web.destroy()
@@ -316,9 +409,16 @@ class MainActivity : Activity(), BridgeHost {
 
     override fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
 
+    override fun openSettings(page: String) =
+        startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, page))
+
+    override fun diagLog(text: String) = Diag.logPage(text)
+
     companion object {
         private const val REQ_FILES = 1
         private const val REQ_SAVE = 2
+        private const val REQ_NOTIFICATIONS = 3
+        private const val WATCH_MS = 3_000L
         private const val BRIDGE_NAME = "remohopNative"
     }
 }

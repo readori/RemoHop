@@ -20,6 +20,28 @@ class BridgeTest {
         override fun keyboard(show: Boolean) { calls += "keyboard:$show" }
         override fun haptic() { calls += "haptic" }
         override fun openSettings() { calls += "settings" }
+        override fun openSettings(page: String) { calls += "settings:$page" }
+        override fun diagLog(text: String) { calls += "log:${text.length}:${text.take(12)}" }
+        var pending: ((Boolean) -> Unit)? = null
+        override fun ensureGateway(done: (Boolean) -> Unit) { calls += "ensure"; pending = done }
+    }
+
+    /** The page's "gateway.ensure" is answered once the app has checked the gateway. */
+    @Test fun ensureGatewayAnsweredLater() {
+        val h = FakeHost()
+        var out: String? = null
+        val b = Bridge(h, origin)
+        b.handle("""{"id":3,"method":"gateway.ensure"}""", "http://127.0.0.1:5001", true) { out = it }
+        assertTrue(h.calls.isEmpty())
+        b.handle("""{"id":3,"method":"gateway.ensure"}""", origin, true) { out = it }
+        assertEquals(listOf("ensure"), h.calls)
+        assertNull("answered before the gateway was checked", out)
+        h.pending!!(true)
+        assertEquals(3, JSONObject(out!!).getInt("id"))
+        assertTrue(JSONObject(out!!).has("result"))
+        b.handle("""{"id":4,"method":"gateway.ensure"}""", origin, true) { out = it }
+        h.pending!!(false)
+        assertEquals("gateway unavailable", JSONObject(out!!).getString("error"))
     }
 
     private fun call(host: FakeHost, msg: String, src: String? = origin, main: Boolean = true): JSONObject? {
@@ -62,6 +84,16 @@ class BridgeTest {
         call(h, """{"id":6,"method":"haptic"}""")
         call(h, """{"id":9,"method":"openSettings"}""")
         assertEquals(listOf("state:true,false", "keyboard:true", "haptic", "settings"), h.calls)
+    }
+
+    @Test fun settingsPagesAndDiagnosticLog() {
+        val h = FakeHost()
+        call(h, """{"id":1,"method":"openSettings","args":{"page":"privacy"}}""")
+        call(h, """{"id":2,"method":"openSettings","args":{"page":"../../evil"}}""")
+        call(h, """{"id":3,"method":"log","args":{"text":"page error: x"}}""")
+        val long = call(h, JSONObject().put("id", 4).put("method", "log").put("args", JSONObject().put("text", "y".repeat(5000))).toString())!!
+        assertTrue(long.has("result"))
+        assertEquals(listOf("settings:privacy", "settings", "log:13:page error: ", "log:${Bridge.MAX_LOG}:yyyyyyyyyyyy"), h.calls)
     }
 
     @Test fun badInput() {

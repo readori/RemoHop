@@ -75,6 +75,13 @@
 <li>建立中继时会在 stderr 上提示，<code>remohop &lt;ID&gt; ping</code> 和 <code>remohop status</code> 中显示为 <code>relayed</code>。它更慢，并受带宽上限约束（<code>--relay-kbps</code>，每个会话默认 8000；<code>--relay-total-kbps</code>，默认 40000；<code>--relay-max</code>）。超过上限的流量会被整形（最多排队 100 毫秒，之后才丢弃），而不是直接截断，QUIC 的拥塞控制可以平滑地跟上。中继每 10 Mbit/s 大约消耗 1% 的 CPU 核。</li>
 <li>客户端或被控机可以用 <code>remohop config relay off</code> 或 <code>REMOHOP_RELAY=0</code> 拒绝中继。走了中继的会话之后不会升级为直连。对某台被控机打洞失败之后，10 分钟内从同样的网络发起的后续命令会跳过打洞，直接走中继。</li>
 </ul>
+<h2 id="纯-ipv6-网络nat64">纯 IPv6 网络（NAT64）</h2>
+<p>有些网络只给设备分配 IPv6，通过 NAT64 和 DNS64 访问 IPv4 互联网，例如部分移动运营商，以及 Apple 审核 iOS 应用时用的网络。在这种网络里主机名照常可用（DNS64 返回一个由 NAT64 转换的 IPv6 地址），IPv4 地址却不行，而 RemoHop 经常遇到 IPv4 地址：用户输入的地址（<code>203.0.113.7:21118</code>）、按地址配置的汇合服务器，以及汇合服务器下发的被控机和中继地址。</p>
+<ul>
+<li>在 iOS 上（或设置了 <code>REMOHOP_NAT64=on</code> 的任何平台），如果因为没有 IPv4 路由而发不出发往 IPv4 地址的数据报，客户端就按标准方法找出网络的 NAT64 前缀（RFC 7050：向系统解析器查询 <code>ipv4only.arpa</code> 的 IPv6 地址），改发到内嵌该 IPv4 地址的 IPv6 地址（RFC 6052，支持所有前缀长度）。来自这个地址的回包被当作来自原 IPv4 地址，所以打洞、中继和 QUIC 会话都无需改动。前缀缓存 10 分钟；如果之后发往转换地址时发现没有 IPv6 路由，就退回 IPv4，下次重新查询前缀。</li>
+<li>在 IPv4 可用的网络里一切照旧：不查询，也不转换。Android 系统自带转换（464XLAT），不需要这一机制；桌面端和被控机可以用 <code>REMOHOP_NAT64=on</code> 打开（代价是失去 QUIC 在 Linux 上使用的批量 UDP 收发）。</li>
+<li>局限：DNS64 没有公布的 NAT64（<code>ipv4only.arpa</code> 没有合成地址）找不到；只转换 RemoHop 自己的 UDP 流量（websocket 网桥按主机名连接）。经过转换的路径就是一个普通的 NAT，打洞的效果与运营商级 NAT 相同。</li>
+</ul>
 <p><a href="/en/docs/architecture/">ARCHITECTURE.md</a> 描述各个包的职责和会话模型，<a href="/en/docs/security/">security.md</a> 描述安全模型。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/how-it-works.md">源文件（GitHub）</a></p>
 </div>

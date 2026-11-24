@@ -173,10 +173,14 @@ func (e *Error) Error() string {
 	return "rendezvous server: " + e.Code
 }
 
-// CodeOf returns the failure code of a rendezvous error, or "".
+// CodeOf returns the failure code of a rendezvous error (one of the Code*
+// constants, including CodeIsHost and CodeWrongProtocol), or "".
 func CodeOf(err error) string {
 	if e, ok := errors.AsType[*Error](err); ok {
 		return e.Code
+	}
+	if e, ok := errors.AsType[*WrongServerError](err); ok {
+		return e.Code()
 	}
 	return ""
 }

@@ -50,7 +50,7 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Privacy policy</h1>
-<p class="updated">Last updated: 2026-11-23</p>
+<p class="updated">Last updated: 2026-11-24</p>
 <p>This policy explains how the RemoHop software, the RemoHop apps for Android and iOS, this website, and servers operated by Readori handle data. The publisher is Readori. Contact: <a href="mailto:admin@remohop.com">admin@remohop.com</a>.</p>
 
 <h2 id="short">The short version</h2>
@@ -74,8 +74,14 @@
 <ul>
 <li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on).</li>
 <li>This data is kept in the app's private directory. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
-<li>The web view inside the app keeps no cookies or caches. A host password you type is used for that one login and not stored.</li>
+<li>The web view inside the app keeps no cookies or caches. A host password you type is never written to storage. While the app is running it may be kept in memory, together with a temporary pairing, so a dropped session can reconnect by itself; it is gone when the app quits.</li>
 <li>Uninstalling the app deletes all of the above.</li>
+</ul>
+<h3>Diagnostic logs</h3>
+<ul>
+<li>Off by default. If you turn on Settings → Diagnostic logs, the app keeps a log of its own activity (connection steps, errors, app events) in its private directory, limited to about 1 MB. Turning it off deletes the log.</li>
+<li>Passwords, tokens and keys are removed from the log. Host IDs, names and IP addresses remain, because they are needed to diagnose connection problems.</li>
+<li>The log never leaves the device by itself. It is sent only when you choose Share or Email support, to the recipient you pick.</li>
 </ul>
 <h3>System permissions</h3>
 <ul>
@@ -83,6 +89,7 @@
 <li><strong>Camera and photos (iOS):</strong> accessed through the system picker, and only when you choose to upload a photo or video to a remote computer. The file goes to the computer you are connected to, not to Readori.</li>
 <li><strong>Clipboard:</strong> read or written only when you use the clipboard function in the app. The content goes to the computer you are connected to.</li>
 <li><strong>Internet access (Android):</strong> to make connections.</li>
+<li><strong>Notifications (Android):</strong> to show the ongoing "Connected to …" notification that keeps a session alive in the background and lets you disconnect from it.</li>
 </ul>
 <h3>What the apps do not do</h3>
 <p>The apps collect no analytics, contain no advertising or third-party SDKs, do not read contacts, location, the microphone or the advertising identifier, and do not track you across apps. The apps currently have no account login.</p>

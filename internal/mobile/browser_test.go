@@ -1,11 +1,16 @@
 package mobile
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/readori/RemoHop/internal/hostd"
 )
 
 // TestPhoneBrowser runs mobile/shared/test/phone_test.mjs: headless Chrome
@@ -36,10 +41,29 @@ func TestPhoneBrowser(t *testing.T) {
 	}
 	// A second host, for the connect form's own pairing (address, password, pair box).
 	formAddr := startHost(t)
+	// And one that refuses pairing (remohop host --no-pairing): "remember" cannot work there.
+	noPair := runHost(t, hostd.Config{Password: hostPassword, NoPairing: true}).Addr().String()
 	u, err := StartGateway()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The app's part of the page's recovery from a lost listener: break it
+	// as iOS does, and EnsureGateway, at the script's request.
+	ctl := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/break":
+			BreakGatewayListenerForTest(true)
+		case "/drop":
+			DropSessionsForTest()
+		case "/ensure":
+			if u2, err := EnsureGateway(); err != nil || u2 != u {
+				http.Error(w, fmt.Sprintf("EnsureGateway: %v (same URL: %v)", err, u2 == u), http.StatusInternalServerError)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer ctl.Close()
 	script, err := filepath.Abs(filepath.Join("..", "..", "mobile", "shared", "test", "phone_test.mjs"))
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +72,7 @@ func TestPhoneBrowser(t *testing.T) {
 	// The URL goes through the environment, not argv, which other local
 	// users can read.
 	cmd.Env = append(os.Environ(), "REMOHOP_GATEWAY_URL="+u, "REMOHOP_TARGET=lab", "REMOHOP_TEST_DIR="+files,
-		"REMOHOP_HOST_ADDR="+formAddr, "REMOHOP_HOST_PASSWORD="+hostPassword)
+		"REMOHOP_HOST_ADDR="+formAddr, "REMOHOP_HOST_PASSWORD="+hostPassword, "REMOHOP_CONTROL_URL="+ctl.URL, "REMOHOP_NOPAIR_ADDR="+noPair)
 	done := make(chan struct{})
 	var out []byte
 	go func() { out, err = cmd.CombinedOutput(); close(done) }()

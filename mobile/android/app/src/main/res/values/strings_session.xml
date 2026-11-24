@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The foreground service that keeps host sessions while the app is in the background (SessionService). -->
+<resources>
+    <string name="session_channel">Connected hosts</string>
+    <string name="session_connected_generic">Connected to a host</string>
+    <string name="session_connected">Connected to %1$s</string>
+    <string name="session_connected_many">Connected to %1$d hosts</string>
+    <string name="session_reconnecting">Reconnecting to %1$s…</string>
+    <string name="session_lost">The connection to %1$s was lost</string>
+    <string name="session_disconnect">Disconnect</string>
+</resources>

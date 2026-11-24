@@ -122,13 +122,21 @@ async function newPhonePage(b, preload) {
 }
 
 // A fake Android bridge (what WebViewCompat.addWebMessageListener exposes).
+// "gateway.ensure" is answered only when the test calls window.__ensure(),
+// after it had the gateway checked (see answerEnsure), as the app does.
 const fakeNative = `
 window.__native = [];
+window.__ensures = [];
+window.__ensure = () => { const l = window.__ensures.splice(0); for (const f of l) f(); return l.length; };
 window.remohopNative = {
   onmessage: null,
   postMessage(s) {
     const m = JSON.parse(s);
     window.__native.push(m);
+    if (m.method === 'gateway.ensure') {
+      window.__ensures.push(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result: {}})}));
+      return;
+    }
     const result = m.method === 'clipboard.read' ? {text: 'from-native'} : {};
     setTimeout(() => this.onmessage && this.onmessage({data: JSON.stringify({id: m.id, result})}), 0);
   },
@@ -291,6 +299,22 @@ async function harnessTests(b) {
   check(st.length && st[st.length - 1].fullscreen === true && st[st.length - 1].keepScreenOn === true, 'full screen asks the app to hide the system bars', st);
   const fsRect = await p.eval('(() => { const r = document.getElementById("d-stage").getBoundingClientRect(); return {w: r.width, top: r.top}; })()');
   check(fsRect.w === 390 && fsRect.top === 0, 'full screen stage fills the width', fsRect);
+  // The floating exit button: visible on top of the picture, and a tap leaves full screen.
+  const exitHit = await p.eval(`(() => { const b = document.getElementById('d-exitfs'); if (!b || getComputedStyle(b).display === 'none') return 'hidden';
+    const r = b.getBoundingClientRect(); const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top === b || b.contains(top) ? 'on top' : 'covered by ' + (top && (top.id || top.tagName)); })()`);
+  check(exitHit === 'on top', 'full screen shows a floating exit button on top', exitHit);
+  const eb = await p.eval('(() => { const r = document.getElementById("d-exitfs").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()');
+  await p.touch('touchStart', [eb]); await p.touch('touchEnd', []);
+  await sleep(80);
+  st = await states();
+  check(st[st.length - 1].fullscreen === false && await p.eval('document.getElementById("d-stage").style.position') === '' &&
+    await p.eval('getComputedStyle(document.getElementById("d-exitfs")).display') === 'none', 'the exit button leaves full screen and restores the layout', st);
+  await p.eval('window.__native.length = 0; [...document.querySelectorAll("#sdm-bar button")].find(b => b.getAttribute("aria-label") === "Full screen").click()');
+  await sleep(50);
+  st = await states();
+  check(st.length && st[st.length - 1].fullscreen === true, 'the key bar\'s full screen button is near its start and enters full screen', st);
+  check(await p.eval('[...document.querySelectorAll("#sdm-bar button")].findIndex(b => b.getAttribute("aria-label") === "Full screen")') <= 2, 'full screen key is among the first in the bar');
   check(await p.eval('remohopMobile.back()') === 'handled', 'back leaves full screen');
   st = await states();
   check(st[st.length - 1].fullscreen === false, 'leaving full screen restores the bars', st);
@@ -306,6 +330,45 @@ async function harnessTests(b) {
   srv.close();
 }
 
+// answerEnsure plays the app's part of the page's recovery: it waits for the
+// page's "gateway.ensure", has the gateway checked (revive: the Go test's
+// control endpoint calls EnsureGateway) and answers it.
+async function answerEnsure(p, control, revive) {
+  check(await p.waitFor('window.__ensures.length > 0', 5000), 'the page asks the app to check the gateway');
+  if (revive) {
+    const r = await fetch(control + '/ensure');
+    check(r.ok, 'EnsureGateway revived the listener on the same URL', await r.text());
+  }
+  await p.eval('window.__ensure()');
+}
+
+// The release-blocking iOS bug: the gateway's listening socket is gone
+// (iOS took it while the app was in the background), the page's Connect
+// gets no answer at all. The page must ask the app, and retry; and when
+// even that fails, say so with a Retry button instead of "Load failed".
+async function lostListenerTests(p, control, target) {
+  const connect = () => p.eval(`document.getElementById('target').value = ${JSON.stringify(target)};
+    document.getElementById('hostpass').value = ''; document.getElementById('connectbtn').click()`);
+  await fetch(control + '/break');
+  await connect();
+  await answerEnsure(p, control, true);
+  check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'Connect works after the listener was lost (the page asked the app, then retried)',
+    await p.eval('document.getElementById("connerr").textContent'));
+  await p.eval('document.getElementById("disconnect").click()');
+  check(await p.waitFor('!document.getElementById("connect").hidden'), 'disconnect returns to the connect form');
+
+  await fetch(control + '/break');
+  await connect();
+  await answerEnsure(p, control, false);
+  check(await p.waitFor('!!document.getElementById("gwretry") && !document.getElementById("gwretry").parentNode.hidden', 5000),
+    'when the gateway stays silent the page says so, with Retry');
+  const err = await p.eval('document.getElementById("connerr").textContent');
+  check(!/Failed to fetch|Load failed/.test(err) && /not answering/.test(err), 'no raw browser error text in the connect form', err);
+  await p.eval('document.getElementById("gwretry").click()');
+  await answerEnsure(p, control, true);
+  check(await p.waitFor('document.getElementById("gwretry").parentNode.hidden', 5000), 'Retry clears the message once the gateway answers');
+}
+
 async function gatewayTests(b) {
   const url = process.env.REMOHOP_GATEWAY_URL, target = process.env.REMOHOP_TARGET, dir = process.env.REMOHOP_TEST_DIR;
   const p = await newPhonePage(b, [fakeNative, script]);
@@ -317,7 +380,30 @@ async function gatewayTests(b) {
   // box in the connect form (a second host, so the saved pairing below is
   // not what makes this work).
   if (process.env.REMOHOP_HOST_ADDR) {
+    const addr = process.env.REMOHOP_HOST_ADDR, A = JSON.stringify(addr);
     check(await p.eval('!document.getElementById("pairrow").hidden'), 'the pair box is offered');
+    check(await p.eval('document.getElementById("pair").checked'), 'the app remembers computers by default');
+    // A password login without remembering: the host is then a recent one.
+    await p.eval(`document.getElementById('target').value = ${A};
+      document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
+      document.getElementById('pair').checked = false; document.getElementById('connectbtn').click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects with address + password, not remembered',
+      await p.eval('document.getElementById("connerr").textContent'));
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
+    const recent = `[...document.querySelectorAll('#peercards-recent .peer')].find(b => b.textContent.includes(${A}))`;
+    check(await p.waitFor(`!!${recent} && ${recent}.textContent.includes('Needs the password')`), 'an unpaired host is listed under Recent as needing its password',
+      await p.eval('document.getElementById("peerrow").textContent'));
+    await p.eval(`document.getElementById('target').value = ''; ${recent}.click()`);
+    await sleep(400);
+    check(await p.eval(`document.activeElement.id === 'hostpass' && document.getElementById('target').value === ${A} && !document.getElementById('connect').hidden &&
+      document.getElementById('connstatus').textContent === '' && document.getElementById('connerr').textContent === ''`),
+      'tapping a recent host fills it in and asks for the password, without trying to connect');
+    await p.eval('document.getElementById("connectbtn").click()');
+    check(await p.waitFor('document.getElementById("connerr").textContent.trim() !== ""', 20000), 'connecting without the password is refused');
+    const pwErr = await p.eval('document.getElementById("connerr").textContent');
+    check(pwErr.includes("Enter this computer's password") && !/remohop|--password|REMOHOP_|pair/.test(pwErr), 'the missing password is asked for in plain words, with no command-line text', pwErr);
+    check(await p.eval('document.activeElement.id') === 'hostpass', 'and the password field has the focus');
     await p.eval(`document.getElementById('target').value = ${JSON.stringify(process.env.REMOHOP_HOST_ADDR)};
       document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
       document.getElementById('pair').checked = true; document.getElementById('connectbtn').click()`);
@@ -327,7 +413,33 @@ async function gatewayTests(b) {
       await p.eval('document.getElementById("pathbadge").textContent'));
     await p.eval('document.getElementById("disconnect").click()');
     check(await p.waitFor('!document.getElementById("connect").hidden'), 'disconnect returns to the connect form');
+    // Remembered: the host moved to the paired list, and a tap connects with no password.
+    const paired = `[...document.querySelectorAll('#peercards .peer')].find(b => b.textContent.includes(${A}))`;
+    check(await p.waitFor(`!!${paired} && ${paired}.textContent.includes('Connects without a password')`), 'the remembered host is listed as connecting without a password',
+      await p.eval('document.getElementById("peerrow").textContent'));
+    await p.eval(`document.getElementById('hostpass').value = ''; ${paired}.click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'tapping a paired host connects without a password',
+      await p.eval('document.getElementById("connerr").textContent'));
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
   }
+  if (process.env.REMOHOP_NOPAIR_ADDR) {
+    // "Remember" against a host that does not allow it: said plainly, and the host stays a recent one.
+    const np = JSON.stringify(process.env.REMOHOP_NOPAIR_ADDR);
+    await p.eval(`document.getElementById('target').value = ${np};
+      document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
+      document.getElementById('pair').checked = true; document.getElementById('connectbtn').click()`);
+    check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects to a host that refuses pairing',
+      await p.eval('document.getElementById("connerr").textContent'));
+    const bannerText = await p.eval('document.getElementById("banner").hidden ? "" : document.getElementById("banner").textContent');
+    check(bannerText.includes('does not allow remembering') && !/pairing failed/.test(bannerText), 'the refusal to remember is said in plain words', bannerText);
+    await p.eval('document.getElementById("disconnect").click()');
+    await p.waitFor('!document.getElementById("connect").hidden');
+    check(await p.waitFor(`[...document.querySelectorAll('#peercards-recent .peer')].some(b => b.textContent.includes(${np}))`) &&
+      !(await p.eval(`[...document.querySelectorAll('#peercards .peer')].some(b => b.textContent.includes(${np}))`)), 'and it stays under Recent, needing its password');
+    await p.eval('document.getElementById("banner").hidden = true');
+  }
+  if (process.env.REMOHOP_CONTROL_URL) await lostListenerTests(p, process.env.REMOHOP_CONTROL_URL, target);
   await p.shot('gateway-connect');
   await p.eval(`document.getElementById('target').value = ${JSON.stringify(target)}; document.getElementById('connectbtn').click()`);
   check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects with the pairing saved by PairWithPassword',
@@ -373,6 +485,24 @@ async function gatewayTests(b) {
     i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
   check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-45")'), 'terminal takes input events');
 
+  // The connection to the host drops (the app was suspended, the network
+  // changed): the gateway re-establishes it and the terminal re-attaches to
+  // the same shell, without the user doing anything.
+  if (process.env.REMOHOP_CONTROL_URL) {
+    const before = await p.eval('document.getElementById("t-status").textContent');
+    await fetch(process.env.REMOHOP_CONTROL_URL + '/drop');
+    check(await p.waitFor('/re-attached/.test(document.getElementById("t-status").textContent)', 20000),
+      'after a dropped connection the terminal re-attaches by itself', {before, now: await p.eval('document.getElementById("t-status").textContent')});
+    check(await p.eval('!document.getElementById("workspace").hidden && document.getElementById("hostsel").options.length === 1'), 'the session stayed in the workspace');
+    check(await p.waitFor('document.getElementById("banner").hidden || !/dropped|could not/.test(document.getElementById("banner").textContent)', 5000),
+      'no reconnecting or error banner once reconnected', await p.eval('document.getElementById("banner").textContent'));
+    await sleep(300);
+    await p.eval(`(() => { const i = document.querySelector('#t-host textarea'); i.focus();
+      i.value = 'echo remohop-$((7*9))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
+      i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
+    check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-63")'), 'the re-attached terminal runs commands');
+  }
+
   // Clipboard tab through the bridge: device clipboard -> page -> host clipboard -> page -> device clipboard.
   await p.eval('document.getElementById("tab-clipboard").click()');
   await p.eval('document.getElementById("c-paste").click()');
@@ -391,6 +521,20 @@ async function gatewayTests(b) {
   await sleep(1500);
   check(await p.eval('document.documentElement.scrollWidth <= innerWidth'), 'desktop tab fits the phone width');
   await p.shot('gateway-desktop');
+  // Full screen on the real page: the toolbar button enters it, the page's
+  // floating exit button is on top and leaves it, the layout comes back.
+  const stageBefore = await p.eval('JSON.stringify(document.getElementById("d-stage").getBoundingClientRect())');
+  await p.eval('document.getElementById("d-fs").click()');
+  await sleep(100);
+  check(await p.eval('remohopMobile._fullscreen() && document.getElementById("d-stage").getBoundingClientRect().top === 0'), 'gateway page: full screen covers the screen');
+  const gExit = await p.eval(`(() => { const b = document.getElementById('d-exitfs'); const r = b.getBoundingClientRect();
+    if (getComputedStyle(b).display === 'none' || r.width < 40) return null; const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return t === b ? [r.left + r.width / 2, r.top + r.height / 2] : null; })()`);
+  check(!!gExit, 'gateway page: the exit button shows on top of the picture');
+  if (gExit) { await p.touch('touchStart', [gExit]); await p.touch('touchEnd', []); }
+  await sleep(300);
+  check(await p.eval('!remohopMobile._fullscreen()') && await p.eval('JSON.stringify(document.getElementById("d-stage").getBoundingClientRect())') === stageBefore,
+    'gateway page: the exit button leaves full screen and restores the layout');
   // The app's language setting reaches the running page without a reload.
   check(await p.eval('document.getElementById("langsw").hidden'), 'the page\'s own language switch is hidden in the app');
   check(await p.eval('remohopMobile.setLang("zh")') === 'zh', 'remohopMobile.setLang switches to Chinese');

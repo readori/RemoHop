@@ -1,26 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- The web page draws the app's top bar; dark status bar icons on it. -->
     <style name="Theme.RemoHop" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:colorPrimary">#2546d8</item>
-        <item name="android:colorAccent">#2546d8</item>
-        <item name="android:windowBackground">#ffffff</item>
-    </style>
-    <style name="Theme.RemoHop.Settings" parent="android:Theme.Material.Light.DarkActionBar">
-        <item name="android:colorPrimary">#2546d8</item>
-        <item name="android:colorPrimaryDark">#1b34a6</item>
-        <item name="android:colorAccent">#2546d8</item>
-    </style>
-    <style name="Heading">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:layout_marginTop">20dp</item>
-        <item name="android:textSize">18sp</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    <style name="Hint">
-        <item name="android:layout_width">match_parent</item>
-        <item name="android:layout_height">wrap_content</item>
-        <item name="android:textSize">14sp</item>
-        <item name="android:alpha">0.8</item>
+        <item name="android:colorPrimary">@color/md_primary</item>
+        <item name="android:colorAccent">@color/md_primary</item>
+        <item name="android:windowBackground">@color/rh_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

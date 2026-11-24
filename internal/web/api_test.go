@@ -171,6 +171,45 @@ func TestPairFlow(t *testing.T) {
 	}
 }
 
+// A host that refuses pairing (remohop host --no-pairing, quick support):
+// the session works, the page gets a stable code for the refusal and the
+// connection is not marked paired.
+func TestPairRefused(t *testing.T) {
+	testEnv(t)
+	d := &dialer{t: t}
+	s := startServer(t, Config{Dial: d.dial, Pair: func(context.Context, *peer.Conn, string) error {
+		return errors.New("pair: this host does not allow pairing")
+	}})
+	c := newLoopbackClient(t, s)
+	c.newSession()
+	var a map[string]any
+	c.jsonCall("POST", "api/v1/connect", map[string]any{"target": "123456789", "password": "hostpw", "pair": true}, &a)
+	for i := 0; ; i++ {
+		var j map[string]any
+		c.jsonCall("GET", "api/v1/connect/"+a["attempt"].(string), nil, &j)
+		if j["state"] == "connected" {
+			if j["conn"].(map[string]any)["paired"] == true {
+				t.Errorf("marked paired although the host refused: %v", j)
+			}
+			p, _ := j["pair"].(map[string]any)
+			if p == nil || p["ok"] != false || p["code"] != "pair_refused" || p["reason"] != "no_pairing" {
+				t.Errorf("pair outcome: %v", j["pair"])
+			}
+			break
+		}
+		if i > 500 {
+			t.Fatalf("not connected: %v", j)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := pairFailure(errors.New("pairing is not allowed by grant support-1")); got.Code != "pair_refused" || got.Reason != "grant" {
+		t.Errorf("grant: %+v", got)
+	}
+	if got := pairFailure(errors.New("the host could not store the pairing")); got.Code != "pair_failed" || got.Reason != "" {
+		t.Errorf("other: %+v", got)
+	}
+}
+
 func TestFilesAPI(t *testing.T) {
 	r := newRig(t, peertest.Options{})
 	root := t.TempDir()
