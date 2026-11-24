@@ -421,6 +421,24 @@ async function gatewayTests(b) {
     i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
   check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-45")'), 'terminal takes input events');
 
+  // The connection to the host drops (the app was suspended, the network
+  // changed): the gateway re-establishes it and the terminal re-attaches to
+  // the same shell, without the user doing anything.
+  if (process.env.REMOHOP_CONTROL_URL) {
+    const before = await p.eval('document.getElementById("t-status").textContent');
+    await fetch(process.env.REMOHOP_CONTROL_URL + '/drop');
+    check(await p.waitFor('/re-attached/.test(document.getElementById("t-status").textContent)', 20000),
+      'after a dropped connection the terminal re-attaches by itself', {before, now: await p.eval('document.getElementById("t-status").textContent')});
+    check(await p.eval('!document.getElementById("workspace").hidden && document.getElementById("hostsel").options.length === 1'), 'the session stayed in the workspace');
+    check(await p.waitFor('document.getElementById("banner").hidden || !/dropped|could not/.test(document.getElementById("banner").textContent)', 5000),
+      'no reconnecting or error banner once reconnected', await p.eval('document.getElementById("banner").textContent'));
+    await sleep(300);
+    await p.eval(`(() => { const i = document.querySelector('#t-host textarea'); i.focus();
+      i.value = 'echo remohop-$((7*9))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
+      i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
+    check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-63")'), 'the re-attached terminal runs commands');
+  }
+
   // Clipboard tab through the bridge: device clipboard -> page -> host clipboard -> page -> device clipboard.
   await p.eval('document.getElementById("tab-clipboard").click()');
   await p.eval('document.getElementById("c-paste").click()');

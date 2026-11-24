@@ -61,7 +61,7 @@ func (s *Server) handleTermWS(w http.ResponseWriter, r *http.Request) {
 		Handler: func(c *websocket.Conn) {
 			defer c.Close()
 			c.MaxPayloadBytes = maxTermMsg
-			s.bridgeTerm(r.Context(), p.conn, &wsConn{ws: c}, req)
+			s.bridgeTerm(r.Context(), p.current(), &wsConn{ws: c}, req)
 		},
 	}.ServeHTTP(w, r)
 }
@@ -159,7 +159,7 @@ func (s *Server) handleTermSessions(w http.ResponseWriter, r *http.Request, ws *
 		return
 	}
 	defer release()
-	list, err := shell.Sessions(r.Context(), p.conn)
+	list, err := shell.Sessions(r.Context(), p.current())
 	if err != nil {
 		writeErr(w, classify(err))
 		return
@@ -184,7 +184,7 @@ func (s *Server) handleTermKill(w http.ResponseWriter, r *http.Request, ws *webS
 		return
 	}
 	defer release()
-	if err := shell.KillSession(r.Context(), p.conn, req.Name); err != nil {
+	if err := shell.KillSession(r.Context(), p.current(), req.Name); err != nil {
 		writeErr(w, classify(err))
 		return
 	}

@@ -118,6 +118,19 @@ type Config struct {
 	// https. Requires a loopback Listen and PasswordFile.
 	PublicURL string
 
+	// Persistent is app mode, for the phone apps' in-process gateway (see
+	// keep.go): one user, whose host sessions last until they disconnect.
+	// Nothing is closed for being idle (PageIdle and ConnIdle do not
+	// apply), a session that drops is established again on its own, and a
+	// new browser session takes over the host sessions of earlier ones.
+	// Loopback only.
+	Persistent bool
+	// Redial, in persistent mode, is asked after each connect how to log
+	// in to that host again without the user. Nil re-runs Dial with the
+	// same target and the password typed for it (kept in memory), or with
+	// the saved pairing if the connect paired.
+	Redial RedialFunc
+
 	// Seams for tests; the defaults use internal/dial.
 	Dial  DialFunc
 	Pair  PairFunc
@@ -191,6 +204,9 @@ func New(cfg Config) (*Server, error) {
 	}
 	if !loop && (cfg.TLSCert == "" || cfg.PasswordFile == "") {
 		return nil, errNoTLSPassword
+	}
+	if cfg.Persistent && cfg.PasswordFile != "" {
+		return nil, errors.New("web: persistent (app) mode is for a loopback gateway without a login")
 	}
 	if cfg.APITokenFile != "" && cfg.PasswordFile == "" {
 		return nil, errors.New("--api-token-file needs --password-file: program access is for gateways that have a login")

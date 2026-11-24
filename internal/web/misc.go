@@ -29,7 +29,7 @@ func (s *Server) handleClipGet(w http.ResponseWriter, r *http.Request, ws *webSe
 		return
 	}
 	defer release()
-	c, err := clip.GetWith(r.Context(), p.conn, clip.CallOptions{NoHistory: true})
+	c, err := clip.GetWith(r.Context(), p.current(), clip.CallOptions{NoHistory: true})
 	switch {
 	case errors.Is(err, clip.ErrEmpty):
 		writeJSON(w, http.StatusOK, map[string]any{"kind": "empty"})
@@ -62,7 +62,7 @@ func (s *Server) handleClipSet(w http.ResponseWriter, r *http.Request, ws *webSe
 		return
 	}
 	defer release()
-	if err := clip.SetWith(r.Context(), p.conn, clip.Text(req.Text), clip.CallOptions{NoHistory: true}); err != nil {
+	if err := clip.SetWith(r.Context(), p.current(), clip.Text(req.Text), clip.CallOptions{NoHistory: true}); err != nil {
 		writeErr(w, classify(err))
 		return
 	}
@@ -75,12 +75,12 @@ func (s *Server) handleInfo(w http.ResponseWriter, r *http.Request, ws *webSessi
 		return
 	}
 	defer release()
-	info, err := sysinfo.Get(r.Context(), p.conn)
+	info, err := sysinfo.Get(r.Context(), p.current())
 	if err != nil {
 		writeErr(w, classify(err))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"info": info, "conn": p.info})
+	writeJSON(w, http.StatusOK, map[string]any{"info": info, "conn": p.snapshot()})
 }
 
 func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request, ws *webSession) {
@@ -90,7 +90,7 @@ func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request, ws *we
 	}
 	defer release()
 	display, _ := strconv.Atoi(r.URL.Query().Get("display"))
-	img, err := screenshot.Capture(r.Context(), p.conn, screenshot.Options{Display: display, Format: screenshot.PNG})
+	img, err := screenshot.Capture(r.Context(), p.current(), screenshot.Options{Display: display, Format: screenshot.PNG})
 	if err != nil {
 		writeErr(w, classify(err))
 		return

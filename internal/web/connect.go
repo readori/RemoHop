@@ -99,10 +99,22 @@ type connInfo struct {
 	Fingerprint string `json:"host_fingerprint,omitempty"`
 	Paired      bool   `json:"paired,omitempty"`
 	Remote      string `json:"remote,omitempty"`
+	// State is "connected", or in persistent mode (see keep.go)
+	// "reconnecting", "waiting_approval" (the host asks its owner again)
+	// or "failed" (it cannot be re-established; Error says why). The page
+	// shows anything but connected as a passing state, and a failure as
+	// the end of the session.
+	State string    `json:"state,omitempty"`
+	Error *apiError `json:"error,omitempty"`
+	// Retries counts the attempts of the current reconnection, and
+	// Reconnects the times the session was re-established: a page that
+	// sees it change re-opens what it showed.
+	Retries    int `json:"retries,omitempty"`
+	Reconnects int `json:"reconnects,omitempty"`
 }
 
 func describe(conn *peer.Conn, typed string) connInfo {
-	ci := connInfo{Key: typed, Target: typed, Path: "unknown"}
+	ci := connInfo{Key: typed, Target: typed, Path: "unknown", State: stateConnected}
 	if info := dial.InfoOf(conn); info != nil {
 		if info.Target != "" {
 			ci.Key, ci.Target = info.Target, info.Target
@@ -316,7 +328,9 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 	go func() {
 		defer cancel()
 		conn, err := s.cfg.Dial(ctx, DialRequest{Target: target, Password: password, Notify: a.notice})
-		password = ""
+		if !s.cfg.Persistent {
+			password = ""
+		}
 		if err != nil {
 			release()
 			if ctx.Err() == context.Canceled {
@@ -338,7 +352,11 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 				ci.Paired = true
 			}
 		}
-		p := &pooled{key: ci.Key, conn: conn, info: ci}
+		p := newPooled(ci.Key, conn, ci)
+		if s.cfg.Persistent {
+			p.redial = s.redialer(ctx, conn, DialRequest{Target: target, Password: password}, ci.Paired)
+		}
+		password = ""
 		got, mine := s.adopt(ws, p, release)
 		if !mine {
 			conn.Close()
@@ -347,7 +365,7 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 				a.finish("canceled", &apiError{Status: 499, Code: "canceled", Message: "the browser session ended"}, nil, s.now())
 				return
 			}
-			ci = got.info
+			ci = got.snapshot()
 		}
 		a.finish("connected", nil, &ci, s.now())
 	}()

@@ -88,7 +88,7 @@ func (s *Server) handleDesktopWS(w http.ResponseWriter, r *http.Request) {
 		Handler: func(c *websocket.Conn) {
 			defer c.Close()
 			c.MaxPayloadBytes = 64 << 10 // the page sends small JSON only
-			s.bridgeDesktop(p.conn, &wsConn{ws: c}, opts)
+			s.bridgeDesktop(p.current(), &wsConn{ws: c}, opts)
 		},
 	}.ServeHTTP(w, r)
 }

@@ -30,6 +30,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -61,10 +62,10 @@ var (
 	pairCancel context.CancelFunc
 )
 
-// pageIdle is how long the gateway keeps a page's host sessions without a
-// heartbeat. A phone pauses a backgrounded WebView, so this is much longer
-// than the desktop gateway's two minutes.
-const pageIdle = 30 * time.Minute
+// The gateway runs in persistent (app) mode: a host session lasts until the
+// user disconnects it, and one that drops (the app was suspended, the
+// network changed) is established again by itself; see internal/web's
+// keep.go and redialGateway below.
 
 // pairTimeout bounds PairWithPassword, which may wait for the host's owner
 // to approve the login.
@@ -198,6 +199,9 @@ func StartGateway() (string, error) {
 //     and starts a new browser session);
 //   - that fails too: it stops the gateway and starts a new one.
 //
+// It also checks the host sessions in the background (CheckSessions): one
+// whose connection died while the app was away is re-established now.
+//
 // The caller compares the URL with the one its web view has and loads it
 // only if it changed.
 func EnsureGateway() (string, error) {
@@ -205,9 +209,11 @@ func EnsureGateway() (string, error) {
 	defer gwLife.Unlock()
 	if srv := current(); srv != nil {
 		if srv.Listening() && healthy(srv) == nil {
+			go srv.CheckSessions()
 			return srv.URL(), nil
 		}
 		if err := srv.Rebind(); err == nil && healthy(srv) == nil {
+			go srv.CheckSessions()
 			return srv.URL(), nil
 		}
 		stopLocked()
@@ -240,6 +246,23 @@ func BreakGatewayListenerForTest(stall bool) {
 	defer gwLife.Unlock()
 	if srv := current(); srv != nil {
 		srv.BreakListenerForTest(stall)
+	}
+}
+
+// CheckSessions pings every host session and re-establishes the ones that
+// do not answer, at once. The apps call it when the network changes (and
+// EnsureGateway does on every return to the foreground).
+func CheckSessions() {
+	if srv := current(); srv != nil {
+		srv.CheckSessions()
+	}
+}
+
+// DropSessionsForTest closes every host session's connection as a network
+// outage would; the sessions reconnect by themselves. Tests only.
+func DropSessionsForTest() {
+	if srv := current(); srv != nil {
+		srv.DropSessionsForTest()
 	}
 }
 
@@ -284,10 +307,11 @@ func startLocked() (string, error) {
 	srv, err := web.New(web.Config{
 		Listen:    "127.0.0.1:0",
 		ConfigDir: d,
-		Dial:      dialGateway(d),
-		Pair:      pairGateway(d),
-		PageIdle:  pageIdle,
-		Logger:    quietLogger(),
+		Dial:       dialGateway(d),
+		Pair:       pairGateway(d),
+		Persistent: true,
+		Redial:     redialGateway(d),
+		Logger:     quietLogger(),
 	})
 	if err != nil {
 		return "", err
@@ -352,8 +376,13 @@ func SetLocalAddresses(list string) {
 		all = all[:nat.MaxCandidates]
 	}
 	localsMu.Lock()
+	changed := !slices.Equal(nativeLAN, all)
 	nativeLAN = all
 	localsMu.Unlock()
+	if changed {
+		// The network changed: sessions on the old one are probably dead.
+		go CheckSessions()
+	}
 }
 
 // localAddrs prefers Go's own enumeration and falls back to what the app
@@ -365,6 +394,66 @@ func localAddrs() []netip.Addr {
 	localsMu.Lock()
 	defer localsMu.Unlock()
 	return append([]netip.Addr(nil), nativeLAN...)
+}
+
+// redialGateway decides how a host session logs in again after its
+// connection dropped, without the user:
+//
+//   - a session that logged in with a pairing token or this device's key
+//     does so again (the saved credential);
+//   - a session that logged in with a password, to a host this device has
+//     no saved pairing for, asks the host right away for a pairing token
+//     and keeps it in memory only, for this session (a one-time password
+//     is spent by the first login, so the password could not do it). The
+//     token is not saved: it is gone when the user disconnects or the app
+//     ends. The host lists it like any pairing of this device (`remohop
+//     host paired`, under the device's name) and replaces it when the
+//     device pairs again;
+//   - where the host refuses to pair (quick-support hosts, grants, hosts
+//     run with --no-pairing), the password is kept in memory instead. If
+//     that host asks its owner to approve every login, every reconnection
+//     needs approval again, and the page says so.
+//
+// The password is never written anywhere; see docs/security.md.
+func redialGateway(d string) web.RedialFunc {
+	return func(ctx context.Context, conn *peer.Conn, req web.DialRequest) (web.Redialer, error) {
+		info := dial.InfoOf(conn)
+		if info == nil {
+			return nil, errors.New("this connection was not established by remohop")
+		}
+		target, password := info.Target, ""
+		var mem *hostd.Pairing
+		if info.Auth == auth.KindPassword && !savedPairing(d, target) {
+			pctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			p, err := hostd.Pair(pctx, conn, hostd.PairRequest{Name: pairLabel()})
+			cancel()
+			if err == nil {
+				mem = p
+			} else {
+				password = req.Password
+			}
+		}
+		return func(ctx context.Context, notify func(string)) (*peer.Conn, error) {
+			return dial.Dial(ctx, target, dial.Options{
+				Password: password,
+				Pairing:  mem,
+				Notify:   notify,
+				Dir:      d,
+				Locals:   localAddrs,
+				Logger:   quietLogger(),
+			})
+		}, nil
+	}
+}
+
+// savedPairing reports whether this device has a pairing saved for target.
+func savedPairing(d, target string) bool {
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		return false
+	}
+	p, _, err := st.Get(target)
+	return err == nil && p.Paired()
 }
 
 // pairGateway is the page's "pair this gateway" action with this device's

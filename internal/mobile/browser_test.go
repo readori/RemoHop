@@ -49,6 +49,8 @@ func TestPhoneBrowser(t *testing.T) {
 		switch r.URL.Path {
 		case "/break":
 			BreakGatewayListenerForTest(true)
+		case "/drop":
+			DropSessionsForTest()
 		case "/ensure":
 			if u2, err := EnsureGateway(); err != nil || u2 != u {
 				http.Error(w, fmt.Sprintf("EnsureGateway: %v (same URL: %v)", err, u2 == u), http.StatusInternalServerError)

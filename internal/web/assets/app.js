@@ -295,6 +295,7 @@
     if (!st.csrf) return;
     try { refreshConns((await SD.json('GET', 'connections')).conns); } catch (e) { /* sessionLost handles auth */ }
   }
+  SD.heartbeat = heartbeat; // a tab whose socket closed asks whether the session is still there
 
   function refreshConns(list) {
     const old = st.cur;
@@ -314,6 +315,30 @@
       return;
     }
     if (st.cur) sel.value = st.cur;
+    followState();
+  }
+
+  // In the phone apps the gateway re-establishes a session that dropped:
+  // its state is then "reconnecting" or "waiting_approval" (the host asks
+  // its owner again), and "failed" if it cannot be done. The page says so
+  // in the banner, keeps the workspace, polls faster, and re-opens the tab
+  // once the session is "connected" again (the terminal re-attaches to its
+  // shell, files reload, the desktop restarts).
+  const connStates = {};
+  let fastPoll = null;
+  function followState() {
+    const c = st.conns.find(x => x.key === st.cur);
+    const state = (c && c.state) || 'connected';
+    const now = c ? state + '/' + (c.reconnects || 0) : '';
+    const prev = c ? (connStates[c.key] || 'connected/' + (c.reconnects || 0)) : '';
+    if (c) connStates[c.key] = now;
+    if (c && now !== prev) {
+      if (state === 'reconnecting') { callTabs('hide'); banner('sess.reconnecting', {target: c.target}, false); }
+      else if (state === 'waiting_approval') { callTabs('hide'); banner('sess.reapproval', {target: c.target}, false); }
+      else if (state === 'failed') { callTabs('hide'); banner('sess.lost', {target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
+      else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'files'); }
+    }
+    if (state !== 'connected' && state !== 'failed' && !fastPoll) fastPoll = setTimeout(() => { fastPoll = null; heartbeat(); }, 2000);
   }
 
   // ---- connecting ----
@@ -450,7 +475,7 @@
     I.plain(el, '');
     if (!e) return;
     if (e.code === 'feature_off' || e.code === 'host_refused') I.say(el, 'refused', {msg: e.message});
-    else if (e.code === 'disconnected') { SD.sayErr(el, e); heartbeat(); }
+    else if (e.code === 'disconnected' || e.code === 'reconnecting') { SD.sayErr(el, e); heartbeat(); }
     else SD.sayErr(el, e);
   };
 

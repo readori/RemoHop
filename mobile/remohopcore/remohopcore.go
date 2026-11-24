@@ -49,6 +49,14 @@ func PauseGateway() { mobile.PauseGateway() }
 // suspended app (tests of EnsureGateway only).
 func BreakGatewayListenerForTest(stall bool) { mobile.BreakGatewayListenerForTest(stall) }
 
+// CheckSessions re-establishes host sessions that stopped answering (call
+// it when the network changes).
+func CheckSessions() { mobile.CheckSessions() }
+
+// DropSessionsForTest drops every host connection as an outage would; the
+// sessions reconnect by themselves (tests only).
+func DropSessionsForTest() { mobile.DropSessionsForTest() }
+
 // CheckRendezvous connects to a rendezvous server ("" = the configured one)
 // and reports the outcome as JSON {"ok","code","error"|"server","key"}.
 func CheckRendezvous(addr string) (string, error) { return mobile.CheckRendezvous(addr) }
