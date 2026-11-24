@@ -128,4 +128,6 @@
     <string name="about_contact">Contact</string>
     <string name="about_telegram">Telegram</string>
     <string name="about_terms">Terms of use</string>
+    <string name="back">Back</string>
+    <string name="pair_target_required">Enter the host\'s ID or address.</string>
 </resources>

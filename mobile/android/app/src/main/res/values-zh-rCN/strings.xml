@@ -127,4 +127,6 @@
     <string name="about_contact">联系我们</string>
     <string name="about_telegram">Telegram</string>
     <string name="about_terms">使用条款</string>
+    <string name="back">返回</string>
+    <string name="pair_target_required">请输入被控端的 ID 或地址。</string>
 </resources>

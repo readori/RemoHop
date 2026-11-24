@@ -1,14 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The cobalt design system of the website and the web console (style.css). -->
+<!-- Material 3 colour roles seeded from the brand cobalt #2546d8 (the scheme when
+     there is no dynamic colour), the same roles the web console uses in the
+     Android app (style.css, html.app.platform-android). -->
 <resources>
-    <color name="rh_bg">#f6f7fb</color>
-    <color name="rh_surface">#ffffff</color>
-    <color name="rh_text">#141c30</color>
-    <color name="rh_muted">#566178</color>
-    <color name="rh_accent">#2546d8</color>
-    <color name="rh_divider">#dce1ec</color>
-    <color name="rh_err">#a72336</color>
-    <color name="rh_ok">#07664d</color>
-    <!-- The page's top bar and background, behind the system bars. -->
+    <color name="md_primary">#2546D8</color>
+    <color name="md_on_primary">#FFFFFF</color>
+    <color name="md_primary_container">#DDE1FF</color>
+    <color name="md_on_primary_container">#001257</color>
+    <color name="md_secondary">#595D72</color>
+    <color name="md_on_secondary">#FFFFFF</color>
+    <color name="md_secondary_container">#DEE1F9</color>
+    <color name="md_on_secondary_container">#161B2C</color>
+    <color name="md_tertiary">#75546F</color>
+    <color name="md_on_tertiary">#FFFFFF</color>
+    <color name="md_tertiary_container">#FFD7F5</color>
+    <color name="md_on_tertiary_container">#2C1229</color>
+    <color name="md_error">#BA1A1A</color>
+    <color name="md_on_error">#FFFFFF</color>
+    <color name="md_error_container">#FFDAD6</color>
+    <color name="md_on_error_container">#410002</color>
+    <color name="md_background">#FBF8FF</color>
+    <color name="md_on_background">#1A1B21</color>
+    <color name="md_surface">#FBF8FF</color>
+    <color name="md_on_surface">#1A1B21</color>
+    <color name="md_surface_variant">#E2E1EC</color>
+    <color name="md_on_surface_variant">#45464F</color>
+    <color name="md_outline">#767680</color>
+    <color name="md_outline_variant">#C6C5D0</color>
+    <color name="md_surface_inverse">#2F3036</color>
+    <color name="md_on_surface_inverse">#F2F0F7</color>
+    <color name="md_primary_inverse">#B9C3FF</color>
+    <color name="md_surface_container_lowest">#FFFFFF</color>
+    <color name="md_surface_container_low">#F5F2FA</color>
+    <color name="md_surface_container">#EFEDF4</color>
+    <color name="md_surface_container_high">#E9E7EF</color>
+    <color name="md_surface_container_highest">#E3E1E9</color>
+    <color name="md_surface_dim">#DBD9E0</color>
+    <color name="md_surface_bright">#FBF8FF</color>
+    <!-- The web page's top bar and background behind the main window's system bars. -->
     <color name="rh_bar_top">#ffffff</color>
+    <color name="rh_bg">#f6f7fb</color>
 </resources>

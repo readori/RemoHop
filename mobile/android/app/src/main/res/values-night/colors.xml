@@ -1,12 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Dark scheme of the same roles. -->
 <resources>
-    <color name="rh_bg">#0f1524</color>
-    <color name="rh_surface">#172034</color>
-    <color name="rh_text">#e5eafa</color>
-    <color name="rh_muted">#aebad5</color>
-    <color name="rh_accent">#a9b9ff</color>
-    <color name="rh_divider">#33405a</color>
-    <color name="rh_err">#ffa9b6</color>
-    <color name="rh_ok">#abf0cb</color>
+    <color name="md_primary">#B9C3FF</color>
+    <color name="md_on_primary">#08218A</color>
+    <color name="md_primary_container">#2D43B6</color>
+    <color name="md_on_primary_container">#DDE1FF</color>
+    <color name="md_secondary">#C2C5DD</color>
+    <color name="md_on_secondary">#2B3042</color>
+    <color name="md_secondary_container">#424659</color>
+    <color name="md_on_secondary_container">#DEE1F9</color>
+    <color name="md_tertiary">#E3BADA</color>
+    <color name="md_on_tertiary">#43273F</color>
+    <color name="md_tertiary_container">#5B3D57</color>
+    <color name="md_on_tertiary_container">#FFD7F5</color>
+    <color name="md_error">#FFB4AB</color>
+    <color name="md_on_error">#690005</color>
+    <color name="md_error_container">#93000A</color>
+    <color name="md_on_error_container">#FFDAD6</color>
+    <color name="md_background">#121318</color>
+    <color name="md_on_background">#E3E1E9</color>
+    <color name="md_surface">#121318</color>
+    <color name="md_on_surface">#E3E1E9</color>
+    <color name="md_surface_variant">#45464F</color>
+    <color name="md_on_surface_variant">#C6C5D0</color>
+    <color name="md_outline">#90909A</color>
+    <color name="md_outline_variant">#45464F</color>
+    <color name="md_surface_inverse">#E3E1E9</color>
+    <color name="md_on_surface_inverse">#2F3036</color>
+    <color name="md_primary_inverse">#4355B9</color>
+    <color name="md_surface_container_lowest">#0D0E13</color>
+    <color name="md_surface_container_low">#1A1B21</color>
+    <color name="md_surface_container">#1E1F25</color>
+    <color name="md_surface_container_high">#292A2F</color>
+    <color name="md_surface_container_highest">#34343A</color>
+    <color name="md_surface_dim">#121318</color>
+    <color name="md_surface_bright">#38393F</color>
     <color name="rh_bar_top">#172034</color>
+    <color name="rh_bg">#0f1524</color>
 </resources>
