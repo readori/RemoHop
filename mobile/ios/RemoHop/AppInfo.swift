@@ -4,7 +4,7 @@ import Foundation
 /// versions, links (per language) and the header of a diagnostic report.
 /// Foundation only, so it is unit tested without UIKit.
 enum AppInfo {
-    static let supportEmail = "admin@remohop.com"
+    static let supportEmail = "info@remohop.com"
     static let telegram = URL(string: "https://t.me/remohop")!
     static let website = URL(string: "https://remohop.com")!
     static let sourceCode = URL(string: "https://github.com/readori/RemoHop")!

@@ -7,7 +7,7 @@ final class AppInfoTests: XCTestCase {
         XCTAssertEqual(AppInfo.privacyPolicy("en").absoluteString, "https://remohop.com/en/privacy/")
         XCTAssertEqual(AppInfo.terms("zh").absoluteString, "https://remohop.com/terms/")
         XCTAssertEqual(AppInfo.terms("en").absoluteString, "https://remohop.com/en/terms/")
-        XCTAssertEqual(AppInfo.supportEmail, "admin@remohop.com")
+        XCTAssertEqual(AppInfo.supportEmail, "info@remohop.com")
         XCTAssertTrue(AppInfo.notice.contains("AGPL-3.0-only"))
     }
 
@@ -25,7 +25,7 @@ final class AppInfoTests: XCTestCase {
         XCTAssertEqual(AppInfo.size(12 * 1024), "12 KB")
         XCTAssertEqual(AppInfo.size(1536 * 1024), "1.5 MB")
         let m = AppInfo.supportMailto(subject: "RemoHop logs", body: "a & b")?.absoluteString ?? ""
-        XCTAssertTrue(m.hasPrefix("mailto:admin@remohop.com?subject=RemoHop%20logs&body=a%20%26%20b"), m)
+        XCTAssertTrue(m.hasPrefix("mailto:info@remohop.com?subject=RemoHop%20logs&body=a%20%26%20b"), m)
         XCTAssertEqual(RendezvousStatus(code: "ok"), .ok)
         XCTAssertEqual(RendezvousStatus(code: "signal_is_host"), .isHost)
         XCTAssertEqual(RendezvousStatus(code: "signal_wrong_protocol"), .wrongProtocol)

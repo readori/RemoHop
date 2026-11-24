@@ -29,4 +29,4 @@ GOOD TO KNOW
 • The app must stay in the foreground during a session.
 • The app is available in English and Simplified Chinese; choose the language in Settings.
 
-Support: admin@remohop.com · Telegram: t.me/remohop
+Support: info@remohop.com · Telegram: t.me/remohop

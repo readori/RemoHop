@@ -8,7 +8,7 @@ import org.json.JSONObject
  * Plain JVM code, unit tested without a device.
  */
 object AppInfo {
-    const val SUPPORT_EMAIL = "admin@remohop.com"
+    const val SUPPORT_EMAIL = "info@remohop.com"
     const val TELEGRAM = "https://t.me/remohop"
     const val WEBSITE = "https://remohop.com"
     const val SOURCE_CODE = "https://github.com/readori/RemoHop"

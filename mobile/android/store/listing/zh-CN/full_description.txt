@@ -28,4 +28,4 @@ RemoHop 让你在 Android 手机或平板上操作自己的电脑。它是开源
 • 本应用只是控制端，不能让手机被别人控制。
 • 应用支持简体中文和英文，可在设置里切换。
 
-支持：admin@remohop.com · Telegram：t.me/remohop
+支持：info@remohop.com · Telegram：t.me/remohop

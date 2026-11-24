@@ -28,4 +28,4 @@ GOOD TO KNOW
 • This app is a controller. It cannot make your phone controllable.
 • The app is available in English and Simplified Chinese; choose the language in Settings.
 
-Support: admin@remohop.com · Telegram: t.me/remohop
+Support: info@remohop.com · Telegram: t.me/remohop
