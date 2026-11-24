@@ -252,7 +252,7 @@ CHANNELS = [
      "url": "", "store": ("在 Microsoft Store 里搜索 RemoHop。", "Search for RemoHop in the Microsoft Store.")},
     {"name": "AUR", "live": False, "os": "Arch Linux", "what": ("命令行程序", "command line"),
      "cmd": "yay -S remohop-bin"},
-    {"name": "Docker", "live": False, "os": "linux/amd64 · linux/arm64", "what": ("汇合服务器", "rendezvous server"),
+    {"name": "Docker", "live": True, "os": "linux/amd64 · linux/arm64", "what": ("汇合服务器", "rendezvous server"),
      "cmd": "docker run -d --name remohop-signal --restart unless-stopped \\\n"
             "  -p 21116:21116/udp -p 21117:21117/udp -v remohop-signal:/data \\\n"
             "  ghcr.io/readori/remohop-signal:latest"},
