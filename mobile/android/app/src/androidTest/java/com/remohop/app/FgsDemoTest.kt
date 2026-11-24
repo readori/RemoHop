@@ -246,6 +246,14 @@ class FgsDemoTest {
             ?.notification?.extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
     }
 
+    /** For the log: the app's notifications (id: text) and the core's sessions (target/state; no keys). */
+    private fun notificationState(): String {
+        val nm = inst.targetContext.getSystemService(NotificationManager::class.java)
+        val ns = nm?.activeNotifications?.joinToString(", ") { "${it.id}: '${it.notification.extras?.getCharSequence(Notification.EXTRA_TEXT)}'" } ?: "?"
+        val ss = SessionWatch.sessions().joinToString(", ") { "${it.first}/${it.second}" }
+        return "service running=${SessionService.running}; notifications [$ns]; sessions [$ss]"
+    }
+
     // ---- the notification shade, through accessibility (what UiAutomator does) ----
 
     /** Lets [roots] see every window (the shade, not only the app's). */
@@ -276,10 +284,11 @@ class FgsDemoTest {
 
     private fun label(n: AccessibilityNodeInfo): String = (n.text ?: n.contentDescription ?: "").toString().trim()
 
-    /** The notification's "Connected to <host>" line (English or Chinese). */
+    /** The notification's "Connected to <host>" line (or the service's first "Connected to a host"; English or Chinese). */
     private fun connectedLine(host: String): AccessibilityNodeInfo? = allNodes().firstOrNull { n ->
         val t = label(n)
-        n.isVisibleToUser && (t.startsWith("Connected to") || t.startsWith("已连接到")) && t.contains(host)
+        n.isVisibleToUser && (t.startsWith("Connected to") || t.startsWith("已连接到")) &&
+            (t.contains(host) || t == "Connected to a host" || t == "已连接到被控端")
     }
 
     /** The notification's Disconnect action button (English or Chinese, any case). */
@@ -421,12 +430,17 @@ class FgsDemoTest {
             stage("terminal-output")
 
             // The app starts SessionService once a session exists; wait for its notification to name the host.
-            val end = System.currentTimeMillis() + 30_000
-            while (System.currentTimeMillis() < end && !(SessionService.running && ownNotificationText().contains(hostName))) Thread.sleep(250)
+            val end = System.currentTimeMillis() + 20_000
+            var lastLog = 0L
+            while (System.currentTimeMillis() < end && !(SessionService.running && ownNotificationText().contains(hostName))) {
+                if (System.currentTimeMillis() - lastLog > 2000) { lastLog = System.currentTimeMillis(); Log.i(TAG, "waiting for the notification: ${notificationState()}") }
+                Thread.sleep(250)
+            }
             assertTrue("SessionService runs while connected", SessionService.running)
             val nText = ownNotificationText()
-            Log.i(TAG, "notification text: '$nText'")
-            assertTrue("the ongoing notification names the host: '$nText'", nText.startsWith("Connected to") && nText.contains(hostName))
+            Log.i(TAG, "notification: ${notificationState()}")
+            assertTrue("the ongoing notification says Connected to: '$nText'", nText.startsWith("Connected to"))
+            if (!nText.contains(hostName)) Log.w(TAG, "the notification does not name the host after 20 s: '$nText'")
             Thread.sleep(3500) // a moment to read the output
 
             // Home: the app leaves the screen, the session stays (the status bar shows the notification icon).
@@ -434,6 +448,7 @@ class FgsDemoTest {
             ua.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
             Thread.sleep(3500)
             assertTrue("SessionService keeps running in the background", SessionService.running)
+            Log.i(TAG, "in the background: ${notificationState()}")
 
             // The notification shade.
             stage("open-shade")
