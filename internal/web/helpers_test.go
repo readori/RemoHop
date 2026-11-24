@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"math/big"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,6 +46,10 @@ type dialer struct {
 	calls []DialRequest
 	opts  peertest.Options
 	hosts []*peer.Conn
+	// over is set when the test's cleanups start: closing the test pairs
+	// looks like a drop to a persistent gateway, which would otherwise
+	// redial through t after the test has ended.
+	over atomic.Bool
 }
 
 func (d *dialer) dial(ctx context.Context, req DialRequest) (*peer.Conn, error) {
@@ -53,10 +59,18 @@ func (d *dialer) dial(ctx context.Context, req DialRequest) (*peer.Conn, error) 
 	if req.Notify != nil {
 		req.Notify("waiting for approval on the host…")
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err // the gateway is closing
+	}
+	if d.over.Load() {
+		return nil, errors.New("the test is over")
+	}
 	if req.Password != "hostpw" {
 		return nil, &peer.RemoteError{Service: "login", Message: "wrong password"}
 	}
 	c, h := peertest.PairOpts(d.t, peer.HostServices, d.opts)
+	// Registered after the pair's own cleanups, so it runs before them.
+	d.t.Cleanup(func() { d.over.Store(true) })
 	d.mu.Lock()
 	d.hosts = append(d.hosts, h)
 	d.mu.Unlock()
