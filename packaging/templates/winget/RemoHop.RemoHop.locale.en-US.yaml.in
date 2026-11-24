@@ -3,7 +3,7 @@ PackageIdentifier: @WINGET_PUBLISHER@.RemoHop
 PackageVersion: @VERSION_NOV@
 PackageLocale: en-US
 Publisher: @WINGET_PUBLISHER_NAME@
-PublisherUrl: https://github.com/@OWNER@
+PublisherUrl: https://remohop.com/
 PublisherSupportUrl: https://github.com/@REPO@/issues
 PackageName: RemoHop
 PackageUrl: https://github.com/@REPO@

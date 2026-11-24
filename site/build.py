@@ -247,7 +247,7 @@ CHANNELS = [
     {"name": "Scoop", "live": True, "os": "Windows", "what": ("命令行程序", "command line"),
      "cmd": "scoop bucket add readori https://github.com/readori/scoop-bucket\nscoop install remohop"},
     {"name": "winget", "live": False, "os": "Windows", "what": ("命令行程序", "command line"),
-     "cmd": "winget install Readori.RemoHop"},
+     "cmd": "winget install RemoHop.RemoHop"},
     {"name": "Microsoft Store", "live": False, "os": "Windows 10, 11", "what": ("快速协助", "quick support"),
      "url": "", "store": ("在 Microsoft Store 里搜索 RemoHop。", "Search for RemoHop in the Microsoft Store.")},
     {"name": "AUR", "live": False, "os": "Arch Linux", "what": ("命令行程序", "command line"),

@@ -137,7 +137,7 @@ signed. Then drop the "unsigned" notes from `packaging/windows/README.txt`, the 
 Templates are in `packaging/templates/`. `scripts/gen-manifests.sh vX.Y.Z ASSETS_DIR OUT_DIR` fills versions, URLs and
 hashes from the release's `SHA256SUMS`; the release workflow runs it for stable tags and keeps the result as the
 artifact `package-manager-manifests`. Values that need a human decision stay as `REPLACE_ME...` markers (the script lists
-them): today only the AUR maintainer. The winget publisher defaults to `Readori` (`WINGET_PUBLISHER`,
+them): today only the AUR maintainer. The winget publisher defaults to `RemoHop` (`WINGET_PUBLISHER`,
 `WINGET_PUBLISHER_NAME` override it).
 
 | Output | Goes to | Notes |
@@ -145,7 +145,7 @@ them): today only the AUR maintainer. The winget publisher defaults to `Readori`
 | `homebrew-tap/Formula/remohop.rb` | `readori/homebrew-tap` | `brew install readori/tap/remohop`; tests `remohop version`. Add `brew test-bot` in the tap's CI. |
 | `homebrew-tap/Casks/remohop-quick.rb` | `readori/homebrew-tap` | `brew install --cask readori/tap/remohop-quick`: RemoHop.app. Not called `remohop`, so it is not confused with the formula. `zap` removes only the `quick.*` files, never the CLI's identity. |
 | `scoop-bucket/bucket/remohop.json` | `readori/scoop-bucket` | `scoop bucket add readori https://github.com/readori/scoop-bucket`; has `checkver`/`autoupdate`, so the bucket's Excavator bot can follow releases. |
-| `winget/manifests/r/Readori/RemoHop/<ver>/*.yaml` | PR to `microsoft/winget-pkgs` | `Readori.RemoHop`, portable zip installer; validate with `winget validate --manifest DIR`; `wingetcreate update` can automate later PRs. |
+| `winget/manifests/r/RemoHop/RemoHop/<ver>/*.yaml` | PR to `microsoft/winget-pkgs` | `RemoHop.RemoHop`, portable zip installer; validate with `winget validate --manifest DIR`; `wingetcreate update` can automate later PRs. |
 | `aur/remohop-bin/{PKGBUILD,.SRCINFO}` | `ssh://aur@aur.archlinux.org/remohop-bin.git` | prebuilt binaries; regenerate `.SRCINFO` with `makepkg --printsrcinfo` on Arch before pushing. |
 | `nix/remohop.nix` | your overlay/flake, later nixpkgs | binary package (fetchurl); a source `buildGoModule` package is better for nixpkgs once the repo is public. |
 
