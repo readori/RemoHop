@@ -32,8 +32,9 @@ base="https://github.com/$REPO/releases/download/$version"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-curl -fsSL --retry 3 -o "$tmp/SHA256SUMS" "$base/SHA256SUMS"
-curl -fsSL --retry 3 -o "$tmp/SHA256SUMS.sigstore.json" "$base/SHA256SUMS.sigstore.json"
+fetch() { curl -fsSL --retry 3 -o "$tmp/$1" "$base/$1" || { echo "bump.sh: cannot download $base/$1" >&2; exit 1; }; }
+fetch SHA256SUMS
+fetch SHA256SUMS.sigstore.json
 
 if [ "$verify" != skip ] && command -v "$COSIGN" >/dev/null 2>&1; then
 	"$COSIGN" verify-blob --bundle "$tmp/SHA256SUMS.sigstore.json" \
