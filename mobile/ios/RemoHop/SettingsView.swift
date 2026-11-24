@@ -237,8 +237,8 @@ final class SettingsModel: ObservableObject {
         let v = value(f)
         guard stored[f] != v else { return }
         Task.detached {
-            var err: String?
-            do { try Core.setSetting(f.rawValue, v) } catch { err = error.localizedDescription }
+            let err: String?
+            do { try Core.setSetting(f.rawValue, v); err = nil } catch { err = error.localizedDescription }
             let s = (try? Core.settings()) ?? [:]
             await MainActor.run {
                 if let err {
