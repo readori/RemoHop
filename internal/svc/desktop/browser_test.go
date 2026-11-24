@@ -19,7 +19,11 @@ func TestOpenBrowserHidesToken(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("uses /bin/true as the opener")
 	}
-	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
+	cfg := t.TempDir()
+	t.Setenv("REMOHOP_CONFIG_DIR", cfg)
+	// Not the real desktop's browser: the run directory, as for an
+	// unsandboxed browser.
+	t.Setenv("REMOHOP_HANDOFF_DIR", filepath.Join(cfg, "run"))
 	var args []string
 	old := browserCommand
 	browserCommand = func(target string) *exec.Cmd {
@@ -78,6 +82,7 @@ func TestOpenBrowserHidesToken(t *testing.T) {
 
 func TestOpenBrowserMissingOpener(t *testing.T) {
 	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
+	t.Setenv("REMOHOP_HANDOFF_DIR", filepath.Join(os.Getenv("REMOHOP_CONFIG_DIR"), "run"))
 	old := browserCommand
 	browserCommand = func(string) *exec.Cmd { return exec.Command("/nonexistent/opener") }
 	defer func() { browserCommand = old }()

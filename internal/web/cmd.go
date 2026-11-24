@@ -2,22 +2,16 @@ package web
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"html"
 	"io"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/readori/RemoHop/internal/cli"
-	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/handoff"
 )
 
 const usage = `usage: remohop web [--listen ADDR] [--tls-cert FILE --tls-key FILE]
@@ -167,33 +161,15 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 func openBrowser(env *cli.Env, url string) (cleanup func()) {
 	cleanup = func() {}
 	fail := func(err error) { env.Errorf("web: opening browser: %v; open the URL above manually", err) }
-	dir, err := config.SubDir("run")
+	dir, err := handoff.Dir("")
 	if err != nil {
 		fail(err)
 		return
 	}
-	var rnd [16]byte
-	if _, err := rand.Read(rnd[:]); err != nil {
-		fail(err)
-		return
-	}
-	path := filepath.Join(dir, "open-web-"+hex.EncodeToString(rnd[:])+".html")
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	handoff.Sweep(dir)
+	path, remove, err := handoff.Write(dir, "web", handoff.Page(url, "Opening the RemoHop web client..."))
 	if err != nil {
 		fail(err)
-		return
-	}
-	js, _ := json.Marshal(url)
-	_, werr := f.WriteString(`<!doctype html><html><head><meta charset="utf-8"><title>RemoHop</title>` +
-		`<meta http-equiv="refresh" content="0;url=` + html.EscapeString(url) + `">` +
-		`<script>location.replace(` + string(js) + `)</script></head><body>Opening the RemoHop web client...</body></html>`)
-	if cerr := f.Close(); werr == nil {
-		werr = cerr
-	}
-	remove := func() { os.Remove(path) }
-	if werr != nil {
-		remove()
-		fail(werr)
 		return
 	}
 	timer := time.AfterFunc(30*time.Second, remove)

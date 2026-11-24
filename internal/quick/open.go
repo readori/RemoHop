@@ -1,56 +1,20 @@
 package quick
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"html"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
-	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/handoff"
 )
 
 // The size of the app-style window: the page is one narrow column.
 const windowSize = "480,820"
-
-// redirectFile writes a private page that sends the browser to target and
-// returns its path. The UI's URL contains the access token, and the
-// argument list of the program that opens it can be read by every local
-// user on Unix; so the browser is pointed at this file instead (mode 0600
-// in the config directory), as `remohop web` does.
-func redirectFile(target, text string) (path string, remove func(), err error) {
-	dir, err := config.SubDir("run")
-	if err != nil {
-		return "", nil, err
-	}
-	var rnd [16]byte
-	if _, err := rand.Read(rnd[:]); err != nil {
-		return "", nil, err
-	}
-	path = filepath.Join(dir, "open-quick-"+hex.EncodeToString(rnd[:])+".html")
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
-	if err != nil {
-		return "", nil, err
-	}
-	js, _ := json.Marshal(target)
-	_, werr := f.WriteString(`<!doctype html><html><head><meta charset="utf-8"><title>RemoHop</title>` +
-		`<meta http-equiv="refresh" content="0;url=` + html.EscapeString(target) + `">` +
-		`<script>location.replace(` + string(js) + `)</script></head><body>` + html.EscapeString(text) + `</body></html>`)
-	if cerr := f.Close(); werr == nil {
-		werr = cerr
-	}
-	if werr != nil {
-		os.Remove(path)
-		return "", nil, werr
-	}
-	return path, func() { os.Remove(path) }, nil
-}
 
 // fileURL is the file: URL of an absolute path.
 func fileURL(path string) string {
@@ -64,13 +28,17 @@ func fileURL(path string) string {
 // opener starts something that shows the page at the given redirect file.
 type opener struct {
 	name string
-	cmd  func(file string) *exec.Cmd
+	// browser is the program that will read the file: a browser's path,
+	// or "" for the user's default browser. It decides where the file goes
+	// (see handoff.Dir: sandboxed browsers cannot read hidden directories).
+	browser string
+	cmd     func(file string) *exec.Cmd
 }
 
 // appOpener opens the page in a Chromium-family browser's app mode: a
 // window of its own without tabs or an address bar.
 func appOpener(browser string) opener {
-	return opener{name: "app window (" + filepath.Base(browser) + ")", cmd: func(file string) *exec.Cmd {
+	return opener{name: "app window (" + filepath.Base(browser) + ")", browser: browser, cmd: func(file string) *exec.Cmd {
 		return exec.Command(browser, "--app="+fileURL(file), "--window-size="+windowSize)
 	}}
 }
@@ -109,18 +77,40 @@ func openers(appBrowser string, plain bool) []opener {
 }
 
 // showWindow opens the page with each opener in turn until one results in
-// a page actually connecting (seen), waiting up to wait for each. It
-// returns a function that removes the redirect file.
+// a page actually connecting (seen), waiting up to wait for each. Each
+// opener gets its own redirect file where its browser can read it. It
+// returns a function that removes the files still on disk.
 func showWindow(target, text string, ways []opener, wait time.Duration, seen func() bool, logf func(msg string, args ...any)) (cleanup func(), err error) {
-	file, remove, err := redirectFile(target, text)
-	if err != nil {
-		return func() {}, err
+	var removers []func()
+	var mu sync.Mutex
+	cleanup = func() {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, r := range removers {
+			r()
+		}
+		removers = nil
 	}
-	// The file has done its job once the browser has followed it.
-	timer := time.AfterFunc(2*time.Minute, remove)
-	cleanup = func() { timer.Stop(); remove() }
+	page := handoff.Page(target, text)
 	err = errors.New("no way to open a browser")
 	for _, w := range ways {
+		dir, derr := handoff.Dir(w.browser)
+		if derr != nil {
+			err = derr
+			continue
+		}
+		handoff.Sweep(dir)
+		file, remove, werr := handoff.Write(dir, "quick", page)
+		if werr != nil {
+			logf("could not write the redirect file", "opener", w.name, "err", werr)
+			err = werr
+			continue
+		}
+		// The file has done its job once the browser has followed it.
+		timer := time.AfterFunc(2*time.Minute, remove)
+		mu.Lock()
+		removers = append(removers, func() { timer.Stop(); remove() })
+		mu.Unlock()
 		cmd := w.cmd(file)
 		if serr := cmd.Start(); serr != nil {
 			logf("could not start", "opener", w.name, "err", serr)

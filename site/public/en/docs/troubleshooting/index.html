@@ -331,6 +331,7 @@ remohop stop --all</code></pre>
 <li><strong>404 on the gateway address:</strong> the token in the URL is the login; open the full URL that <code>remohop web</code> printed.</li>
 <li><strong>The page cannot use a saved host:</strong> the gateway runs with <code>--no-saved</code>, or under a different config directory from the one that holds the pairing.</li>
 <li><strong>A tab shows the host's refusal:</strong> the host switched that feature off.</li>
+<li><strong>The browser opens but shows "file not found" or "access denied" for an <code>open-…html</code> file</strong> (Linux): the page is opened through a short-lived private file so the access token never appears on a command line. RemoHop puts that file where Snap and Flatpak browsers can read it (inside <code>~/snap/&lt;browser&gt;/common/</code> or <code>~/.var/app/&lt;id&gt;/cache/</code>), detected from the default browser (<code>xdg-settings get default-web-browser</code>) or <code>--app-browser</code>. If your sandboxed browser isn't detected, set <code>REMOHOP_HANDOFF_DIR</code> to a directory it can read (mode 0700 is fine), or open the URL that was printed. This applies to <code>remohop web</code>, quick support and the desktop viewer.</li>
 </ul>
 <h3 id="through-cloudflare-tunnel">Through Cloudflare Tunnel</h3>
 <ul>
