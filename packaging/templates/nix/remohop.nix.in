@@ -30,6 +30,7 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
     install -Dm755 remohop $out/bin/remohop
     install -Dm644 LICENSE $out/share/doc/remohop/LICENSE
+    install -Dm644 NOTICE $out/share/doc/remohop/NOTICE
     install -Dm644 THIRD_PARTY_LICENSES.txt $out/share/doc/remohop/THIRD_PARTY_LICENSES.txt
     runHook postInstall
   '';
