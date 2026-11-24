@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/readori/RemoHop/internal/peer"
+	"github.com/readori/RemoHop/internal/snapenv"
 )
 
 // Exit codes shared by every command.
@@ -190,6 +191,9 @@ func Commands() []*Command {
 // Main parses args (without the program name), runs the selected command and
 // returns the exit code.
 func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// From the snap: drop snapd's SNAP_* variables before anything starts a
+	// child process (they would leak into remote shells).
+	snapenv.Setup()
 	env := &Env{Stdin: stdin, Stdout: stdout, Stderr: stderr, DialFunc: Dialer}
 	env.Globals.Signal = os.Getenv("REMOHOP_SIGNAL")
 	env.Globals.Password = os.Getenv("REMOHOP_PASSWORD")

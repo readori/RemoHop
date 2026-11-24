@@ -24,6 +24,7 @@ Package managers (planned; the tap, bucket and packages are not published yet, s
 | Scoop (Windows) | `scoop bucket add readori https://github.com/readori/scoop-bucket` then `scoop install remohop` |
 | winget (Windows) | `winget install Readori.RemoHop` |
 | AUR (Arch) | `yay -S remohop-bin` |
+| Snap (Linux; **coming soon**: the Snap Store listing is not public yet) | `sudo snap install remohop --classic`; also installs quick support as `remohop.quick` with a launcher entry. See [packaging/snap/README.md](../../packaging/snap/README.md) |
 | Nix | `callPackage` of the generated `remohop.nix` |
 
 Notes:
