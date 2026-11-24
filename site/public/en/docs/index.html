@@ -53,12 +53,11 @@
 <p>This page covers the five steps from nothing to a first connection. For the full syntax of a command, run <code>remohop help &lt;command&gt;</code>. Everything else is in the documentation, one page per topic, <a href="#more">listed below</a>.</p>
 <p>The walkthrough assumes three machines: a small server with a public address for the rendezvous server (<code>sig.example.net</code> below), the host you want to control, and your own workstation. On a LAN you can <a href="#direct">skip the server</a>.</p>
 
-<h2 id="build">1. Build</h2>
-<p>The first release is being prepared (see <a href="/en/download/">Download</a>). Until then, build with the Go version named in <code>go.mod</code> (1.26):</p>
-<pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
-cd RemoHop
-make build</code></pre>
-<p>This writes <code>bin/remohop</code>, built with <code>CGO_ENABLED=0</code>. Put it on the <code>PATH</code> of every machine. A plain <code>go build -o remohop ./cmd/remohop</code> works too.</p>
+<h2 id="build">1. Install</h2>
+<p>On every machine, install <code>remohop</code> with the install script (Windows: <code>install.ps1</code>), a package or an archive from the <a href="/en/download/#cli">download page</a>:</p>
+<pre tabindex="0"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>It puts <code>remohop</code> in <code>~/.local/bin</code> (as root: <code>/usr/local/bin</code>). To build it yourself instead, see <a href="/en/docs/building/">Building from source</a>.</p>
 
 <h2 id="signal">2. Run a rendezvous server</h2>
 <p>On a machine with a public IP, open UDP ports <code>21116</code> and <code>21117</code>, then run:</p>

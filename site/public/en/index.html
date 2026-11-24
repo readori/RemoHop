@@ -70,7 +70,7 @@
 
 <div class="wrap">
 <div class="note status-note">
-<p><strong>Where it stands (November 2026):</strong> the first release is being prepared, and until it is out you build from source. There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="/en/features/#status">Full list of limits</a></p>
+<p><strong>Where it stands (November 2026):</strong> the first release is out; see <a href="/en/download/">Download</a>. There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="/en/features/#status">Full list of limits</a></p>
 </div>
 </div>
 
@@ -121,23 +121,22 @@
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
 <h2 id="get-h">Get RemoHop</h2>
-<p class="section-lede">The first release is being prepared; the <a href="/en/download/">download page</a> lists what it will contain. Until then all three are built from source.</p>
+<p class="section-lede">Every download, with checksums and signatures, is on the <a href="/en/download/">download page</a>.</p>
 <div class="cards">
 <article class="panel">
-<p class="chip wait">Not released yet</p>
+<p class="chip">Available</p>
 <h3>The <code>remohop</code> program</h3>
 <p class="platforms">Linux · macOS · Windows</p>
-<p>Host, client, browser gateway and rendezvous server in one binary. Until the release, build it with the Go version in <code>go.mod</code> (1.26):</p>
-<pre class="cmd"><code>git clone https://github.com/readori/RemoHop
-cd RemoHop
-make build</code></pre>
+<p>Host, client, browser gateway and rendezvous server in one binary. On Linux and macOS:</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
 <p class="links"><a href="/en/download/#cli">Download</a><a href="/en/features/#platforms">Platform support</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">Not released yet</p>
+<p class="chip">Available</p>
 <h3>Quick Support</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>The window the person being helped double-clicks. <code>make quick</code> builds <code>RemoHop.exe</code>, <code>RemoHop.app</code> and a Linux program; the release will have them signed for macOS, not yet for Windows.</p>
+<p>The window the person being helped double-clicks. <code>RemoHop.exe</code> for Windows (not code-signed yet), <code>RemoHop.app</code> for macOS (signed and notarized) and a Linux program.</p>
 <p class="links"><a href="/en/download/#quick">Download</a><a href="/en/docs/quick-support/">Quick support guide</a></p>
 </article>
 <article class="panel">

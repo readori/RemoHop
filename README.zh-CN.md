@@ -30,7 +30,7 @@ RemoHop 是一个点对点远程控制工具。一个静态链接的 Go 程序 `
 
 - Linux 是参考平台。仓库的 CI 在 Linux 上运行 Go 测试（带竞态检测器）和 NAT 实验环境（在网络命名空间里穿过内核 NAT 的端到端测试）。
 - macOS 和 Windows 的主要功能（远程桌面、输入、挂载、VPN、Windows 无人值守等）都由托管运行器上的端到端测试覆盖，但还没有在实体桌面机上逐项验证；快速协助窗口和音频在这两个系统上还没有实际运行过。
-- 目前还没有发布版本，请从源码编译。Windows 二进制尚未做代码签名。
+- 发布版本在 [GitHub Releases](https://github.com/readori/RemoHop/releases)，全部下载见 [remohop.com/download](https://remohop.com/download/)；安装方法见[安装](docs/zh/install.md)。Windows 二进制尚未做代码签名。
 - 详见[平台支持与限制](docs/zh/platforms.md)。
 
 ## 快速开始

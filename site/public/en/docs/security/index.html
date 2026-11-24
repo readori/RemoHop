@@ -332,7 +332,7 @@
 <ul>
 <li>RemoHop has not been independently audited.</li>
 <li>Accounts rely on you comparing both fingerprints. A device already in an account can add others, and hosts with account-trust on then accept them. See <a href="#accounts">Accounts</a>.</li>
-<li>There are no published releases yet. Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary. The install script checks a download against the release's checksum file, which on its own detects a damaged download, not a compromised release; with cosign installed (or <code>--verify require</code>) it also checks that file's keyless signature, which ties it to this repository's release workflow.</li>
+<li>Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary and <code>RemoHop.app</code>. The install script checks a download against the release's checksum file, which on its own detects a damaged download, not a compromised release; with cosign installed (or <code>--verify require</code>) it also checks that file's keyless signature, which ties it to this repository's release workflow.</li>
 <li>The rendezvous server learns which IDs talk to each other and when; a relay also sees the volume and timing of the session.</li>
 <li>Trust on first use relies on the first login being genuine.</li>
 <li>A weak fixed password can be guessed online within the rate limits.</li>

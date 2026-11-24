@@ -70,7 +70,7 @@
 </tbody>
 </table>
 </div>
-<p><code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; started without arguments they run <code>remohop quick</code>.</p>
+<p>Every release has them as downloads (<code>RemoHop-windows-amd64.zip</code> and <code>-arm64.zip</code>, <code>RemoHop-macos.zip</code>, <code>remohop-quick_linux_*.tar.gz</code>; see <a href="/en/docs/install/#quick-support">Install</a>). <code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; started without arguments they run <code>remohop quick</code>.</p>
 <p>What the person at the computer gets:</p>
 <ul>
 <li>
@@ -103,7 +103,7 @@
 <p>Limits to know about:</p>
 <ul>
 <li><strong>Windows:</strong> <code>RemoHop.exe</code> is not code-signed yet, so SmartScreen warns on first start ("More info", then "Run anyway"). It runs without administrator rights, so the helper cannot operate UAC prompts or windows of programs running as administrator. Windows Firewall may ask about network access on first start; connections work with either answer on most networks, because the host connects outwards.</li>
-<li><strong>macOS:</strong> the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings &gt; Privacy &amp; Security; both are listed as "RemoHop", and Screen Recording takes effect after RemoHop is started again). <code>RemoHop.app</code> built here is unsigned; see <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a> for signing and notarization.</li>
+<li><strong>macOS:</strong> the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings &gt; Privacy &amp; Security; both are listed as "RemoHop", and Screen Recording takes effect after RemoHop is started again). The <code>RemoHop-macos.zip</code> download is signed with a Developer ID, notarized and stapled; a <code>RemoHop.app</code> you build yourself is unsigned; see <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a> for signing and notarization.</li>
 <li>The page and its server are tested in a real browser on Linux. The Windows and macOS pieces around them (the Edge app window, the system dialogs, the <code>.app</code> bundle) compile and are checked structurally but have not been run on those systems yet.</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/quick-support.md">Source file (GitHub)</a></p>

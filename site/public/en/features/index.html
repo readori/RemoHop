@@ -109,7 +109,7 @@ Linux x86_64
 <div>
 <h3>Not a fit yet</h3>
 <ul>
-<li>You want a graphical installer that works after one download. Today there is a command line that you compile until the first release is out.</li>
+<li>You want a graphical installer that works after one download. Today there is a command line and the quick-support window, without an installer.</li>
 <li>You want to control a phone or tablet. The mobile apps are controllers; a phone cannot be a host.</li>
 <li>You need a product with a third-party audit. RemoHop has not had one.</li>
 <li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
@@ -315,12 +315,10 @@ remohop log</code></pre>
 <p>There are controller apps for Android and iOS, neither with a store release yet. See <a href="/en/apps/">Apps</a>.</p>
 
 <h2 id="install">Install</h2>
-<p>The first release is being prepared; the <a href="/en/download/">download page</a> lists what it will contain. Until then, build from source with the Go version named in <code>go.mod</code> (1.26). The result is one statically linked binary; put it on the <code>PATH</code> of each machine.</p>
-<pre tabindex="0"><code>git clone https://github.com/readori/RemoHop
-cd RemoHop
-make build        <span class="c"># writes bin/remohop (CGO_ENABLED=0)</span>
-make cross        <span class="c"># optional: linux, macOS and Windows targets into dist/</span></code></pre>
-<p>The release workflow, run when a <code>v*</code> tag is pushed, builds archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, and signs <code>SHA256SUMS</code>. The macOS files are signed with a Developer ID and notarized; the Windows ones are not code-signed yet.</p>
+<p>Every download is on the <a href="/en/download/">download page</a>: install scripts, archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, all listed in a signed <code>SHA256SUMS</code>. On Linux and macOS:</p>
+<pre tabindex="0"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p>The result is one statically linked binary on your <code>PATH</code>. The macOS downloads are signed and notarized; the Windows ones are not code-signed yet. You can also build from source; see <a href="/en/docs/building/">Building from source</a>.</p>
 <p>For setting up the server, starting a host and pairing, continue with the <a href="/en/docs/">quick start</a>.</p>
 
 <h2 id="license">Open source and commercial license</h2>
@@ -328,7 +326,7 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 
 <h2 id="status">Status and limits</h2>
 <ul>
-<li>No release yet (the first is being prepared), no code signing for Windows, no built-in default server.</li>
+<li>No code signing for Windows, no built-in default server.</li>
 <li>No independent security audit.</li>
 <li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
 <li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>

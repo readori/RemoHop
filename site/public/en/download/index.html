@@ -50,9 +50,7 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Download RemoHop</h1>
-<div class="note warn">
-<p><strong>The first release is being prepared.</strong> RemoHop 1.0 will be published on GitHub Releases; until then the files below do not exist yet. They are listed so you know what to expect. Today you can <a href="/en/docs/building/">build RemoHop from source</a>.</p>
-</div>
+<p>Every file is on <a href="https://github.com/readori/RemoHop/releases/latest">GitHub Releases</a>; the links below always fetch the newest release. All of them are listed in its <code>SHA256SUMS</code>, which is signed (see <a href="#verify">Verify a download</a>).</p>
 <p>Two downloads, two people: the one being helped needs <a href="#quick">quick support</a>, a window to double-click. The one helping, or anyone reaching their own machines, uses <a href="#cli">the <code>remohop</code> program</a>, the browser client it serves, or a <a href="#mobile">phone app</a>.</p>
 
 <h2 id="quick">Quick support, for the person being helped</h2>
@@ -61,11 +59,11 @@
 <table>
 <thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
 <tbody>
-<tr><td>Windows 10, 11<br><span class="small">x64</span></td><td class="file"><code>RemoHop-windows-amd64.zip</code><br><span class="small">Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.</span></td></tr>
-<tr><td>Windows 11<br><span class="small">ARM64</span></td><td class="file"><code>RemoHop-windows-arm64.zip</code><br><span class="small">As above.</span></td></tr>
-<tr><td>macOS 12 or later<br><span class="small">Apple silicon and Intel</span></td><td class="file"><code>RemoHop-macos.zip</code><br><span class="small">Unzip, then open RemoHop.app. Signed with a Developer ID and notarized by Apple.</span></td></tr>
-<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop-quick_linux_amd64.tar.gz</code><br><span class="small">Unpack, then run ./remohop-quick; the window opens in the default browser.</span></td></tr>
-<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop-quick_linux_arm64.tar.gz</code><br><span class="small">As above.</span></td></tr>
+<tr><td>Windows 10, 11<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-amd64.zip"><code>RemoHop-windows-amd64.zip</code></a><br><span class="small">Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.</span></td></tr>
+<tr><td>Windows 11<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-arm64.zip"><code>RemoHop-windows-arm64.zip</code></a><br><span class="small">As above.</span></td></tr>
+<tr><td>macOS 12 or later<br><span class="small">Apple silicon and Intel</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-macos.zip"><code>RemoHop-macos.zip</code></a><br><span class="small">Unzip, then open RemoHop.app. Signed with a Developer ID and notarized by Apple.</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_amd64.tar.gz"><code>remohop-quick_linux_amd64.tar.gz</code></a><br><span class="small">Unpack, then run ./remohop-quick; the window opens in the default browser.</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_arm64.tar.gz"><code>remohop-quick_linux_arm64.tar.gz</code></a><br><span class="small">As above.</span></td></tr>
 </tbody>
 </table>
 </div>
@@ -85,34 +83,38 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <table>
 <thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
 <tbody>
-<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><code>remohop_linux_amd64.tar.gz</code><br><span class="small">statically linked</span></td></tr>
-<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><code>remohop_linux_arm64.tar.gz</code><br><span class="small">statically linked</span></td></tr>
-<tr><td>macOS<br><span class="small">universal (Apple silicon and Intel)</span></td><td class="file"><code>remohop_darwin_universal.tar.gz</code><br><span class="small">Developer ID signed, notarized</span></td></tr>
-<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><code>remohop_windows_amd64.zip</code><br><span class="small">not code-signed yet</span></td></tr>
-<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><code>remohop_windows_arm64.zip</code><br><span class="small">not code-signed yet</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_amd64.tar.gz"><code>remohop_linux_amd64.tar.gz</code></a><br><span class="small">statically linked</span></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_arm64.tar.gz"><code>remohop_linux_arm64.tar.gz</code></a><br><span class="small">statically linked</span></td></tr>
+<tr><td>macOS<br><span class="small">universal (Apple silicon and Intel)</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_darwin_universal.tar.gz"><code>remohop_darwin_universal.tar.gz</code></a><br><span class="small">Developer ID signed, notarized</span></td></tr>
+<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_amd64.zip"><code>remohop_windows_amd64.zip</code></a><br><span class="small">not code-signed yet</span></td></tr>
+<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_arm64.zip"><code>remohop_windows_arm64.zip</code></a><br><span class="small">not code-signed yet</span></td></tr>
 </tbody>
 </table>
 </div>
 <h3>Linux packages</h3>
-<p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.0_amd64.deb</code>), so take them from the release page. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="/en/docs/install/">Install</a>.</p>
+<p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.0_amd64.deb</code>), so take them from the <a href="https://github.com/readori/RemoHop/releases/latest">release page</a>. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="/en/docs/install/">Install</a>.</p>
 
 <h2 id="channels">Package managers, store and container</h2>
 <p>These are being set up after the first release. Each one shows its command here once it is published.</p>
 <div class="cards">
 <article class="panel">
-<p class="chip wait">Coming soon</p>
+<p class="chip">Available</p>
 <h3>Homebrew</h3>
 <p class="platforms">macOS · Linux · command line</p>
+<pre tabindex="0"><code>brew install readori/tap/remohop</code></pre>
 </article>
 <article class="panel">
-<p class="chip wait">Coming soon</p>
+<p class="chip">Available</p>
 <h3>Homebrew Cask</h3>
 <p class="platforms">macOS · quick support</p>
+<pre tabindex="0"><code>brew install --cask readori/tap/remohop-quick</code></pre>
 </article>
 <article class="panel">
-<p class="chip wait">Coming soon</p>
+<p class="chip">Available</p>
 <h3>Scoop</h3>
 <p class="platforms">Windows · command line</p>
+<pre tabindex="0"><code>scoop bucket add readori https://github.com/readori/scoop-bucket
+scoop install remohop</code></pre>
 </article>
 <article class="panel">
 <p class="chip wait">Coming soon</p>
@@ -150,7 +152,7 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 <p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. The macOS downloads are also signed with a Developer ID and notarized by Apple; the Windows programs are not code-signed yet. Details: <a href="/en/docs/install/#verifying-a-download">Install</a> and the <a href="/en/security/">security model</a>.</p>
 
 <h2 id="source">Source code</h2>
-<p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>. To build it yourself, see <a href="/en/docs/building/">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="/en/licensing/">Licensing</a>.</p>
+<p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>, and each release page has the source of that version as an archive. To build it yourself, see <a href="/en/docs/building/">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="/en/licensing/">Licensing</a>.</p>
 </div>
 </main>
 <footer class="site-foot">

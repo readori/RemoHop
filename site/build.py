@@ -58,7 +58,7 @@ def pick(public, prelaunch):
 #     python3 site/build.py --release-docs
 # once (it applies RELEASE_DOC_EDITS to the Markdown files in the repository, so
 # README.md and docs/ say the same as the site), then run this script and commit.
-RELEASED = False
+RELEASED = True
 
 # The mobile apps in the App Store and on Google Play. Same mechanism, with
 # <!--store-->...<!--/store--> and <!--nostore-->...<!--/nostore--> blocks. With
@@ -238,11 +238,11 @@ CLI_ASSETS = [
 # and run this script. Until then the page shows "coming soon" instead of the
 # command. "url" (optional) is the channel's page, linked when live.
 CHANNELS = [
-    {"name": "Homebrew", "live": False, "os": "macOS · Linux", "what": ("命令行程序", "command line"),
+    {"name": "Homebrew", "live": True, "os": "macOS · Linux", "what": ("命令行程序", "command line"),
      "cmd": "brew install readori/tap/remohop"},
-    {"name": "Homebrew Cask", "live": False, "os": "macOS", "what": ("快速协助", "quick support"),
+    {"name": "Homebrew Cask", "live": True, "os": "macOS", "what": ("快速协助", "quick support"),
      "cmd": "brew install --cask readori/tap/remohop-quick"},
-    {"name": "Scoop", "live": False, "os": "Windows", "what": ("命令行程序", "command line"),
+    {"name": "Scoop", "live": True, "os": "Windows", "what": ("命令行程序", "command line"),
      "cmd": "scoop bucket add readori https://github.com/readori/scoop-bucket\nscoop install remohop"},
     {"name": "winget", "live": False, "os": "Windows", "what": ("命令行程序", "command line"),
      "cmd": "winget install Readori.RemoHop"},
