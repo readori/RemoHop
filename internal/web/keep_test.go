@@ -87,6 +87,12 @@ func TestPersistentReconnectsAfterDrop(t *testing.T) {
 	s, c, f, key := persistentEnv(t)
 	before := f.calls.Load()
 	s.DropSessionsForTest()
+	// The drop only closes the connection; the session notices it a moment
+	// later. Until then it still reads "connected", so wait for the redial
+	// before waiting for the state.
+	for end := time.Now().Add(15 * time.Second); f.calls.Load() == before && time.Now().Before(end); {
+		time.Sleep(10 * time.Millisecond)
+	}
 	c.waitState(key, stateConnected)
 	if f.calls.Load() != before+1 {
 		t.Fatalf("dials: %d, want one more than %d", f.calls.Load(), before)
