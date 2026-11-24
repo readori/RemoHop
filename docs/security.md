@@ -338,7 +338,7 @@ Nothing in the config directory is encrypted at rest. Clipboard history can hold
 
 - RemoHop has not been independently audited.
 - Accounts rely on you comparing both fingerprints. A device already in an account can add others, and hosts with account-trust on then accept them. See [Accounts](#accounts).
-- There are no published releases yet. Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary. The install script checks a download against the release's checksum file, which on its own detects a damaged download, not a compromised release; with cosign installed (or `--verify require`) it also checks that file's keyless signature, which ties it to this repository's release workflow.
+- Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary and `RemoHop.app`. The install script checks a download against the release's checksum file, which on its own detects a damaged download, not a compromised release; with cosign installed (or `--verify require`) it also checks that file's keyless signature, which ties it to this repository's release workflow.
 - The rendezvous server learns which IDs talk to each other and when; a relay also sees the volume and timing of the session.
 - Trust on first use relies on the first login being genuine.
 - A weak fixed password can be guessed online within the rate limits.

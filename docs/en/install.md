@@ -2,7 +2,7 @@
 
 [中文](../zh/install.md)
 
-Releases are built by the release workflow on every `v*` tag. No release has been published yet, so the download commands below work only from the first release; until then, [build from source](#from-source).
+Releases are built by the release workflow on every `v*` tag and published on [GitHub Releases](https://github.com/readori/RemoHop/releases); the commands below always fetch the latest one. You can also [build from source](#from-source).
 
 | Platform | Command |
 |---|---|

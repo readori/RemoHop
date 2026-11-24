@@ -30,7 +30,7 @@ Security: QUIC with TLS 1.3 inside, a password-authenticated key exchange (CPace
 
 - Linux is the reference platform. The repository's CI runs the Go tests (with the race detector) and the NAT lab (end-to-end runs across kernel NATs in network namespaces) on Linux.
 - The main macOS and Windows features (remote desktop, input, mounts, VPN, Windows unattended access) are covered by end-to-end runs on hosted runners, but not checked by a person on physical desktops; the quick-support window and audio have not been run on those systems yet.
-- No release has been published yet; build from source. Windows binaries are not code-signed yet.
+- Releases are on [GitHub Releases](https://github.com/readori/RemoHop/releases), with every download listed at [remohop.com/en/download](https://remohop.com/en/download/); see [Install](docs/en/install.md). Windows binaries are not code-signed yet.
 - Details: [Platform support and limitations](docs/en/platforms.md).
 
 ## Quick start

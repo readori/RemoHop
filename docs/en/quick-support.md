@@ -14,7 +14,7 @@ For helping someone who will never open a terminal: they double-click one file, 
 | macOS 12+ | `RemoHop.app` | `dist/quick/macos/RemoHop.app` (universal) |
 | Linux, or any terminal | `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-`RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; started without arguments they run `remohop quick`.
+Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.zip`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; started without arguments they run `remohop quick`.
 
 What the person at the computer gets:
 
@@ -42,5 +42,5 @@ You, the helper, connect as usual: `remohop <ID> desktop`, the browser client (`
 Limits to know about:
 
 - **Windows:** `RemoHop.exe` is not code-signed yet, so SmartScreen warns on first start ("More info", then "Run anyway"). It runs without administrator rights, so the helper cannot operate UAC prompts or windows of programs running as administrator. Windows Firewall may ask about network access on first start; connections work with either answer on most networks, because the host connects outwards.
-- **macOS:** the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings > Privacy & Security; both are listed as "RemoHop", and Screen Recording takes effect after RemoHop is started again). `RemoHop.app` built here is unsigned; see [packaging/quick/README.md](../../packaging/quick/README.md) for signing and notarization.
+- **macOS:** the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings > Privacy & Security; both are listed as "RemoHop", and Screen Recording takes effect after RemoHop is started again). The `RemoHop-macos.zip` download is signed with a Developer ID, notarized and stapled; a `RemoHop.app` you build yourself is unsigned; see [packaging/quick/README.md](../../packaging/quick/README.md) for signing and notarization.
 - The page and its server are tested in a real browser on Linux. The Windows and macOS pieces around them (the Edge app window, the system dialogs, the `.app` bundle) compile and are checked structurally but have not been run on those systems yet.

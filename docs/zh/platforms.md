@@ -27,7 +27,7 @@ Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测�
 - **串口**用伪终端和 picocom 验证过，没有真实的 UART 可用。**USB/IP** 已在托管运行器上用真实内核（dummy_hcd 虚拟 U 盘）验证，没有在实体 USB 设备上测试过。
 - **浏览器客户端**在无头 Chromium 中对接真实的被控端验证过。
 - **shell 会话**在客户端断开后会保留一段时间。被控端重启后会话不会保留。
-- **打包与发布。** `packaging/` 中有 nfpm 配置（.deb、.rpm、.apk）、安装脚本、systemd 单元、launchd 模板、汇合服务器的 Dockerfile，以及 Homebrew、Scoop、winget、AUR 和 Nix 的模板。推送 `v*` 标签触发的发布工作流还没有运行过，尚无已发布的版本，Windows 二进制也未签名。让被控端开机自启的受支持方式是 `remohop service install`。
+- **打包与发布。** `packaging/` 中有 nfpm 配置（.deb、.rpm、.apk）、安装脚本、systemd 单元、launchd 模板、汇合服务器的 Dockerfile，以及 Homebrew、Scoop、winget、AUR 和 Nix 的模板。发布版本由推送 `v*` 标签触发的发布工作流发布到 GitHub Releases；macOS 二进制和 `RemoHop.app` 已签名并经过公证，Windows 二进制未签名。让被控端开机自启的受支持方式是 `remohop service install`。
 - **尚未实现：** 把移动设备（Android 或 iOS）作为被控机。
 - **未在真实硬件上测试：** 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器、设备上的 iOS 应用（它在 CI 的模拟器中运行）、Android 应用（没有真机测试）。
 - **账号**由汇合服务器托管，需要运营者开启；服务器可以对设备隐瞒最新的日志条目，见 [security.md](../security.md#accounts)。

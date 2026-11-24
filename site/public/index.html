@@ -70,7 +70,7 @@
 
 <div class="wrap">
 <div class="note status-note">
-<p><strong>现状（2026 年 11 月）：</strong>首个发布版本正在准备中，在它发布之前需要从源码编译；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="/features/#status">完整的限制清单</a></p>
+<p><strong>现状（2026 年 11 月）：</strong>首个发布版本已经发布，见<a href="/download/">下载</a>；程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="/features/#status">完整的限制清单</a></p>
 </div>
 </div>
 
@@ -121,23 +121,22 @@
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
 <h2 id="get-h">获取 RemoHop</h2>
-<p class="section-lede">首个发布版本正在准备中，<a href="/download/">下载页</a>列出了它会包含的文件。在此之前，下面三样都要从源码构建。</p>
+<p class="section-lede">全部下载以及校验和、签名，都在<a href="/download/">下载页</a>上。</p>
 <div class="cards">
 <article class="panel">
-<p class="chip wait">尚未发布</p>
+<p class="chip">可以下载</p>
 <h3>命令行程序 <code>remohop</code></h3>
 <p class="platforms">Linux · macOS · Windows</p>
-<p>被控端、客户端、浏览器网关和汇合服务器都在里面。发布之前，用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
-<pre class="cmd"><code>git clone https://github.com/readori/RemoHop
-cd RemoHop
-make build</code></pre>
+<p>被控端、客户端、浏览器网关和汇合服务器都在里面。在 Linux 和 macOS 上：</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
 <p class="links"><a href="/download/#cli">下载</a><a href="/features/#platforms">平台支持</a></p>
 </article>
 <article class="panel">
-<p class="chip wait">尚未发布</p>
+<p class="chip">可以下载</p>
 <h3>快速协助</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>给被协助的人双击打开的窗口。<code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序；发布版本里的 macOS 程序会签名，Windows 程序暂不签名。</p>
+<p>给被协助的人双击打开的窗口。Windows 上是 <code>RemoHop.exe</code>（尚未代码签名），macOS 上是 <code>RemoHop.app</code>（已签名并经过公证），另有 Linux 程序。</p>
 <p class="links"><a href="/download/#quick">下载</a><a href="/docs/quick-support/">快速协助说明</a></p>
 </article>
 <article class="panel">
