@@ -11,8 +11,8 @@
 #     aur/remohop-bin/{PKGBUILD,.SRCINFO}                   -> the AUR git repo
 #     nix/remohop.nix
 # Environment: REPO (default readori/RemoHop), RELEASE_DATE (default: today, UTC),
-#   WINGET_PUBLISHER (the winget package id prefix; default Readori, so the id is Readori.RemoHop)
-#   WINGET_PUBLISHER_NAME (display name; default Readori),
+#   WINGET_PUBLISHER (the winget package id prefix; default RemoHop, so the id is RemoHop.RemoHop)
+#   WINGET_PUBLISHER_NAME (display name; default RemoHop),
 #   ALLOW_PRERELEASE=1 to render a prerelease (package managers should not track those).
 #
 # Values that need a human decision stay as REPLACE_ME... markers (today only the AUR
@@ -28,8 +28,8 @@ if [[ "$TAG" == *-* && "${ALLOW_PRERELEASE:-}" != 1 ]]; then
 fi
 SUMS="$ASSETS/SHA256SUMS"; [[ -f "$SUMS" ]] || { echo "no $SUMS" >&2; exit 1; }
 RELEASE_DATE="${RELEASE_DATE:-$(date -u +%Y-%m-%d)}"
-WINGET_PUBLISHER="${WINGET_PUBLISHER:-Readori}"
-WINGET_PUBLISHER_NAME="${WINGET_PUBLISHER_NAME:-Readori}"
+WINGET_PUBLISHER="${WINGET_PUBLISHER:-RemoHop}"
+WINGET_PUBLISHER_NAME="${WINGET_PUBLISHER_NAME:-RemoHop}"
 [[ "$WINGET_PUBLISHER" =~ ^[A-Za-z0-9_]+$ ]] || { echo "WINGET_PUBLISHER must be letters, digits, underscore" >&2; exit 2; }
 
 sum() { # asset name -> hex digest
@@ -64,8 +64,8 @@ render homebrew/remohop-quick.rb.in "$OUT/homebrew-tap/Casks/remohop-quick.rb"
 render scoop/remohop.json.in "$OUT/scoop-bucket/bucket/remohop.json"
 letter="$(printf '%s' "$WINGET_PUBLISHER" | cut -c1 | tr "[:upper:]" "[:lower:]")"
 w="$OUT/winget/manifests/$letter/$WINGET_PUBLISHER/RemoHop/$VERSION_NOV"
-for f in Readori.RemoHop.yaml Readori.RemoHop.installer.yaml Readori.RemoHop.locale.en-US.yaml; do
-	render "winget/$f.in" "$w/${f/Readori/$WINGET_PUBLISHER}"
+for f in RemoHop.RemoHop.yaml RemoHop.RemoHop.installer.yaml RemoHop.RemoHop.locale.en-US.yaml; do
+	render "winget/$f.in" "$w/${f/#RemoHop./$WINGET_PUBLISHER.}"
 done
 render aur/PKGBUILD.in "$OUT/aur/remohop-bin/PKGBUILD"
 render aur/SRCINFO.in "$OUT/aur/remohop-bin/.SRCINFO"

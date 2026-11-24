@@ -22,7 +22,7 @@
 | Homebrew（macOS、Linux） | `brew install readori/tap/remohop` |
 | Homebrew cask（macOS，快速协助） | `brew install --cask readori/tap/remohop-quick` |
 | Scoop（Windows） | `scoop bucket add readori https://github.com/readori/scoop-bucket`，然后 `scoop install remohop` |
-| winget（Windows） | `winget install Readori.RemoHop` |
+| winget（Windows） | `winget install RemoHop.RemoHop` |
 | AUR（Arch） | `yay -S remohop-bin` |
 | Nix | 对生成的 `remohop.nix` 使用 `callPackage` |
 

@@ -22,7 +22,7 @@ Package managers (planned; the tap, bucket and packages are not published yet, s
 | Homebrew (macOS, Linux) | `brew install readori/tap/remohop` |
 | Homebrew cask (macOS, quick support) | `brew install --cask readori/tap/remohop-quick` |
 | Scoop (Windows) | `scoop bucket add readori https://github.com/readori/scoop-bucket` then `scoop install remohop` |
-| winget (Windows) | `winget install Readori.RemoHop` |
+| winget (Windows) | `winget install RemoHop.RemoHop` |
 | AUR (Arch) | `yay -S remohop-bin` |
 | Nix | `callPackage` of the generated `remohop.nix` |
 
