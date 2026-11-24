@@ -53,6 +53,12 @@ func BreakGatewayListenerForTest(stall bool) { mobile.BreakGatewayListenerForTes
 // it when the network changes).
 func CheckSessions() { mobile.CheckSessions() }
 
+// SessionsJSON lists the host sessions: [{"key","target","state",...}].
+func SessionsJSON() (string, error) { return mobile.SessionsJSON() }
+
+// DisconnectAll ends every host session (the notification's Disconnect).
+func DisconnectAll() { mobile.DisconnectAll() }
+
 // DropSessionsForTest drops every host connection as an outage would; the
 // sessions reconnect by themselves (tests only).
 func DropSessionsForTest() { mobile.DropSessionsForTest() }

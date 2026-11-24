@@ -258,6 +258,28 @@ func CheckSessions() {
 	}
 }
 
+// SessionsJSON lists the gateway's host sessions as a JSON array of
+// {"key","target","state",...} (state: connected, reconnecting,
+// waiting_approval, failed), "[]" when there are none. The Android app
+// polls it to keep its foreground service and notification while a
+// session exists.
+func SessionsJSON() (string, error) {
+	srv := current()
+	if srv == nil {
+		return "[]", nil
+	}
+	b, err := json.Marshal(srv.Sessions())
+	return string(b), err
+}
+
+// DisconnectAll ends every host session, as Disconnect in the page does
+// (the Android notification's Disconnect).
+func DisconnectAll() {
+	if srv := current(); srv != nil {
+		srv.DisconnectAll()
+	}
+}
+
 // DropSessionsForTest closes every host session's connection as a network
 // outage would; the sessions reconnect by themselves. Tests only.
 func DropSessionsForTest() {

@@ -331,3 +331,37 @@ func (s *Server) DropSessionsForTest() {
 		p.current().CloseWithReason("connection dropped by a test")
 	}
 }
+
+// Sessions lists every host session of the gateway (all browser sessions),
+// as the page sees them.
+func (s *Server) Sessions() []connInfo {
+	out := []connInfo{}
+	for _, p := range s.allPooled() {
+		if p.redial != nil || !dead(p.current()) {
+			out = append(out, p.snapshot())
+		}
+	}
+	return out
+}
+
+// DisconnectAll ends every host session, as the user's Disconnect does
+// (the Android app's notification offers it).
+func (s *Server) DisconnectAll() {
+	s.mu.Lock()
+	sessions := make([]*webSession, 0, len(s.sessions))
+	for _, ws := range s.sessions {
+		sessions = append(sessions, ws)
+	}
+	s.mu.Unlock()
+	for _, ws := range sessions {
+		ws.mu.Lock()
+		keys := make([]string, 0, len(ws.conns))
+		for k := range ws.conns {
+			keys = append(keys, k)
+		}
+		ws.mu.Unlock()
+		for _, k := range keys {
+			ws.disconnect(k)
+		}
+	}
+}

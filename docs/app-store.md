@@ -438,3 +438,19 @@ App 预览视频不是必需的，首发可以不做。
 | 版权行、法律实体名称 | 1 | |
 | 欧盟交易者身份 | 7 | 在欧盟上架时必填 |
 | 截图 | 8 | 需要在 macOS 上生成 |
+
+## 附：Google Play 的前台服务声明（Android）
+
+Android 应用在有被控端会话时以前台服务（`SessionService`）保持连接，并显示常驻通知（“已连接到 …”，带“断开连接”）。`targetSdk 36` 要求声明前台服务类型，这里用的是 **`specialUse`**：
+
+- `dataSync` 从 Android 15 起每天最多 6 小时，而且用途是上传、下载、备份等数据传输，不适合“保持一个远程控制会话”；
+- `connectedDevice` 面向蓝牙、USB、NFC 等外接设备；
+- 所以选 `specialUse`，清单里的 `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` 写明了用途。
+
+**【提交前确认】** 在 Play Console 的“应用内容 → 前台服务权限”中声明 `FOREGROUND_SERVICE_SPECIAL_USE`，用途说明可写：
+
+```
+RemoHop is a remote-control client for the user's own computers. While the user has an active remote session (terminal, file transfer or remote desktop) and switches to another app, a foreground service keeps that session's network connection alive so it is still there when they return. The service runs only while a session exists, shows an ongoing notification ("Connected to <host>") with a Disconnect action, and stops as soon as the user disconnects. It is started only by the user connecting to a host.
+```
+
+Play Console 可能要求一段演示视频：连接演示主机 → 切到桌面 → 下拉通知栏看到“已连接到 …” → 点“断开连接”。应用在第一次建立会话时请求通知权限（Android 13+），拒绝也不影响会话，只是通知不显示。

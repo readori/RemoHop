@@ -56,6 +56,14 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class StoreScreenshotsTest {
     private val inst: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    /** The app asks for the notification permission once a session exists (SessionService); a test has no one to answer. */
+    @org.junit.Before
+    fun grantNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            inst.uiAutomation.grantRuntimePermission(inst.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     private val args = InstrumentationRegistry.getArguments()
 
     private fun arg(name: String): String? = args.getString(name)?.trim()?.takeIf { it.isNotEmpty() }

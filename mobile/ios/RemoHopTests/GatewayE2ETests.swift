@@ -211,6 +211,26 @@ final class GatewayE2ETests: XCTestCase {
             let err = (try? await js("return document.getElementById('t-err').textContent + ' ' + document.getElementById('t-status').textContent")) ?? ""
             throw Failure(description: "the terminal never showed the command's output: " + redact(String(err.prefix(300))))
         }
+        // The connection to the host drops, as when iOS suspends the app or the
+        // network changes: the gateway re-establishes it by itself and the
+        // terminal re-attaches to the same shell.
+        Core.dropSessionsForTest()
+        try await require("the terminal re-attached after a dropped connection", "/re-attached/.test(document.getElementById('t-status').textContent)",
+                          timeout: 60, detail: "return document.getElementById('t-status').textContent + ' | ' + document.getElementById('banner').textContent")
+        var again = false
+        for _ in 0..<3 where !again {
+            _ = try await js("""
+                const t = document.querySelector('#t-host textarea');
+                t.focus();
+                const type = v => { t.value = v; t.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: v, bubbles: true})); };
+                type('echo remohop-$((7*9))');
+                type('\\n');
+                return 'ok';
+                """)
+            again = await eventually("document.getElementById('t-host').textContent.includes('remohop-63')", timeout: 10)
+        }
+        XCTAssertTrue(again, "the re-attached terminal does not run commands")
+
         let fits = try await js("return document.documentElement.scrollWidth <= innerWidth ? 'fits' : 'overflows'")
         XCTAssertEqual(fits, "fits", "the terminal tab does not fit the phone's width")
         let colours = try await snapshotColours()

@@ -5,11 +5,14 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -69,6 +72,15 @@ class MainActivity : Activity(), BridgeHost {
     private var loadedGen = -1
     private lateinit var saver: DownloadSaver
     private val bg = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
+    private var askedNotifications = false
+    /** While resumed: start the foreground service once a host session exists (see SessionService). */
+    private val watch = object : Runnable {
+        override fun run() {
+            watchSessions()
+            main.postDelayed(this, WATCH_MS)
+        }
+    }
     private val script by lazy { assets.open("remohop-mobile.js").bufferedReader().use { it.readText() } }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -286,16 +298,42 @@ class MainActivity : Activity(), BridgeHost {
         if (::web.isInitialized) web.onResume()
         syncLang()
         // The gateway is process wide: check that it answers (it reopens a
-        // failed listener, or starts again) before the page needs it.
+        // failed listener, or starts again) before the page needs it. It
+        // also re-establishes host sessions that dropped meanwhile.
         if (origin != null) ensureGateway {}
+        main.removeCallbacks(watch)
+        main.post(watch)
     }
 
     override fun onPause() {
+        main.removeCallbacks(watch)
+        // Still visible, so still allowed to start a foreground service:
+        // the last chance before the background.
+        watchSessions()
         if (::web.isInitialized) web.onPause()
         super.onPause()
     }
 
+    private fun watchSessions() {
+        if (bg.isShutdown) return
+        bg.execute {
+            val has = SessionWatch.sessions().isNotEmpty()
+            if (has) SessionWatch.check(this)
+            runOnUiThread { if (has && !isDestroyed) askNotifications() }
+        }
+    }
+
+    /** Android 13+: the session notification needs the user's permission; asked once, when it is first needed. */
+    private fun askNotifications() {
+        if (Build.VERSION.SDK_INT < 33 || askedNotifications) return
+        askedNotifications = true
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIFICATIONS)
+        }
+    }
+
     override fun onDestroy() {
+        main.removeCallbacks(watch)
         if (::web.isInitialized) {
             root.removeAllViews()
             web.destroy()
@@ -345,6 +383,8 @@ class MainActivity : Activity(), BridgeHost {
     companion object {
         private const val REQ_FILES = 1
         private const val REQ_SAVE = 2
+        private const val REQ_NOTIFICATIONS = 3
+        private const val WATCH_MS = 3_000L
         private const val BRIDGE_NAME = "remohopNative"
     }
 }

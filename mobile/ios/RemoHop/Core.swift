@@ -65,6 +65,19 @@ enum Core {
 
     static var gatewayRunning: Bool { RemohopcoreGatewayRunning() }
 
+    /// Whether any host session exists (connected, reconnecting or failed).
+    static var hasSessions: Bool {
+        var err: NSError?
+        let s = RemohopcoreSessionsJSON(&err)
+        return err == nil && s != "[]" && !s.isEmpty
+    }
+
+    /// Re-establishes host sessions that stopped answering (the network changed).
+    static func checkSessions() { RemohopcoreCheckSessions() }
+
+    /// Tests only: drops every host connection as an outage would; the sessions reconnect.
+    static func dropSessionsForTest() { RemohopcoreDropSessionsForTest() }
+
     /// Tests only (GatewayE2ETests): breaks the listener the way iOS does to
     /// a suspended app's socket, since the simulator never suspends the app.
     static func breakListenerForTest(stall: Bool) { RemohopcoreBreakGatewayListenerForTest(stall) }

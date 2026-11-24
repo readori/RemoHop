@@ -50,6 +50,14 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 class HostSessionTest {
     private val inst: Instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    /** The app asks for the notification permission once a session exists (SessionService); a test has no one to answer. */
+    @org.junit.Before
+    fun grantNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            inst.uiAutomation.grantRuntimePermission(inst.targetContext.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     private val args = InstrumentationRegistry.getArguments()
 
     private class Config(val host: String, val password: String, val dir: String, val file: String, val backgroundSeconds: Int)
@@ -455,6 +463,7 @@ class HostSessionTest {
                 Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
             Thread.sleep(cfg.backgroundSeconds * 1000L)
+            assertTrue("the session service keeps the sessions in the background", SessionService.running)
             // What iOS does to a suspended app (and what broke the iOS app's
             // "Connect" after a trip to another app): the gateway's listening
             // socket goes away under it, unnoticed by the server. On return,
@@ -477,6 +486,15 @@ class HostSessionTest {
             connect(s, cfg.host, "", false)
             sessionUsable(s, cfg, 9, 9, "connect after a lost listener")
             stage("connect after the listener was lost in the background")
+
+            // 10. The connection drops under the session (iOS suspension, a network
+            // change): the gateway re-establishes it and the page re-opens its tab,
+            // with no action from the user.
+            openTab(s, "terminal")
+            Remohopcore.dropSessionsForTest()
+            sessionUsable(s, cfg, 10, 10, "after a dropped connection")
+            assertEquals("one host connection after reconnecting", "1", text(s, "String(document.getElementById('hostsel').options.length)"))
+            stage("dropped connection re-established without the user")
         }
     }
 

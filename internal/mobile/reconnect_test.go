@@ -230,3 +230,28 @@ func readUntil(t *testing.T, ws *websocket.Conn, want string) {
 		seen.Write(m)
 	}
 }
+
+func TestSessionsJSONAndDisconnectAll(t *testing.T) {
+	initDir(t)
+	if s, err := SessionsJSON(); err != nil || s != "[]" {
+		t.Fatalf("no gateway: %q %v", s, err)
+	}
+	h := runHost(t, hostd.Config{Password: hostPassword})
+	c := pageOn(t)
+	if s, _ := SessionsJSON(); s != "[]" {
+		t.Fatalf("no sessions: %q", s)
+	}
+	key := c.connect(h.Addr().String(), hostPassword)
+	var list []struct{ Key, Target, State string }
+	s, _ := SessionsJSON()
+	if err := json.Unmarshal([]byte(s), &list); err != nil || len(list) != 1 || list[0].Key != key || list[0].State != "connected" {
+		t.Fatalf("sessions: %s", s)
+	}
+	DisconnectAll()
+	if s, _ := SessionsJSON(); s != "[]" {
+		t.Fatalf("after DisconnectAll: %s", s)
+	}
+	if st := c.states(); len(st) != 0 {
+		t.Fatalf("the page still lists %+v", st)
+	}
+}
