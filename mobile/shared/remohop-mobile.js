@@ -1053,15 +1053,18 @@
 
   // On iOS the keyboard covers the page without resizing it: while it is
   // up (and not on the desktop tab, whose key bar follows it), the session
-  // view takes the visible height, so the terminal and its keys stay above it.
+  // view takes the visible height, so the terminal and its keys stay above
+  // it. Android resizes the web view itself (adjustResize): nothing to do.
   function trackViewport() {
     const vv = window.visualViewport, root = document.documentElement;
-    if (!vv) return;
+    if (!vv || !root.classList.contains('platform-ios')) return;
     const upd = () => {
-      root.style.setProperty('--app-h', Math.round(vv.height) + 'px');
-      root.classList.toggle('vkb', root.clientHeight - vv.height > 80 && !desktopVisible());
+      const kb = root.clientHeight - vv.height > 80 && vv.height > 120 && !desktopVisible();
+      if (kb) root.style.setProperty('--app-h', Math.round(vv.height) + 'px');
+      root.classList.toggle('vkb', kb);
     };
     vv.addEventListener('resize', upd);
+    addEventListener('resize', upd);
     upd();
   }
 

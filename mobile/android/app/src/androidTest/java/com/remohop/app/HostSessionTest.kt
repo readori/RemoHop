@@ -260,7 +260,9 @@ class HostSessionTest {
         repeat(3) { if (typeAndWait(s, command, expected, 10)) return }
         fails(
             "timed out: $label: terminal shows the host's command output", s,
-            "document.getElementById('t-status').textContent+' '+document.getElementById('t-err').textContent"
+            "document.getElementById('t-status').textContent+' '+document.getElementById('t-err').textContent+" +
+                "' | term '+document.getElementById('t-host').clientWidth+'x'+document.getElementById('t-host').clientHeight+" +
+                "' panel '+(document.getElementById('panel-terminal').hidden?'hidden':'shown')+' tail: '+document.getElementById('t-host').textContent.trim().slice(-80)"
         )
     }
 
