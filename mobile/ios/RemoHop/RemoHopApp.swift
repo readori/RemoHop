@@ -40,6 +40,21 @@ final class AppModel: ObservableObject {
     @Published var showSettings = false
     /// The Settings page to open on (the page asked for one), or nil.
     @Published var settingsPage: SettingsPage?
+    /// A saved host chosen with Settings → Saved hosts → Connect.
+    var pendingConnect: String?
+    /// Runs a script in the loaded page (set by the web view's coordinator).
+    var runOnPage: ((String) -> Void)?
+
+    /// Settings closed: the page connects to the host chosen there, or lists
+    /// the saved hosts again (they may have been renamed or forgotten).
+    func settingsClosed() {
+        if let t = pendingConnect, let data = try? JSONEncoder().encode(t), let q = String(data: data, encoding: .utf8) {
+            pendingConnect = nil
+            runOnPage?("window.remohopMobile && remohopMobile.connect && remohopMobile.connect(\(q))")
+        } else {
+            runOnPage?("window.remohopMobile && remohopMobile.peersChanged && remohopMobile.peersChanged()")
+        }
+    }
 
     /// Gateway calls run here in the order they were made (pausing on the
     /// way into the background must not overtake the check on the way back).

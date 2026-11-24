@@ -54,8 +54,6 @@
     <string name="hosts_check_online">检查哪些在线</string>
     <string name="no_hosts">还没有保存的被控端。</string>
     <string name="forget">移除</string>
-    <string name="forget_host">移除 %1$s</string>
-    <string name="forget_confirm">移除 %1$s？本设备上保存的固定密钥和配对令牌都会被删除。</string>
     <string name="info_hosts">本设备连接或配对过的被控端，以及它们的固定密钥和配对令牌。轻点某一项可重命名或移除；用刷新按钮检查哪些在线。</string>
     <string name="pair_heading">与被控端配对</string>
     <string name="pair_target">被控端 ID 或地址</string>
@@ -132,4 +130,28 @@
     <string name="rv_not_server">不是汇合服务器</string>
     <string name="rename">重命名</string>
     <string name="save">保存</string>
+    <string name="host_paired_sub">已配对 · 免密码连接</string>
+    <string name="host_key_sub">已用密钥授权 · 免密码连接</string>
+    <string name="host_recent_sub">最近连接 · 需要密码</string>
+    <string name="host_status">状态</string>
+    <string name="host_status_paired">已配对：连接时无需密码</string>
+    <string name="host_status_key">已用密钥授权：连接时无需密码</string>
+    <string name="host_status_recent">最近连接：每次都需要密码</string>
+    <string name="host_id">ID</string>
+    <string name="host_address">地址</string>
+    <string name="host_last_seen">上次连接</string>
+    <string name="host_online">在线状态</string>
+    <string name="host_connect">连接</string>
+    <string name="host_forget">移除这台电脑</string>
+    <string name="host_forget_title">移除 %1$s？</string>
+    <string name="host_forget_msg">本设备上保存的配对信息和密钥会被删除，与它的连接也会断开。以后再连接时需要输入它的密码。</string>
+    <string name="host_name_invalid">请以字母或汉字开头，只能包含字母、汉字、数字、单个空格以及 . _ -，最多 63 个字符。</string>
+    <string name="host_copy">复制 %1$s</string>
+    <string name="info_host_name">显示在 ID 或地址的位置，连接时也可以用它代替 ID 或地址。留空则显示 ID 或地址。</string>
+    <string name="info_host_forget">从本设备删除配对信息和固定的密钥。之后连接这台电脑需要再次输入密码，密钥变化也不会再被发现。</string>
+    <string name="rv_no_key_title">未设置服务器密钥</string>
+    <string name="rv_no_key_msg">没有密钥时，本设备第一次连接会信任在这个地址上应答的服务器（首次使用即信任）。请粘贴 `remohop signal` 显示的密钥，或在核对后使用这台服务器提供的密钥。</string>
+    <string name="rv_use_key">使用此密钥</string>
+    <string name="rv_key_used">已保存服务器密钥。</string>
+    <string name="privacy_questions">隐私问题</string>
 </resources>

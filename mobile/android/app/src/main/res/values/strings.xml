@@ -53,8 +53,6 @@
     <string name="hosts_check_online">Check which are online</string>
     <string name="no_hosts">No saved hosts yet.</string>
     <string name="forget">Forget</string>
-    <string name="forget_host">Forget %1$s</string>
-    <string name="forget_confirm">Forget %1$s? Its pinned key and pairing token are deleted from this device.</string>
     <string name="info_hosts">Hosts this device has connected to or paired with, with their pinned keys and pairing tokens. Tap one to rename or forget it; use the refresh button to check which are online.</string>
     <string name="pair_heading">Pair with a host</string>
     <string name="pair_target">Host ID or address</string>
@@ -133,4 +131,28 @@
     <string name="rv_not_server">Not a rendezvous server</string>
     <string name="rename">Rename</string>
     <string name="save">Save</string>
+    <string name="host_paired_sub">Paired · connects without a password</string>
+    <string name="host_key_sub">Authorised by key · connects without a password</string>
+    <string name="host_recent_sub">Recent · needs the password</string>
+    <string name="host_status">Status</string>
+    <string name="host_status_paired">Paired: connects without a password</string>
+    <string name="host_status_key">Authorised by key: connects without a password</string>
+    <string name="host_status_recent">Recent: needs the password each time</string>
+    <string name="host_id">ID</string>
+    <string name="host_address">Address</string>
+    <string name="host_last_seen">Last connected</string>
+    <string name="host_online">Online</string>
+    <string name="host_connect">Connect</string>
+    <string name="host_forget">Forget this computer</string>
+    <string name="host_forget_title">Forget %1$s?</string>
+    <string name="host_forget_msg">Its saved pairing and key are deleted from this device, and any open session to it ends. To connect again you will need its password.</string>
+    <string name="host_name_invalid">Start with a letter; then use letters, digits, single spaces, ., _ or - (up to 63 characters).</string>
+    <string name="host_copy">Copy %1$s</string>
+    <string name="info_host_name">Shown instead of the ID or address, and usable in place of it when you connect. Leave it empty to show the ID or address.</string>
+    <string name="info_host_forget">Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.</string>
+    <string name="rv_no_key_title">No server key set</string>
+    <string name="rv_no_key_msg">Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key that `remohop signal` printed, or use the one this server presented after comparing it.</string>
+    <string name="rv_use_key">Use this key</string>
+    <string name="rv_key_used">Server key saved.</string>
+    <string name="privacy_questions">Privacy questions</string>
 </resources>

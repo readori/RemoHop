@@ -10,6 +10,9 @@
 //     modifiers, clipboard buttons, zoom reset and full screen;
 //   - native clipboard, downloads, keep-screen-on, full screen, back button
 //     and settings through the app's bridge;
+//   - native dialogs: the page's confirmations, text prompts and action
+//     menus (SD.confirm, SD.prompt, SD.menu) become the platform's own
+//     alert (iOS UIAlertController, Android MaterialAlertDialogBuilder);
 //   - its own labels in the page's language (English or Simplified
 //     Chinese). The app picks the language: it loads the page with ?lang=
 //     and calls remohopMobile.setLang when the user changes it in Settings.
@@ -136,6 +139,7 @@
     s.addEventListener('close', () => { if (desk.sock === s) { desk.sock = null; desk.hello = null; } state(); });
   }
   const $ = id => document.getElementById(id);
+  const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
 
   // ---- language ----
   // This script's strings go into the page's i18n.js (window.SDI18n), so
@@ -183,10 +187,8 @@
       'm.live': 'Connected · tap to return',
       'm.more': 'Actions for {name}',
       'm.cancel': 'Cancel',
+      'm.ok': 'OK',
       'm.done': 'Done',
-      'm.disc.title': 'Disconnect from {host}?',
-      'm.disc.msg': 'The desktop, terminal sessions and transfers with this host end.',
-      'm.disc.ok': 'Disconnect',
       'm.help.title': 'Connecting to a host',
       'm.help.target.h': 'Host',
       'm.help.target': 'Its 9-digit ID (needs a rendezvous server, set in Settings), a name you saved, or its address, such as 192.168.1.20:21118.',
@@ -245,10 +247,8 @@
       'm.live': '已连接 · 轻点返回',
       'm.more': '{name} 的操作',
       'm.cancel': '取消',
+      'm.ok': '确定',
       'm.done': '完成',
-      'm.disc.title': '断开与 {host} 的连接？',
-      'm.disc.msg': '与这台被控端的远程桌面、终端会话和文件传输都会结束。',
-      'm.disc.ok': '断开连接',
       'm.help.title': '如何连接被控端',
       'm.help.target.h': '被控端',
       'm.help.target': '填写它的 9 位 ID（需要先在设置中填写汇合服务器）、你保存的名称，或它的地址，例如 192.168.1.20:21118。',
@@ -398,6 +398,7 @@
     i18n();
     canvas = $('d-canvas'); stage = $('d-stage');
     interceptDownloads();
+    nativeDialogs();
     addSettingsButton();
     setupAppChrome();
     if (!canvas || !stage) return;
@@ -822,6 +823,40 @@
     }, true);
   }
 
+  // ---- dialogs: the page's own become native ones ----
+  // The bridge calls (answered when the user has chosen):
+  //   confirm {title, message, confirm, cancel, destructive} -> {ok}
+  //   prompt  {title, message, value, placeholder, confirm, cancel} -> {ok, text}
+  //   actions {title, message, actions: [{label, destructive}], cancel} -> {index} (-1: cancelled)
+  // If the app cannot show one (an error, not a cancel), the page's own
+  // dialog is used.
+  function nativeConfirm(o) {
+    return native.call('confirm', {title: clip(o.title, 200), message: clip(o.message, 1000), confirm: clip(o.confirm || tr('m.ok'), 40),
+      cancel: clip(o.cancel || tr('m.cancel'), 40), destructive: !!o.destructive}).then(r => !!(r && r.ok));
+  }
+  function nativeDialogs() {
+    const SD = window.SD;
+    if (!SD || !native.available() || SD.__native) return;
+    SD.__native = true;
+    const web = {confirm: SD.confirm, prompt: SD.prompt, menu: SD.menu};
+    const t = k => (SD.t ? SD.t(k) : tr('m.' + k));
+    if (web.confirm) {
+      SD.confirm = (title, message, okLabel, opts) => nativeConfirm({title, message, confirm: okLabel || t('ok'), cancel: t('cancel'),
+        destructive: !!(opts && opts.destructive)}).catch(() => web.confirm(title, message, okLabel, opts));
+    }
+    if (web.prompt) {
+      SD.prompt = o => native.call('prompt', {title: clip(o.title, 200), message: clip(o.message, 1000), value: clip(o.value, 500),
+        placeholder: clip(o.placeholder || o.label, 100), confirm: clip(o.okLabel || t('ok'), 40), cancel: clip(t('cancel'), 40)})
+        .then(r => (r && r.ok ? String(r.text || '') : null)).catch(() => web.prompt(o));
+    }
+    if (web.menu) {
+      SD.menu = o => native.call('actions', {title: clip(o.title, 200), message: clip(o.message, 1000), cancel: clip(t('cancel'), 40),
+        actions: o.actions.slice(0, 8).map(a => ({label: clip(a.label, 60), destructive: !!a.destructive}))})
+        .then(r => { const i = r ? r.index : -1; return i >= 0 && i < o.actions.length ? o.actions[i].value : null; })
+        .catch(() => web.menu(o));
+    }
+  }
+
   // ---- settings button and hints ----
   function addSettingsButton() {
     if (!native.available()) return;
@@ -907,15 +942,6 @@
     if (pairBox) pairBox.checked = true;
     const banner = $('banner');
     if (banner) banner.addEventListener('click', () => { banner.hidden = true; });
-
-    // A tap on Disconnect asks first (a script's click() does not).
-    window.addEventListener('click', async e => {
-      const d = e.target && e.target.closest && e.target.closest('#disconnect');
-      if (!d || !e.isTrusted || !window.SD || !window.SD.confirm) return;
-      e.stopImmediatePropagation(); e.preventDefault();
-      const host = titleName ? titleName.textContent : '';
-      if (await window.SD.confirm(tr('m.disc.title', {host}), tr('m.disc.msg'), tr('m.disc.ok'))) d.click();
-    }, true);
 
     // Session state for the styles, the title and the list of open sessions.
     const ws = $('workspace'), conn = $('connect'), sess = $('sessname'), hostsel = $('hostsel'), hb = $('hostbar');
@@ -1010,8 +1036,16 @@
       const more = document.createElement('button');
       more.type = 'button'; more.className = 'more';
       i18n().sayAttr(more, 'aria-label', 'm.more', {name: label.textContent});
-      const open = () => sheet({title: label.textContent, close: tr('m.cancel'),
-        actions: acts.map(b => ({label: b.textContent, cls: b.getAttribute('data-i18n') === 'f.delete' ? 'danger' : '', run: () => b.click()}))});
+      const items = () => acts.map(b => ({label: b.textContent, cls: b.getAttribute('data-i18n') === 'f.delete' ? 'danger' : '', run: () => b.click()}));
+      const webSheet = () => sheet({title: label.textContent, close: tr('m.cancel'), actions: items()});
+      // The row's actions in the platform's own action sheet (the page's sheet if the app cannot).
+      const open = () => {
+        if (!native.available()) { webSheet(); return; }
+        const list = items();
+        native.call('actions', {title: clip(label.textContent, 200), message: '', cancel: tr('m.cancel'),
+          actions: list.map(a => ({label: clip(a.label, 60), destructive: a.cls === 'danger'}))})
+          .then(r => { const i = r ? r.index : -1; if (i >= 0 && i < list.length) list[i].run(); }).catch(webSheet);
+      };
       more.addEventListener('click', open);
       act.appendChild(more);
       if (!link) name.addEventListener('click', open);
@@ -1109,6 +1143,15 @@
     // listening socket iOS takes from a suspended app, and resolves once
     // the gateway answers (it loads the page again if the address changed).
     ensureGateway() { return native.call('gateway.ensure'); },
+    // confirm asks a yes/no question in a native dialog: {title, message,
+    // confirm, cancel, destructive} -> Promise<boolean>.
+    confirm(o) { return nativeConfirm(o || {}); },
+    // peersChanged: the app's Settings renamed or forgot a saved host; the
+    // page lists them again.
+    peersChanged() { onReady(() => { if (window.SD && window.SD.reloadPeers) window.SD.reloadPeers(); }); return 'ok'; },
+    // connect: Settings → Saved hosts → Connect. A paired host connects, a
+    // recent one is filled in, waiting for its password.
+    connect(target) { onReady(() => { if (window.SD && window.SD.connectTo) window.SD.connectTo(String(target)); }); return 'ok'; },
     // Test and debugging hooks; they expose nothing the page cannot see.
     _desk: desk,
     _zoom: zoom,

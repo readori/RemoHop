@@ -120,35 +120,71 @@
   // SD.status shows a translated status line (null key: clear it).
   SD.status = (id, key, vars) => I.say($(id), key, vars);
   let dlgResolve = null;
-  // SD.ask shows a modal dialog; buttons is [{label, value, primary}], and the
-  // promise resolves to the chosen value (or null when dismissed) together
-  // with the input text and the "apply to all" box.
+  // How the user last interacted: a dialog opened from the keyboard puts
+  // the focus on a button (shown with :focus-visible); one opened by mouse
+  // or touch focuses the dialog itself, so no button wears a focus ring.
+  let byKeyboard = false;
+  addEventListener('keydown', e => { if (!e.ctrlKey && !e.metaKey) byKeyboard = true; }, true);
+  addEventListener('pointerdown', () => { byKeyboard = false; }, true);
+  // SD.ask shows a modal dialog; buttons is [{label, value, primary,
+  // danger, cancel}], and the promise resolves to the chosen value (or null
+  // when dismissed) together with the input text and the "apply to all"
+  // box. A dialog with a danger button starts on its cancel button.
   SD.ask = function ({title, message, buttons, input, all}) {
     return new Promise(resolve => {
       const dlg = $('dlg');
+      if (dlgResolve) { const r = dlgResolve; dlgResolve = null; r({value: null, text: '', all: false}); }
       $('dlg-title').textContent = title;
       $('dlg-msg').textContent = message || '';
+      $('dlg-msg').hidden = !message;
       const inp = $('dlg-input');
       inp.hidden = !input; inp.value = input && input.value || '';
-      if (input) inp.setAttribute('aria-label', input.label || title);
+      if (input) { inp.setAttribute('aria-label', input.label || title); inp.placeholder = input.placeholder || ''; }
       $('dlg-all-row').hidden = !all; $('dlg-all').checked = false;
       const box = $('dlg-buttons');
       box.textContent = '';
       dlgResolve = resolve;
+      let first = null;
+      const finish = b => { const r = {value: b.value, text: inp.value, all: $('dlg-all').checked}; dlgResolve = null; dlg.close(); resolve(r); };
       for (const b of buttons) {
         const el = document.createElement('button');
         el.type = 'button'; el.textContent = b.label;
-        if (b.primary) el.className = 'primary';
-        el.addEventListener('click', () => { const r = {value: b.value, text: inp.value, all: $('dlg-all').checked}; dlg.close(); resolve(r); dlgResolve = null; });
+        el.className = [b.primary ? 'primary' : '', b.danger ? 'danger' : '', b.cancel ? 'cancel' : ''].filter(Boolean).join(' ');
+        el.addEventListener('click', () => finish(b));
         box.appendChild(el);
       }
-      dlg.onclose = () => { if (dlgResolve) { dlgResolve({value: null, text: '', all: false}); dlgResolve = null; } };
+      const danger = buttons.some(b => b.danger);
+      inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); const p = buttons.find(b => b.primary || b.danger); if (p) finish(p); } };
+      dlg.onclose = () => { if (dlgResolve) { dlgResolve = null; resolve({value: null, text: '', all: false}); } };
       dlg.showModal();
-      (input ? inp : box.querySelector('.primary') || box.firstChild).focus();
+      if (input) first = inp;
+      else if (byKeyboard) first = (danger ? box.querySelector('.cancel') : box.querySelector('.primary')) || box.firstChild;
+      if (first) first.focus();
+      else { dlg.tabIndex = -1; dlg.focus({preventScroll: true}); }
     });
   };
-  SD.confirm = async (title, message, okLabel) =>
-    (await SD.ask({title, message, buttons: [{label: I.t('cancel'), value: false}, {label: okLabel || I.t('ok'), value: true, primary: true}]})).value === true;
+  // SD.confirm asks a yes/no question; opts.destructive styles the
+  // confirming button as destructive. The phone apps answer it with a
+  // native dialog (remohop-mobile.js replaces SD.confirm, SD.prompt and
+  // SD.menu there).
+  SD.confirm = async (title, message, okLabel, opts) => {
+    const d = !!(opts && opts.destructive);
+    return (await SD.ask({title, message, buttons: [{label: I.t('cancel'), value: false, cancel: true},
+      {label: okLabel || I.t('ok'), value: true, primary: !d, danger: d}]})).value === true;
+  };
+  // SD.prompt asks for one line of text: the text, or null when cancelled.
+  SD.prompt = async ({title, message, value, label, placeholder, okLabel}) => {
+    const r = await SD.ask({title, message, input: {value: value || '', label, placeholder},
+      buttons: [{label: I.t('cancel'), value: false, cancel: true}, {label: okLabel || I.t('ok'), value: true, primary: true}]});
+    return r.value === true ? r.text : null;
+  };
+  // SD.menu offers a few actions ({label, value, destructive}): the chosen
+  // value, or null.
+  SD.menu = async ({title, message, actions}) => {
+    const r = await SD.ask({title, message, buttons: [{label: I.t('cancel'), value: null, cancel: true},
+      ...actions.map(a => ({label: a.label, value: a.value, danger: !!a.destructive}))]});
+    return r.value === undefined ? null : r.value;
+  };
   SD.fmtSize = n => {
     if (n < 1024) return n + ' B';
     const u = ['KiB', 'MiB', 'GiB', 'TiB']; let i = -1;
@@ -266,33 +302,87 @@
       for (const p of list) renderPeerCard(ul, p);
     }
   }
+  const peerLabel = p => p.alias || p.target;
+  // pickPeer does what a tap on a saved host does: a host that needs no
+  // password connects at once; one that does is filled in, waiting for it.
+  function pickPeer(p) {
+    const ready = p.paired || p.key_login;
+    $('target').value = p.alias || p.target;
+    $('peersel').value = p.target;
+    I.plain($('connerr'), '');
+    if (ready && !attemptId) { $('hostpass').value = ''; $('connectform').requestSubmit(); } else $('hostpass').focus();
+  }
   function renderPeerCard(ul, p) {
-    {
-      const li = document.createElement('li');
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'peer';
-      const icon = document.createElement('span');
-      icon.className = 'peericon'; icon.setAttribute('aria-hidden', 'true');
-      const text = document.createElement('span');
-      text.className = 'peertext';
-      const name = document.createElement('strong');
-      name.textContent = p.alias || p.target;
-      const sub = document.createElement('small');
-      const ready = p.paired || p.key_login;
-      I.say(sub, p.alias ? 'peer.sub.alias' : 'raw', {target: p.target, s: {k: ready ? 'peer.ready' : 'peer.needspw'}, state: {k: ready ? 'peer.ready' : 'peer.needspw'}});
-      text.append(name, sub);
-      b.append(icon, text);
-      I.sayAttr(b, 'aria-label', ready ? 'peer.aria.ready' : 'peer.aria.form', {label: (p.alias ? p.alias + ', ' : '') + p.target});
-      b.addEventListener('click', () => {
-        $('target').value = p.alias || p.target;
-        $('peersel').value = p.target;
-        I.plain($('connerr'), '');
-        if (ready && !attemptId) { $('hostpass').value = ''; $('connectform').requestSubmit(); } else $('hostpass').focus();
-      });
-      li.appendChild(b);
-      ul.appendChild(li);
+    const li = document.createElement('li');
+    li.className = 'peeritem';
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'peer';
+    const icon = document.createElement('span');
+    icon.className = 'peericon'; icon.setAttribute('aria-hidden', 'true');
+    const text = document.createElement('span');
+    text.className = 'peertext';
+    const name = document.createElement('strong');
+    name.textContent = peerLabel(p);
+    const sub = document.createElement('small');
+    const ready = p.paired || p.key_login;
+    I.say(sub, p.alias ? 'peer.sub.alias' : 'raw', {target: p.target, s: {k: ready ? 'peer.ready' : 'peer.needspw'}, state: {k: ready ? 'peer.ready' : 'peer.needspw'}});
+    text.append(name, sub);
+    b.append(icon, text);
+    I.sayAttr(b, 'aria-label', ready ? 'peer.aria.ready' : 'peer.aria.form', {label: (p.alias ? p.alias + ', ' : '') + p.target});
+    b.addEventListener('click', () => pickPeer(p));
+    // Long press (touch) or right click: the same actions as the ⋯ button.
+    b.addEventListener('contextmenu', e => { e.preventDefault(); peerActions(p); });
+    const more = document.createElement('button');
+    more.type = 'button'; more.className = 'peermore';
+    I.sayAttr(more, 'aria-label', 'peer.more', {label: peerLabel(p)});
+    more.addEventListener('click', () => peerActions(p));
+    li.append(b, more);
+    ul.appendChild(li);
+  }
+  // A saved host's actions: rename it, or forget it (with its pairing).
+  async function peerActions(p) {
+    const label = peerLabel(p);
+    const a = await SD.menu({title: label, message: p.alias ? p.target : '',
+      actions: [{label: I.t('peer.rename'), value: 'rename'}, {label: I.t('peer.forget'), value: 'forget', destructive: true}]});
+    if (a === 'rename') {
+      const name = await SD.prompt({title: I.t('peer.rename.title', {label}), message: I.t('peer.rename.msg', {target: p.target}),
+        value: p.alias || '', label: I.t('peer.rename.input'), placeholder: p.target, okLabel: I.t('save')});
+      if (name === null || name.trim() === (p.alias || '')) return;
+      try { await SD.json('POST', 'peers/alias', {target: p.target, alias: name.trim()}); }
+      catch (e) { banner('raw', {s: SD.errVar(e)}, true); return; }
+      await reloadPeers();
+    } else if (a === 'forget') {
+      if (!await SD.confirm(I.t('peer.forget.title', {label}), I.t('peer.forget.msg'), I.t('peer.forget.ok'), {destructive: true})) return;
+      try { await SD.json('POST', 'peers/forget', {target: p.target}); }
+      catch (e) { banner('raw', {s: SD.errVar(e)}, true); return; }
+      await reloadPeers();
+      heartbeat();
     }
   }
+  async function reloadPeers() {
+    if (!st.csrf) return;
+    await loadPeers();
+    $('peerrow').hidden = !(st.peers && st.peers.length);
+    if (!st.peers.length) renderPeerCards();
+    const c = st.conns.find(x => x.key === st.cur);
+    if (c) {
+      const saved = (st.peers || []).find(q => q.target === c.target && q.alias);
+      if (saved) I.say($('sessname'), 'sess.alias', {alias: saved.alias, target: c.target}); else I.plain($('sessname'), c.target);
+    }
+  }
+  // The phone apps' Settings rename and forget hosts too: they ask the page
+  // to show the list again (remohop-mobile.js peersChanged).
+  SD.reloadPeers = reloadPeers;
+  // SD.connectTo connects to a saved host as a tap on it does (the apps'
+  // Settings → Saved hosts → Connect), or shows its session if it has one.
+  SD.connectTo = async target => {
+    await reloadPeers();
+    const c = st.conns.find(x => x.target === target);
+    if (c) { selectConn(c.key); return; }
+    const p = (st.peers || []).find(q => q.target === target) || {target};
+    showConnect();
+    pickPeer(p);
+  };
   $('peersel').addEventListener('change', () => { if ($('peersel').value) { $('target').value = $('peersel').value; $('hostpass').focus(); } });
 
   async function heartbeat() {
@@ -501,8 +591,14 @@
     showTab(load('sd.tab') || 'files');
   }
   $('hostsel').addEventListener('change', () => selectConn($('hostsel').value));
-  $('disconnect').addEventListener('click', async () => {
+  $('disconnect').addEventListener('click', async e => {
     const k = st.cur; if (!k) return;
+    // A tap asks first (a script's click() does not: the tests use it).
+    if (e.isTrusted) {
+      const host = $('sessname').textContent || (st.conns.find(x => x.key === k) || {}).target || '';
+      if (!await SD.confirm(I.t('disc.title', {host}), I.t('disc.msg'), I.t('disc.ok'), {destructive: true})) return;
+      if (st.cur !== k) return;
+    }
     callTabs('hide'); st.cur = null;
     try { await SD.api('POST', 'disconnect', {c: k}); } catch (e) { /* ignore */ }
     refreshConns((await SD.json('GET', 'connections')).conns);

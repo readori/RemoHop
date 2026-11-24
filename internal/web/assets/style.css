@@ -4,6 +4,7 @@
   --bg: #f6f7fb; --panel: #ffffff; --panel2: #eef1f8; --fg: #141c30; --muted: #566178;
   --line: #dce1ec; --field: #bbc6dc; --accent: #2546d8; --accent-fg: #ffffff; --accent-soft: #e6ebff; --link: #2546d8;
   --err: #a72336; --err-bg: #fff0f2; --err-line: #efcbd2;
+  --danger: #b3261e; --danger-fg: #ffffff;
   --ok: #07664d; --ok-bg: #e6f5ee; --warn: #80510a; --warn-bg: #fff3dc; --warn-line: #f1d7a6;
   --shadow: 0 10px 30px #1623470f;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -30,7 +31,7 @@
 @media (prefers-color-scheme: dark) {
   :root { --bg: #0f1524; --panel: #172034; --panel2: #1f2942; --fg: #e5eafa; --muted: #aebad5;
     --line: #33405a; --field: #4a5878; --accent: #3554e0; --accent-fg: #ffffff; --accent-soft: #2a3a6e; --link: #a9b9ff;
-    --err: #ffa9b6; --err-bg: #4c2630; --err-line: #7a3a48;
+    --err: #ffa9b6; --err-bg: #4c2630; --err-line: #7a3a48; --danger: #ffb4ab; --danger-fg: #690005;
     --ok: #abf0cb; --ok-bg: #1d4739; --warn: #ffdfa4; --warn-bg: #493923; --warn-line: #6b5430;
     --shadow: 0 10px 30px #00000040; color-scheme: dark; }
 }
@@ -41,6 +42,8 @@ body { min-height: 100vh; display: flex; flex-direction: column; }
 [hidden] { display: none !important; }
 .skip { position: absolute; left: -999px; } .skip:focus { left: 8px; top: 8px; z-index: 10; background: var(--panel); padding: 6px 10px; }
 :focus-visible { outline: 3px solid var(--link); outline-offset: 2px; }
+/* A focus ring only for keyboard focus, never after a mouse click or a tap. */
+:focus:not(:focus-visible) { outline: none; }
 a { color: var(--link); }
 code { font-family: var(--mono); font-size: .9em; background: var(--panel2); padding: 0 .3em; border-radius: 4px; }
 
@@ -97,6 +100,9 @@ button:disabled { opacity: .55; cursor: default; }
 button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 button.primary:hover:not(:disabled) { filter: brightness(1.08); }
 button[aria-pressed=true] { border-color: var(--accent); background: var(--accent-soft); }
+/* Destructive: says so in its label, and in the error colour. */
+button.danger { background: var(--danger); color: var(--danger-fg); border-color: var(--danger); }
+button.danger:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--danger); }
 #disconnect, #t-kill { color: var(--err); border-color: var(--err-line); }
 .formbuttons { display: flex; gap: 8px; margin-top: 18px; }
 .formbuttons .primary { flex: 1; min-height: 44px; }
@@ -124,6 +130,12 @@ button[aria-pressed=true] { border-color: var(--accent); background: var(--accen
 .peertext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .peertext strong { overflow-wrap: anywhere; }
 .peertext small { color: var(--muted); font-family: var(--mono); font-size: .8rem; overflow-wrap: anywhere; }
+/* A saved host and its actions button (rename, forget). */
+.peeritem { display: flex; align-items: stretch; gap: 6px; }
+.peeritem .peer { flex: 1; min-width: 0; }
+.peermore { flex: none; width: 44px; padding: 0; position: relative; color: var(--muted); }
+.peermore::before { content: ""; position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; background: currentColor;
+  -webkit-mask: var(--i-more) center / contain no-repeat; mask: var(--i-more) center / contain no-repeat; }
 .tag { flex: none; padding: 1px 7px; border-radius: 6px; font-size: .78rem; font-weight: 650; color: var(--muted); background: var(--panel2); }
 
 /* ---- session ---- */
@@ -191,10 +203,16 @@ figure { margin: 12px 0 0; } figure img { max-width: 100%; height: auto; border:
 #panel-clipboard h2 + .toolbar, #panel-clipboard textarea { margin-bottom: 10px; }
 #panel-clipboard h2:not(:first-child) { margin-top: 18px; }
 
-dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 12px; max-width: min(92vw, 460px); padding: 18px 20px; box-shadow: var(--shadow); }
+dialog { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 14px; width: min(92vw, 440px); max-width: 92vw; padding: 22px 24px 18px; box-shadow: var(--shadow); }
 dialog::backdrop { background: rgba(10,15,30,.55); }
-dialog h2 { margin-top: 0; } #dlg-msg { overflow-wrap: anywhere; white-space: pre-wrap; }
-.dlg-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+dialog:focus { outline: none; }
+dialog h2 { margin-top: 0; }
+#dlg h2 { font-size: 1.15rem; line-height: 1.35; margin: 0 0 8px; overflow-wrap: anywhere; }
+#dlg-msg { margin: 0; color: var(--muted); line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+#dlg-input { width: 100%; margin-top: 14px; }
+#dlg-all-row { margin-top: 12px; }
+.dlg-buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 22px; }
+.dlg-buttons button { min-width: 88px; min-height: 40px; padding: 6px 16px; }
 
 /* The "how this works" notice: small, but always there. */
 .foot { padding: 10px 20px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; background: var(--panel); }
@@ -494,6 +512,11 @@ html.app .peer.live .peertext small { font-family: inherit; }
 html.app .tag { font-size: 12px; font-weight: 500; background: transparent; color: var(--md-on-surface-variant); padding: 0; }
 html.app #sdm-active { margin: 16px 0 4px; }
 html.app .peerlist + h3 { margin-top: 24px; }
+html.app .peeritem { gap: 0; align-items: center; }
+html.app .peermore { width: var(--app-target, 48px); height: var(--app-target, 48px); min-height: 0; margin-right: 4px; border: 0; border-radius: 50%; background: transparent; color: var(--md-on-surface-variant); }
+html.app .peermore:active { background: color-mix(in srgb, var(--md-on-surface) 10%, transparent); }
+html.app.platform-ios .peeritem .peer::after { display: none; } /* the ⋯ button takes the trailing place */
+html.app.platform-ios .peermore { color: var(--md-primary); }
 
 /* ---- session ---- */
 html.app.insession body { height: 100vh; height: 100dvh; overflow: hidden; }
@@ -605,6 +628,10 @@ html.app.platform-ios .dlg-buttons { gap: 0; margin-top: 18px; border-top: .5px 
 html.app.platform-ios .dlg-buttons button { flex: 1; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--md-primary); font-size: 17px; font-weight: 400; }
 html.app.platform-ios .dlg-buttons button + button { border-left: .5px solid var(--md-outline-variant); }
 html.app.platform-ios .dlg-buttons button.primary { font-weight: 600; }
+html.app .dlg-buttons button.danger { background: transparent; color: var(--md-error, #b3261e); }
+html.app.platform-ios .dlg-buttons button.danger { font-weight: 400; }
+html.app.platform-ios .dlg-buttons button.cancel { font-weight: 600; }
+html.app.platform-ios .dlg-buttons button:focus-visible, html.app.platform-android .dlg-buttons button:focus-visible { outline-offset: -3px; }
 html.app #sdm-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 640px; max-height: 88vh; max-height: 88dvh;
   overflow-y: auto; padding: 0 24px calc(16px + env(safe-area-inset-bottom)); border-radius: var(--app-dialog-radius) var(--app-dialog-radius) 0 0; background: var(--app-sheet-bg); }
 html.app.platform-ios #sdm-sheet { border-radius: 12px 12px 0 0; padding: 0 20px calc(16px + env(safe-area-inset-bottom)); }

@@ -160,6 +160,16 @@ class MainActivity : Activity(), BridgeHost {
         web.evaluateJavascript("window.remohopMobile&&remohopMobile.setLang(${JSONObject.quote(lang)})", null)
     }
 
+    /** Passes on what Settings did to the saved hosts: list them again, or connect to one. */
+    private fun tellPage() {
+        if (!::web.isInitialized || origin == null) return
+        val (changed, target) = PendingPage.take()
+        when {
+            target != null -> web.evaluateJavascript("window.remohopMobile&&remohopMobile.connect&&remohopMobile.connect(${JSONObject.quote(target)})", null)
+            changed -> web.evaluateJavascript("window.remohopMobile&&remohopMobile.peersChanged&&remohopMobile.peersChanged()", null)
+        }
+    }
+
     private var barsBackground: BarsBackground? = null
 
     /**
@@ -330,6 +340,7 @@ class MainActivity : Activity(), BridgeHost {
         // failed listener, or starts again) before the page needs it. It
         // also re-establishes host sessions that dropped meanwhile.
         if (origin != null) ensureGateway {}
+        tellPage()
         main.removeCallbacks(watch)
         main.post(watch)
     }
@@ -413,6 +424,11 @@ class MainActivity : Activity(), BridgeHost {
         startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, page))
 
     override fun diagLog(text: String) = Diag.logPage(text)
+
+    override fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) {
+        if (isFinishing || isDestroyed) return done(DialogAnswer.Cancelled)
+        NativeDialog.show(this, request, done)
+    }
 
     companion object {
         private const val REQ_FILES = 1
