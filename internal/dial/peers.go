@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
+	"unicode/utf8"
 
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
@@ -148,8 +149,19 @@ func (s *Store) Update(target string, fn func(*Peer) error) error {
 }
 
 // SetAlias names target. An alias is unique: it is taken away from any
-// other peer that had it.
+// other peer that had it. An empty alias removes target's name (and adds
+// no entry for a target that is not saved).
 func (s *Store) SetAlias(target, alias string) error {
+	if alias == "" {
+		return s.modify(func(peers []Peer) ([]Peer, error) {
+			for i := range peers {
+				if peers[i].Target == target {
+					peers[i].Alias = ""
+				}
+			}
+			return peers, nil
+		})
+	}
 	if err := CheckAlias(alias); err != nil {
 		return err
 	}
@@ -189,13 +201,17 @@ func (s *Store) Forget(ref string) (int, error) {
 	return n, err
 }
 
-var aliasRE = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,62}$`)
+// aliasRE: a letter (any script, so "办公室电脑" works), then letters,
+// combining marks, digits, '.', '_', '-' and single inner spaces; at most
+// 63 characters. No ':' or '/', and it starts with a letter, so it cannot
+// be mistaken for an ID or an address.
+var aliasRE = regexp.MustCompile(`^\p{L}(?:[\p{L}\p{M}\p{N}._-]| [\p{L}\p{M}\p{N}._-]){0,62}$`)
 
 // CheckAlias validates an alias: a short name that cannot be mistaken for
 // an ID, an address or a remohop command.
 func CheckAlias(alias string) error {
-	if !aliasRE.MatchString(alias) {
-		return fmt.Errorf("invalid alias %q: use a letter followed by letters, digits, '.', '_' or '-'", alias)
+	if !aliasRE.MatchString(alias) || utf8.RuneCountInString(alias) > 63 {
+		return fmt.Errorf("invalid alias %q: start with a letter; then use letters, digits, single spaces, '.', '_' or '-' (at most 63 characters)", alias)
 	}
 	switch alias {
 	case "help", "version":

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
 )
 
@@ -383,5 +384,61 @@ func (c *pageClient) call(method, path string, body, out any) {
 		if err := json.Unmarshal(b, out); err != nil {
 			c.t.Fatalf("%s %s: %v: %s", method, path, err, b)
 		}
+	}
+}
+
+// Settings → Saved hosts renames and forgets paired and recent hosts alike;
+// a name may be in any script, and an empty one removes it.
+func TestRenameAndForgetSavedHosts(t *testing.T) {
+	d := initDir(t)
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := time.Now().UTC().Truncate(time.Second)
+	st.Update("123456789", func(p *dial.Peer) error { p.HostKey = "k"; p.TokenID = "t"; p.Token = []byte("x"); return nil })
+	st.Update("10.1.2.3:21118", func(p *dial.Peer) error { p.HostKey = "k2"; p.LastSeen = &seen; return nil })
+	devices := func() map[string]map[string]any {
+		js, err := DevicesJSON(false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var list []map[string]any
+		json.Unmarshal([]byte(js), &list)
+		m := map[string]map[string]any{}
+		for _, x := range list {
+			m[x["target"].(string)] = x
+		}
+		return m
+	}
+	if err := SetAlias("10.1.2.3:21118", " 家里的电脑 "); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetAlias("123 456 789", "Office PC"); err != nil {
+		t.Fatal(err)
+	}
+	m := devices()
+	if m["10.1.2.3:21118"]["alias"] != "家里的电脑" || m["10.1.2.3:21118"]["login"] != "password" || m["10.1.2.3:21118"]["last_seen"] == nil {
+		t.Fatalf("recent host: %v", m["10.1.2.3:21118"])
+	}
+	if m["123456789"]["alias"] != "Office PC" || m["123456789"]["login"] != "pairing" {
+		t.Fatalf("paired host: %v", m["123456789"])
+	}
+	if err := SetAlias("123456789", ""); err != nil {
+		t.Fatalf("removing a name: %v", err)
+	}
+	if a, ok := devices()["123456789"]["alias"]; ok && a != "" {
+		t.Fatalf("name not removed: %v", a)
+	}
+	if err := SetAlias("123456789", "bad:name"); err == nil {
+		t.Fatal("bad alias accepted")
+	}
+	for _, ref := range []string{"家里的电脑", "123456789"} {
+		if n, err := Forget(ref); err != nil || n != 1 {
+			t.Fatalf("Forget(%s) = %d, %v", ref, n, err)
+		}
+	}
+	if len(devices()) != 0 {
+		t.Fatalf("left: %v", devices())
 	}
 }
