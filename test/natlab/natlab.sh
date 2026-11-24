@@ -123,10 +123,14 @@ root_snapshot() {
 	echo '# /etc/hosts'; cat /etc/hosts
 	echo '# /etc/resolv.conf'; cat /etc/resolv.conf 2>/dev/null || true
 }
-root_snapshot >"$LAB/root.before"
+# Azure runners can hot-plug an accelerated-networking virtual function
+# (enP<bus>s<slot>, a slave of eth0 with no address or routes of its own)
+# at any time; it is not the lab's doing.
+root_state() { root_snapshot | grep -Ev '\<enP[0-9]+s[0-9]+\>' || true; }
+root_state >"$LAB/root.before"
 
 root_same() { # mode
-	root_snapshot >"$LAB/root.after"
+	root_state >"$LAB/root.after"
 	if diff -u "$LAB/root.before" "$LAB/root.after" >"$LAB/root.diff"; then
 		ok "$1: the root namespace and the host's DNS settings are exactly as before"
 	else
