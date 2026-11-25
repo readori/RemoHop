@@ -60,8 +60,8 @@ parts:
     build-packages: [curl, ca-certificates]
     override-pull: |
       set -eu
-      VERSION=v1.0.1
-      SUMS_SHA256=4eedfb79a878ef28b1c3273c39b87747fee0dbcd96c19eb1e34ad15956293b1d
+      VERSION=v1.0.2
+      SUMS_SHA256=8f8de193b2831d899892e035ecbdd4731b8d2f6f2a1ff77b7d50b829fa6d21d5
       base="https://github.com/readori/RemoHop/releases/download/$VERSION"
       case "$CRAFT_ARCH_BUILD_FOR" in
         amd64 | arm64) ;;
