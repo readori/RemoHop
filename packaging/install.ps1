@@ -22,6 +22,10 @@
                      require (fail without a valid signature) or off.
 .PARAMETER BaseUrl   Directory holding the assets, instead of GitHub (a mirror or a test server).
 .PARAMETER NoPath    Do not add BinDir to the user PATH.
+.PARAMETER App       Also install the desktop app: RemoHop.exe (from RemoHop-windows-<arch>.zip,
+                     checked against the same SHA256SUMS) next to remohop.exe, with a Start menu
+                     shortcut. The app needs the Microsoft Edge WebView2 runtime, which Windows
+                     10 and 11 have; without it, it opens in an Edge window.
 
   Trust: the checksum alone only detects a damaged download, since SHA256SUMS comes from
   the same place as the zip. The signature ties SHA256SUMS to this repository's release
@@ -40,7 +44,8 @@ param(
   [string]$Repo = $(if ($env:REPO) { $env:REPO } else { 'readori/RemoHop' }),
   [ValidateSet('auto', 'require', 'off')][string]$Verify = $(if ($env:VERIFY) { $env:VERIFY } else { 'auto' }),
   [string]$BaseUrl = $env:BASE_URL,
-  [switch]$NoPath
+  [switch]$NoPath,
+  [switch]$App
 )
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is much faster without the progress bar
@@ -141,14 +146,24 @@ try {
   }
 
   # 2. The zip against SHA256SUMS (is this the file that was listed).
-  $want = $null
-  foreach ($line in Get-Content (Join-Path $tmp 'SHA256SUMS')) {
-    $parts = $line -split '\s+', 2
-    if ($parts.Count -eq 2 -and ($parts[1].TrimStart('*') -eq $asset)) { $want = $parts[0].ToLowerInvariant(); break }
+  function Test-Listed($name) {
+    $want = $null
+    foreach ($line in Get-Content (Join-Path $tmp 'SHA256SUMS')) {
+      $parts = $line -split '\s+', 2
+      if ($parts.Count -eq 2 -and ($parts[1].TrimStart('*') -eq $name)) { $want = $parts[0].ToLowerInvariant(); break }
+    }
+    if (-not $want) { Fail "$name is not listed in SHA256SUMS" }
+    $got = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $tmp $name)).Hash.ToLowerInvariant()
+    if ($got -ne $want) { Fail "checksum mismatch for $name (expected $want, got $got); nothing was installed" }
   }
-  if (-not $want) { Fail "$asset is not listed in SHA256SUMS" }
-  $got = (Get-FileHash -Algorithm SHA256 -Path (Join-Path $tmp $asset)).Hash.ToLowerInvariant()
-  if ($got -ne $want) { Fail "checksum mismatch for $asset (expected $want, got $got); nothing was installed" }
+  Test-Listed $asset
+  $appAsset = "RemoHop-windows-$arch.zip"
+  if ($App) {
+    Write-Host "Downloading $appAsset"
+    try { Invoke-WebRequest -UseBasicParsing -Uri "$base/$appAsset" -OutFile (Join-Path $tmp $appAsset) }
+    catch { Fail "download failed: $base/$appAsset ($($_.Exception.Message))" }
+    Test-Listed $appAsset
+  }
   Write-Host 'Checksum OK'
 
   Expand-Archive -Path (Join-Path $tmp $asset) -DestinationPath (Join-Path $tmp 'x') -Force
@@ -176,6 +191,30 @@ try {
   Copy-Item $exe $target -Force
   Write-Host "Installed $target"
   & $target version
+
+  if ($App) {
+    Expand-Archive -Path (Join-Path $tmp $appAsset) -DestinationPath (Join-Path $tmp 'app') -Force
+    $appExe = Join-Path $tmp 'app\RemoHop.exe'
+    if (-not (Test-Path $appExe)) { Fail 'the app zip has no RemoHop.exe' }
+    $appTarget = Join-Path $BinDir 'RemoHop.exe'
+    if (Test-Path $appTarget) {
+      # A running app cannot be overwritten but can be renamed (see remohop.exe above).
+      $old = "$appTarget.old-" + [Guid]::NewGuid().ToString('N').Substring(0, 8)
+      Move-Item $appTarget $old -Force
+      Remove-Item $old -Force -ErrorAction SilentlyContinue
+    }
+    Copy-Item $appExe $appTarget -Force
+    Get-ChildItem -Path $BinDir -Filter 'RemoHop.exe.old*' -ErrorAction SilentlyContinue |
+      ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
+    # Start menu shortcut (per user).
+    $programs = [Environment]::GetFolderPath('Programs')
+    $lnk = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $programs 'RemoHop.lnk'))
+    $lnk.TargetPath = $appTarget
+    $lnk.WorkingDirectory = $BinDir
+    $lnk.Description = 'RemoHop'
+    $lnk.Save()
+    Write-Host "Installed $appTarget (Start menu: RemoHop)"
+  }
 
   if (-not $NoPath) {
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
