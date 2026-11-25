@@ -52,12 +52,7 @@ func newSystemd() *systemd {
 			if err != nil {
 				real = exe
 			}
-			// /usr/local/bin, unless it is not root's alone either (some
-			// images make it world-writable).
-			dir, mk := "/usr/local/bin", ""
-			if untrustedExe(dir, map[uint32]bool{0: true}) != "" {
-				dir, mk = "/opt/remohop/bin", "sudo install -d -m 755 /opt/remohop/bin && "
-			}
+			dir, mk := rootOnlyDir("/usr/local/bin", "/usr/local/libexec/remohop", "/usr/libexec/remohop")
 			return checkSystemExe(exe, o, fmt.Sprintf("    %ssudo install -m 755 %s %s/remohop\n"+
 				"    sudo %s/remohop service install --system ...   (the same flags as before)", mk, shellQuote(real), dir, dir))
 		},
@@ -528,4 +523,29 @@ func execStartBinary(unit string) string {
 		return ""
 	}
 	return ""
+}
+
+// rootOnlyDir picks the first of dirs that only root can change, or could
+// be created so (its nearest existing parent is root's alone; some images
+// make /usr/local/bin or /opt world-writable), and the command that creates
+// it when it does not exist yet.
+func rootOnlyDir(dirs ...string) (dir, mkdir string) {
+	root := map[uint32]bool{0: true}
+	for _, d := range dirs {
+		e := d
+		for {
+			if _, err := os.Lstat(e); err == nil || e == "/" {
+				break
+			}
+			e = path.Dir(e)
+		}
+		if untrustedExe(e, root) != "" {
+			continue
+		}
+		if e != d {
+			return d, "sudo install -d -m 755 " + d + " && "
+		}
+		return d, ""
+	}
+	return dirs[len(dirs)-1], "sudo install -d -m 755 " + dirs[len(dirs)-1] + " && "
 }

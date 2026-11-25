@@ -150,13 +150,15 @@ jobs:
           go build -o "$HOME/.local/bin/remohop" ./cmd/remohop
           if sudo "$HOME/.local/bin/remohop" service install --system --no-signal; then echo "::error::accepted"; exit 1; fi
           ls -ld /usr/local/bin
-          # This runner image makes /usr/local/bin world-writable, so the message suggests /opt/remohop/bin.
-          sudo "$HOME/.local/bin/remohop" service install --system --no-signal 2>&1 | grep -q /opt/remohop/bin
-          sudo install -d -m 755 /opt/remohop/bin && sudo install -m 755 "$HOME/.local/bin/remohop" /opt/remohop/bin/remohop
-          sudo /opt/remohop/bin/remohop service install --system --no-signal
-          sleep 2; /opt/remohop/bin/remohop service status
-          sudo /opt/remohop/bin/remohop service install --system --no-signal
-          sudo /opt/remohop/bin/remohop service uninstall
+          ls -ld /usr/local /opt
+          # This runner image makes /usr/local/bin (and /opt) world-writable: follow the printed commands.
+          sudo "$HOME/.local/bin/remohop" service install --system --no-signal 2>&1 | tee msg.txt || true
+          eval "$(grep '^    sudo install' msg.txt)"
+          bin="$(grep '^    sudo install' msg.txt | sed 's/.* \([^ ]*\)$/\1/')"
+          sudo "$bin" service install --system --no-signal
+          sleep 2; "$bin" service status
+          sudo "$bin" service install --system --no-signal
+          sudo "$bin" service uninstall
       - name: Packaged unit is seen by remohop service
         run: |
           set -x
