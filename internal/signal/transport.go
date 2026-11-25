@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 	"time"
@@ -196,24 +197,34 @@ func DialBridge(ctx context.Context, sock *nat.Socket, wc *wsdgram.Conn, opts Op
 // the client first.
 func Connect(ctx context.Context, addr string, opts Options, newUDP func() (*nat.Socket, error), log *slog.Logger) (*Client, *nat.Socket, error) {
 	var udpErr error
+	var locals []netip.Addr // of the UDP socket, for the UDP-blocked hint
 	if opts.UseUDP() && addr != "" {
 		sock, err := newUDP()
 		if err != nil {
 			return nil, nil, err
 		}
-		dctx, cancel := context.WithTimeout(ctx, opts.UDPWait(time.Hour))
-		c, err := Dial(dctx, sock, addr, opts)
-		cancel()
-		if err == nil {
-			return c, sock, nil
-		}
-		sock.Close()
-		if !opts.UseWS() || ctx.Err() != nil || IsWrongServer(err) {
-			return nil, nil, err
-		}
-		udpErr = err
-		if log != nil {
-			log.Debug("rendezvous server not reachable over UDP; trying its websocket bridge", "err", err)
+		locals = sock.Locals()
+		if opts.UseWS() && UDPBlocked(opts.HintDir, addr, locals) {
+			sock.Close()
+			udpErr = errors.New("UDP to it was blocked from this network moments ago")
+			if log != nil {
+				log.Debug("rendezvous server was not reachable over UDP from this network moments ago; going to its websocket bridge")
+			}
+		} else {
+			dctx, cancel := context.WithTimeout(ctx, opts.UDPWait(time.Hour))
+			c, err := Dial(dctx, sock, addr, opts)
+			cancel()
+			if err == nil {
+				return c, sock, nil
+			}
+			sock.Close()
+			if !opts.UseWS() || ctx.Err() != nil || IsWrongServer(err) {
+				return nil, nil, err
+			}
+			udpErr = err
+			if log != nil {
+				log.Debug("rendezvous server not reachable over UDP; trying its websocket bridge", "err", err)
+			}
 		}
 	}
 	if !opts.UseWS() {
@@ -231,10 +242,14 @@ func Connect(ctx context.Context, addr string, opts Options, newUDP func() (*nat
 	c, err := DialBridge(ctx, sock, wc, opts)
 	if err != nil {
 		sock.Close()
+		SetUDPBlocked(opts.HintDir, addr, locals, false) // perhaps UDP works again
 		if udpErr != nil {
 			return nil, nil, fmt.Errorf("%v; %w", udpErr, err)
 		}
 		return nil, nil, err
+	}
+	if udpErr != nil {
+		SetUDPBlocked(opts.HintDir, addr, locals, true)
 	}
 	return c, sock, nil
 }
