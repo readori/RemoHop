@@ -35,6 +35,12 @@
 
 汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及**登录时启动 RemoHop**（启动后只在托盘中，不显示窗口）。
 
+## 更新
+
+应用启动后不久以及之后每天一次，从 `https://remohop.com/version.json` 读取最新的版本号（请求不带任何标识）。有更新的版本时，标签栏下方会出现一条提示，带**下载**（打开下载页）、**更新内容**（发布说明）和 ×（跳过这个版本）。用 Homebrew、Scoop、winget 或 Snap 安装的，提示里给出对应的升级命令（`brew upgrade --cask remohop-quick`、`scoop update remohop`、`winget upgrade RemoHop.RemoHop`、`sudo snap refresh remohop`）；用 .deb 或 .rpm 安装的，请用系统的包管理器升级。应用不会自己下载或安装任何东西。
+
+**设置 > 更新**可以关闭每天的检查，也可以**立即检查**。管理员可以设置环境变量 `REMOHOP_NO_UPDATE_CHECK=1` 统一关闭。开着无人值守访问的电脑，升级后请把它关闭再打开一次，让服务运行新版程序。
+
 ## 窗口、托盘与后台
 
 关闭窗口后 RemoHop 会留在托盘（macOS 上是菜单栏）中继续运行，别人仍可连接；托盘菜单中的“退出”会结束它和所有连接。再次启动 RemoHop 会显示原来的窗口。系统没有托盘时（不支持 AppIndicator 的 Linux 桌面），关闭窗口即退出。

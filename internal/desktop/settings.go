@@ -50,6 +50,11 @@ type Settings struct {
 	// Seen are the devices that asked before, so a request can say
 	// whether this one is new. Oldest first; bounded.
 	Seen []SeenDevice `json:"seen,omitempty"`
+	// UpdateCheck: the app looks once a day for a newer release. Unset
+	// means on.
+	UpdateCheck *bool `json:"update_check,omitempty"`
+	// SkipVersion is a release the user chose not to be told about again.
+	SkipVersion string `json:"skip_version,omitempty"`
 }
 
 // TrustedDevice is a remembered device.

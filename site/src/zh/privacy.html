@@ -13,7 +13,8 @@
 </ul>
 
 <h2 id="software">一、软件本身（<code>remohop</code>）</h2>
-<p><code>remohop</code> 只与两类对象通信：你连接的对端设备，以及你自己配置的汇合服务器（<code>remohop config set signal</code>）。它不检查更新，不上报统计数据或崩溃信息。</p>
+<p><code>remohop</code> 只与两类对象通信：你连接的对端设备，以及你自己配置的汇合服务器（<code>remohop config set signal</code>）。它不上报统计数据或崩溃信息。</p>
+<p><strong>检查更新：</strong>桌面应用（<code>remohop app</code>、RemoHop.exe、RemoHop.app）默认每天一次从本网站读取 <code>https://remohop.com/version.json</code>，看有没有更新的版本。这个请求不带任何标识：没有设备 ID、账号或 Cookie，User-Agent 只写“RemoHop”；和访问本网站一样，托管服务商（Cloudflare）会处理你的 IP 地址（见<a href="#website">第四节</a>）。应用不会自己下载或安装任何东西。可以在“设置 → 更新”中关闭；管理员可以设置环境变量 <code>REMOHOP_NO_UPDATE_CHECK=1</code> 统一关闭。命令行用法、快速协助和手机应用不检查更新。</p>
 <p>它在本机配置目录里保存：本机的身份密钥、已保存主机的公钥和配对令牌、设置、剪贴板历史（如果你使用剪贴板功能），被控端还有审计日志。这些文件不会离开你的设备，权限为仅所有者可读。</p>
 <p>被控机的主人能看到客户端发来的一切，这是远程控制的本意。连接别人的机器前请确认你信任对方。</p>
 

@@ -49,6 +49,14 @@
       'req.unknown': 'Unnamed device',
       'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start', 'set.autostart': 'Start RemoHop when I sign in',
       'about': 'RemoHop {v} · {e}', 'browser': 'browser window',
+      'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
+      'upd.how.cmd': 'You have {c}. Upgrade with:', 'upd.how.package': "You have {c}. Upgrade it with your system's package manager.",
+      'upd.how.nix': 'You have {c}. Upgrade it through Nix.', 'upd.get': 'Download', 'upd.notes': "What's new", 'upd.skip': 'Skip this version',
+      'upd.h': 'Updates', 'upd.auto': 'Check for updates automatically (once a day)', 'upd.now': 'Check now', 'upd.checking': 'Checking…',
+      'upd.latest': 'Up to date ({v}) · checked {t}', 'upd.avail': '{v} is available · checked {t}', 'upd.never': 'Not checked yet',
+      'upd.fail': 'Could not check (no connection to remohop.com?)', 'upd.managed': 'Switched off by the administrator ({e})',
+      'upd.dev': 'Development build ({v}): not compared with releases',
+      'upd.privacy': 'Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.',
       'h.closeq': 'Disconnect from {t}?', 'h.popout': 'Open in a window', 'h.close': 'Disconnect and close',
       'err.no_server': 'Enter the server address.', 'err.bad_server': 'That is not a server address (like signal.example.com:21116).',
       'err.weak_password': 'Use at least 12 characters with three of: lower case, upper case, digits, symbols.',
@@ -95,6 +103,14 @@
       'req.unknown': '未命名设备',
       'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '启动', 'set.autostart': '登录时启动 RemoHop',
       'about': 'RemoHop {v} · {e}', 'browser': '浏览器窗口',
+      'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
+      'upd.how.cmd': '当前是 {c}。用这条命令升级：', 'upd.how.package': '当前是 {c}。请用系统的包管理器升级。',
+      'upd.how.nix': '当前是 {c}。请通过 Nix 升级。', 'upd.get': '下载', 'upd.notes': '更新内容', 'upd.skip': '跳过这个版本',
+      'upd.h': '更新', 'upd.auto': '自动检查更新（每天一次）', 'upd.now': '立即检查', 'upd.checking': '正在检查…',
+      'upd.latest': '已是最新版本（{v}）· {t} 检查', 'upd.avail': '{v} 已发布 · {t} 检查', 'upd.never': '还没有检查过',
+      'upd.fail': '检查失败（连不上 remohop.com？）', 'upd.managed': '已被管理员关闭（{e}）',
+      'upd.dev': '开发版本（{v}），不与正式版比较',
+      'upd.privacy': '只从 remohop.com 读取最新的版本号，不发送这台电脑的任何信息，也不会在你不知情时安装任何东西。',
       'h.closeq': '断开与 {t} 的连接？', 'h.popout': '在新窗口中打开', 'h.close': '断开并关闭',
       'err.no_server': '请输入服务器地址。', 'err.bad_server': '这不是服务器地址（例如 signal.example.com:21116）。',
       'err.weak_password': '至少 12 个字符，并包含小写、大写、数字、符号中的三种。',
@@ -151,6 +167,7 @@
     for (const h of hosts.values()) h.viewEl.hidden = v !== 'host:' + h.target;
     for (const b of document.querySelectorAll('#tabs .tab')) b.setAttribute('aria-selected', String(b.dataset.view === v));
     $('tab-settings').setAttribute('aria-pressed', String(v === 'settings'));
+    if (S && S.update) renderUpdate(S.update);
     if (v === 'connect') loadPeers(false);
     const h = v.startsWith('host:') && hosts.get(v.slice(5));
     if (h) h.tab.scrollIntoView({block: 'nearest', inline: 'nearest'});
@@ -569,7 +586,40 @@
     $('autostart-box').hidden = !s.autostart.available;
     $('autostart').checked = s.autostart.on;
     $('about').textContent = t('about', {v: s.version, e: s.ui.native ? s.ui.engine : t('browser')});
+    renderUpdate(s.update);
   }
+
+  // ---- updates ----
+  const isRelease = v => /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(v || '');
+  function renderUpdate(u) {
+    if (!u) return;
+    const when = u.checked ? new Date(u.checked).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en', {dateStyle: 'medium', timeStyle: 'short'}) : '';
+    let st;
+    if (u.managed) st = t('upd.managed', {e: 'REMOHOP_NO_UPDATE_CHECK'});
+    else if (u.checking) st = t('upd.checking');
+    else if (!isRelease(u.current)) st = t('upd.dev', {v: u.current});
+    else if (u.error) st = t('upd.fail');
+    else if (!u.checked) st = t('upd.never');
+    else st = u.available ? t('upd.avail', {v: u.latest, t: when}) : t('upd.latest', {v: u.current, t: when});
+    $('upd-status').textContent = st;
+    $('upd-auto').checked = u.auto && !u.managed; $('upd-auto').disabled = u.managed;
+    $('upd-now').disabled = u.checking;
+    const show = u.available && !u.skipped;
+    $('upd').hidden = !show || view.startsWith('host:');
+    if (!show) return;
+    const m = u.method || {kind: 'download'};
+    $('upd-title').textContent = t('upd.title', {v: u.latest});
+    const how = m.command ? 'cmd' : (m.kind === 'package' || m.kind === 'nix') ? m.kind : 'download';
+    $('upd-how').textContent = t('upd.how.' + how, {c: u.current});
+    $('upd-cmd').hidden = $('upd-copy').hidden = !m.command;
+    $('upd-cmd').textContent = m.command || '';
+    $('upd-get').hidden = how !== 'download';
+  }
+  $('upd-auto').addEventListener('change', ev => api('update/auto', {on: ev.target.checked}).catch(e => snack(errText(e))));
+  $('upd-now').addEventListener('click', () => api('update/check').catch(e => snack(errText(e))));
+  $('upd-get').addEventListener('click', () => api('update/open', {target: 'download', lang}).catch(e => snack(errText(e))));
+  $('upd-notes').addEventListener('click', () => api('update/open', {target: 'notes', lang}).catch(e => snack(errText(e))));
+  $('upd-skip').addEventListener('click', () => api('update/skip', {version: S.update.latest}).catch(e => snack(errText(e))));
   for (const el of document.querySelectorAll('input[name=srv], #srv-addr')) el.addEventListener('input', () => { srvEdited = true; });
   $('srv-addr').addEventListener('focus', () => { document.querySelector('input[name=srv][value=custom]').checked = true; srvEdited = true; });
   $('srv-save').addEventListener('click', async () => {

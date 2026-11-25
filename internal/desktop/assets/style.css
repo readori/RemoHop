@@ -206,3 +206,10 @@ body.overlay { background: var(--error-container); color: var(--on-error-contain
 .ov-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--error); flex: none; animation: pulse 1.2s infinite; }
 .ov-t { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ov-dot { animation: none; } }
+/* A newer release: a bar under the header (update.go). */
+.upd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px 8px 16px; background: var(--primary-container); color: var(--on-primary-container); font-size: 14px; }
+.upd .ic { width: 20px; height: 20px; flex: none; }
+.upd .grow { flex: 1; min-width: 12rem; }
+.upd .muted { color: inherit; opacity: .85; }
+.upd-cmd { font-family: var(--mono); font-size: 13px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); user-select: all; }
+.upd .icon-btn { width: 32px; height: 32px; color: inherit; }

@@ -48,7 +48,7 @@ func startApp(t *testing.T, sig string) (*App, *Server) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("REMOHOP_CONFIG_DIR", dir)
-	app, err := NewApp(Config{Signal: sig, AskTimeout: 20 * time.Second})
+	app, err := NewApp(Config{Signal: sig, AskTimeout: 20 * time.Second, NoUpdateCheck: true})
 	if err != nil {
 		t.Fatal(err)
 	}

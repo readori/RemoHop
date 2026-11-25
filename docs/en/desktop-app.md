@@ -35,6 +35,12 @@ Each computer opens in a **tab of its own** next to Connect and This computer, w
 
 The rendezvous server, the language (Chinese, English or the system's), light or dark (or the system's), and **Start RemoHop when I sign in** (it starts in the tray, without its window).
 
+## Updates
+
+Once a day, and shortly after it starts, the app reads the newest version number from `https://remohop.com/version.json` (the request carries no identifier). When there is a newer release, a bar under the tabs says so, with **Download** (the download page), **What's new** (the release notes) and × to skip that version. Installed with Homebrew, Scoop, winget or Snap, the bar shows the upgrade command instead (`brew upgrade --cask remohop-quick`, `scoop update remohop`, `winget upgrade RemoHop.RemoHop`, `sudo snap refresh remohop`); from a .deb or .rpm, the system's package manager upgrades it. The app never downloads or installs anything by itself.
+
+**Settings > Updates** switches the daily check off and has **Check now**. Administrators can switch it off for everyone with the environment variable `REMOHOP_NO_UPDATE_CHECK=1`. With unattended access on, turn it off and on again after upgrading, so that the service runs the new copy.
+
 ## Window, tray and background
 
 Closing the window keeps RemoHop running in the tray (the menu bar on macOS), so incoming connections stay possible; Quit in the tray menu ends it and every connection. Starting RemoHop again brings the window back. Where the system has no tray (a Linux desktop without AppIndicator support), closing the window quits.
