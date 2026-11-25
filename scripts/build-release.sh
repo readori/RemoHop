@@ -67,17 +67,23 @@ step_build() {
 	local targets=""
 	for a in $LINUX_ARCHES; do targets="$targets linux/$a"; done
 	for a in $WINDOWS_ARCHES; do targets="$targets windows/$a"; done
-	make cross VERSION="$VERSION" CROSS_TARGETS="${targets# }"
+	# The darwin binaries are not released from here (the signed ones are); they are
+	# built so that the SBOM lists the modules only the macOS build links.
+	make cross VERSION="$VERSION" CROSS_TARGETS="${targets# } darwin/amd64 darwin/arm64"
 	# Quick support (RemoHop.exe, remohop-quick): same flags, see packaging/quick.
 	# RemoHop.app is built and signed on macOS by the signing workflow.
 	VERSION="$VERSION" OUT=dist/quick TARGETS="windows linux" sh packaging/quick/build.sh
 }
 
+# Written once per run (package, darwin and darwin-app share it): a file left by an
+# earlier run could describe other module versions.
 licenses() {
 	LICENSES="$PWD/dist/THIRD_PARTY_LICENSES.txt"
 	mkdir -p dist
-	if [[ ! -s "$LICENSES" ]]; then
-		packaging/third_party_licenses.sh >"$LICENSES"
+	if [[ "${LICENSES_FRESH:-}" != "$LICENSES" ]]; then
+		packaging/third_party_licenses.sh >"$LICENSES.tmp"
+		mv "$LICENSES.tmp" "$LICENSES"
+		LICENSES_FRESH="$LICENSES"
 	fi
 }
 
@@ -128,8 +134,10 @@ step_package() {
 	done
 
 	# nfpm does not expand variables in file sources, so the binary is staged
-	# where packaging/nfpm.yaml expects it (packaging/stage is git-ignored).
+	# where packaging/nfpm.yaml expects it (packaging/stage is git-ignored, and
+	# removed again even when a package step fails).
 	local nfpm; nfpm="$(nfpm_bin)"
+	trap 'rm -rf packaging/stage' EXIT
 	mkdir -p packaging/stage
 	for a in $LINUX_ARCHES; do
 		cp "dist/remohop-linux-$a" packaging/stage/remohop
@@ -140,10 +148,15 @@ step_package() {
 	done
 	rm -rf packaging/stage
 
-	# SBOM: one for the release, from the binaries just built. (The macOS binary is
-	# the same source and module set; build tags only differ between OSes.)
+	# SBOM: one for the release, from the binaries just built. The darwin builds stand
+	# in for the signed macOS binary: the release workflow checks that it is exactly
+	# this code (scripts/verify-macos-release.sh), and macOS links modules the other
+	# systems do not (github.com/ebitengine/purego).
+	[[ -f dist/remohop-darwin-arm64 && -f dist/remohop-darwin-amd64 ]] ||
+		{ echo "missing dist/remohop-darwin-* (run the build step)" >&2; exit 1; }
 	scripts/sbom.sh "$VERSION" dist/remohop-linux-amd64 dist/remohop-linux-arm64 \
 		dist/remohop-windows-amd64.exe dist/remohop-windows-arm64.exe \
+		dist/remohop-darwin-amd64 dist/remohop-darwin-arm64 \
 		dist/quick/linux-amd64/remohop-quick dist/quick/linux-arm64/remohop-quick \
 		dist/quick/windows-amd64/RemoHop.exe dist/quick/windows-arm64/RemoHop.exe >"$OUT/remohop_sbom.cdx.json"
 }

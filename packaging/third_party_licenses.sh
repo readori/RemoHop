@@ -18,8 +18,13 @@ echo "==========================="
 echo
 echo "remohop is licensed under the GNU Affero General Public License, version 3"
 echo "(see LICENSE). It includes the following modules under their own licenses."
-echo "The Go standard library and runtime are under the BSD-3-Clause license of"
-echo "the Go project (https://go.dev/LICENSE)."
+echo "It also includes the Go standard library and runtime, under the license of"
+echo "the Go project, reproduced first below."
+echo
+echo "------------------------------------------------------------------------"
+echo "Go standard library and runtime ($(go env GOVERSION))"
+echo "------------------------------------------------------------------------"
+cat "$(go env GOROOT)/LICENSE"
 for m in $mods; do
 	# The module cache escapes upper-case letters as !lower. (Written without GNU
 	# sed's \L so that it runs on macOS too, where the signing workflow uses it.)

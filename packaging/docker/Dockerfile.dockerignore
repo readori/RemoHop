@@ -7,4 +7,5 @@
 !cmd
 !internal
 !packaging/docker/healthcheck
+!packaging/third_party_licenses.sh
 !NOTICE
