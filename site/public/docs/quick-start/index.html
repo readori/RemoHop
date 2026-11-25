@@ -69,7 +69,7 @@ remohop host</code></pre>
   Direct:    203.0.113.7:51820
   Identity:  7197:70c3:1130:65a3:9c97
 Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
-<p>ID 属于主机的身份密钥，重启后保持不变。临时密码每次启动都会重新生成。需要固定密码时执行 <code>remohop passwd</code>：它以不回显的方式询问密码，之后也不会再把它打印出来。</p>
+<p>只有输出是终端时才显示密码；输出到文件或日志时，横幅显示 <code>(not shown: ...)</code>，可用 <code>remohop status --show-password</code> 查看密码。ID 属于主机的身份密钥，重启后保持不变。临时密码每次启动都会重新生成。需要固定密码时执行 <code>remohop passwd</code>：它以不回显的方式询问密码，之后也不会再把它打印出来。</p>
 <h2 id="4-或者把被控端安装为系统服务">4. 或者把被控端安装为系统服务</h2>
 <p>如果希望开机或登录后自动运行，不必一直开着终端：</p>
 <pre tabindex="0"><code class="language-bash">remohop service install

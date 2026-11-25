@@ -65,7 +65,7 @@ remohop config otp on</code></pre>
 <tr><td>已知客户端也要审批</td><td><code>remohop config ask-paired on</code></td><td>在 <code>ask on</code> 的基础上，已配对的客户端和已授权的密钥也需要审批</td></tr>
 <tr><td>一次性密码</td><td><code>remohop config otp on</code></td><td>临时密码每次登录后更换，多个同时使用它的登录只有一个能成功；被拒绝、无人应答或中途放弃的登录不会消耗它；<code>remohop otp</code> 打印当前密码，<code>remohop otp new</code> 立即更换</td></tr>
 <tr><td>固定密码</td><td><code>remohop passwd</code></td><td>设置固定密码，<code>--clear</code> 清除；<code>remohop status</code> 从不打印固定密码</td></tr>
-<tr><td>配对管理</td><td><code>remohop host paired</code>、<code>remohop host revoke NAME</code></td><td>列出、移除已配对的客户端和已授权的密钥</td></tr>
+<tr><td>配对管理</td><td><code>remohop host paired</code>、<code>remohop host revoke NAME</code></td><td>列出、移除已配对的客户端和已授权的密钥（<code>revoke IDENTITY</code> 移除某个客户端身份的全部凭据；撤销一个已授权密钥时，用该密钥登录的会话创建的配对也一并移除）</td></tr>
 <tr><td>USB 设备</td><td><code>remohop usb allow BUSID</code>、<code>remohop usb allowed</code></td><td>客户端挂接某个设备之前，必须先允许它</td></tr>
 <tr><td>账号设备</td><td><code>remohop config account-trust on</code></td><td>让本账号的其他设备像已授权的密钥一样登录，默认关闭（见<a href="/docs/accounts/">账号</a>）</td></tr>
 <tr><td>审计日志</td><td><code>remohop log</code></td><td>登录成功与被拒、审批结果、每个会话首次使用某项功能、会话结束</td></tr>

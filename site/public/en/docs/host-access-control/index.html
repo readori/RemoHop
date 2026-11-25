@@ -65,7 +65,7 @@ remohop config otp on</code></pre>
 <tr><td>Approval for known clients</td><td><code>remohop config ask-paired on</code></td><td>with <code>ask on</code>, paired clients and authorised keys need approval too</td></tr>
 <tr><td>One-time password</td><td><code>remohop config otp on</code></td><td>the temporary password is replaced after each login, and only one of several logins presenting it at once gets in; a denied, unanswered or abandoned login does not use it up; <code>remohop otp</code> prints the current one, <code>remohop otp new</code> replaces it</td></tr>
 <tr><td>Fixed password</td><td><code>remohop passwd</code></td><td>set or (<code>--clear</code>) remove it; <code>remohop status</code> never prints a fixed password</td></tr>
-<tr><td>Pairings</td><td><code>remohop host paired</code>, <code>remohop host revoke NAME</code></td><td>list and remove paired clients and authorised keys</td></tr>
+<tr><td>Pairings</td><td><code>remohop host paired</code>, <code>remohop host revoke NAME</code></td><td>list and remove paired clients and authorised keys (<code>revoke IDENTITY</code> removes all of one client's; revoking a key also removes the pairings its sessions minted)</td></tr>
 <tr><td>USB devices</td><td><code>remohop usb allow BUSID</code>, <code>remohop usb allowed</code></td><td>allow each device before a client may attach it</td></tr>
 <tr><td>Account devices</td><td><code>remohop config account-trust on</code></td><td>accept the account's other devices like authorised keys; off by default (see <a href="/en/docs/accounts/">Accounts</a>)</td></tr>
 <tr><td>Audit log</td><td><code>remohop log</code></td><td>logins accepted and refused, approval decisions, first use of each feature, session ends</td></tr>

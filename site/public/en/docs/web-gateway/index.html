@@ -59,9 +59,10 @@ remohop web --target dev</code></pre>
 <h2 id="exposing-it-through-cloudflare-tunnel">Exposing it through Cloudflare Tunnel</h2>
 <p>To use <code>remohop web</code> from outside your network, keep it on a fixed loopback port, point <code>cloudflared</code> at it and put a Cloudflare Access policy in front. <code>--public-url</code> tells the gateway the https address browsers use, so it accepts the <code>Host</code> and <code>Origin</code> headers the tunnel passes through. Unit tests simulate tunnelled requests against the gateway; it has not been tried with a real Cloudflare tunnel.</p>
 <pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
-        --public-url https://remohop.example.com --no-open --no-saved
+        --public-url https://remohop.example.com --real-ip-header CF-Connecting-IP \
+        --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 &lt;tunnel-name&gt;</code></pre>
-<p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the <code>CF-Connecting-IP</code> header Cloudflare sets.</p>
+<p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the header named with <code>--real-ip-header</code> (<code>CF-Connecting-IP</code>, which Cloudflare sets and overwrites). Name only a header your proxy always sets: anyone can send any header. Without the flag, every visitor through the proxy shares one rate limit, and the gateway says so when it starts. A visitor that logged in from the same address within 30 days is not held back by the global failure budget that strangers' wrong passwords use up, only by its own lockout.</p>
 <ul>
 <li>In Cloudflare Zero Trust, create an Access application for the hostname and allow only your own identity or domain.</li>
 <li>Keep <code>remohop web</code>'s own login on (<code>--password-file</code>). Access sits in front, but the gateway still sees everything in the page.</li>
