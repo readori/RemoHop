@@ -20,6 +20,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
+	"github.com/readori/RemoHop/internal/nat"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/signal"
 	"github.com/readori/RemoHop/internal/svc/vpn"
@@ -161,6 +162,10 @@ func startNode(parent context.Context, h *hostd.Host, cfg settings) (*Node, erro
 		n.cancel()
 		return nil, err
 	}
+	// No punched path may run through the mesh: a link carried by
+	// another link (or by itself) dies with it. See nat/exclude.go. Before
+	// the interface has its addresses, so no dial advertises them.
+	context.AfterFunc(n.ctx, nat.ExcludeNetworks(v.prefix4, v.prefix6))
 	if n.dev, err = vpn.Open("mesh"); err != nil {
 		n.cancel()
 		return nil, err
@@ -445,6 +450,9 @@ func (n *Node) accept(ctx context.Context, c *peer.Conn, s peer.Stream, key ed25
 	if err != nil {
 		return refuse(err.Error())
 	}
+	if throughMesh(c) {
+		return refuse(errThroughMesh.Error())
+	}
 	rep, own := n.helloFor(c)
 	l := newLink(n, key, p.Label, c, s, false, own, h.MaxDatagram, h)
 	l.path = n.pathOf(c)
@@ -608,6 +616,8 @@ func (n *Node) learnRoutes(l *link) {
 			n.log.Warn("net: could not add a route through the mesh", "route", r, "via", l.label, "err", err)
 			continue
 		}
+		// Paths to peers stay off it, as off the mesh's own network.
+		context.AfterFunc(n.ctx, nat.ExcludeNetworks(r))
 		n.log.Info("net: route through the mesh", "route", r, "via", l.label)
 	}
 }

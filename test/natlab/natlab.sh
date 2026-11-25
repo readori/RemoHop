@@ -803,6 +803,16 @@ test_mesh() {
 	check "alpha pings bravo.remohop" icmp_ping alpha bravo.remohop
 	sed 's/^/         /' "$LAB/out.txt"
 	if dremohop bravo net peers | grep -q 'charlie.remohop.*yes *up *punched'; then ok "remohop net peers: link to charlie up over a punched path"; else fail "net peers"; dremohop bravo net peers | sed 's/^/         /'; fi
+	# A path through the mesh itself (a peer's mesh address, reached over an
+	# existing link) must never be offered, probed or answered: a link set up
+	# over it dies with the link it rides on (TX climbing, RX 0).
+	local M6; M6=$(net_json alpha prefix6); M6=${M6%%::*}; M6=${M6:-fdff:none}
+	if grep -h 'msg=introduced' "$LAB"/host-*.log | grep -qE "host_candidates=\"[^\"]*(10\\.78\\.|\\[?$M6:)"; then
+		fail "a device offered its mesh address as a candidate"; grep -h 'msg=introduced' "$LAB"/host-*.log | grep -o 'host_candidates="[^"]*"' | sort -u | head -5 | sed 's/^/         /'
+	else ok "no device offers its mesh address as a candidate"; fi
+	if grep -hE "punch: path answered.* remote=\\[?(10\\.78\\.|$M6:)|session opened.* from=\\[?(10\\.78\\.|$M6:)" "$LAB"/host-*.log >"$LAB/out.txt"; then
+		fail "a punched path or session through the mesh itself"; head -5 "$LAB/out.txt" | sed 's/^/         /'
+	else ok "no punched path or session runs through the mesh itself"; fi
 	if grep -q 'client=net:' "$LAB/host-bravo.log" "$LAB/host-charlie.log" "$LAB/host-alpha.log"; then ok "the links' logins are limited to the mesh (net:NAME)"; else fail "scoped login"; grep 'session opened' "$LAB"/host-*.log | tail -3; fi
 	code=0; dremohop bravo "$(grep -m1 'ID:' "$LAB/host-charlie.log" | tr -dc 0-9)" shell -c true >"$LAB/out.txt" 2>&1 || code=$?
 	if [ "$code" != 0 ]; then ok "a mesh device still cannot open a shell on another (account-trust off)"; else fail "mesh member got a shell"; fi
