@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>桌面应用 | RemoHop</title>
+<meta name="description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 remohop-quick 打开的就是它（在终端里是 remohop app）。">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/docs/desktop-app/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/desktop-app/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/desktop-app/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/desktop-app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="桌面应用 | RemoHop">
+<meta property="og:description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 remohop-quick 打开的就是它（在终端里是 remohop app）。">
+<meta property="og:url" content="https://remohop.com/docs/desktop-app/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/" aria-current="true">文档</a></li>
+<li><a href="/download/">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/docs/desktop-app/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose doc">
+<p class="crumbs"><a href="/docs/#more">文档</a></p>
+<h1 id="桌面应用">桌面应用</h1>
+<p>一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 <code>remohop-quick</code> 打开的就是它（在终端里是 <code>remohop app</code>）。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="这台电脑 / 有人请求连接">
+<table>
+<thead><tr><th scope="col">这台电脑</th><th scope="col">有人请求连接</th></tr></thead>
+<tbody>
+<tr><td><img src="/assets/docs/desktop-computer-zh.png?v=3075d7ee68" alt="“这台电脑”标签页，显示 ID 和临时密码" width="900" height="600" loading="lazy" decoding="async"></td><td><img src="/assets/docs/desktop-request-zh.png?v=d26e133779" alt="连接请求：新设备、防诈骗提醒、默认只能查看" width="900" height="600" loading="lazy" decoding="async"></td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrap" tabindex="0" role="region" aria-label="连接 / 已连接的电脑">
+<table>
+<thead><tr><th scope="col">连接</th><th scope="col">已连接的电脑</th></tr></thead>
+<tbody>
+<tr><td><img src="/assets/docs/desktop-connect-zh.png?v=8f93ff0644" alt="“连接”标签页，显示一台在线的已保存电脑" width="900" height="600" loading="lazy" decoding="async"></td><td><img src="/assets/docs/desktop-host-tab-en.png?v=7fefd071e8" alt="已连接的电脑在自己的标签页中，带桌面、终端、文件、剪贴板和信息" width="900" height="600" loading="lazy" decoding="async"></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="第一次启动">第一次启动</h2>
+<p>应用会询问语言（或跟随系统）和<strong>汇合服务器</strong>，也就是按 ID 为电脑牵线的服务：官方服务器（<code>signal.remohop.com</code>）、你自己的服务器（见<a href="/docs/self-hosting/">自建</a>），或暂时不用。不用服务器时按地址（<code>主机:端口</code>）连接，这台电脑也可以在本地网络中按地址访问。之后可在“设置”中更改；它与 <code>remohop config set signal</code> 是同一个设置。</p>
+<p>这一页上有个选项可以立即允许别人连接；否则在你打开之前，别人都连不上。</p>
+<h2 id="连接">连接</h2>
+<p>输入 9 位 ID、你给电脑起的名称或 <code>主机:端口</code>，或者从<strong>已保存的电脑</strong>中选择（连接过或配对过的电脑，以及账号中的设备），每台都显示是否在线。它的菜单（⋮）可以重命名、移除、保存网络唤醒的 MAC 地址并唤醒它。</p>
+<p>每台电脑都在“连接”和“这台电脑”旁边的<strong>单独标签页</strong>中打开，里面是熟悉的桌面、终端、文件、剪贴板和信息（见<a href="/docs/remote-desktop/">远程桌面</a>、<a href="/docs/web-gateway/">浏览器客户端</a>）。没有配对时会要求输入密码（勾选“配对”可以保存）。⧉ 把这台电脑移到单独的窗口；× 断开并关闭标签页。连接断开（睡眠、换了网络）后会自动恢复。</p>
+<h2 id="这台电脑">这台电脑</h2>
+<ul>
+<li><strong>允许别人连接。</strong>默认关闭。打开后，标签页显示这台电脑的 <strong>ID</strong> 和<strong>临时密码</strong>（每次启动都会换新，“换一个”立即更换），都带复制按钮。</li>
+<li><strong>每次连接都会询问。</strong>无论在哪个标签页，都会弹出对话框：谁在请求（对方自称的名称、密钥和地址）、是否是<strong>新设备</strong>；对新设备还会提醒：<em>有人打电话自称客服、银行或警察，让你安装远程软件，那是诈骗。</em>被允许的设备<strong>只能看屏幕</strong>，除非你勾选“控制鼠标和键盘”或“传输文件、使用剪贴板”。一分钟内没人回答的请求会被拒绝。“记住这台设备”让它下次以相同权限直接连入（在允许连接打开时）；已记住的设备会列出来，可以移除。</li>
+<li><strong>当前连接</strong>列出每台设备，带“控制”和“文件”开关（立即生效，收回的权限会结束正在使用它的操作）和“断开”。只能查看的设备可以从它那边请求更多权限，这里会再问你一次。有人连接时标签页上有红点，一个小<strong>横幅始终显示在所有窗口之上</strong>，带“断开”按钮。</li>
+<li><strong>无人值守访问</strong>让这台电脑在没人时也能连上，开机即可用，使用你设定的强密码（至少 12 个字符，包含三类字符）。它把 RemoHop 安装为服务（<a href="/docs/quick-start/"><code>remohop service install</code></a>）：在 Windows 上是 RemoHop 服务，还能显示登录界面和 UAC 提示（Windows 会请求一次管理员授权）；在 macOS 和 Linux 上是你用户账号的服务。在同一处可以关闭。</li>
+</ul>
+<h2 id="设置">设置</h2>
+<p>汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及<strong>登录时启动 RemoHop</strong>（启动后只在托盘中，不显示窗口）。</p>
+<h2 id="窗口托盘与后台">窗口、托盘与后台</h2>
+<p>关闭窗口后 RemoHop 会留在托盘（macOS 上是菜单栏）中继续运行，别人仍可连接；托盘菜单中的“退出”会结束它和所有连接。再次启动 RemoHop 会显示原来的窗口。系统没有托盘时（不支持 AppIndicator 的 Linux 桌面），关闭窗口即退出。</p>
+<p>窗口使用系统自带的网页引擎：Windows 上是 WebView2（Windows 10 和 11 自带），macOS 上是 WKWebView，Linux 上是 WebKitGTK（远程桌面需要 GStreamer 的 H.264 解码器，Debian 和 Ubuntu 上是 <code>gstreamer1.0-libav</code>）。没有时应用会改在浏览器窗口中打开，命令行程序的 <code>remohop app</code> 也是如此。</p>
+<h2 id="快速协助">快速协助</h2>
+<p>只想帮别人一次、不留下任何东西时，对方可以改用快速协助：<code>RemoHop.exe --quick</code>（或 <code>remohop quick</code>），它立即共享屏幕，关闭窗口即退出。见<a href="/docs/quick-support/">快速协助</a>。</p>
+<h2 id="安全">安全</h2>
+<p>窗口是应用在 <code>127.0.0.1</code> 上提供的页面，地址中带随机令牌，保护措施与<a href="/docs/quick-support/">快速协助</a>相同，其他机器无法访问。你连接的电脑显示在只有应用自己的页面才能嵌入的框架中。设计说明见 <a href="https://github.com/readori/RemoHop/blob/main/docs/desktop-app.md">desktop-app.md</a>。</p>
+<p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/desktop-app.md">源文件（GitHub）</a></p>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:info@remohop.com">info@remohop.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

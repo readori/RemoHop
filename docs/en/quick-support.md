@@ -2,7 +2,7 @@
 
 [中文](../zh/quick-support.md)
 
-For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect.
+For helping someone who will never open a terminal: they start one file in quick-support mode, read you an ID and a password, and press Allow when you connect. Nothing stays behind: closing the window ends it. (The [desktop app](desktop-app.md) does the same from its This computer tab, and stays installed.)
 
 | Ready | Someone asks to connect |
 |---|---|
@@ -10,11 +10,11 @@ For helping someone who will never open a terminal: they double-click one file, 
 
 | System | What they open | Built by `make quick` as |
 |---|---|---|
-| Windows 10/11 | `RemoHop.exe` | `dist/quick/windows-amd64/RemoHop.exe` (and `windows-arm64`) |
-| macOS 12+ | `RemoHop.app` | `dist/quick/macos/RemoHop.app` (universal) |
+| Windows 10/11 | `RemoHop.exe --quick` | `dist/quick/windows-amd64/RemoHop.exe` (and `windows-arm64`) |
+| macOS 12+ | `open RemoHop.app --args --quick` | `dist/quick/macos/RemoHop.app` (universal) |
 | Linux, or any terminal | `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.dmg`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; started without arguments they run `remohop quick`.
+Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.dmg`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; started without arguments they open the [desktop app](desktop-app.md), and with `--quick` they run `remohop quick` (a shortcut with `--quick` makes it a double-click again).
 
 What the person at the computer gets:
 

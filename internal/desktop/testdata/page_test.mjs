@@ -95,6 +95,9 @@ try {
   check(await p.waitFor(`!document.getElementById('v-wizard').hidden`), 'first run shows the wizard');
   check(await p.eval(`document.getElementById('bar').hidden`), 'no tabs during the wizard');
   await p.shot('wizard-1');
+  await p.eval(`document.querySelector('#wiz-lang [data-lang=zh]').click()`);
+  await p.shot('wizard-1-zh');
+  await p.eval(`document.querySelector('#wiz-lang [data-lang=""]').click()`);
   await p.eval(`document.getElementById('wiz-next').click()`);
   await p.eval(`document.querySelector('input[name=wsrv][value=custom]').checked = true; document.getElementById('wiz-addr').value = 'not a server'`);
   await p.shot('wizard-2');
@@ -104,6 +107,9 @@ try {
   check(await p.waitFor(`!document.getElementById('bar').hidden && !document.getElementById('v-connect').hidden`), 'after the wizard: the Connect tab');
   check(await p.eval(`!document.getElementById('peers-empty').hidden`), 'no saved computers yet');
   await p.shot('connect-empty');
+  await p.goto(url);
+  check(await p.waitFor(`!document.getElementById('v-computer').hidden`), 'a new start without saved computers opens on This computer');
+  await p.eval(`document.getElementById('tab-connect').click()`);
 
   // This computer: off until switched on.
   await p.eval(`document.getElementById('tab-computer').click()`);
@@ -178,7 +184,16 @@ try {
   await p.eval(`document.querySelector('#set-lang [data-lang=zh]').click()`);
   check(await p.waitFor(`document.getElementById('tab-computer').textContent.includes('这台电脑')`), 'Chinese');
   await p.shot('computer-dark-zh');
-  await p.eval(`document.querySelector('#set-theme [data-theme=""]').click(); document.querySelector('#set-lang [data-lang=""]').click()`);
+  await p.eval(`document.querySelector('#set-theme [data-theme=""]').click()`);
+  await p.waitFor(`!document.documentElement.dataset.theme`);
+  await p.shot('computer-zh');
+  control('/dial?name=Laptop-2');
+  check(await p.waitFor(`document.getElementById('dlg-req').open && document.getElementById('req-title').textContent.includes('请求连接')`), 'request in Chinese');
+  await p.shot('request-zh');
+  await p.eval(`document.getElementById('req-deny').click()`);
+  await p.eval(`document.getElementById('tab-connect').click()`);
+  await p.shot('connect-zh');
+  await p.eval(`document.querySelector('#set-lang [data-lang=""]').click()`);
   await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('This computer')`);
   await p.size(480, 720);
   await p.shot('computer-small');

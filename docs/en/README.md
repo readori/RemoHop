@@ -8,6 +8,7 @@ Every remote command has the form `remohop <ID> <command>`. The pages use `dev` 
 
 - [Install](install.md): install scripts, packages, verifying a download by hand, building from source.
 - [Quick start](quick-start.md): rendezvous server, host, pairing, running as a service, direct connections without a rendezvous server, status and devices.
+- [Desktop app](desktop-app.md): one window to connect to your computers and to let others connect to this one.
 - [Quick support](quick-support.md): helping someone who will never open a terminal.
 
 ## Using RemoHop
