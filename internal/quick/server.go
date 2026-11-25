@@ -32,7 +32,7 @@ type Controller interface {
 	Decide(n int, allow bool) error
 	Disconnect(id int) error
 	SetOption(name string, on bool) error
-	Configure(server string) error
+	Configure(mode, server string) error
 	Stop()
 }
 
@@ -256,6 +256,7 @@ func (s *Server) routes() *http.ServeMux {
 		Name   string `json:"name"`
 		On     bool   `json:"on"`
 		Server string `json:"server"`
+		Mode   string `json:"mode"`
 		Lang   string `json:"lang"`
 	}
 	post := func(pattern string, csrf bool, h func(b body) (any, error)) {
@@ -320,7 +321,7 @@ func (s *Server) routes() *http.ServeMux {
 	post("/api/decide", true, func(b body) (any, error) { return nil, s.ctl.Decide(b.N, b.Allow) })
 	post("/api/disconnect", true, func(b body) (any, error) { return nil, s.ctl.Disconnect(b.ID) })
 	post("/api/option", true, func(b body) (any, error) { return nil, s.ctl.SetOption(b.Name, b.On) })
-	post("/api/configure", true, func(b body) (any, error) { return nil, s.ctl.Configure(strings.TrimSpace(b.Server)) })
+	post("/api/configure", true, func(b body) (any, error) { return nil, s.ctl.Configure(b.Mode, strings.TrimSpace(b.Server)) })
 	post("/api/stop", true, func(body) (any, error) {
 		// Answer first: stopping closes sessions and can take a moment.
 		go s.ctl.Stop()

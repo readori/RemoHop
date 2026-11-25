@@ -192,7 +192,15 @@
   // ---- wizard ----
   let wizLang = null;
   function renderWizard() {
-    if (wizLang === null) wizLang = S.lang || '';
+    if (wizLang === null) {
+      wizLang = S.lang || '';
+      // A choice made before (in quick support, which shares it) is preselected.
+      if (S.server.chosen) {
+        const v = S.server.mode === 'none' ? '' : S.server.mode;
+        for (const r of document.querySelectorAll('input[name=wsrv]')) r.checked = r.value === v;
+        if (S.server.mode === 'custom') $('wiz-addr').value = S.server.addr;
+      }
+    }
     for (const b of $('wiz-lang').children) b.setAttribute('aria-pressed', String(b.dataset.lang === wizLang));
     $('wiz-lang').children[0].textContent = t('auto');
   }

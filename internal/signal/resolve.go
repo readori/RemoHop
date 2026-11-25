@@ -16,7 +16,16 @@ const (
 	// SettingRelay is whether this machine accepts a relayed connection
 	// when no direct one is possible. REMOHOP_RELAY=0 overrides it to off.
 	SettingRelay = "relay"
+	// SettingNone records that the user chose to use no rendezvous server
+	// (computers are reached by address), so that the desktop app and
+	// quick support do not ask again.
+	SettingNone = "signal-none"
 )
+
+// OfficialAddr is the public rendezvous server that the desktop app's and
+// quick support's first-run choice offers. Nothing uses it unless the user
+// picks it: there is still no built-in default (DefaultAddr).
+const OfficialAddr = "signal.remohop.com"
 
 // DefaultAddr and DefaultPin are the rendezvous server (and optionally its
 // key) used when neither a flag, the environment nor the config file names
@@ -42,6 +51,8 @@ func init() {
 			return err
 		},
 	})
+	config.RegisterSetting(config.Setting{Key: SettingNone, Validate: config.ValidateOnOff,
+		Help: "on: the user chose to connect by address only, without a rendezvous server (the desktop app and quick support then do not ask for one)"})
 	config.RegisterSetting(config.Setting{Key: SettingRelay, Default: "on", Validate: config.ValidateOnOff,
 		Help: "accept a relayed (still end-to-end encrypted) connection when no direct one is possible and the rendezvous server offers relaying"})
 	config.RegisterSetting(config.Setting{

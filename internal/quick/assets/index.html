@@ -24,7 +24,7 @@
     <section id="ready" hidden>
       <div class="creds">
         <div class="card cred">
-          <div class="label" data-t="your_id">Your ID</div>
+          <div class="label" id="idlabel" data-t="your_id">Your ID</div>
           <output id="id" class="big"></output>
           <div class="credbuttons"><button id="copyid" class="small" type="button" data-t="copy">Copy</button></div>
         </div>
@@ -66,8 +66,18 @@
         <p class="hint" data-t="setup_why_text"></p>
       </details>
       <form id="setupform">
-        <label for="server" data-t="setup_label">Server address</label>
-        <input id="server" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="support.example.com">
+        <fieldset class="choices">
+          <legend class="vh" data-t="setup_title">One step before you start</legend>
+          <label class="choice"><input type="radio" name="mode" value="official" checked>
+            <span><span class="choice-t" data-t="setup_official">Use the official server</span>
+              <span class="hint block">signal.remohop.com</span></span></label>
+          <label class="choice"><input type="radio" name="mode" value="custom">
+            <span class="grow"><span class="choice-t" data-t="setup_custom">My helper gave me a server address</span>
+              <input id="server" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="support.example.com" data-ta="setup_label" aria-label="Server address"></span></label>
+          <label class="choice"><input type="radio" name="mode" value="none">
+            <span><span class="choice-t" data-t="setup_none">No server</span>
+              <span class="hint block" data-t="setup_none_hint">My helper is on the same network</span></span></label>
+        </fieldset>
         <p id="setuperr" class="err" role="alert"></p>
         <button class="primary" type="submit" data-t="setup_go">Continue</button>
       </form>

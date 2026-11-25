@@ -33,7 +33,7 @@
 
 你作为协助者照常连接：`remohop <ID> desktop`、浏览器客户端（`remohop web`）或手机应用，使用对方念给你的密码。
 
-**汇合服务器。** 内置了服务器的构建（`-X .../internal/dial.DefaultSignal=HOST:PORT`，见[自建汇合服务器](self-hosting.md)）无需任何设置。否则窗口会在首次启动时询问服务器地址并保存（与 `remohop config set signal` 是同一项设置）。要把这个构建参数传给 `make quick`：`EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick`。
+**汇合服务器。** 内置了服务器的构建（`-X .../internal/dial.DefaultSignal=HOST:PORT`，见[自建汇合服务器](self-hosting.md)）无需任何设置。否则窗口会像桌面应用的首次设置向导一样询问一次：官方服务器 `signal.remohop.com`（默认选中）、协助者给的地址，或不用服务器（协助者在同一网络中按地址连接）。所做的选择保存在共享设置中（`remohop config set signal` 或 `signal-none`），所以已在桌面应用中选过的电脑不会再被询问。要把这个构建参数传给 `make quick`：`EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick`。
 
 **无论 `remohop config` 怎么设置，快速协助的被控端都只允许：** 每次登录都要批准，包括已配对的客户端和已授权的密钥；只接受本次运行的临时密码（忽略固定的 `host-password`）；不签发新的配对；只开放窗口里勾选的功能。用 `remohop config feature` 关闭的功能仍然关闭。它和 `remohop host` 使用同一个身份，所以一台电脑只有一个 ID；如果那里已经有被控端在运行（系统服务，或终端里的 `remohop host`），窗口会说明这一点，而不是再启动一份。快速协助运行期间再次启动 RemoHop，会把它的窗口重新调出来。
 
@@ -43,4 +43,4 @@
 
 - **Windows：** `RemoHop.exe` 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。
 - **macOS：** 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 > 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。下载的 `RemoHop-macos.dmg` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；签名和公证见 [packaging/quick/README.md](../../packaging/quick/README.md)。
-- 页面及其服务器在 Linux 上用真实浏览器测试过。围绕它们的 Windows 和 macOS 部分（Edge 应用窗口、系统对话框、`.app` 包）能够编译，并做了结构检查，但尚未在这两个系统上实际运行。
+- 页面及其服务器在 Linux 上用真实浏览器测试过；启动器窗口在 CI 中于 Windows、macOS 和 Linux 上实际启动并截图。

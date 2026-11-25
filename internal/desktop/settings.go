@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/signal"
 )
 
 // settingsFile holds the app's own settings in the config directory. The
@@ -20,7 +21,7 @@ const settingsFile = "desktop.json"
 
 // OfficialServer is the public rendezvous server the first-run wizard
 // offers. Nothing uses it unless the user picks it.
-const OfficialServer = "signal.remohop.com"
+const OfficialServer = signal.OfficialAddr
 
 // Limits on what the settings file keeps.
 const (

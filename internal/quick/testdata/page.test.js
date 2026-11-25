@@ -174,13 +174,22 @@ async function shot(page, name) {
     await step('setup');
     await page.waitForSelector('#setup:not([hidden])');
     check(!(await page.isVisible('#ready')), 'no credentials in setup');
+    // The same choice as the desktop app's wizard, the official server first.
+    check(await page.isChecked('input[name=mode][value=official]'), 'the official server is the default choice');
+    check((await page.textContent('#setup')).includes('signal.remohop.com'), 'the official server is named');
+    check(!(await page.textContent('#setup')).includes('has no server of its own'), 'no "RemoHop has no server" text');
     await shot(page, 'quick-setup-en');
     await step('failconfigure');
+    // Typing in the address field picks "my helper gave me an address".
     await page.fill('#server', 'bad address');
+    check(await page.isChecked('input[name=mode][value=custom]'), 'typing an address picks that choice');
     await page.click('#setupform button');
     await page.waitForFunction(() => document.getElementById('setuperr').textContent.includes('not a server address'));
-    // In Chinese the refusal is explained in Chinese.
+    // In Chinese the choice and the refusal are in Chinese.
     const zhPage = await open(browser, 'zh');
+    check((await zhPage.textContent('#setup')).includes('使用官方服务器'), 'Chinese: the official server choice');
+    await shot(zhPage, 'quick-setup-zh');
+    await zhPage.click('input[name=mode][value=custom]');
     await zhPage.fill('#server', 'bad address');
     await zhPage.click('#setupform button');
     await zhPage.waitForFunction(() => document.getElementById('setuperr').textContent.includes('不是有效的服务器地址'));
@@ -189,6 +198,18 @@ async function shot(page, name) {
     await page.fill('#server', 'support.example.net');
     await page.click('#setupform button');
     await waitLog(page, 'configure support.example.net');
+    await page.waitForSelector('#ready:not([hidden])');
+    // The default choice and "no server" reach the controller as such.
+    await step('setup');
+    await page.waitForSelector('#setup:not([hidden])');
+    await page.click('input[name=mode][value=official]');
+    await page.click('#setupform button');
+    await waitLog(page, 'configure official');
+    await step('setup');
+    await page.waitForSelector('#setup:not([hidden])');
+    await page.click('input[name=mode][value=none]');
+    await page.click('#setupform button');
+    await waitLog(page, 'configure none');
     await page.waitForSelector('#ready:not([hidden])');
     await step('running');
     await page.waitForSelector('#message:not([hidden])');

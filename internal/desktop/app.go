@@ -612,6 +612,7 @@ func (a *App) serverChoice() (mode, addr string) {
 	v := strings.TrimSpace(all[signal.SettingAddr])
 	switch {
 	case v == "":
+		// Also when quick support (which shares the setting) chose none.
 		return serverNone, ""
 	case v == OfficialServer || v == OfficialServer+":"+defaultPort:
 		return serverOfficial, OfficialServer
@@ -639,6 +640,15 @@ func (a *App) SetServer(mode, addr string) error {
 		return Errorf("bad_request", "unknown server choice")
 	}
 	if err := a.setConfig(signal.SettingAddr, addr); err != nil {
+		return err
+	}
+	// Quick support reads the same choice: "none" is remembered so that
+	// it does not ask again either.
+	none := ""
+	if mode == serverNone {
+		none = "on"
+	}
+	if err := a.setConfig(signal.SettingNone, none); err != nil {
 		return err
 	}
 	a.log.Info("rendezvous server changed", "mode", mode)
@@ -796,6 +806,9 @@ type State struct {
 type ServerState struct {
 	Mode string `json:"mode"` // official, custom, none
 	Addr string `json:"addr,omitempty"`
+	// Chosen: the user made this choice (here, in quick support or with
+	// `remohop config`); otherwise none is only the absence of one.
+	Chosen bool `json:"chosen"`
 }
 
 func clean(s string) string { return cli.Sanitize(auth.CleanText(s, auth.MaxTokenName)) }
@@ -823,9 +836,11 @@ func (a *App) requestOf(p hostd.Approval, now time.Time) Request {
 // State reports what the page shows.
 func (a *App) State() State {
 	mode, addr := a.serverChoice()
+	all, _ := config.AllIn(a.dir)
+	chosen := mode != serverNone || config.Bool(all[signal.SettingNone], false)
 	a.mu.Lock()
 	st := State{Version: cli.Version, Setup: a.settings.Setup, Lang: a.settings.Lang, Theme: a.settings.Theme,
-		Server: ServerState{Mode: mode, Addr: addr}, Timeout: int(a.cfg.AskTimeout / time.Second),
+		Server: ServerState{Mode: mode, Addr: addr, Chosen: chosen}, Timeout: int(a.cfg.AskTimeout / time.Second),
 		Trusted: append([]TrustedDevice{}, a.settings.Trusted...)}
 	in := Incoming{On: a.settings.Incoming, Phase: a.phase, ErrorCode: a.errCode, Error: a.errText, OtherID: a.otherID,
 		Requests: []Request{}, Sessions: []Session{}}
