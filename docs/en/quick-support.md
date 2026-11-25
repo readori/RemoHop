@@ -14,7 +14,7 @@ For helping someone who will never open a terminal: they double-click one file, 
 | macOS 12+ | `RemoHop Quick Support.app` | `dist/quick/macos/RemoHop Quick Support.app` (universal) |
 | Linux, or any terminal | `remohop-quick`, or `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.dmg`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; the program picks what a double-click opens by its file name: with "quick" in it (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`) it runs `remohop quick`, otherwise the [desktop app](desktop-app.md). `RemoHop.exe --quick` does the same from any name.
+Every release has them as downloads (`RemoHop-QuickSupport-windows-amd64.zip` and `-arm64.zip`, `RemoHop-QuickSupport-macos.zip`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`; the program picks what a double-click opens by its file name: with "quick" in it (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`) it runs `remohop quick`, otherwise the [desktop app](desktop-app.md). `RemoHop.exe --quick` does the same from any name.
 
 What the person at the computer gets:
 

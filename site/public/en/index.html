@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>RemoHop: reach your computers from anywhere</title>
 <meta name="description" content="RemoHop is an open-source peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary.">
-<link rel="stylesheet" href="/assets/site.css?v=b880c3b3e2">
+<link rel="stylesheet" href="/assets/site.css?v=bb42435348">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -49,110 +49,222 @@
 </div>
 </header>
 <main id="main" tabindex="-1" class="home">
-<section class="wrap home-hero">
+<section class="hero-x" aria-labelledby="hero-h">
+<div class="hero-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="grid"></span></div>
+<div class="wrap home-hero">
 <div class="hero-text">
-<h1>Reach your computers from anywhere</h1>
-<p class="lede">Use another computer from a browser, a phone or the command line: see its desktop, open a terminal, move files, forward ports. The two machines connect directly over an end-to-end encrypted session. The host needs no account, and the server is one you run yourself.</p>
+<p class="h-pill"><a href="/en/docs/desktop-app/"><span class="h-pill-tag">New</span>The RemoHop desktop app is here</a></p>
+<h1 id="hero-h"><span class="glow-text">Remote control</span><br>for all your computers</h1>
+<p class="lede">Windows, macOS and Linux control each other, and a browser, a phone or the command line can join in: see the desktop, open a terminal, move files, forward ports. The two machines connect directly over an end-to-end encrypted session, and every incoming connection asks you first.</p>
 <div class="actions">
-<a class="btn primary" href="/en/docs/">Quick start</a>
-<a class="btn" href="/en/features/">Features and limits</a>
+<a class="btn primary glow" href="/en/download/">Download free</a>
+<a class="btn ghost" href="/en/how-it-works/">See how it works</a>
 </div>
-<p class="meta">Open source (AGPL-3.0) · one Go binary · <a href="https://github.com/readori/RemoHop">source on GitHub</a></p>
+<p class="meta">Open source (AGPL-3.0) · no account needed · <a href="https://github.com/readori/RemoHop">source on GitHub</a></p>
 </div>
-<figure class="preview">
+<div class="stage">
+<figure class="stage-main">
 <picture>
-<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
-<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
-<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="The Desktop tab of the remohop web browser client. The middle of the page shows the screen of a remote Linux machine with two terminal windows open; the top of the page shows the host's name and the connection path, direct.">
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="Remote desktop: the middle of the page shows the screen of a remote Linux machine with two terminal windows open; the top shows the host's name and the connection path, direct.">
 </picture>
-<figcaption>The browser client's Desktop tab, an unedited capture.</figcaption>
 </figure>
+<figure class="stage-float">
+<img src="/assets/img/home-request-en.png" width="479" height="477" decoding="async" alt="A connection request in the desktop app: Laptop-2 wants to connect, marked as a new device with a scam warning; it may only see the screen unless control or files are ticked.">
+</figure>
+<p class="stage-tag" aria-hidden="true"><span class="dot"></span>direct · end-to-end encrypted</p>
+</div>
+</div>
+<div class="marquee">
+<ul class="marquee-track" aria-label="Platforms">
+<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>Browser</li><li>Command line</li><li>Docker</li><li>AI agents (MCP)</li>
+</ul>
+<ul class="marquee-track" aria-hidden="true">
+<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>Browser</li><li>Command line</li><li>Docker</li><li>AI agents (MCP)</li>
+</ul>
+</div>
 </section>
 
-<div class="wrap">
-<div class="note status-note">
-<p><strong>Where it stands (November 2026):</strong> the first release is out; see <a href="/en/download/">Download</a>. There is no built-in default server; you run your own rendezvous server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="/en/features/#status">Full list of limits</a></p>
+<section class="h-stats" aria-label="In numbers">
+<div class="wrap h-stat-row">
+<div class="h-stat reveal"><p class="h-num n4k"><span class="vh">4K</span></p><p>top quality, with crisp text at 2K and 1080p too</p></div>
+<div class="h-stat reveal"><p class="h-num n60"><span class="vh">60 ms</span></p><p>measured screen-to-viewer latency at 2K on a LAN</p></div>
+<div class="h-stat reveal"><p class="h-num nrelay">1.5 s</p><p>to fall back to a relay when no direct path exists</p></div>
+<div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>accounts to sign up for</p></div>
 </div>
-</div>
+</section>
 
-<section class="strip" aria-label="Three things to know">
-<div class="wrap facts">
-<div class="fact">
-<h2>The host decides</h2>
-<p>The host's owner can require a local "Allow" for every connection, switch features off one by one and revoke a pairing at any time. In quick support, every single connection needs the other person's OK.</p>
-</div>
-<div class="fact">
-<h2>One <code>remohop</code> program</h2>
-<p>The host, the command-line client, the browser gateway, the rendezvous server and the MCP server for AI agents are all the same static binary.</p>
-</div>
-<div class="fact">
-<h2>Yours to run</h2>
-<p>No built-in server and no account. On a LAN you connect by address; across networks you use a rendezvous server you run yourself, and the smallest VM is enough.</p>
+<section class="wrap band h-p2p" aria-labelledby="p2p-h">
+<p class="kicker reveal">Peer to peer</p>
+<h2 id="p2p-h" class="reveal">The server only introduces them; the picture goes straight between the two computers</h2>
+<p class="section-lede reveal">The rendezvous server finds the other computer by its ID. After that the screen, keyboard, mouse and files go over a direct QUIC connection, end-to-end encrypted with TLS 1.3, and the password never crosses the network. Only when no direct path exists does a relay forward the traffic, and it cannot read it either.</p>
+<figure class="flow reveal">
+<svg viewBox="0 0 960 400" role="img" aria-labelledby="flow-t">
+<title id="flow-t">How a connection is made: the two computers exchange addresses through the rendezvous server, then connect directly with end-to-end encryption; without a direct path they use a relay.</title>
+<defs>
+<linearGradient id="beam-g" x1="0" x2="1"><stop offset="0" stop-color="#5b7bff"/><stop offset="0.5" stop-color="#7fe3ff"/><stop offset="1" stop-color="#5b7bff"/></linearGradient>
+<radialGradient id="halo-g"><stop offset="0" stop-color="#5b7bff" stop-opacity="0.55"/><stop offset="1" stop-color="#5b7bff" stop-opacity="0"/></radialGradient>
+</defs>
+<path id="sig-a" class="sig" d="M190 230 C 260 120, 360 92, 440 92"/>
+<path id="sig-b" class="sig" d="M520 92 C 600 92, 700 120, 770 230"/>
+<path id="relay" class="relay" d="M190 290 C 330 380, 630 380, 770 290"/>
+<path id="direct" class="direct-base" d="M206 262 L 754 262"/>
+<path class="direct-glow" d="M206 262 L 754 262" pathLength="100"/>
+<path class="direct-beam" d="M206 262 L 754 262" pathLength="100"/>
+<circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#sig-a"/></animateMotion></circle>
+<circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" begin="1.6s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#sig-b"/></animateMotion></circle>
+<g aria-hidden="true">
+<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="6"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="6"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
+</g>
+<g class="h-node srv">
+<circle class="halo" cx="480" cy="92" r="70" fill="url(#halo-g)"/>
+<rect x="436" y="56" width="88" height="72" rx="14"/>
+<path class="ico" d="M456 78h48M456 92h48M456 106h48"/><circle class="led" cx="462" cy="78" r="2.5"/><circle class="led" cx="462" cy="92" r="2.5"/><circle class="led" cx="462" cy="106" r="2.5"/>
+<text x="480" y="30" text-anchor="middle" class="lbl">Rendezvous server</text>
+</g>
+<g class="h-node">
+<rect x="96" y="214" width="110" height="78" rx="12"/>
+<path class="ico" d="M124 236h54v30h-54zM140 280h22M151 266v14"/>
+<text x="151" y="326" text-anchor="middle" class="lbl">Your computer</text>
+</g>
+<g class="h-node">
+<rect x="754" y="214" width="110" height="78" rx="12"/>
+<path class="ico" d="M782 236h54v30h-54zM798 280h22M809 266v14"/>
+<text x="809" y="326" text-anchor="middle" class="lbl">Remote computer</text>
+</g>
+<g class="lock">
+<circle class="ring" cx="480" cy="262" r="26"/>
+<circle class="core" cx="480" cy="262" r="22"/>
+<path class="ico" d="M471 262v-6a9 9 0 0 1 18 0v6M468 262h24v15h-24z"/>
+</g>
+<text x="480" y="222" text-anchor="middle" class="tag">Direct QUIC · end-to-end encrypted</text>
+<text x="480" y="388" text-anchor="middle" class="tag dim">No direct path: through a relay (still encrypted)</text>
+</svg>
+</figure>
+<ol class="h-steps">
+<li class="reveal"><b>1. Introduce</b><span>Both sides reach the rendezvous server, find each other by the 9-digit ID and swap addresses.</span></li>
+<li class="reveal"><b>2. Punch through</b><span>Both send packets to each other at once, which gets through most home and office routers; on a LAN they use the local network.</span></li>
+<li class="reveal"><b>3. Connect</b><span>Once the encrypted QUIC channel is up, the server is out of the picture; without a path a relay takes over in about 1.5 s.</span></li>
+</ol>
+<p class="links reveal"><a href="/en/how-it-works/">How it works, in one picture</a></p>
+</section>
+
+<section class="band alt feats-band" aria-labelledby="feat-h">
+<div class="wrap">
+<h2 id="feat-h" class="reveal">Sharper, faster, safer</h2>
+<div class="h-feats">
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+<h3>The host decides</h3>
+<p>Every connection asks first, with a scam warning for new devices. An allowed device only sees the screen until you tick control or files, and you can take either back or disconnect at any time.</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 12l3-3 2 2 4-4"/></svg>
+<h3>2K and 4K quality</h3>
+<p>Intel, NVIDIA and AMD encoders take frames straight from the GPU, monitors are captured at physical pixels so text stays sharp, and the bitrate follows the network.</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+<h3>Low latency</h3>
+<p>About 60 ms at 2K and 114 ms at 4K, measured on a LAN. Key-frame requests switch encoders without a gap; the lock screen and UAC pause the picture instead of ending the session.</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h9"/><path d="M5 9.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5" stroke-dasharray="2 2.5"/></svg>
+<h3>Gets through networks</h3>
+<p>Hole punching, IPv6 and NAT64, and WebSocket when UDP is blocked. Sessions come back by themselves after a network change or sleep.</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>
+<h3>More than a desktop</h3>
+<p>Terminal, resumable file transfer, clipboard, port forwarding, a virtual network and Wake-on-LAN, and AI agents (MCP) can work within the limits you grant.</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg>
+<h3>Yours to run</h3>
+<p>Use the official rendezvous server <code>signal.remohop.com</code> or run your own with one command on the smallest VM. On a LAN, connect by address with no server at all.</p>
+</article>
 </div>
 </div>
 </section>
 
 <section class="wrap band" id="use" aria-labelledby="use-h">
-<h2 id="use-h">What do you want to do?</h2>
+<h2 id="use-h" class="reveal">What do you want to do?</h2>
 <div class="split">
-<article class="panel">
+<article class="panel reveal">
 <p class="kicker">Quick support</p>
 <h3>Help someone with their computer</h3>
-<p>They open RemoHop Quick Support, which shows a 9-digit ID and a temporary password in large type, and read both to you. When you connect, they see your device name, device key and address, and you get in only after they press Allow. Nobody answering for 60 seconds counts as a refusal.</p>
-<p>By default you can see the screen, use the mouse and keyboard, and move files. Running commands and reaching their network need an extra tick from them. Closing the window stops sharing.</p>
-<p class="small">You connect from the command line, the browser client or a phone app. Both sides need to use the same rendezvous server.</p>
-<p class="links"><a href="/en/docs/quick-support/">Quick support guide</a></p>
+<p>They download Quick Support, which needs no installation, and double-click it. The window shows a 9-digit ID and a temporary password in large type, which they read out to you. When you connect, they see your device name, key and address, and you only get in once they click "Allow"; no answer within 60 seconds refuses the request.</p>
+<p>By default you can see the screen, use the mouse and keyboard and move files; running commands and reaching their network need an extra tick. Closing the window stops the sharing.</p>
+<p class="small">You connect with the desktop app, the browser client, a mobile app or the command line; both sides use the same rendezvous server.</p>
+<p class="links"><a href="/en/docs/quick-support/">About quick support</a></p>
 </article>
-<article class="panel">
-<p class="kicker">Host + client</p>
+<article class="panel reveal">
+<p class="kicker">Desktop app / command line</p>
 <h3>Reach your own machines</h3>
-<p>Run <code>remohop host</code> on the machine you want to reach; it prints an ID and a temporary password. Pair once from your own machine, and later connections need no password.</p>
-<pre class="cmd"><code><span class="c"># the host</span>
-<span class="p">$ </span>remohop host
+<p>On the machine to control, open the RemoHop desktop app and allow connections, or run <code>remohop host</code>. Pair once and later connections need no password; unattended access is there too.</p>
+<pre class="cmd typing"><code><span class="c"># the host</span>
+<span class="t t1"><span class="p">$ </span>remohop host</span>
 <span class="c"># your machine</span>
-<span class="p">$ </span>remohop 276941009 pair --name dev
-<span class="p">$ </span>remohop dev shell
-<span class="p">$ </span>remohop web --target dev</code></pre>
+<span class="t t2"><span class="p">$ </span>remohop 276941009 pair --name dev</span>
+<span class="t t3"><span class="p">$ </span>remohop dev shell</span>
+<span class="t t4"><span class="p">$ </span>remohop web --target dev</span><span class="caret" aria-hidden="true"></span></code></pre>
 <p class="small">On one LAN you can skip the server: run <code>remohop host --no-signal --listen :21118</code> on the host and use its address instead of the ID.</p>
-<p class="links"><a href="/en/docs/">Quick start</a><a href="/en/features/#commands">Common commands</a></p>
+<p class="links"><a href="/en/docs/desktop-app/">Desktop app</a><a href="/en/docs/">Quick start</a></p>
 </article>
 </div>
 </section>
 
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
-<h2 id="get-h">Get RemoHop</h2>
-<p class="section-lede">Every download, with checksums and signatures, is on the <a href="/en/download/">download page</a>.</p>
+<h2 id="get-h" class="reveal">Get RemoHop</h2>
+<p class="section-lede reveal">Every download, with checksums and signatures, is on the <a href="/en/download/">download page</a>.</p>
 <div class="cards">
-<article class="panel">
+<article class="panel get reveal">
 <p class="chip">Available</p>
-<h3>The <code>remohop</code> program</h3>
-<p class="platforms">Linux · macOS · Windows</p>
-<p>Host, client, browser gateway and rendezvous server in one binary. On Linux and macOS:</p>
-<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
-sh install.sh</code></pre>
-<p class="links"><a href="/en/download/#cli">Download</a><a href="/en/features/#platforms">Platform support</a></p>
-</article>
-<article class="panel">
-<p class="chip">Available</p>
-<h3>Quick Support</h3>
+<h3>RemoHop desktop app</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>The window the person being helped double-clicks, with nothing to install. <code>RemoHop-QuickSupport.exe</code> for Windows (not code-signed yet), <code>RemoHop Quick Support.app</code> for macOS (signed and notarized) and <code>remohop-quick</code> for Linux. The full <a href="/en/docs/desktop-app/">desktop app</a> is the download next to it.</p>
-<p class="links"><a href="/en/download/#quick">Download</a><a href="/en/docs/quick-support/">Quick support guide</a></p>
+<p>One window to connect to your other computers and to let others connect to this one, with tabs, a server choice on first start and a question before every incoming connection. Signed and notarized on macOS.</p>
+<p class="links"><a href="/en/download/">Download</a><a href="/en/docs/desktop-app/">About the app</a></p>
 </article>
-<article class="panel">
+<article class="panel get reveal">
+<p class="chip">Available</p>
+<h3>Quick Support (no install)</h3>
+<p class="platforms">Windows · macOS · Linux</p>
+<p>The window the person being helped double-clicks: nothing to install, and closing it ends everything. <code>RemoHop-QuickSupport.exe</code> on Windows, <code>RemoHop Quick Support.app</code> on macOS, <code>remohop-quick</code> on Linux.</p>
+<p class="links"><a href="/en/download/#quick">Download</a><a href="/en/docs/quick-support/">About quick support</a></p>
+</article>
+<article class="panel get reveal">
 <p class="chip">iOS available</p>
-<h3>Phone controller</h3>
+<h3>Mobile controller</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
 <p>Connect to and operate your computers from a phone or tablet; the phone itself cannot be controlled. On the App Store; Android is coming to Google Play.</p>
-<p class="links"><a href="/en/download/#mobile">Download</a><a href="/en/apps/">Apps</a></p>
+<p class="links"><a href="/en/download/#mobile">Download</a><a href="/en/apps/">Mobile apps</a></p>
+</article>
+<article class="panel get reveal">
+<p class="chip">Available</p>
+<h3>The <code>remohop</code> command line</h3>
+<p class="platforms">Linux · macOS · Windows</p>
+<p>Host, client, browser gateway and rendezvous server in one binary, for servers and scripts. On Linux and macOS:</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p class="links"><a href="/en/download/#cli">Download</a><a href="/en/features/#platforms">Platforms</a></p>
 </article>
 </div>
 </div>
 </section>
 
+<div class="wrap">
+<div class="note status-note reveal">
+<p><strong>Where it stands (November 2026):</strong> released; see <a href="/en/download/">Download</a>. The desktop app offers the official rendezvous server on first start, or your own; the command-line program has no built-in default server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="/en/features/#status">Full list of limits</a></p>
+</div>
+</div>
+
 <section class="wrap band more" aria-labelledby="more-h">
-<h2 id="more-h">Read next</h2>
+<h2 id="more-h">Read on</h2>
 <ul class="more-list">
 <li><a href="/en/features/">Features and limits</a><span>Common commands, how a connection is made, platform support, known limits.</span></li>
 <li><a href="/en/how-it-works/">How it works</a><span>The rendezvous server, P2P hole punching, the four connection paths and end-to-end encryption in one picture.</span></li>

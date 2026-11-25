@@ -1,117 +1,216 @@
-<section class="wrap home-hero">
+<section class="hero-x" aria-labelledby="hero-h">
+<div class="hero-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="grid"></span></div>
+<div class="wrap home-hero">
 <div class="hero-text">
-<h1>远程连上你的电脑</h1>
-<p class="lede">用浏览器、手机或命令行操作另一台电脑：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，被控机不用注册账号，服务器也由你自己运行。</p>
+<p class="h-pill"><a href="{{L:docs/desktop-app}}"><span class="h-pill-tag">新</span>RemoHop 桌面应用：一个窗口，控制与被控</a></p>
+<h1 id="hero-h"><span class="glow-text">远程连上</span><br>你的每一台电脑</h1>
+<p class="lede">Windows、macOS、Linux 互相远程，也能用浏览器、手机或命令行操作：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，每次有人连接都先问你。</p>
 <div class="actions">
-<a class="btn primary" href="{{L:docs}}">快速开始</a>
-<a class="btn" href="{{L:features}}">功能与限制</a>
+<a class="btn primary glow" href="{{L:download}}">免费下载</a>
+<a class="btn ghost" href="{{L:how-it-works}}">看看它怎么工作</a>
 </div>
-<p class="meta"><!--src-->开源（AGPL-3.0）· 一个 Go 程序 · <a href="{{REPO}}">源码在 GitHub</a><!--/src--><!--nosrc-->一个 Go 程序 · 源码将在各平台应用上架后以 AGPL-3.0 公开<!--/nosrc--></p>
+<p class="meta"><!--src-->开源（AGPL-3.0）· 不用注册账号 · <a href="{{REPO}}">源码在 GitHub</a><!--/src--><!--nosrc-->不用注册账号 · 源码将在各平台应用上架后以 AGPL-3.0 公开<!--/nosrc--></p>
 </div>
-<figure class="preview">
+<div class="stage">
+<figure class="stage-main">
 <picture>
-<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
-<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 36rem, calc(100vw - 32px)">
-<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="浏览器客户端 remohop web 的“桌面”标签页：页面中间是远程 Linux 机器的屏幕，上面开着两个终端窗口；页面顶部显示被控机名称和连接路径 direct。">
+<source type="image/avif" srcset="/assets/img/web-desktop-640.avif 640w, /assets/img/web-desktop-1120.avif 1120w, /assets/img/web-desktop-2240.avif 2240w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-640.webp 640w, /assets/img/web-desktop-1120.webp 1120w, /assets/img/web-desktop-2240.webp 2240w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-1120.png" width="1120" height="700" decoding="async" alt="远程桌面：页面中间是远程 Linux 机器的屏幕，上面开着两个终端窗口；页面顶部显示被控机名称和连接路径 direct。">
 </picture>
-<figcaption>浏览器客户端的桌面标签页，实际截图。</figcaption>
 </figure>
+<figure class="stage-float">
+<img src="/assets/img/home-request-zh.png" width="479" height="477" decoding="async" alt="桌面应用的连接请求：Laptop-2 请求连接，标着“新设备”和防诈骗提醒，默认只能看屏幕，勾选后才能控制鼠标键盘或传输文件。">
+</figure>
+<p class="stage-tag" aria-hidden="true"><span class="dot"></span>direct · 端到端加密</p>
+</div>
+</div>
+<div class="marquee">
+<ul class="marquee-track" aria-label="支持的平台">
+<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>浏览器</li><li>命令行</li><li>Docker</li><li>AI 代理（MCP）</li>
+</ul>
+<ul class="marquee-track" aria-hidden="true">
+<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>浏览器</li><li>命令行</li><li>Docker</li><li>AI 代理（MCP）</li>
+</ul>
+</div>
 </section>
 
-<div class="wrap">
-<div class="note status-note">
-<p><strong>现状（2026 年 11 月）：</strong><!--norel-->首个发布版本正在准备中<!--src-->，在它发布之前需要从源码编译<!--/src--><!--nosrc-->，目前还没有可下载的版本<!--/nosrc-->；<!--/norel--><!--rel-->首个发布版本已经发布，见<a href="{{L:download}}">下载</a>；<!--/rel-->程序里没有内置的默认服务器，汇合服务器要自己运行；没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="{{L:features}}#status">完整的限制清单</a></p>
+<section class="h-stats" aria-label="一些数字">
+<div class="wrap h-stat-row">
+<div class="h-stat reveal"><p class="h-num n4k"><span class="vh">4K</span></p><p>最高画质，2K 和 1080p 文字同样清晰</p></div>
+<div class="h-stat reveal"><p class="h-num n60"><span class="vh">60 ms</span></p><p>局域网里 2K 画面从变化到显示的实测延迟</p></div>
+<div class="h-stat reveal"><p class="h-num nrelay">1.5 s</p><p>打不通直连时，自动切换到中继</p></div>
+<div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>需要注册的账号</p></div>
 </div>
-</div>
+</section>
 
-<section class="strip" aria-label="三个特点">
-<div class="wrap facts">
-<div class="fact">
-<h2>被控端说了算</h2>
-<p>被控机的主人可以要求每次连接都在本机点“允许”，逐项关掉功能，随时撤销配对。快速协助的每一次连接都要对方同意。</p>
-</div>
-<div class="fact">
-<h2>一个 <code>remohop</code> 程序</h2>
-<p>被控端、命令行客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都是同一个静态链接的程序。</p>
-</div>
-<div class="fact">
-<h2>可以自己部署</h2>
-<p>没有内置服务器，也不需要账号。局域网里按地址直连；跨网络时用你自己运行的汇合服务器，一台最小的虚拟机就够。</p>
+<section class="wrap band h-p2p" aria-labelledby="p2p-h">
+<p class="kicker reveal">P2P 直连</p>
+<h2 id="p2p-h" class="reveal">服务器只负责牵线，画面直接走两台电脑之间</h2>
+<p class="section-lede reveal">汇合服务器按 ID 帮两台电脑找到对方，之后画面、键鼠和文件都走 QUIC 直连，TLS 1.3 端到端加密，密码从不在网上传输。实在打不通时才经中继转发，中继也看不到内容。</p>
+<figure class="flow reveal">
+<svg viewBox="0 0 960 400" role="img" aria-labelledby="flow-t">
+<title id="flow-t">连接示意：两台电脑先经汇合服务器交换地址，然后直接建立端到端加密的连接；打不通时改走中继。</title>
+<defs>
+<linearGradient id="beam-g" x1="0" x2="1"><stop offset="0" stop-color="#5b7bff"/><stop offset="0.5" stop-color="#7fe3ff"/><stop offset="1" stop-color="#5b7bff"/></linearGradient>
+<radialGradient id="halo-g"><stop offset="0" stop-color="#5b7bff" stop-opacity="0.55"/><stop offset="1" stop-color="#5b7bff" stop-opacity="0"/></radialGradient>
+</defs>
+<path id="sig-a" class="sig" d="M190 230 C 260 120, 360 92, 440 92"/>
+<path id="sig-b" class="sig" d="M520 92 C 600 92, 700 120, 770 230"/>
+<path id="relay" class="relay" d="M190 290 C 330 380, 630 380, 770 290"/>
+<path id="direct" class="direct-base" d="M206 262 L 754 262"/>
+<path class="direct-glow" d="M206 262 L 754 262" pathLength="100"/>
+<path class="direct-beam" d="M206 262 L 754 262" pathLength="100"/>
+<circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#sig-a"/></animateMotion></circle>
+<circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" begin="1.6s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#sig-b"/></animateMotion></circle>
+<g aria-hidden="true">
+<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="6"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="6"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
+</g>
+<g class="h-node srv">
+<circle class="halo" cx="480" cy="92" r="70" fill="url(#halo-g)"/>
+<rect x="436" y="56" width="88" height="72" rx="14"/>
+<path class="ico" d="M456 78h48M456 92h48M456 106h48"/><circle class="led" cx="462" cy="78" r="2.5"/><circle class="led" cx="462" cy="92" r="2.5"/><circle class="led" cx="462" cy="106" r="2.5"/>
+<text x="480" y="30" text-anchor="middle" class="lbl">汇合服务器</text>
+</g>
+<g class="h-node">
+<rect x="96" y="214" width="110" height="78" rx="12"/>
+<path class="ico" d="M124 236h54v30h-54zM140 280h22M151 266v14"/>
+<text x="151" y="326" text-anchor="middle" class="lbl">你的电脑</text>
+</g>
+<g class="h-node">
+<rect x="754" y="214" width="110" height="78" rx="12"/>
+<path class="ico" d="M782 236h54v30h-54zM798 280h22M809 266v14"/>
+<text x="809" y="326" text-anchor="middle" class="lbl">远程电脑</text>
+</g>
+<g class="lock">
+<circle class="ring" cx="480" cy="262" r="26"/>
+<circle class="core" cx="480" cy="262" r="22"/>
+<path class="ico" d="M471 262v-6a9 9 0 0 1 18 0v6M468 262h24v15h-24z"/>
+</g>
+<text x="480" y="222" text-anchor="middle" class="tag">QUIC 直连 · 端到端加密</text>
+<text x="480" y="388" text-anchor="middle" class="tag dim">打不通时：经中继转发（内容仍是加密的）</text>
+</svg>
+</figure>
+<ol class="h-steps">
+<li class="reveal"><b>1. 牵线</b><span>两边都连上汇合服务器，按 9 位 ID 找到对方，交换地址。</span></li>
+<li class="reveal"><b>2. 打洞</b><span>同时从两边向对方发包，穿过大多数家用和公司路由器，局域网里直接走内网。</span></li>
+<li class="reveal"><b>3. 直连</b><span>QUIC 加密通道建立后，服务器就退出了；打不通时约 1.5 秒内切到中继。</span></li>
+</ol>
+<p class="links reveal"><a href="{{L:how-it-works}}">一张图看懂工作原理</a></p>
+</section>
+
+<section class="band alt feats-band" aria-labelledby="feat-h">
+<div class="wrap">
+<h2 id="feat-h" class="reveal">更清晰、更快、更安全</h2>
+<div class="h-feats">
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
+<h3>被控端说了算</h3>
+<p>每次连接都弹窗询问，新设备附防诈骗提醒；默认只能看屏幕，控制和文件要你勾选，随时收回、随时断开。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 12l3-3 2 2 4-4"/></svg>
+<h3>2K / 4K 高画质</h3>
+<p>Intel、NVIDIA、AMD 显卡直接从 GPU 编码，按显示器物理像素采集，文字锐利，码率随网络自动调整。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
+<h3>低延迟</h3>
+<p>局域网 2K 实测约 60 ms、4K 约 114 ms；关键帧请求无缝切换编码器，锁屏和 UAC 只暂停不断开。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h9"/><path d="M5 9.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5" stroke-dasharray="2 2.5"/></svg>
+<h3>穿透各种网络</h3>
+<p>P2P 打洞、IPv6、NAT64、UDP 被封时自动改走 WebSocket；换网络、休眠唤醒后自动重连。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>
+<h3>不只是桌面</h3>
+<p>终端、文件传输（断点续传）、剪贴板、端口转发、虚拟组网、网络唤醒，还能交给 AI 代理（MCP）在授权范围内操作。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg>
+<h3>可以自己部署</h3>
+<p>可用官方汇合服务器 <code>signal.remohop.com</code>，也可以一条命令自建，一台最小的虚拟机就够；局域网里按地址直连，不用服务器。</p>
+</article>
 </div>
 </div>
 </section>
 
 <section class="wrap band" id="use" aria-labelledby="use-h">
-<h2 id="use-h">你要做什么？</h2>
+<h2 id="use-h" class="reveal">你要做什么？</h2>
 <div class="split">
-<article class="panel">
+<article class="panel reveal">
 <p class="kicker">快速协助</p>
 <h3>帮别人操作电脑</h3>
-<p>对方打开 RemoHop 快速协助，窗口里大字显示 9 位 ID 和临时密码，念给你听。你用这两样连接时，对方会看到你的设备名称、设备密钥和地址，点了“允许”才连得上，60 秒没人答复就自动拒绝。</p>
+<p>对方下载“快速协助”，免安装，双击打开，窗口里大字显示 9 位 ID 和临时密码，念给你听。你连接时对方会看到你的设备名称、密钥和地址，点了“允许”才连得上，60 秒没人答复就自动拒绝。</p>
 <p>默认可以看屏幕、用鼠标键盘、传文件；运行命令和访问对方的网络，要对方另外勾选。关掉窗口就停止共享。</p>
-<p class="small">你这边用命令行、浏览器客户端或手机应用连接，双方要用同一台汇合服务器。</p>
+<p class="small">你这边用桌面应用、浏览器客户端、手机应用或命令行连接，双方要用同一台汇合服务器。</p>
 <p class="links"><a href="{{L:docs/quick-support}}">快速协助说明</a></p>
 </article>
-<article class="panel">
-<p class="kicker">被控端 + 客户端</p>
+<article class="panel reveal">
+<p class="kicker">桌面应用 / 命令行</p>
 <h3>连自己的机器</h3>
-<p>在要控制的机器上运行 <code>remohop host</code>，它给出 ID 和临时密码。在自己的机器上配对一次，之后连接不再需要密码。</p>
-<pre class="cmd"><code><span class="c"># 被控机</span>
-<span class="p">$ </span>remohop host
+<p>在要控制的机器上打开 RemoHop 桌面应用并允许连接，或者运行 <code>remohop host</code>。配对一次之后，连接不再需要密码；也可以开启无人值守访问。</p>
+<pre class="cmd typing"><code><span class="c"># 被控机</span>
+<span class="t t1"><span class="p">$ </span>remohop host</span>
 <span class="c"># 你的机器</span>
-<span class="p">$ </span>remohop 276941009 pair --name dev
-<span class="p">$ </span>remohop dev shell
-<span class="p">$ </span>remohop web --target dev</code></pre>
+<span class="t t2"><span class="p">$ </span>remohop 276941009 pair --name dev</span>
+<span class="t t3"><span class="p">$ </span>remohop dev shell</span>
+<span class="t t4"><span class="p">$ </span>remohop web --target dev</span><span class="caret" aria-hidden="true"></span></code></pre>
 <p class="small">同一个局域网里可以不用服务器：被控机运行 <code>remohop host --no-signal --listen :21118</code>，客户端用地址代替 ID。</p>
-<p class="links"><a href="{{L:docs}}">快速开始</a><a href="{{L:features}}#commands">常用命令</a></p>
+<p class="links"><a href="{{L:docs/desktop-app}}">桌面应用</a><a href="{{L:docs}}">快速开始</a></p>
 </article>
 </div>
 </section>
 
 <section class="band alt" id="get" aria-labelledby="get-h">
 <div class="wrap">
-<h2 id="get-h">获取 RemoHop</h2>
-<p class="section-lede"><!--norel-->首个发布版本正在准备中，<a href="{{L:download}}">下载页</a>列出了它会包含的文件。<!--src-->在此之前，下面三样都要从源码构建。<!--/src--><!--/norel--><!--rel-->全部下载以及校验和、签名，都在<a href="{{L:download}}">下载页</a>上。<!--/rel--></p>
+<h2 id="get-h" class="reveal">获取 RemoHop</h2>
+<p class="section-lede reveal">全部下载以及校验和、签名，都在<a href="{{L:download}}">下载页</a>上。</p>
 <div class="cards">
-<article class="panel">
-<!--norel--><p class="chip wait">尚未发布</p><!--/norel--><!--rel--><p class="chip">可以下载</p><!--/rel-->
-<h3>命令行程序 <code>remohop</code></h3>
-<p class="platforms">Linux · macOS · Windows</p>
-<!--rel-->
-<p>被控端、客户端、浏览器网关和汇合服务器都在里面。在 Linux 和 macOS 上：</p>
-<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
-sh install.sh</code></pre>
-<!--/rel-->
-<!--norel-->
-<!--src-->
-<p>被控端、客户端、浏览器网关和汇合服务器都在里面。发布之前，用 <code>go.mod</code> 指定的 Go 版本（1.26）编译：</p>
-<pre class="cmd"><code>git clone {{REPO}}
-cd RemoHop
-make build</code></pre>
-<!--/src-->
-<!--/norel-->
-<!--nosrc-->
-<p>被控端、客户端、浏览器网关和汇合服务器都在这一个程序里。发布之后在这里下载；在此之前有问题，请写信到 <a href="mailto:{{EMAIL}}">{{EMAIL}}</a>。</p>
-<!--/nosrc-->
-<p class="links"><a href="{{L:download}}#cli">下载</a><a href="{{L:features}}#platforms">平台支持</a></p>
-</article>
-<article class="panel">
-<!--norel--><p class="chip wait">尚未发布</p><!--/norel--><!--rel--><p class="chip">可以下载</p><!--/rel-->
-<h3>快速协助</h3>
+<article class="panel get reveal">
+<p class="chip">可以下载</p>
+<h3>RemoHop 桌面应用</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>给被协助的人双击打开的窗口，无需安装。<!--rel-->Windows 上是 <code>RemoHop-QuickSupport.exe</code>（尚未代码签名），macOS 上是 <code>RemoHop Quick Support.app</code>（已签名并经过公证），Linux 上是 <code>remohop-quick</code>。完整的<a href="{{L:docs/desktop-app}}">桌面应用</a>就在它旁边下载。<!--/rel--><!--norel--><!--src--><code>make quick</code> 生成 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 Linux 程序；发布版本里的 macOS 程序会签名，Windows 程序暂不签名。<!--/src--><!--/norel--><!--nosrc-->Windows 上是 <code>RemoHop.exe</code>，macOS 上是 <code>RemoHop.app</code>，Linux 上是 <code>remohop quick</code>，都还没有代码签名。<!--/nosrc--></p>
+<p>一个窗口：连接你的其他电脑，也让别人连接这台电脑。标签页切换，首次启动选服务器，每次有人连接都先问你。macOS 版已签名并经过公证。</p>
+<p class="links"><a href="{{L:download}}">下载</a><a href="{{L:docs/desktop-app}}">桌面应用说明</a></p>
+</article>
+<article class="panel get reveal">
+<p class="chip">可以下载</p>
+<h3>快速协助（免安装）</h3>
+<p class="platforms">Windows · macOS · Linux</p>
+<p>给被协助的人双击打开的窗口，什么都不用装，关掉窗口就结束。Windows 上是 <code>RemoHop-QuickSupport.exe</code>，macOS 上是 <code>RemoHop Quick Support.app</code>，Linux 上是 <code>remohop-quick</code>。</p>
 <p class="links"><a href="{{L:download}}#quick">下载</a><a href="{{L:docs/quick-support}}">快速协助说明</a></p>
 </article>
-<article class="panel">
+<article class="panel get reveal">
 <!--store--><p class="chip">可以下载</p><!--/store--><!--nostore--><!--ios--><p class="chip">iOS 可以下载</p><!--/ios--><!--noios--><p class="chip wait">即将上架</p><!--/noios--><!--/nostore-->
 <h3>手机控制端</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
 <p>在手机或平板上连接并操作你的电脑，手机本身不能被控。<!--store-->已在 App Store 和 Google Play 上架。<!--/store--><!--nostore--><!--ios-->iOS 版已在 App Store 上架，Android 版即将上架 Google Play。<!--/ios--><!--noios-->即将上架 App Store 和 Google Play（已提交审核）。<!--/noios--><!--/nostore--></p>
 <p class="links"><a href="{{L:download}}#mobile">下载</a><a href="{{L:apps}}">移动应用</a></p>
 </article>
+<article class="panel get reveal">
+<p class="chip">可以下载</p>
+<h3>命令行程序 <code>remohop</code></h3>
+<p class="platforms">Linux · macOS · Windows</p>
+<p>被控端、客户端、浏览器网关和汇合服务器都在这一个程序里，适合服务器和脚本。在 Linux 和 macOS 上：</p>
+<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
+sh install.sh</code></pre>
+<p class="links"><a href="{{L:download}}#cli">下载</a><a href="{{L:features}}#platforms">平台支持</a></p>
+</article>
 </div>
 </div>
 </section>
+
+<div class="wrap">
+<div class="note status-note reveal">
+<p><strong>现状（2026 年 11 月）：</strong>已经发布，见<a href="{{L:download}}">下载</a>。桌面应用首次启动时可以选用官方汇合服务器，也可以填自己的；命令行程序没有内置默认服务器。没有经过独立的安全审计。Linux 是参考平台，macOS 和 Windows 只在托管的 CI 机器上跑过自动化测试。<a href="{{L:features}}#status">完整的限制清单</a></p>
+</div>
+</div>
 
 <section class="wrap band more" aria-labelledby="more-h">
 <h2 id="more-h">接着看</h2>
