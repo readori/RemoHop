@@ -345,6 +345,10 @@ type ConnectConfig struct {
 	// Logger, if set, gets the timing of each step at debug level: when
 	// each path answered, when each handshake started and how it ended.
 	Logger *slog.Logger
+	// OnPath, if set, is called (from Connect's goroutine) when the first
+	// path has answered: a direct connection is under way. A caller racing
+	// a relay against the punch uses it to keep waiting for the direct one.
+	OnPath func()
 }
 
 // hedgeAfter are the delays, from a path's first QUIC handshake, after
@@ -474,6 +478,10 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			}
 		case addr := <-sess.Paths():
 			logf("punch: path answered", "remote", addr, "after", since())
+			if cfg.OnPath != nil {
+				cfg.OnPath()
+				cfg.OnPath = nil
+			}
 			pref := cfg.Prefer != nil && cfg.Prefer(addr)
 			if pref || lanLike(addr.Addr()) || (holdOver && prefActive == 0) {
 				startDial(addr, pref)

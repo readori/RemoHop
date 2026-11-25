@@ -845,6 +845,12 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		return d.establish(ctx, sock, t)
 	}
 
+	// Between two machines behind the same NAT the outcome does not
+	// depend on a race (it is the LAN path, or hairpinning, or nothing), so
+	// a second attempt would only cost time.
+	sameNAT := intro.Reflexive.IsValid() && intro.Reflexive.Addr() == intro.Peer.Reflexive.Addr()
+	retryable := d.mayRetryPunch(natType, intro.Peer.NAT) && !sameNAT
+	relayOK := intro.RelayOffered && !d.opts.NoRelay && signal.RelayAllowed(d.opts.Dir)
 	punchTime := d.opts.PunchTime
 	if punchTime == 0 {
 		punchTime = nat.PunchTime(natType, intro.Peer.NAT)
@@ -852,6 +858,12 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 			// The tailnet path does not depend on the NATs; give it
 			// time to answer even where punching is hopeless.
 			punchTime = max(punchTime, tailnetPunchTime)
+		}
+		if retryable {
+			// A second attempt follows a failure: a punch that works does
+			// so within the first round trips, so this one need not run
+			// its full time first.
+			punchTime = min(punchTime, firstPunchTime)
 		}
 	}
 	attempt := 1
@@ -862,7 +874,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 	if beforePunch != nil {
 		beforePunch(attempt)
 	}
-	q, remote, err := sock.Connect(ctx, nat.ConnectConfig{
+	cfg := nat.ConnectConfig{
 		Nonce:     intro.Nonce,
 		Remote:    intro.Peer.Candidates(),
 		TLS:       tlsConf,
@@ -870,14 +882,38 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		PunchTime: punchTime,
 		Prefer:    prefer,
 		Logger:    d.log,
-	})
+	}
+	var q *quic.Conn
+	var remote netip.AddrPort
+	if relayOK && !retryable {
+		// The last attempt, and a relay to fall back on: start it early
+		// rather than after the punch has given up.
+		wait := relayAfter
+		if prefer != nil {
+			wait = max(wait, tailnetPunchTime)
+		}
+		var rt route
+		q, rt, err = d.punchOrRelay(ctx, sock, sc, intro, tlsConf, cfg, wait)
+		if err == nil && rt.path == PathRelayed {
+			d.notify("no direct path to " + t.display + ": connected through the rendezvous server's relay (still end-to-end encrypted, but slower)")
+			setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, true)
+			return q, rt, nil
+		}
+		remote = rt.remote
+	} else {
+		q, remote, err = sock.Connect(ctx, cfg)
+	}
 	if err != nil {
 		if !errors.Is(err, nat.ErrNoPath) {
 			return nil, route{}, err
 		}
 		noPath := fmt.Errorf("could not connect to %s: %s: %w", t.display, nat.Explain(natType, intro.Peer.NAT), err)
-		if ctx.Err() == nil && d.mayRetryPunch(natType, intro.Peer.NAT) {
+		if ctx.Err() == nil && retryable {
 			return nil, route{}, &errRetryPunch{noPath}
+		}
+		if re, raced := errors.AsType[*relayRaceError](err); raced {
+			// The relay was tried alongside the punch and failed too.
+			return nil, route{}, fmt.Errorf("%w; the relay could not be used either: %v", noPath, re.relayErr)
 		}
 		// No direct path. A relay is used only now, only if the server's
 		// operator offers one and neither side has turned it down.
@@ -911,6 +947,178 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 // relays while it sets up a direct path.
 const tailnetPunchTime = 3 * time.Second
 
+// firstPunchTime bounds a punch attempt that a second one will follow if it
+// fails (see mayRetryPunch).
+const firstPunchTime = 4 * time.Second
+
+// relayAfter is how long the last punch attempt runs alone before the relay
+// is set up alongside it, if no path has answered by then: a path that is
+// going to work answers within a round trip or two (priming makes sure of
+// that between NATs that remember unsolicited packets). directGrace is how
+// long an established relay waits for a direct handshake that is already
+// under way. Variables for tests.
+var (
+	relayAfter  = 1500 * time.Millisecond
+	directGrace = 3 * time.Second
+)
+
+// relayRaceError is a punch that found no path while a relay set up
+// alongside it failed as well.
+type relayRaceError struct{ punchErr, relayErr error }
+
+func (e *relayRaceError) Error() string { return e.punchErr.Error() }
+func (e *relayRaceError) Unwrap() error { return e.punchErr }
+
+// punchOrRelay punches as cfg says and, if no path has answered after wait,
+// sets up a relay session alongside. The direct path is preferred: it wins
+// whenever its handshake finishes first, and a relay that is ready while a
+// direct handshake is under way waits up to directGrace for it. The loser is
+// closed (and a relay session released). The route says which won.
+func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.Client, intro *signal.Introduction,
+	tlsConf *tls.Config, cfg nat.ConnectConfig, wait time.Duration) (*quic.Conn, route, error) {
+	type punchResult struct {
+		q      *quic.Conn
+		remote netip.AddrPort
+		err    error
+	}
+	type relayResult struct {
+		q     *quic.Conn
+		relay netip.AddrPort
+		err   error
+	}
+	pctx, pcancel := context.WithCancel(ctx)
+	defer pcancel()
+	rctx, rcancel := context.WithCancel(ctx)
+	defer rcancel()
+
+	answered := make(chan struct{})
+	var answeredOnce sync.Once
+	cfg.OnPath = func() { answeredOnce.Do(func() { close(answered) }) }
+	punchCh := make(chan punchResult, 1)
+	go func() {
+		q, remote, err := sock.Connect(pctx, cfg)
+		punchCh <- punchResult{q, remote, err}
+	}()
+
+	var relayCh chan relayResult
+	startRelay := func() {
+		relayCh = make(chan relayResult, 1)
+		go func() {
+			q, relay, err := d.viaRelay(rctx, sock, sc, intro.Nonce, tlsConf)
+			relayCh <- relayResult{q, relay, err}
+		}()
+	}
+	// dropRelay closes a relayed connection that lost, and frees its slot.
+	dropRelay := func(r relayResult) {
+		if r.q != nil {
+			r.q.CloseWithError(0, "a direct path won")
+		}
+		if r.relay.IsValid() {
+			sock.ReleaseRelay(r.relay, intro.Nonce, nat.RoleClient)
+		}
+	}
+	// Whatever is still running when we return is cancelled and, should it
+	// have finished regardless, closed.
+	punchPending, relayPending := true, false
+	defer func() {
+		pcancel()
+		rcancel()
+		if punchPending {
+			go func() {
+				if r := <-punchCh; r.err == nil {
+					r.q.CloseWithError(0, "the relay won")
+				}
+			}()
+		}
+		if relayPending {
+			ch := relayCh
+			go func() { dropRelay(<-ch) }()
+		}
+	}()
+
+	start := time.Now()
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	var grace <-chan time.Time
+	var ready *relayResult // relay up, waiting out directGrace
+	var relayErr error
+	for {
+		select {
+		case <-timer.C:
+			select {
+			case <-answered:
+				// A direct path is being set up; the relay only if it fails.
+				continue
+			default:
+			}
+			d.log.Debug("no path has answered yet; setting up the relay alongside the punch", "after", time.Since(start).Round(time.Millisecond).String())
+			startRelay()
+			relayPending = true
+		case r := <-punchCh:
+			punchPending = false
+			if r.err == nil {
+				if ready != nil {
+					dropRelay(*ready)
+				}
+				return r.q, route{remote: r.remote, path: classify(r.remote, intro.Peer)}, nil
+			}
+			if ready != nil {
+				return ready.q, route{remote: ready.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+			}
+			if !errors.Is(r.err, nat.ErrNoPath) || ctx.Err() != nil {
+				return nil, route{}, r.err
+			}
+			if relayErr != nil {
+				return nil, route{}, &relayRaceError{r.err, relayErr}
+			}
+			if !relayPending {
+				// The punch gave up before the relay was due (two
+				// symmetric NATs give up within a second): the caller
+				// falls back to the relay as before.
+				return nil, route{}, r.err
+			}
+			// The relay is on its way; wait for it.
+			rr := <-relayCh
+			relayPending = false
+			if rr.err != nil {
+				dropRelay(rr)
+				return nil, route{}, &relayRaceError{r.err, rr.err}
+			}
+			return rr.q, route{remote: rr.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+		case rr := <-relayCh:
+			relayPending, relayCh = false, nil
+			if rr.err != nil {
+				dropRelay(rr)
+				if ctx.Err() != nil {
+					return nil, route{}, ctx.Err()
+				}
+				d.log.Debug("the relay could not be set up; the punch goes on", "err", rr.err)
+				relayErr = rr.err
+				continue
+			}
+			select {
+			case <-answered:
+				// Direct is under way: prefer it if it finishes soon.
+				ready = &rr
+				t := time.NewTimer(directGrace)
+				defer t.Stop()
+				grace = t.C
+				continue
+			default:
+			}
+			d.log.Debug("the relay is ready and no path has answered; using the relay", "after", time.Since(start).Round(time.Millisecond).String())
+			return rr.q, route{remote: rr.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+		case <-grace:
+			return ready.q, route{remote: ready.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+		case <-ctx.Done():
+			if ready != nil {
+				dropRelay(*ready)
+			}
+			return nil, route{}, ctx.Err()
+		}
+	}
+}
+
 // viaRelay connects to the host through a relay session on the rendezvous
 // server. The connection is the same QUIC and the login that follows the
 // same as on a direct path; the relay is only where the packets go.
@@ -921,12 +1129,14 @@ func (d *dialer) viaRelay(ctx context.Context, sock *nat.Socket, sc *signal.Clie
 	if err != nil {
 		return nil, netip.AddrPort{}, err
 	}
+	// From here on the relay is returned with an error too, so that the
+	// caller can release the session.
 	if err := sock.BindRelay(rctx, relay, nonce, nat.RoleClient); err != nil {
-		return nil, netip.AddrPort{}, err
+		return nil, relay, err
 	}
 	q, err := sock.Transport().Dial(rctx, net.UDPAddrFromAddrPort(relay), tlsConf, peer.QUICConfig())
 	if err != nil {
-		return nil, netip.AddrPort{}, fmt.Errorf("no answer from the host through the relay: %w", err)
+		return nil, relay, fmt.Errorf("no answer from the host through the relay: %w", err)
 	}
 	return q, relay, nil
 }

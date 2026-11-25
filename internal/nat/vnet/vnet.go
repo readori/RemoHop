@@ -185,6 +185,7 @@ type NAT struct {
 
 	mu       sync.Mutex
 	hairpin  bool
+	isolated bool
 	lan      map[netip.Addr]*Host
 	byKey    map[mapKey]*mapping
 	byPort   map[uint16]*mapping
@@ -218,6 +219,15 @@ type mapping struct {
 func (b *NAT) SetHairpin(on bool) {
 	b.mu.Lock()
 	b.hairpin = on
+	b.mu.Unlock()
+}
+
+// SetIsolation keeps the machines on the NAT's LAN from reaching each
+// other directly, as Wi-Fi client isolation or a guest network does; they
+// still reach the router and through it the internet.
+func (b *NAT) SetIsolation(on bool) {
+	b.mu.Lock()
+	b.isolated = on
 	b.mu.Unlock()
 }
 
@@ -382,10 +392,12 @@ func (h *Host) send(src, dst netip.AddrPort, data []byte, ttl int) {
 	}
 	// Same LAN: delivered by the switch, never touching the NAT.
 	h.nat.mu.Lock()
-	sibling := h.nat.lan[dst.Addr()]
+	sibling, isolated := h.nat.lan[dst.Addr()], h.nat.isolated
 	h.nat.mu.Unlock()
 	if sibling != nil {
-		sibling.deliver(src, dst.Port(), data)
+		if !isolated {
+			sibling.deliver(src, dst.Port(), data)
+		}
 		return
 	}
 	if dst.Addr().IsPrivate() {
