@@ -1,6 +1,7 @@
 // Renders the RemoHop App Store artwork from the real-device screenshots in ./src.
 // Usage: node build.js   (needs puppeteer-core; set PPTR to its node_modules folder)
-// Screens are src/<locale>-<screen>.webp (real-device screenshots). Output: out/<locale>/*.jpg.
+// Screens are src/<locale>-<screen>.webp (real-device screenshots) and src/<locale>-ipad-<screen>.webp
+// (iPad Pro 13" captures, see README). Output: out/<locale>/*.jpg. ONLY=ipad builds only the iPad posters.
 const fs = require("fs");
 const path = require("path");
 const PPTR = process.env.PPTR || "puppeteer-core";
@@ -15,6 +16,7 @@ const url = f => "file:///" + path.join(SRC, f).replace(/\\/g, "/");
 // Screens: src file per language.
 const FILE = { connect: "connect-live" };
 const SHOT = new Proxy({}, { get: (_, key) => ({ en: `en-${FILE[key] || key}.webp`, zh: `zh-${FILE[key] || key}.webp` }) });
+const PAD = new Proxy({}, { get: (_, key) => ({ en: `en-ipad-${key}.webp`, zh: `zh-ipad-${key}.webp` }) });
 
 const T = {
   en: {
@@ -31,11 +33,12 @@ const T = {
       ["info", "Your machine<br>at a glance", "System, memory, disk, uptime and connection details"],
       ["privacy", "Private<br>by design", "End-to-end encrypted and peer-to-peer. No analytics, ads or tracking."],
     ],
+    // [file name, iPad screen, title, subtitle]. The file names are the ones App Store Connect already has.
     pad: [
-      [["desktop", "terminal"], "Screen and terminal,<br>wherever you are", "Remote desktop and real shell sessions on your own computers"],
-      [["files", "clipboard"], "Files and clipboard", "Move files and text between your device and your computer"],
-      [["connect", "info"], "Pair once, connect by ID", "Saved computers connect without a password. No account needed."],
-      [["privacy", "settings"], "End-to-end encrypted", "Peer-to-peer sessions. Keys and settings stay on your device."],
+      ["desktop-terminal", "desktop", "Your computer,<br>on a bigger screen", "Remote desktop with keyboard, mouse and special keys"],
+      ["files-clipboard", "files", "Your files, at hand", "Browse, upload and organise files on your computer"],
+      ["connect-info", "connect", "Pair once,<br>skip the password", "Connect by ID or address. No account needed."],
+      ["privacy-settings", "terminal", "A real terminal,<br>end-to-end encrypted", "Peer-to-peer sessions that stay open when you leave"],
     ],
   },
   zh: {
@@ -53,10 +56,10 @@ const T = {
       ["privacy", "隐私，从设计开始", "端到端加密、点对点直连，没有统计、广告或跟踪"],
     ],
     pad: [
-      [["desktop", "terminal"], "屏幕和终端，随时在手", "在手机和平板上操作你自己的电脑"],
-      [["files", "clipboard"], "文件与剪贴板", "在设备和电脑之间传文件、传文字"],
-      [["connect", "info"], "配对一次，按 ID 直连", "保存过的电脑免密码连接，无需注册账号"],
-      [["privacy", "settings"], "端到端加密", "点对点会话，密钥和设置只保存在本设备上"],
+      ["desktop-terminal", "desktop", "大屏操控<br>你的电脑", "远程桌面，支持键盘、鼠标和常用按键"],
+      ["files-clipboard", "files", "文件随手可取", "浏览、上传、整理电脑上的文件"],
+      ["connect-info", "connect", "配对一次，<br>以后免密码", "输入 ID 或地址即可连接，无需注册账号"],
+      ["privacy-settings", "terminal", "真正的终端，<br>端到端加密", "点对点直连，会话保持在线，回来接着用"],
     ],
   },
 };
@@ -78,6 +81,9 @@ body:before{content:"";position:absolute;inset:0;
 .phone{position:absolute;background:#05070d;border-radius:var(--r);padding:var(--b);
   box-shadow:0 calc(var(--w)*.06) calc(var(--w)*.16) rgba(3,6,20,.55),0 0 0 calc(var(--w)*.006) rgba(255,255,255,.18) inset;}
 .phone img{display:block;width:100%;border-radius:calc(var(--r) - var(--b));}
+.tablet{position:absolute;background:#05070d;border-radius:var(--r);padding:var(--b);
+  box-shadow:0 calc(var(--w)*.04) calc(var(--w)*.1) rgba(3,6,20,.55),0 0 0 calc(var(--w)*.003) rgba(255,255,255,.2) inset;}
+.tablet img{display:block;width:100%;border-radius:calc(var(--r) - var(--b));}
 .phone .island{position:absolute;left:50%;top:calc(var(--b) + var(--w)*.025);transform:translateX(-50%);
   width:calc(var(--w)*.3);height:calc(var(--w)*.085);background:#000;border-radius:999px}
 h1{font-weight:800;letter-spacing:-.02em;line-height:1.08}
@@ -111,16 +117,25 @@ function iphone(lang, [key, title, sub]) {
     ${phone(SHOT[key][lang], (W - pw) / 2, top, pw)}`);
 }
 
-function ipad(lang, [[a, b], title, sub]) {
-  const W = 2064, H = 2752, pw = 860, ph = phoneH(pw), gap = 110;
-  const x0 = (W - 2 * pw - gap) / 2, top = H - ph - 110;
+// iPad frame: w = outer width; the iPad screenshot (2064 x 2752, portrait) keeps its aspect ratio.
+const PAD_ASPECT = 2752 / 2064;
+const padB = w => Math.round(w * 0.022);
+const padH = w => Math.round((w - 2 * padB(w)) * PAD_ASPECT) + 2 * padB(w);
+function tablet(file, x, y, w) {
+  const b = padB(w), r = Math.round(w * 0.048);
+  return `<div class="tablet" style="--w:${w}px;--b:${b}px;--r:${r}px;left:${x}px;top:${y}px;width:${w}px">
+    <img src="${url(file)}"></div>`;
+}
+
+// One real iPad screen per poster, in an iPad frame under the headline.
+function ipad(lang, [, key, title, sub]) {
+  const W = 2064, H = 2752, pw = 1600, ph = padH(pw);
   return page(W, H, lang, `
-    <div style="position:absolute;left:160px;right:160px;top:190px;text-align:center">
-      <h1 style="font-size:132px">${title}</h1>
-      <p class="sub" style="font-size:60px;margin-top:44px">${sub}</p>
+    <div style="position:absolute;left:140px;right:140px;top:130px;text-align:center">
+      <h1 style="font-size:${lang === "zh" ? 116 : 120}px">${title}</h1>
+      <p class="sub" style="font-size:52px;margin-top:30px">${sub}</p>
     </div>
-    ${phone(SHOT[a][lang], x0, top + 60, pw)}
-    ${phone(SHOT[b][lang], x0 + pw + gap, top - 60, pw)}`);
+    ${tablet(PAD[key][lang], (W - pw) / 2, H - ph - 44, pw)}`);
 }
 
 function brandBlock(lang, iconSize, nameSize) {
@@ -165,10 +180,12 @@ function search(lang) {
   const jobs = [];
   for (const lang of ["zh", "en"]) {
     const d = path.join(OUT, lang === "zh" ? "zh-Hans" : "en-US");
-    jobs.push([path.join(d, "Header_5244x2950.jpg"), 5244, 2950, header(lang)]);
-    jobs.push([path.join(d, "SearchResults_3840x2560.jpg"), 3840, 2560, search(lang)]);
-    T[lang].phone.forEach((s, i) => jobs.push([path.join(d, `iPhone_1320x2868_${i + 1}_${s[0]}.jpg`), 1320, 2868, iphone(lang, s)]));
-    T[lang].pad.forEach((s, i) => jobs.push([path.join(d, `iPad_2064x2752_${i + 1}_${s[0].join("-")}.jpg`), 2064, 2752, ipad(lang, s)]));
+    if (process.env.ONLY !== "ipad") {
+      jobs.push([path.join(d, "Header_5244x2950.jpg"), 5244, 2950, header(lang)]);
+      jobs.push([path.join(d, "SearchResults_3840x2560.jpg"), 3840, 2560, search(lang)]);
+      T[lang].phone.forEach((s, i) => jobs.push([path.join(d, `iPhone_1320x2868_${i + 1}_${s[0]}.jpg`), 1320, 2868, iphone(lang, s)]));
+    }
+    T[lang].pad.forEach((s, i) => jobs.push([path.join(d, `iPad_2064x2752_${i + 1}_${s[0]}.jpg`), 2064, 2752, ipad(lang, s)]));
   }
   const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--allow-file-access-from-files", "--hide-scrollbars"] });
   const pg = await browser.newPage();

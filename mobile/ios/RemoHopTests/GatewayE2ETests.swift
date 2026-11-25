@@ -546,7 +546,7 @@ final class GatewayE2ETests: XCTestCase {
                 return 'ok';
                 """)
             ran = await eventually(expect.isEmpty ? "document.getElementById('t-host').textContent.length > 200"
-                                                  : "document.getElementById('t-host').textContent.includes(\(lit(expect)))", timeout: 15)
+                                                  : "document.getElementById('t-host').textContent.includes(\(lit(expect)))", timeout: 45)
         }
         if !ran { print("store screens: the terminal command did not finish") }
         await pause(1.5)
