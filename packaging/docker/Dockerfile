@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
 #
 # Rendezvous server image: `remohop signal`, nothing else. Static binary on `scratch`, runs as
 # a non-root user, works with a read-only root filesystem, and carries a health probe.
@@ -11,9 +11,10 @@
 # Run: see packaging/docker/README.md and packaging/docker/compose.yaml.
 
 # The image's Go matches go.mod's `go` line (a patched release: see `govulncheck` in CI).
-# If the image were older, GOTOOLCHAIN=auto would download the exact version. For fully
-# pinned builds, pass a digest: --build-arg GO_IMAGE=golang:1.26.11-bookworm@sha256:<digest>
-ARG GO_IMAGE=golang:1.26.11-bookworm
+# If the image were older, GOTOOLCHAIN=auto would download the exact version. Pinned by
+# digest (the multi-platform index), so a moved tag cannot change what the release builds;
+# raise both together with go.mod's `go` line.
+ARG GO_IMAGE=golang:1.26.11-bookworm@sha256:ea47ee45f1284d60f9cc09cb2c3bb4f508c256b640bd8bb30342ff13d1adcb52
 
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
 ARG TARGETOS=linux
@@ -30,6 +31,10 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags "-s -w -X github.com/readori/RemoHop/internal/cli.Version=$VERSION" -o /out/remohop ./cmd/remohop; \
     go build -trimpath -ldflags "-s -w" -o /out/healthcheck ./packaging/docker/healthcheck; \
     mkdir -p /out/data
+# The license texts of the Go modules and the Go runtime linked into both binaries, which
+# their MIT, BSD and Apache licenses ask to ship with them (the same file as in the archives).
+RUN --mount=type=cache,target=/go/pkg/mod \
+    bash packaging/third_party_licenses.sh >/out/THIRD_PARTY_LICENSES.txt
 
 FROM scratch
 ARG VERSION=dev
@@ -46,6 +51,7 @@ COPY --from=build /out/healthcheck /healthcheck
 COPY --from=build --chown=65532:65532 /out/data /data
 COPY LICENSE /LICENSE
 COPY NOTICE /NOTICE
+COPY --from=build /out/THIRD_PARTY_LICENSES.txt /THIRD_PARTY_LICENSES.txt
 ENV REMOHOP_CONFIG_DIR=/data
 VOLUME /data
 USER 65532:65532
