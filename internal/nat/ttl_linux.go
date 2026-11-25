@@ -18,7 +18,10 @@ import (
 // sendmsg, which Linux honours also on a dual-stack IPv6 socket sending to
 // an IPv4 destination.
 func udpTTLWriter(pc net.PacketConn) func(p []byte, to netip.AddrPort, ttl int) error {
-	uc, ok := pc.(*net.UDPConn)
+	// A *net.UDPConn, or the wrapper Listen puts around one.
+	uc, ok := pc.(interface {
+		WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error)
+	})
 	if !ok {
 		return nil
 	}
