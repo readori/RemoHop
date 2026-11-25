@@ -531,6 +531,11 @@ func TestStreamFallback(t *testing.T) {
 	if got := hostDev.expect(t, "big packet"); string(got) != string(big) {
 		t.Fatal("big packet damaged on the stream path")
 	}
+	// The sender counts the packet after handing it to the stream, so the
+	// host can have it before the count moves.
+	for end := time.Now().Add(5 * time.Second); stats.ViaStream.Load() == 0 && time.Now().Before(end); {
+		time.Sleep(5 * time.Millisecond)
+	}
 	if stats.ViaStream.Load() != 1 {
 		t.Fatalf("%d packets took the stream, want 1", stats.ViaStream.Load())
 	}
