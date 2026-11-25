@@ -54,6 +54,10 @@ func startHost(t *testing.T) string {
 			t.Errorf("host: %v", err)
 		}
 	})
+	// Cleanups run last first: stop the gateway before the host, or it
+	// sees its session drop and starts a reconnection while the test's
+	// directories are being removed.
+	t.Cleanup(StopGateway)
 	return h.Addr().String()
 }
 
