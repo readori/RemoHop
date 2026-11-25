@@ -161,12 +161,14 @@ func TestResolveAndCheckLink(t *testing.T) {
 	}
 	link, _ := s.Resolve(filepath.Join(sub, "l"), Write, false)
 	defer link.Release()
-	for _, ok := range []string{"f", "./x/../f", filepath.Join(sub, "f")} {
+	for _, ok := range []string{"f", "./x/f", filepath.Join(sub, "f")} {
 		if err := s.CheckLink(link, ok); err != nil {
 			t.Errorf("link to %s: %v", ok, err)
 		}
 	}
-	for _, bad := range []string{"../in.txt", outside, filepath.Join(outside, "x"), "../../outside"} {
+	// ".." is refused even when it stays inside: moving the link (or a
+	// directory above it) would change where it leads.
+	for _, bad := range []string{"../in.txt", outside, filepath.Join(outside, "x"), "../../outside", "./x/../f", "x/..", sub + string(filepath.Separator) + ".." + string(filepath.Separator) + "sub"} {
 		if err := s.CheckLink(link, bad); err == nil || !strings.Contains(err.Error(), "must point inside") {
 			t.Errorf("link to %s: %v", bad, err)
 		}

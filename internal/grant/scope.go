@@ -350,12 +350,28 @@ func (s *Scope) IsRoot(fi fs.FileInfo) (string, bool) {
 // must lead to a place inside the same root: the file service would not
 // follow it anywhere else, and other software on the host should not find
 // links out of a root that a confined session planted.
+//
+// Where a relative link leads depends on where the link is, and on the
+// directories its ".." components climb out of, so a link that leads inside
+// when it is made could lead out once it, or a directory above it, is
+// renamed or replaced. A target with ".." is therefore refused, and so is
+// an absolute one outside the root's path: what is left points at the
+// link's own directory or below it (or at a fixed place in the root),
+// wherever the link is moved to within the root.
 func (s *Scope) CheckLink(link Place, target string) error {
 	if link.Root == nil {
 		return nil
 	}
 	if target == "" {
 		return errors.New("empty link target")
+	}
+	for _, c := range strings.FieldsFunc(target, func(r rune) bool { return r < 0x80 && os.IsPathSeparator(uint8(r)) }) {
+		if c == ".." {
+			return fmt.Errorf("a symbolic link made under this grant must point inside its root %s without \"..\" in its target (%q): moving the link would change where it leads", link.RootPath, target)
+		}
+	}
+	if filepath.IsAbs(target) && !within(filepath.Clean(target), filepath.Clean(link.RootPath)) {
+		return fmt.Errorf("a symbolic link made under this grant must point inside its root %s; %q is outside it", link.RootPath, target)
 	}
 	t := target
 	if !filepath.IsAbs(t) {
