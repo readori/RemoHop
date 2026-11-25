@@ -317,6 +317,12 @@ func (x *Injector) Scroll(dx, dy int) error {
 }
 
 func (x *Injector) keycode(kc xproto.Keycode, down bool) error {
+	if down && x.keys[kc] {
+		// A repeated press of a held key (a viewer forwards the
+		// keyboard's autorepeat): the X server repeats a held key
+		// itself, so a second press would double every repeat.
+		return nil
+	}
 	typ := byte(xproto.KeyRelease)
 	if down {
 		typ = xproto.KeyPress

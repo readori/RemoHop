@@ -223,6 +223,7 @@ func TestWinDesktopE2E(t *testing.T) {
 			}
 			t.Run("video", func(t *testing.T) { winVideo(t, ffmpeg) })
 			t.Run("input", func(t *testing.T) { winInput(t) })
+			t.Run("keyframe", func(t *testing.T) { winKeyframe(t) })
 		})
 	}
 }
@@ -338,7 +339,15 @@ func winInput(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	want := "Hello 你好 ÄÖa"
+	// A held key repeats: the viewer forwards the browser's repeated
+	// key-downs, and Windows (where SendInput gets no typematic repeat of
+	// its own) types one character for each.
+	for _, down := range []bool{true, true, true, false} {
+		if err := sess.SendInput(InputEvent{Kind: InputKey, Code: "KeyB", Down: down}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := "Hello 你好 ÄÖabbb"
 	if got := w.WaitText(want, 10*time.Second); got != want {
 		t.Fatalf("the text box holds %q, want %q\nhelper log: %s\ndesktop: %s", got, want, w.Log(), wintest.Describe())
 	}
@@ -358,5 +367,78 @@ func winInput(t *testing.T) {
 	want += "a"
 	if got := w.WaitText(want, 5*time.Second); got != want {
 		t.Errorf("after the session ended a key typed gave %q, want %q (Shift left held?)", got, want)
+	}
+}
+
+// winKeyframe asks for key frames and measures the longest gap between
+// frames around each: the replacement encoder starts while the running one
+// streams (two captures side by side for a moment), so there should be none.
+func winKeyframe(t *testing.T) {
+	client, _ := peertest.Pair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	sess, err := Open(ctx, client, Options{FPS: 30, Codec: codecH264})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() { // keep the screen changing so that frames keep coming
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			case <-time.After(50 * time.Millisecond):
+			}
+			wintest.SetCursorPos(10+i%200, 10+i%100)
+		}
+	}()
+	start := time.Now()
+	var last, requested time.Time
+	var gaps []time.Duration
+	var maxGap time.Duration
+	var st HostStats
+	nextReq := start.Add(4 * time.Second)
+	for time.Since(start) < 30*time.Second && len(gaps) < 4 {
+		ev, err := sess.Next(ctx)
+		if err != nil {
+			t.Fatalf("session ended: %v", err)
+		}
+		if ev.Stats != nil {
+			st = *ev.Stats
+		}
+		f := ev.Frame
+		if f == nil {
+			continue
+		}
+		if !requested.IsZero() && !last.IsZero() {
+			maxGap = max(maxGap, f.Received.Sub(last))
+			if f.Key {
+				gaps = append(gaps, maxGap)
+				t.Logf("key frame %v after the request", f.Received.Sub(requested))
+				requested = time.Time{}
+				nextReq = f.Received.Add(3 * time.Second)
+			}
+		}
+		if requested.IsZero() && f.Received.After(nextReq) {
+			requested, maxGap = f.Received, 0
+			sess.RequestKeyframe()
+		}
+		last = f.Received
+	}
+	h := sess.Hello()
+	t.Logf("RESULT key frames on demand (%s, %s): longest gap around each %v; host %+v", h.Encoder, os.Getenv("REMOHOP_WIN_CAPTURE"), gaps, st)
+	if len(gaps) < 2 {
+		t.Fatalf("only %d requested key frames came", len(gaps))
+	}
+	bad := 0
+	for _, g := range gaps {
+		if g > 250*time.Millisecond {
+			bad++
+		}
+	}
+	if bad > 1 {
+		t.Errorf("key frames on demand left gaps %v", gaps)
 	}
 }

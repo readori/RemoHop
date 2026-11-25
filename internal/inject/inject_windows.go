@@ -257,7 +257,15 @@ func (w *Injector) Scroll(dx, dy int) error {
 // Delete pressed with Ctrl and Alt held becomes the secure attention
 // sequence where the Sys can raise it (see SASSender); its release is then
 // swallowed too.
+//
+// A key-down for a key already held is the keyboard's autorepeat forwarded
+// by a viewer: Windows produces typematic repeat below SendInput, so
+// injected keys never repeat by themselves, and each repeated key-down is
+// sent as Windows' own repeats are (another key-down, no key-up).
 func (w *Injector) sendKey(id string, down bool, ev winInput) error {
+	if down && w.sas[id] {
+		return nil // the secure attention sequence is raised once
+	}
 	if down {
 		if sas, ok := currentSys().(SASSender); ok && isSASChord(id, func(k string) bool { _, held := w.keys[k]; return held }) {
 			if w.sas == nil {

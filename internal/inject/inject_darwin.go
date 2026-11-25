@@ -386,15 +386,25 @@ func (m *Injector) Scroll(dx, dy int) error {
 	return m.post(cgEventCreateScrollWheel2(0, cgScrollEventUnitLine, 2, int32(-dy), int32(-dx), 0))
 }
 
+// cgKeyboardEventAutorepeat is kCGKeyboardEventAutorepeat.
+const cgKeyboardEventAutorepeat = 8
+
 func tooFar(v int) bool { return v > 1<<20 || v < -(1<<20) }
 
 func (m *Injector) key(k macKey, down bool) error {
+	_, held := m.keys[k.vk]
 	if down {
 		m.keys[k.vk] = k.flag // the flag applies to this event already
 	} else {
 		delete(m.keys, k.vk) // and is gone from its release
 	}
 	ev := cgEventCreateKeyboardEvent(0, k.vk, down)
+	if down && held && ev != 0 {
+		// A key-down for a held key is the keyboard's autorepeat,
+		// forwarded by a viewer: macOS repeats in its HID system, never
+		// for posted events, so each repeat is posted marked as one.
+		cgEventSetIntegerValueField(ev, cgKeyboardEventAutorepeat, 1)
+	}
 	if err := m.post(ev); err != nil {
 		if down {
 			delete(m.keys, k.vk)
