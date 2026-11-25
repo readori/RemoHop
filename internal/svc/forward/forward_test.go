@@ -328,15 +328,20 @@ func TestRefusedTarget(t *testing.T) {
 	}
 	defer f.Close()
 	c, err := net.Dial("tcp", f.Addr().String())
-	if err != nil {
+	switch {
+	case errors.Is(err, syscall.ECONNRESET):
+		// The forward accepted, the remote dial failed and the connection
+		// was reset before Dial returned here: closed, as wanted.
+	case err != nil:
 		t.Fatal(err)
-	}
-	defer c.Close()
-	c.SetReadDeadline(time.Now().Add(10 * time.Second))
-	if _, err := c.Read(make([]byte, 1)); err == nil {
-		t.Fatal("read from a connection to a refused target should fail")
-	} else if ne, ok := err.(net.Error); ok && ne.Timeout() {
-		t.Fatal("connection was not closed after the remote dial failed")
+	default:
+		defer c.Close()
+		c.SetReadDeadline(time.Now().Add(10 * time.Second))
+		if _, err := c.Read(make([]byte, 1)); err == nil {
+			t.Fatal("read from a connection to a refused target should fail")
+		} else if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			t.Fatal("connection was not closed after the remote dial failed")
+		}
 	}
 	// The forward itself stays up for later connections.
 	select {
