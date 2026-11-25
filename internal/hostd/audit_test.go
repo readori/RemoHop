@@ -102,3 +102,21 @@ func TestAuditRotation(t *testing.T) {
 		}
 	}
 }
+
+// The host remembers the ID each rendezvous server gave it, so that a
+// change (an ID moved between devices) is recorded across restarts.
+func TestNoteID(t *testing.T) {
+	dir := t.TempDir()
+	if prev := noteID(dir, "sig.example:21116", "123456789"); prev != "" {
+		t.Fatalf("first ID: previous %q", prev)
+	}
+	if prev := noteID(dir, "sig.example:21116", "123456789"); prev != "" {
+		t.Fatalf("same ID: previous %q", prev)
+	}
+	if prev := noteID(dir, "other.example:21116", "555555555"); prev != "" {
+		t.Fatalf("another server: previous %q", prev)
+	}
+	if prev := noteID(dir, "sig.example:21116", "987654321"); prev != "123456789" {
+		t.Fatalf("changed ID: previous %q", prev)
+	}
+}
