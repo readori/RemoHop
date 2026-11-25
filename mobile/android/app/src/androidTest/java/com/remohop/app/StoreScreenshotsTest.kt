@@ -52,7 +52,7 @@ import java.util.concurrent.TimeUnit
  *
  * Output: PNG files (opaque, no alpha) of the whole screen, status bar
  * included, in getExternalFilesDir(null)/store-shots/<lang>/:
- * 1-connect (the open session and the saved host), 2-terminal, 3-files,
+ * 1-connect (the saved host, after the session), 2-terminal, 3-files,
  * 4-desktop and 8-desktopwide (landscape, full screen; both only when the
  * host streams a picture), 5-settings, 6-clipboard (only when the host's
  * clipboard has text), 7-info, plus shots.txt (one "name WxH" line per picture).
@@ -382,7 +382,9 @@ class StoreScreenshotsTest {
             Thread.sleep(1500)
             type(s, "clear")
             Thread.sleep(1000)
-            val q = if (Regex("^[A-Za-z0-9._/~-]+$").matches(dir)) dir else "'" + dir.replace("'", "'\\''") + "'"
+            // As a user types it: a directory in the home folder as ~/...
+            val typed = Regex("^/home/[^/]+/").replace(dir, "~/")
+            val q = if (Regex("^[A-Za-z0-9._/~-]+$").matches(typed)) typed else "'" + dir.replace("'", "'\\''") + "'"
             val expected = file ?: "total" // `ls -l` (any aliases the host's shell has apply)
             var ran = false
             for (i in 0 until 3) {
@@ -455,7 +457,8 @@ class StoreScreenshotsTest {
                 waitFor(s, "innerHeight>innerWidth", "portrait again", 20)
             }
 
-            // The connect screen: the open session and the saved host, which the user has named.
+            // The connect screen as it is the next time: the saved host, which the user has named,
+            // connects without a password (the session is closed first; the form alone fills the screen).
             val named = pageAsync(
                 s,
                 "let ps=[];for(let i=0;i<40&&!ps.length;i++){ps=((await SD.json('GET','peers'))||{}).peers||[];if(!ps.length)await new Promise(r=>setTimeout(r,250))}" +
@@ -465,14 +468,9 @@ class StoreScreenshotsTest {
                 "name the saved host"
             )
             assertEquals("the saved host was named", "ok", named)
-            var left = false
-            for (i in 0 until 4) {
-                text(s, "remohopMobile.back()")
-                left = poll(s, "!document.getElementById('connect').hidden", "connect screen", 3)
-                if (left) break
-            }
-            assertTrue("back returned to the connect screen", left)
-            // An empty form under the open session and the saved host (the page fills in the last host).
+            click(s, "disconnect")
+            waitFor(s, "!document.getElementById('connect').hidden&&!document.getElementById('peercards').hidden", "the connect screen with the saved host", 20)
+            // An empty form above the saved host (the page fills in the last host).
             ok(s, "(function(){document.getElementById('target').value='';document.getElementById('hostpass').value='';return true})()")
             Thread.sleep(500) // web fonts
             tidy(s)
