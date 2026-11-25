@@ -38,7 +38,7 @@ RemoHop host ready
 Connect with `remohop 276941009 <command>`.
 ```
 
-The ID belongs to the host's identity key and stays the same across restarts. The temporary password changes on every start. For a fixed password, run `remohop passwd`, which asks for it without echo and never prints it afterwards.
+The password is shown only when the output is a terminal; when it goes to a file or a log, the banner says `(not shown: ...)` and `remohop status --show-password` prints it. The ID belongs to the host's identity key and stays the same across restarts. The temporary password changes on every start. For a fixed password, run `remohop passwd`, which asks for it without echo and never prints it afterwards.
 
 ## 4. Or run the host as a service
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"os"
@@ -385,6 +386,22 @@ func passwordLine(password, mode string) string {
 	return password + "  (temporary, changes on restart)"
 }
 
+// stdoutIsTerminal reports whether w is a terminal. The banner shows the
+// password only then: a service's stdout is its log (the journal, a launchd
+// log file, service.log), which others may read or paste into bug reports.
+var stdoutIsTerminal = func(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
+}
+
+// hiddenPasswordLine replaces the password in a banner that goes to a log.
+func hiddenPasswordLine(mode string) string {
+	if mode == "fixed" {
+		return passwordLine("", mode)
+	}
+	return "(not shown: output is not a terminal; `remohop status --show-password` prints it)"
+}
+
 func printReady(env *cli.Env, h *Host, cfg Config) {
 	w := env.Stdout
 	fmt.Fprintln(w, "RemoHop host ready")
@@ -392,7 +409,11 @@ func printReady(env *cli.Env, h *Host, cfg Config) {
 		fmt.Fprintf(w, "  ID:        %s\n", signal.FormatID(id))
 	}
 	password, mode := h.TempPassword()
-	fmt.Fprintf(w, "  Password:  %s\n", passwordLine(password, mode))
+	if stdoutIsTerminal(w) {
+		fmt.Fprintf(w, "  Password:  %s\n", passwordLine(password, mode))
+	} else {
+		fmt.Fprintf(w, "  Password:  %s\n", hiddenPasswordLine(mode))
+	}
 	direct := h.DirectAddrs()
 	for i, ap := range direct {
 		label := "  Direct:   "
