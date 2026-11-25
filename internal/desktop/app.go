@@ -254,7 +254,7 @@ func (a *App) startGateway() error {
 func (a *App) ConsoleURL(target string) (string, error) {
 	a.mu.Lock()
 	gw := a.gw
-	lang := a.settings.Lang
+	lang, theme := a.settings.Lang, a.settings.Theme
 	a.mu.Unlock()
 	if gw == nil {
 		return "", errors.New("the console is not running")
@@ -269,6 +269,9 @@ func (a *App) ConsoleURL(target string) (string, error) {
 	}
 	if lang != "" {
 		q.Set("lang", lang)
+	}
+	if theme != "" {
+		q.Set("theme", theme)
 	}
 	q.Set("app", "desktop")
 	if a.cfg.UIOrigin != "" {
