@@ -80,7 +80,10 @@ func TestPartialUploadIsLockedAndKept(t *testing.T) {
 	pr, pw := io.Pipe()
 	go func() {
 		pw.Write(bytes.Repeat([]byte("a"), 3*bulkChunk))
-		time.Sleep(200 * time.Millisecond)
+		// Write returns once the client has read the bytes, not once the
+		// host has written them: break the upload only when all of it is
+		// on disk.
+		waitForSize(part, 3*bulkChunk)
 		cancel()
 		pw.CloseWithError(errors.New("source broke"))
 	}()
@@ -227,6 +230,16 @@ func (g swapGuard) File(ctx context.Context, op string, a grant.Access, p string
 }
 func (g swapGuard) FileScope() (*grant.Scope, error) { return g.cur.Load().Scope(), nil }
 
+// waitForSize waits (up to 20 s, for slow and loaded machines) until the
+// file at p has size bytes; the caller's own check reports a failure.
+func waitForSize(p string, size int64) {
+	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if fi, err := os.Stat(p); err == nil && fi.Size() >= size {
+			return
+		}
+	}
+}
+
 // breakUpload sends n bytes to dst through the partial file of key and
 // then breaks the upload, and returns the partial file's path once the
 // host has written all of it.
@@ -241,7 +254,7 @@ func breakUpload(t *testing.T, c *Client, dst, key string, n int) string {
 	pr, pw := io.Pipe()
 	go func() {
 		pw.Write(bytes.Repeat([]byte("a"), n))
-		time.Sleep(200 * time.Millisecond)
+		waitForSize(part, int64(n)) // see TestPartialUploadIsLockedAndKept
 		cancel()
 		pw.CloseWithError(errors.New("source broke"))
 	}()
