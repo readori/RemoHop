@@ -166,8 +166,11 @@ jobs:
           sudo install -m 644 packaging/systemd/remohop.service /usr/lib/systemd/system/remohop.service
           sudo systemctl daemon-reload
           /usr/bin/remohop service status && { echo "::error::disabled packaged unit counted as installed"; exit 1; } || true
+          # The packaged unit runs plain `remohop host`, which needs a rendezvous server configured.
+          sudo install -d -m 700 /var/lib/remohop
+          sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop /usr/bin/remohop config set signal 127.0.0.1:21116
           sudo systemctl enable --now remohop.service
-          sleep 2; /usr/bin/remohop service status
+          sleep 3; /usr/bin/remohop service status || { sudo journalctl -u remohop -n 20 --no-pager; exit 1; }
           sudo /usr/bin/remohop service restart
           sudo /usr/bin/remohop service logs -n 3
           sudo /usr/bin/remohop service uninstall | tee out.txt
