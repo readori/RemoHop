@@ -38,6 +38,15 @@ type captureSpec struct {
 	// capture_hub.go. The caller closes its copy of the pipe once ffmpeg
 	// runs and calls release when that ffmpeg is done.
 	attach func(fps int) (stdin *os.File, release func(), err error)
+	// gpu, when set, returns a filter chain that feeds enc straight from
+	// the capture device's GPU frames, replacing filter, the scaling and
+	// the encoder's pixel format conversion, and whether that works on
+	// this machine (Windows Desktop Duplication into a GPU encoder). It is
+	// only asked when the picture is not scaled.
+	gpu func(enc *encoder) (chain string, ok bool)
+	// gpuFailed records that an encoder fed by the gpu chain failed in a
+	// session, so that the next start uses the default chain.
+	gpuFailed func(enc *encoder)
 }
 
 // injector delivers input events on the host.
