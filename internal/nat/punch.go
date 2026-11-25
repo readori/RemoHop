@@ -136,7 +136,7 @@ func (s *Socket) Punch(nonce []byte, role Role, remote []netip.AddrPort, lifetim
 		if !r.IsValid() || r.Port() == 0 || sess.known[r] || len(sess.remotes) >= 2*MaxCandidates {
 			continue
 		}
-		if s.Excluded(r.Addr()) {
+		if s.excludes(r.Addr()) {
 			// Reached only through our own tunnel (exclude.go).
 			continue
 		}
@@ -290,7 +290,7 @@ func (p *Session) handle(pkt []byte, src netip.AddrPort) {
 	if !hmac.Equal(pkt[20:36], p.mac(pkt[:20], p.role.peer())) {
 		return
 	}
-	if p.sock.Excluded(src.Addr()) {
+	if p.sock.excludes(src.Addr()) {
 		// It came through our own tunnel (exclude.go): neither answer it
 		// nor adopt or prove the address.
 		return
