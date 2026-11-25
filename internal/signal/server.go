@@ -132,11 +132,14 @@ func (r *RelayConfig) defaults() {
 }
 
 // intro remembers a recent introduction, so that a relay is only ever set
-// up between the two peers the server itself introduced.
+// up between the two peers the server itself introduced. It names the
+// peers rather than holding their connections: a closed connection must not
+// stay reachable (some 30 KiB each) for as long as the entry lives.
 type intro struct {
-	client, host *serverConn
-	at           time.Time
-	relayed      bool
+	client  uint64 // serverConn.seq of the client's connection
+	host    string // the host's ID; its connection is looked up when needed
+	at      time.Time
+	relayed bool
 }
 
 const (
@@ -172,6 +175,7 @@ type Server struct {
 	relayCtx    context.Context // set by Serve
 	relays      int             // guarded by mu
 	intros      map[string]*intro
+	connSeq     atomic.Uint64
 
 	relayDeny     *denyFile   // nil without a deny list
 	relayUsage    *relayUsage // nil without a relay
@@ -185,7 +189,8 @@ type Server struct {
 }
 
 type serverConn struct {
-	q *quic.Conn
+	q   *quic.Conn
+	seq uint64 // unique per server, for intro
 	// addr is where the connection came from when it was accepted. A QUIC
 	// connection follows its peer to a new address; current says where it
 	// is now.
@@ -366,7 +371,7 @@ func (s *Server) Serve(ctx context.Context, main, alt net.PacketConn) error {
 		s.mainPort.Store(int32(ua.Port))
 	}
 	go s.housekeeping(ctx)
-	go s.watchMoves(ctx)
+	go s.shortHousekeeping(ctx)
 	if s.cfg.Relay != nil {
 		go s.relayHousekeeping(ctx)
 	}
@@ -465,36 +470,53 @@ func (s *Server) housekeeping(ctx context.Context) {
 	}
 }
 
-// watchMoves asks registered hosts whose address changed to register
-// again (closeMoved). Until they do, introductions already carry the new
-// address (peerAddr).
-func (s *Server) watchMoves(ctx context.Context) {
+// shortHousekeeping runs the checks that cannot wait for the hourly round.
+func (s *Server) shortHousekeeping(ctx context.Context) {
 	t := time.NewTicker(moveCheckEvery)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-t.C:
+		case now := <-t.C:
+			s.checkMoves()
+			s.expireIntros(now)
 		}
-		s.mu.Lock()
-		hosts := make([]*serverConn, 0, len(s.online))
-		for _, c := range s.online {
-			hosts = append(hosts, c)
+	}
+}
+
+// expireIntros forgets introductions too old to be relayed.
+func (s *Server) expireIntros(now time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for k, in := range s.intros {
+		if now.Sub(in.at) > introTTL {
+			delete(s.intros, k)
 		}
-		s.mu.Unlock()
-		for _, c := range hosts {
-			if c.bridged {
-				continue
+	}
+}
+
+// checkMoves asks registered hosts whose address changed to register again
+// (closeMoved). Until they do, introductions already carry the new address
+// (peerAddr).
+func (s *Server) checkMoves() {
+	s.mu.Lock()
+	hosts := make([]*serverConn, 0, len(s.online))
+	for _, c := range s.online {
+		hosts = append(hosts, c)
+	}
+	s.mu.Unlock()
+	for _, c := range hosts {
+		if c.bridged {
+			continue
+		}
+		if now := c.current(); now != c.addr && c.moved.CompareAndSwap(false, true) {
+			id := ""
+			if p := c.id.Load(); p != nil {
+				id = *p
 			}
-			if now := c.current(); now != c.addr && c.moved.CompareAndSwap(false, true) {
-				id := ""
-				if p := c.id.Load(); p != nil {
-					id = *p
-				}
-				s.log.Info("host moved; asking it to register again", "id", id, "from", c.addr, "to", now)
-				c.q.CloseWithError(closeMoved, "your address changed; register again")
-			}
+			s.log.Info("host moved; asking it to register again", "id", id, "from", c.addr, "to", now)
+			c.q.CloseWithError(closeMoved, "your address changed; register again")
 		}
 	}
 }
@@ -505,7 +527,7 @@ func (s *Server) handleConn(ctx context.Context, q *quic.Conn) {
 		q.CloseWithError(closeNormal, "unsupported address")
 		return
 	}
-	c := &serverConn{q: q, addr: addr, real: addr.Addr()}
+	c := &serverConn{q: q, seq: s.connSeq.Add(1), addr: addr, real: addr.Addr()}
 	c.source, c.net = sourceOf(addr.Addr())
 	if client, ok := s.ws.bridgedClient(addr); ok {
 		// Limits count against where the WebSocket came from.
@@ -824,15 +846,8 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		hostLocal = nil
 	}
 	s.mu.Lock()
-	if len(s.intros) >= maxIntros {
-		for k, in := range s.intros {
-			if time.Since(in.at) > introTTL {
-				delete(s.intros, k)
-			}
-		}
-	}
 	if len(s.intros) < maxIntros {
-		s.intros[string(nonce)] = &intro{client: c, host: host, at: time.Now()}
+		s.intros[string(nonce)] = &intro{client: c.seq, host: req.ID, at: time.Now()}
 	}
 	s.mu.Unlock()
 	s.log.Debug("introduced", "id", req.ID, "client", c.current(), "host", host.current())
@@ -860,13 +875,19 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 	}
 	s.mu.Lock()
 	in := s.intros[string(req.Nonce)]
-	valid := in != nil && in.client == c && !in.relayed && time.Since(in.at) < introTTL
+	valid := in != nil && in.client == c.seq && !in.relayed && time.Since(in.at) < introTTL
+	var host *serverConn
 	if valid {
 		in.relayed = true // one relay per introduction
+		host = s.online[in.host]
 	}
 	s.mu.Unlock()
 	if !valid {
 		fail(CodeBadRequest, "no such introduction", 0)
+		return
+	}
+	if host == nil {
+		fail(CodeNoRelay, "the host went offline", 0)
 		return
 	}
 	// Who the peers are, as far as this server can prove: a client key
@@ -884,11 +905,11 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		clientKey = req.Key
 	}
 	var hostKey []byte
-	if id := in.host.id.Load(); id != nil {
+	if id := host.id.Load(); id != nil {
 		hostKey, _ = s.store.keyOf(*id)
 	}
 	dec, reason, msg := s.admitRelay(relayPeer{source: c.source, addr: c.real, key: clientKey},
-		relayPeer{source: in.host.source, addr: in.host.real, key: hostKey})
+		relayPeer{source: host.source, addr: host.real, key: hostKey})
 	if reason != "" {
 		s.relayCounters.refuse(reason)
 		s.log.Debug("relay refused", "reason", reason, "client", c.addr)
@@ -941,11 +962,11 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		defer s.ws.relayPorts.Delete(uint16(port))
 		start := time.Now()
 		stats := nat.ServeRelay(relayCtx, pc, req.Nonce, nat.RelayLimits{Rate: dec.rate, Global: s.relayBudget, Idle: rc.Idle, Meter: s.relayUsage.add})
-		s.log.Info("relay session ended", "client", c.addr, "host", in.host.addr, "duration", time.Since(start).Round(time.Second),
+		s.log.Info("relay session ended", "client", c.addr, "host", host.addr, "duration", time.Since(start).Round(time.Second),
 			"bytes", stats.Bytes, "delayed_packets", stats.Delayed, "dropped_packets", stats.Dropped)
 	}()
 	st.SetDeadline(time.Now().Add(requestTimeout + offerTimeout))
-	answer, err := s.offer(in.host, request{T: "relay", V: protoVersion, Nonce: req.Nonce, RelayPort: port})
+	answer, err := s.offer(host, request{T: "relay", V: protoVersion, Nonce: req.Nonce, RelayPort: port})
 	if err != nil || !answer.OK {
 		reason := "the host did not accept the relay"
 		if err == nil && answer.Code == CodeNoRelay {
@@ -959,7 +980,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 	if dec.account {
 		tier = "account"
 	}
-	s.log.Info("relay session started", "client", c.addr, "host", in.host.addr, "port", port, "tier", tier, "kbps", dec.rate/125)
+	s.log.Info("relay session started", "client", c.addr, "host", host.addr, "port", port, "tier", tier, "kbps", dec.rate/125)
 	writeMsg(st, response{OK: true, RelayPort: port})
 }
 
