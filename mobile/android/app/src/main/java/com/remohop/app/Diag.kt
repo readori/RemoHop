@@ -76,7 +76,10 @@ object Diag {
             .putExtra(Intent.EXTRA_STREAM, uri)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         send.clipData = ClipData.newRawUri("", uri)
-        send.selector = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+        // Mail apps only, where there is one; with none (createChooser never
+        // throws, it would show an empty list) any app that takes a file.
+        val mail = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:"))
+        if (context.packageManager.queryIntentActivities(mail, 0).isNotEmpty()) send.selector = mail
         try {
             context.startActivity(Intent.createChooser(send, chooserTitle))
         } catch (e: ActivityNotFoundException) {
