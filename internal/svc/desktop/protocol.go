@@ -290,6 +290,11 @@ type HostStats struct {
 	InFlight   int     `json:"in_flight"`   // unacknowledged frames
 	PipelineMS float64 `json:"pipeline_ms"` // capture -> encoded, when known
 	Restarts   int     `json:"restarts"`    // encoder restarts so far
+	// AckMS is the smoothed time from sending a frame to its ack (round
+	// trip plus the viewer's decode), WindowMS how much video may be
+	// unacknowledged (see flow.go).
+	AckMS    float64 `json:"ack_ms,omitempty"`
+	WindowMS float64 `json:"window_ms,omitempty"`
 }
 
 type pong struct {
