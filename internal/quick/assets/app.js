@@ -13,6 +13,7 @@
       password: 'Password',
       copy: 'Copy',
       copied: 'Copied',
+      copy_manual: 'Selected: press Ctrl+C (⌘C on a Mac) to copy',
       new_password: 'Create a new password',
       creds_hint: 'Give the ID and the password to the person helping you, and to nobody else. You will be asked before anyone can connect.',
       waiting_id: 'Getting an ID…',
@@ -65,7 +66,11 @@
       net_approve: 'The password alone lets nobody in: every connection waits for you to press Allow, and is refused after {s} seconds without an answer.',
       net_device: 'This computer\'s name: {name}',
       setup_title: 'One step before you start',
-      setup_text: 'RemoHop needs the address of the server your helper uses. Ask them for it and type it here. You only do this once.',
+      setup_text: 'Your helper reaches this computer through a small meeting-point server (a "rendezvous server") that they or their company run; RemoHop has no server of its own. Ask your helper for its address, which looks like support.example.com, and type it here. You only do this once.',
+      setup_why: 'Why is this needed?',
+      setup_why_text: 'The server only introduces the two computers to each other, so your helper can find this one by its ID. It cannot see your screen: the connection is end-to-end encrypted. If your helper is on the same network as you, they can also connect to this computer\'s address directly; they will tell you if so.',
+      err_no_server: 'Enter the server address.',
+      err_bad_server: '"{server}" is not a server address. It looks like support.example.com or support.example.com:21116.',
       setup_label: 'Server address',
       setup_go: 'Continue',
       err_running_title: 'RemoHop is already running on this computer',
@@ -88,6 +93,7 @@
       password: '密码',
       copy: '复制',
       copied: '已复制',
+      copy_manual: '已选中：按 Ctrl+C（Mac 上按 ⌘C）复制',
       new_password: '换一个新密码',
       creds_hint: '把 ID 和密码告诉帮助你的人，不要告诉其他人。任何人连接之前，都会先征得你的同意。',
       waiting_id: '正在获取 ID…',
@@ -140,9 +146,11 @@
       net_approve: '只有密码进不来：每个连接都要等你点“允许”，{s} 秒内没有答复就会被拒绝。',
       net_device: '这台电脑的名称：{name}',
       setup_title: '开始之前还差一步',
-      setup_text: 'RemoHop 需要知道协助者所用服务器的地址。请向对方索取并填在这里，只需填写一次。',
+      setup_text: '协助者要通过一台小小的“碰头点”服务器（汇合服务器）才能找到这台电脑，这台服务器由协助者或其公司运行；RemoHop 本身不提供服务器。请向协助者索取它的地址（类似 support.example.com），填在这里。只需填写一次。',
       setup_label: '服务器地址',
       setup_go: '继续',
+      setup_why: '为什么需要它？',
+      setup_why_text: '这台服务器只负责把两台电脑介绍给对方，让协助者能凭 ID 找到你的电脑。它看不到你的屏幕：连接是端到端加密的。如果协助者和你在同一个网络中，他们也可以直接连接这台电脑的地址；需要时他们会告诉你。',
       err_running_title: 'RemoHop 已经在这台电脑上运行',
       err_running_text: '它正在后台运行（作为系统服务或在终端里），因此快速协助无法再启动一份。',
       err_running_id: '它的 ID 是 {id}。密码请询问为你设置它的人。',
@@ -417,18 +425,33 @@
     };
   }
 
-  function copy(btn, text) {
-    var done = function () {
-      btn.textContent = t('copied');
-      setTimeout(function () { btn.textContent = t('copy'); }, 1500);
+  // Copy: the clipboard API, else the older copy command, else the text is
+  // selected and the button says how to copy it (never nothing at all).
+  function copy(btn, el) {
+    var text = el.textContent;
+    var say = function (k) {
+      btn.textContent = t(k);
+      setTimeout(function () { btn.textContent = t('copy'); }, k === 'copied' ? 1500 : 4000);
+    };
+    var select = function () {
+      var r = document.createRange();
+      r.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(r);
+      return sel;
+    };
+    var legacy = function () {
+      var ok = false;
+      try { select(); ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      if (ok) { window.getSelection().removeAllRanges(); say('copied'); } else { select(); say('copy_manual'); }
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () {});
-    }
+      navigator.clipboard.writeText(text).then(function () { say('copied'); }, legacy);
+    } else legacy();
   }
 
-  $('copyid').addEventListener('click', function () { copy(this, $('id').textContent); });
-  $('copypw').addEventListener('click', function () { copy(this, $('pw').textContent); });
+  $('copyid').addEventListener('click', function () { copy(this, $('id')); });
+  $('copypw').addEventListener('click', function () { copy(this, $('pw')); });
   $('regen').addEventListener('click', function () { act('regenerate'); });
   $('stop').addEventListener('click', function () { $('stop').disabled = true; act('stop'); });
   ['input', 'files', 'advanced'].forEach(function (name) {
@@ -440,8 +463,10 @@
     var server = $('server').value.trim();
     api('configure', { server: server }).catch(function (e) {
       // English shows the process's own words; Chinese has its own.
+      // In this page's words in either language; the process's own text
+      // only for a case it has no words for.
       var k = 'err_' + e.code;
-      $('setuperr').textContent = lang !== 'en' && T[lang][k] ? t(k, { server: server }) : e.message;
+      $('setuperr').textContent = T[lang][k] ? t(k, { server: server }) : e.message;
     });
   });
   $('lang').addEventListener('click', function () {
