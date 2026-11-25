@@ -319,7 +319,7 @@ func (a *gtkApp) NewWindow(o Options) (Window, error) {
 		return nil, errors.New("webview: gtk_window_new failed")
 	}
 	l.setTitle(w.win, o.Title)
-	width, height := o.size()
+	width, height := o.Size()
 	l.setDefaultSize(w.win, int32(width), int32(height))
 	if o.MinWidth > 0 || o.MinHeight > 0 {
 		l.setSizeRequest(w.win, int32(o.MinWidth), int32(o.MinHeight))
