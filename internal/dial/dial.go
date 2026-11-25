@@ -567,6 +567,7 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 	}
 	busy := 0
 	for {
+		loginStart := time.Now()
 		info, err := d.login(ctx, q, t, cred)
 		if err == nil {
 			info.Path, info.Remote = rt.path, rt.remote
@@ -578,7 +579,8 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 				ap := la.AddrPort()
 				info.Local = netip.AddrPortFrom(ap.Addr().Unmap(), ap.Port())
 			}
-			d.log.Debug("session established", "target", t.canonical, "path", info.Path, "remote", info.Remote, "auth", info.Auth)
+			d.log.Debug("session established", "target", t.canonical, "path", info.Path, "remote", info.Remote, "auth", info.Auth,
+				"login", time.Since(loginStart).Round(time.Millisecond).String())
 			// A relay session is released when the session ends, so the
 			// relay frees it at once: synchronously on Close (before the
 			// process may exit), and when the host ends it.
@@ -868,6 +870,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		QUIC:      peer.QUICConfig(),
 		PunchTime: punchTime,
 		Prefer:    prefer,
+		Logger:    d.log,
 	})
 	if err != nil {
 		if !errors.Is(err, nat.ErrNoPath) {
