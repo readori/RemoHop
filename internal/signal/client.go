@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -51,6 +54,7 @@ type Options struct {
 // socket.
 type Client struct {
 	q      *quic.Conn
+	sock   *nat.Socket
 	server netip.AddrPort
 	key    ed25519.PublicKey
 	// bridged: the connection runs over the websocket bridge.
@@ -65,6 +69,7 @@ type Client struct {
 	natOnce   sync.Once
 	natType   nat.Type
 	stopProbe context.CancelFunc
+	watching  sync.Once
 }
 
 // natGrace is how long after the rendezvous connection is up the NAT
@@ -121,7 +126,7 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 	}
 
 	ap := ua.AddrPort()
-	c := &Client{server: netip.AddrPortFrom(ap.Addr().Unmap(), ap.Port()), natCh: make(chan nat.Type, 1), bridged: bridged}
+	c := &Client{sock: sock, server: netip.AddrPortFrom(ap.Addr().Unmap(), ap.Port()), natCh: make(chan nat.Type, 1), bridged: bridged}
 	// Measure the NAT now, alongside the handshake: the result has to be
 	// in hand before an introduction is requested, both to send it along
 	// and because punching can change what a NAT answers. Through the
@@ -261,7 +266,74 @@ func (c *Client) Register(ctx context.Context, id *auth.Identity) (*Registration
 	}
 	reg := &Registration{ID: resp.ID, Alt: c.alt(resp.AltPort)}
 	reg.Reflexive, _ = parseAddr(resp.You)
+	c.watching.Do(func() { go c.watch() })
 	return reg, nil
+}
+
+// A registered host's connection outlives what it was made for when the
+// machine sleeps (the server drops it meanwhile, and the host would find out
+// only by its idle timeout, offline until then: just when Wake-on-LAN or
+// the user expects it back) or moves to another network (the server's view
+// of its address and NAT go stale). watch notices both and ends the
+// connection, so the host registers again at once.
+
+// watchEvery is how often a registered host checks, in nanoseconds;
+// tests shorten it.
+var watchEvery atomic.Int64
+
+func init() { watchEvery.Store(int64(5 * time.Second)) }
+
+// sleepJump is how much longer than expected a check may come before the
+// machine is taken to have slept.
+const sleepJump = 15 * time.Second
+
+// slept reports whether the time between two checks says the machine was
+// asleep: the monotonic clock stands still during sleep on most systems,
+// the wall clock does not, and where the monotonic clock runs on the check
+// itself comes late.
+func slept(wall, mono, every time.Duration) bool {
+	return wall-mono > sleepJump || mono > every+sleepJump
+}
+
+// netPrint summarises the machine's addresses: the IPv4 addresses and the
+// IPv6 /64s (temporary IPv6 addresses come and go within their /64; that is
+// no network change).
+func netPrint(addrs []netip.Addr) string {
+	var keys []string
+	for _, a := range addrs {
+		if a.Is6() {
+			a = netip.PrefixFrom(a, 64).Masked().Addr()
+		}
+		keys = append(keys, a.String())
+	}
+	slices.Sort(keys)
+	return strings.Join(slices.Compact(keys), ",")
+}
+
+func (c *Client) watch() {
+	every := time.Duration(watchEvery.Load())
+	t := time.NewTicker(every)
+	defer t.Stop()
+	prev := time.Now()
+	prevNet := netPrint(c.sock.Locals())
+	for {
+		select {
+		case <-c.q.Context().Done():
+			return
+		case <-t.C:
+		}
+		now := time.Now()
+		wall, mono := now.Round(0).Sub(prev.Round(0)), now.Sub(prev)
+		prev = now
+		if slept(wall, mono, every) {
+			c.q.CloseWithError(0, "woke from sleep; registering again")
+			return
+		}
+		if n := netPrint(c.sock.Locals()); n != prevNet {
+			c.q.CloseWithError(0, "the network changed; registering again")
+			return
+		}
+	}
 }
 
 func (c *Client) alt(port int) netip.AddrPort {
