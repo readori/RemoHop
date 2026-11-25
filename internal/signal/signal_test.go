@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -477,6 +478,57 @@ func TestStatelessResetAfterServerRestart(t *testing.T) {
 		t.Fatal("the host did not learn that the server forgot its connection")
 	}
 	t.Logf("host noticed after %s", time.Since(start).Round(time.Millisecond))
+}
+
+// A registered host ends its rendezvous connection when the machine's
+// network changes (and when it wakes from sleep), so it registers again at
+// once with what is true now.
+func TestHostNoticesNetworkChange(t *testing.T) {
+	defer watchEvery.Store(watchEvery.Load())
+	watchEvery.Store(int64(20 * time.Millisecond))
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	h := tn.net.Host("192.0.2.20")
+	sock := tn.socket(h)
+	var addrs atomic.Pointer[[]netip.Addr]
+	addrs.Store(&[]netip.Addr{h.Addr(), netip.MustParseAddr("2001:db8:1:2::1")})
+	sock.Locals = func() []netip.Addr { return *addrs.Load() }
+	hc := tn.dial(sock, Options{})
+	if _, err := hc.Register(ctx, newIdentity(t)); err != nil {
+		t.Fatal(err)
+	}
+	// A new temporary IPv6 address in the same /64 is no change.
+	addrs.Store(&[]netip.Addr{netip.MustParseAddr("2001:db8:1:2::77"), h.Addr()})
+	select {
+	case <-hc.Done():
+		t.Fatalf("connection ended for a new address in the same /64: %v", hc.Err())
+	case <-time.After(200 * time.Millisecond):
+	}
+	addrs.Store(&[]netip.Addr{netip.MustParseAddr("10.1.2.3")})
+	select {
+	case <-hc.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("the network changed and the host kept its old registration")
+	}
+}
+
+func TestSleepDetection(t *testing.T) {
+	const every = 5 * time.Second
+	cases := []struct {
+		wall, mono time.Duration
+		want       bool
+	}{
+		{every, every, false},
+		{every + time.Second, every, false},                    // a slow tick
+		{every + 10*time.Minute, every, true},                  // monotonic clock stood still
+		{every + 10*time.Minute, every + 10*time.Minute, true}, // monotonic clock ran
+		{every - 2*time.Second, every, false},                  // wall clock set back a bit
+	}
+	for _, c := range cases {
+		if got := slept(c.wall, c.mono, every); got != c.want {
+			t.Errorf("slept(wall %s, mono %s) = %v", c.wall, c.mono, got)
+		}
+	}
 }
 
 func TestOneIdentityPerConnection(t *testing.T) {
