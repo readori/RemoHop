@@ -4,8 +4,12 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"github.com/readori/RemoHop/internal/peer"
+	"net"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -660,5 +664,43 @@ func TestParseRoutes(t *testing.T) {
 	}
 	if r, err := parseRoutes(""); err != nil || r != nil {
 		t.Fatal("empty")
+	}
+}
+
+// stuckStream is a link stream to a peer that stopped draining: writes
+// block until the stream is reset.
+type stuckStream struct {
+	peer.Stream
+	reset chan struct{}
+	once  sync.Once
+}
+
+func (s *stuckStream) Write(p []byte) (int, error)      { <-s.reset; return 0, net.ErrClosed }
+func (s *stuckStream) SetWriteDeadline(time.Time) error { return nil }
+func (s *stuckStream) Reset()                           { s.once.Do(func() { close(s.reset) }) }
+
+// One peer that stops taking packets must not hold up the interface's read
+// loop, which serves every peer: its link drops its own packets instead.
+func TestStalledPeerDoesNotBlock(t *testing.T) {
+	st := &stuckStream{reset: make(chan struct{})}
+	l := &link{s: st, done: make(chan struct{}), out: make(chan []byte, sendQueueLen)}
+	go l.sendLoop()
+	pkt := make([]byte, 1200)
+	start := time.Now()
+	full := 0
+	for i := 0; i < 10*sendQueueLen; i++ {
+		if err := l.send(pkt); errors.Is(err, errQueueFull) {
+			full++
+		}
+	}
+	if took := time.Since(start); took > time.Second {
+		t.Fatalf("sending to a stalled peer took %s", took)
+	}
+	if full < 8*sendQueueLen {
+		t.Fatalf("%d packets dropped for a full queue, want most of them", full)
+	}
+	l.close(errors.New("test"))
+	if err := l.send(pkt); err == nil {
+		t.Fatal("a closed link took a packet")
 	}
 }
