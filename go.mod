@@ -20,9 +20,12 @@ require (
 	golang.org/x/term v0.48.0
 )
 
+require github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
+
 require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/gtank/ristretto255 v0.1.2 // indirect
+	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
