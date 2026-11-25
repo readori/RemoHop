@@ -46,54 +46,6 @@
     mo.observe(document, {childList: true});
   })();
 
-  // ---- the app's colours (Android: Material You) ----
-  // The Android app sends its colour roles, from the wallpaper (dynamic
-  // colour) where the device has it, so the console matches Settings. They
-  // become the page's --md-* role variables, for the light or dark scheme as
-  // the page shows it; style.css keeps its own cobalt roles otherwise. The
-  // last ones are kept so the page starts in them. CSSOM only: the gateway's
-  // CSP allows no inline <style>.
-  const appTheme = (function () {
-    const KEY = 'remohop.mobile.theme';
-    const HEX = /^#[0-9a-fA-F]{6}$/, NAME = /^[a-z]+(-[a-z]+)*$/;
-    let roles = null;
-    const dark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-    function valid(t) {
-      if (!t || typeof t !== 'object') return null;
-      const out = {};
-      for (const scheme of ['light', 'dark']) {
-        const src = t[scheme];
-        if (!src || typeof src !== 'object') return null;
-        out[scheme] = {};
-        for (const k of Object.keys(src)) if (NAME.test(k) && HEX.test(String(src[k]))) out[scheme][k] = String(src[k]);
-        if (!out[scheme].primary || !out[scheme].surface) return null;
-      }
-      return out;
-    }
-    function apply() {
-      const root = document.documentElement;
-      if (!roles || !root) return;
-      const set = roles[dark && dark.matches ? 'dark' : 'light'];
-      for (const k of Object.keys(set)) root.style.setProperty('--md-' + k, set[k]);
-    }
-    function use(t, keep) {
-      const v = valid(t);
-      if (!v) return;
-      roles = v;
-      if (keep) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* storage blocked */ } }
-      apply();
-    }
-    if (dark && dark.addEventListener) dark.addEventListener('change', apply);
-    return {use, apply, load() { try { use(JSON.parse(localStorage.getItem(KEY) || 'null'), false); } catch (e) { /* none */ } }};
-  })();
-  if (window.remohopNative) {
-    appTheme.load();
-    if (!document.documentElement) {
-      const mo = new MutationObserver(() => { if (document.documentElement) { mo.disconnect(); appTheme.apply(); } });
-      mo.observe(document, {childList: true});
-    }
-  }
-
   // ---- keep the gateway session across a new WebView ----
   // The page keeps its gateway session id in sessionStorage, which a new
   // WebView does not have: after the Activity is recreated (the system
@@ -154,8 +106,6 @@
       post(method, args) { this.call(method, args).catch(() => {}); },
     };
   })();
-
-  if (window.remohopNative) native.call('theme').then(t => appTheme.use(t, true)).catch(() => {});
 
   // ---- diagnostics: page errors go to the app's diagnostic log, which
   // keeps them only while the user has it on (and redacts them) ----
@@ -232,7 +182,7 @@
       // App wording for the page's saved hosts.
       'peers.h': 'My computers',
       'peers.recent.h': 'Recent',
-      // The first-connection notice, short (the bar shows one line; tap closes it).
+      // The first-connection notice, short (a line or two in the app's bar; a tap closes it).
       'sess.firstkey': 'First connection · key pinned: {fp}',
       'm.saved': 'Saved hosts',
       'm.active': 'Connected now',

@@ -23,7 +23,6 @@ import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.color.DynamicColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.progressindicator.CircularProgressIndicator
@@ -40,8 +39,8 @@ import com.google.android.material.R as M
  * that collapses on scroll (medium on the pages under it), list items in
  * rounded groups by task under subheaders (see [SettingsUi]), a status card
  * for the rendezvous server, M3 switches, outlined text fields, filled and
- * tonal buttons, dialogs, bottom sheets and snackbars; dynamic colour on
- * Android 12+ and the cobalt scheme otherwise, light and dark.
+ * tonal buttons, dialogs, bottom sheets and snackbars; always in the
+ * RemoHop cobalt scheme (no dynamic colour), light and dark.
  *
  * No paragraphs on the screens: each page's explanation is a bottom sheet
  * behind the ⓘ in its app bar. Fields save themselves when they are left
@@ -79,7 +78,6 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         Core.init(this)
         ui = SettingsUi(this)

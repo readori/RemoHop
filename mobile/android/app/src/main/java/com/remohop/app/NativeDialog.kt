@@ -12,7 +12,6 @@ import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.appcompat.app.AlertDialog
-import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
@@ -21,15 +20,15 @@ import com.google.android.material.R as M
 
 /**
  * The page's dialogs (see [DialogRequest]) as Material 3 dialogs, built
- * with MaterialAlertDialogBuilder in the Settings theme (dynamic colour on
- * Android 12+): a title, supporting text and text buttons "Cancel" and the
+ * with MaterialAlertDialogBuilder in the Settings theme (the cobalt
+ * scheme): a title, supporting text and text buttons "Cancel" and the
  * confirming one, in the error colour when it ends something; an outlined
  * text field for a prompt; a list for a few actions (destructive ones in
  * the error colour). Each answers exactly once; dismissing is Cancel.
  */
 object NativeDialog {
     fun show(a: Activity, r: DialogRequest, done: (DialogAnswer) -> Unit): AlertDialog {
-        val ctx = DynamicColors.wrapContextIfAvailable(ContextThemeWrapper(a, R.style.Theme_RemoHop_Settings))
+        val ctx = ContextThemeWrapper(a, R.style.Theme_RemoHop_Settings)
         var answered = false
         val finish = { ans: DialogAnswer -> if (!answered) { answered = true; done(ans) } }
         val error = MaterialColors.getColor(ctx, M.attr.colorError, "NativeDialog")

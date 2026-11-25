@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material 3 colour roles seeded from the brand cobalt #2546d8 (the scheme when
-     there is no dynamic colour), the same roles the web console uses in the
+<!-- Material 3 colour roles seeded from the brand cobalt #2546d8 (always: the
+     app uses no dynamic colour), the same roles the web console uses in the
      Android app (style.css, html.app.platform-android). -->
 <resources>
     <color name="md_primary">#2546D8</color>
@@ -37,7 +37,7 @@
     <color name="md_surface_container_highest">#E3E1E9</color>
     <color name="md_surface_dim">#DBD9E0</color>
     <color name="md_surface_bright">#FBF8FF</color>
-    <!-- The main window before the page draws (the page colour: surfaceContainer;
-         AppTheme.pageColor paints the system bars, with dynamic colour). -->
+    <!-- The console's page colour (surfaceContainer): the main window and
+         its system bars behind the page. -->
     <color name="rh_bg">#efedf4</color>
 </resources>
