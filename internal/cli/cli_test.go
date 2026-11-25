@@ -94,3 +94,46 @@ func TestErrorfSanitizes(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// TestHelpAndTargetOnly: `--help` after any command prints its help on
+// stdout and exits 0; a host named alone (not on a terminal) lists what can
+// be done with it; a word that is no host stays an unknown command.
+func TestHelpAndTargetOnly(t *testing.T) {
+	ran := false
+	Register(&Command{Name: "t-help-remote", Remote: true, Summary: "remote thing", Usage: "Usage: remohop <ID> t-help-remote [-x]",
+		Run: func(ctx context.Context, env *Env, args []string) int { ran = true; return 0 }})
+	Register(&Command{Name: "t-help-local", Summary: "local thing",
+		Run: func(ctx context.Context, env *Env, args []string) int { ran = true; return 0 }})
+	run := func(args ...string) (int, string, string) {
+		var out, errb bytes.Buffer
+		code := Main(context.Background(), args, strings.NewReader(""), &out, &errb)
+		return code, out.String(), errb.String()
+	}
+	for _, args := range [][]string{
+		{"t-help-local", "--help"}, {"t-help-local", "-v", "-h"}, {"t-help-remote", "--help"},
+		{"123456789", "t-help-remote", "--help"}, {"10.0.0.2:21118", "t-help-remote", "-help"},
+	} {
+		code, out, errOut := run(args...)
+		if code != ExitOK || out == "" || errOut != "" || ran {
+			t.Errorf("%q: code %d, stdout %q, stderr %q, ran %v", args, code, out, errOut, ran)
+		}
+	}
+	// After a positional argument or "--", --help belongs to the command.
+	if code, _, _ := run("123456789", "t-help-remote", "ls", "--help"); code != 0 || !ran {
+		t.Errorf("--help after an argument was taken: %d %v", code, ran)
+	}
+	if code, _, errOut := run("123456789"); code != ExitUsage || !strings.Contains(errOut, "t-help-remote") || strings.Contains(errOut, "unknown command") {
+		t.Errorf("target alone: %d %q", code, errOut)
+	}
+	KnownTarget = func(n string) bool { return n == "lab" }
+	defer func() { KnownTarget = nil }()
+	if code, _, errOut := run("lab"); code != ExitUsage || !strings.Contains(errOut, "what should lab do") {
+		t.Errorf("alias alone: %d %q", code, errOut)
+	}
+	if code, _, errOut := run("labx"); code != ExitUsage || !strings.Contains(errOut, "unknown command") {
+		t.Errorf("unknown word: %d %q", code, errOut)
+	}
+	if !wantsHelp([]string{"--json", "--help"}) || wantsHelp([]string{"--", "--help"}) || wantsHelp([]string{"x", "-h"}) {
+		t.Error("wantsHelp")
+	}
+}

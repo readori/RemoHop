@@ -62,7 +62,11 @@ func init() {
 		signal.DefaultAddr, signal.DefaultPin, signal.DefaultWS = DefaultSignal, DefaultSignalPin, DefaultSignalWS
 	}
 	cli.Dialer = func(ctx context.Context, env *cli.Env) (*peer.Conn, error) {
-		return Dial(ctx, env.Target, OptionsFromEnv(env))
+		opts := OptionsFromEnv(env)
+		if err := rendezvousFirst(env.Target, opts); err != nil {
+			return nil, err
+		}
+		return Dial(ctx, env.Target, opts)
 	}
 }
 
