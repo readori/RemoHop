@@ -43,6 +43,9 @@ type Settings struct {
 	// logins are let in with the access chosen then, without a question,
 	// while incoming connections are on.
 	Trusted []TrustedDevice `json:"trusted,omitempty"`
+	// ServiceID is the Windows unattended-access service's ID, as the
+	// elevated steps last found it (its state is administrators' only).
+	ServiceID string `json:"service_id,omitempty"`
 	// Seen are the devices that asked before, so a request can say
 	// whether this one is new. Oldest first; bounded.
 	Seen []SeenDevice `json:"seen,omitempty"`

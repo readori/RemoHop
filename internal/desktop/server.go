@@ -216,6 +216,15 @@ func (s *Server) routes() {
 		return nil, a.EnableUnattended(r.Context(), q.Password)
 	})
 	post("/api/unattended/disable", func(r *http.Request, q req) (any, error) { return nil, a.DisableUnattended(r.Context()) })
+	post("/api/unattended/sessions", func(r *http.Request, q req) (any, error) {
+		ss, err := a.ServiceSessions(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"sessions": ss}, nil
+	})
+	post("/api/unattended/disconnect", func(r *http.Request, q req) (any, error) { return nil, a.ServiceDisconnect(r.Context(), q.ID) })
+	post("/api/unattended/password", func(r *http.Request, q req) (any, error) { return nil, a.ServicePassword(r.Context(), q.Password) })
 	post("/api/show", func(*http.Request, req) (any, error) { s.shell().Show(); return nil, nil })
 	post("/api/hide", func(*http.Request, req) (any, error) { s.shell().Hide(); return nil, nil })
 	post("/api/quit", func(*http.Request, req) (any, error) {

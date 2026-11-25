@@ -287,3 +287,17 @@ func TestServerAndConsole(t *testing.T) {
 		t.Fatal("bad target accepted")
 	}
 }
+
+func TestInDir(t *testing.T) {
+	dir := t.TempDir()
+	for p, want := range map[string]bool{
+		dir + "/unattended-1/result.json": true,
+		dir + "/../evil":                  false,
+		dir:                               false,
+		"relative/result.json":            false,
+	} {
+		if inDir(dir, p) != want {
+			t.Errorf("inDir(%q) = %v", p, !want)
+		}
+	}
+}
