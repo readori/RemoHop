@@ -59,8 +59,10 @@ elsewhere, through the same private redirect file quick support uses
   dialog (Windows flashes the task bar button when it may not take the
   foreground). No separate notification system: the decision must be made in
   the app, with its warning.
-- **Being controlled.** A small undecorated window that stays above all
-  others while anyone is connected (Win32 `WS_EX_TOPMOST|WS_EX_TOOLWINDOW|
+- **Being controlled.** A small undecorated window in the bottom-right corner
+  of the work area (where notifications appear, clear of the menu bar and of
+  the app's own window and tab bar) that stays above all others while anyone
+  is connected (Win32 `WS_EX_TOPMOST|WS_EX_TOOLWINDOW|
   WS_EX_NOACTIVATE`, `NSFloatingWindowLevel` on all Spaces, GTK keep-above;
   Wayland compositors place it where they like).
 - **Start at login.** Windows: `HKCU\…\Run`; macOS: a LaunchAgent
@@ -70,38 +72,54 @@ elsewhere, through the same private redirect file quick support uses
 - **Single instance.** A lock file in the config directory; a second start
   reads the running app's page address (`desktop.url`, 0600) and asks it to
   show its window.
-- **Elevation.** Only Windows needs it (unattended access installs a
-  LocalSystem service): `ShellExecuteEx` with the `runas` verb starts the app
-  itself with a hidden `desktop-unattended` command; the password goes
-  through a file in the user's private run directory, never the command line.
+- **Elevation.** Only Windows needs it, and only on demand: the app runs
+  unelevated, and each unattended-access step (install, remove, list the
+  service's sessions, disconnect one, change the password) starts the app
+  itself with the `runas` verb (`ShellExecuteEx`) and a hidden
+  `desktop-unattended` command, which talks to the service's control channel
+  (`hostd.ControlSessions`, `ControlDisconnect`) or writes its settings in
+  `%ProgramData%\RemoHop`. Arguments and results go through files in the
+  user's private run directory (the elevated step refuses any other path);
+  the password never appears on a command line.
 
 ## Decisions
 
 1. **Extend `cmd/remohop-quick`, no new command.** It already is the
    double-click product on every platform: the GUI-subsystem RemoHop.exe with
    icon and manifest, RemoHop.app with its bundle ID, signing and
-   notarisation, and the byte-for-byte rebuild check of the release. A
-   double-click now opens the app; `RemoHop.exe --quick` (and `remohop
-   quick`) is still the one-shot quick-support window, unchanged. The bundle
-   ID stays `com.remohop.quick`: changing it would reset the macOS Screen
-   Recording and Accessibility permissions users already granted, for no gain
-   to them.
-2. **No cgo anywhere.** All three platforms work through system calls and
+   notarisation, and the byte-for-byte rebuild check of the release.
+2. **Two downloads, one program, told apart by name** (owner's choice: the
+   person being helped must never need a flag). `cmd/remohop-quick/launch.go`:
+   a file name with "quick" in it starts quick support, any other the app.
+   - Windows: `RemoHop.exe` and `RemoHop-QuickSupport.exe`, the same signed
+     file renamed (Authenticode does not cover the name), in
+     `RemoHop-windows-*.zip` and `RemoHop-QuickSupport-windows-*.zip`.
+   - macOS: `RemoHop.app` (`com.remohop.quick`, kept so that users keep their
+     Screen Recording and Accessibility grants) and `RemoHop Quick
+     Support.app` (`com.remohop.quicksupport`, executable
+     `RemoHop-QuickSupport`), the same universal program in two bundles,
+     both signed, notarized and stapled by the CI repository's workflow and
+     both compared with a rebuild by `scripts/verify-macos-release.sh`;
+     `RemoHop-macos.dmg` (the app) and `RemoHop-QuickSupport-macos.zip`
+     (unzip and open).
+   - Linux: `remohop-app_linux_*.tar.gz` and `remohop-quick_linux_*.tar.gz`.
+   `RemoHop.exe --quick` still works from any name.
+3. **No cgo anywhere.** All three platforms work through system calls and
    purego, so every binary still cross-compiles from Linux and the macOS
    release check (rebuild and compare with the signed files) keeps working.
-   The one cost is on Linux, where `remohop-quick` is now dynamically linked
-   against glibc; `remohop` itself stays static (a test in `cmd/remohop`
+   The one cost is on Linux, where `remohop-app`/`remohop-quick` are now
+   dynamically linked against glibc (accepted by the owner); `remohop` itself stays static (a test in `cmd/remohop`
    keeps purego and `internal/webview` out of it), and `remohop app` from that
    binary runs the same app in a browser.
-3. **The web view package is linked only into the app binary.**
+4. **The web view package is linked only into the app binary.**
    `internal/nativeui` is the interface (types, a registry); `internal/webview`
    registers the implementation from `init` and is imported by
    `cmd/remohop-quick` alone. `internal/desktop` (the app) is in both binaries.
-4. **Linux remote desktop stays in the app window** when WebKitGTK can decode
+5. **Linux remote desktop stays in the app window** when WebKitGTK can decode
    (it can, with GStreamer's libav plugin, as fast as Chrome); where it cannot,
    the viewer reports the codec it cannot decode, and the packaging lists
    `gstreamer1.0-libav` as a recommendation. No native decoder.
-5. **One window, tabs** (owner's choice over two side-by-side panes): Connect
+6. **One window, tabs** (owner's choice over two side-by-side panes): Connect
    and This computer as fixed tabs, each connected host as a closable tab after
    them (like a browser), Settings behind the gear button. Material 3 top
    tabs rather than a navigation rail: open hosts are many and come and go,

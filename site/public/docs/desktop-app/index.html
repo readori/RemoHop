@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>桌面应用 | RemoHop</title>
-<meta name="description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 remohop-quick 打开的就是它（在终端里是 remohop app）。">
+<meta name="description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。下载中的 RemoHop.exe、RemoHop.app 和 remohop-app 就是它（见安装），在终端里是 remohop app。">
 <link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="桌面应用 | RemoHop">
-<meta property="og:description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 remohop-quick 打开的就是它（在终端里是 remohop app）。">
+<meta property="og:description" content="一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。下载中的 RemoHop.exe、RemoHop.app 和 remohop-app 就是它（见安装），在终端里是 remohop app。">
 <meta property="og:url" content="https://remohop.com/docs/desktop-app/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
 <meta property="og:image:width" content="1120">
@@ -51,7 +51,7 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/docs/#more">文档</a></p>
 <h1 id="桌面应用">桌面应用</h1>
-<p>一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。双击 RemoHop.exe、RemoHop.app 或 <code>remohop-quick</code> 打开的就是它（在终端里是 <code>remohop app</code>）。</p>
+<p>一个窗口，既能连接你的其他电脑，也能让别人连接这台电脑，支持 Windows、macOS 和 Linux。下载中的 <code>RemoHop.exe</code>、<code>RemoHop.app</code> 和 <code>remohop-app</code> 就是它（见<a href="/docs/install/#桌面应用">安装</a>），在终端里是 <code>remohop app</code>。</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="这台电脑 / 有人请求连接">
 <table>
 <thead><tr><th scope="col">这台电脑</th><th scope="col">有人请求连接</th></tr></thead>
@@ -78,16 +78,17 @@
 <ul>
 <li><strong>允许别人连接。</strong>默认关闭。打开后，标签页显示这台电脑的 <strong>ID</strong> 和<strong>临时密码</strong>（每次启动都会换新，“换一个”立即更换），都带复制按钮。</li>
 <li><strong>每次连接都会询问。</strong>无论在哪个标签页，都会弹出对话框：谁在请求（对方自称的名称、密钥和地址）、是否是<strong>新设备</strong>；对新设备还会提醒：<em>有人打电话自称客服、银行或警察，让你安装远程软件，那是诈骗。</em>被允许的设备<strong>只能看屏幕</strong>，除非你勾选“控制鼠标和键盘”或“传输文件、使用剪贴板”。一分钟内没人回答的请求会被拒绝。“记住这台设备”让它下次以相同权限直接连入（在允许连接打开时）；已记住的设备会列出来，可以移除。</li>
-<li><strong>当前连接</strong>列出每台设备，带“控制”和“文件”开关（立即生效，收回的权限会结束正在使用它的操作）和“断开”。只能查看的设备可以从它那边请求更多权限，这里会再问你一次。有人连接时标签页上有红点，一个小<strong>横幅始终显示在所有窗口之上</strong>，带“断开”按钮。</li>
-<li><strong>无人值守访问</strong>让这台电脑在没人时也能连上，开机即可用，使用你设定的强密码（至少 12 个字符，包含三类字符）。它把 RemoHop 安装为服务（<a href="/docs/quick-start/"><code>remohop service install</code></a>）：在 Windows 上是 RemoHop 服务，还能显示登录界面和 UAC 提示（Windows 会请求一次管理员授权）；在 macOS 和 Linux 上是你用户账号的服务。在同一处可以关闭。</li>
+<li><strong>当前连接</strong>列出每台设备，带“控制”和“文件”开关（立即生效，收回的权限会结束正在使用它的操作）和“断开”。只能查看的设备可以从它那边请求更多权限，这里会再问你一次。有人连接时标签页上有红点，屏幕右下角有一个小<strong>横幅始终显示在所有窗口之上</strong>，带“断开”按钮。</li>
+<li><strong>无人值守访问</strong>让这台电脑在没人时也能连上，开机即可用，使用你设定的强密码（至少 12 个字符，包含三类字符）。它把 RemoHop 安装为服务（<a href="/docs/quick-start/"><code>remohop service install</code></a>）：在 Windows 上是 RemoHop 服务，还能显示登录界面和 UAC 提示；在 macOS 和 Linux 上是你用户账号的服务。开启后，“连接”列出通过它连接的人（可断开），“修改密码”可更换密码。应用本身从不以管理员身份运行：在 Windows 上服务的状态只属于管理员，所以这些操作（开启或关闭、查看连接、断开、设置新密码）都会在当时请求管理员授权。</li>
 </ul>
 <h2 id="设置">设置</h2>
 <p>汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及<strong>登录时启动 RemoHop</strong>（启动后只在托盘中，不显示窗口）。</p>
 <h2 id="窗口托盘与后台">窗口、托盘与后台</h2>
 <p>关闭窗口后 RemoHop 会留在托盘（macOS 上是菜单栏）中继续运行，别人仍可连接；托盘菜单中的“退出”会结束它和所有连接。再次启动 RemoHop 会显示原来的窗口。系统没有托盘时（不支持 AppIndicator 的 Linux 桌面），关闭窗口即退出。</p>
 <p>窗口使用系统自带的网页引擎：Windows 上是 WebView2（Windows 10 和 11 自带），macOS 上是 WKWebView，Linux 上是 WebKitGTK（远程桌面需要 GStreamer 的 H.264 解码器，Debian 和 Ubuntu 上是 <code>gstreamer1.0-libav</code>）。没有时应用会改在浏览器窗口中打开，命令行程序的 <code>remohop app</code> 也是如此。</p>
+<p>在 Linux 上 <code>remohop-app</code> 链接了 GNU C 库（它要加载 GTK 来显示窗口）；在 Alpine 等 musl 系统上，请用静态链接的 <code>remohop</code> 运行 <code>remohop app</code>，它会在浏览器中打开应用。</p>
 <h2 id="快速协助">快速协助</h2>
-<p>只想帮别人一次、不留下任何东西时，对方可以改用快速协助：<code>RemoHop.exe --quick</code>（或 <code>remohop quick</code>），它立即共享屏幕，关闭窗口即退出。见<a href="/docs/quick-support/">快速协助</a>。</p>
+<p>只想帮别人一次、不留下任何东西时，对方改为下载<strong>快速协助</strong>（<code>RemoHop-QuickSupport.exe</code>、<code>RemoHop Quick Support.app</code>、<code>remohop-quick</code>）：同一个程序，按名字以快速协助方式启动，立即共享屏幕，关闭窗口即退出。见<a href="/docs/quick-support/">快速协助</a>。</p>
 <h2 id="安全">安全</h2>
 <p>窗口是应用在 <code>127.0.0.1</code> 上提供的页面，地址中带随机令牌，保护措施与<a href="/docs/quick-support/">快速协助</a>相同，其他机器无法访问。你连接的电脑显示在只有应用自己的页面才能嵌入的框架中。设计说明见 <a href="https://github.com/readori/RemoHop/blob/main/docs/desktop-app.md">desktop-app.md</a>。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/desktop-app.md">源文件（GitHub）</a></p>

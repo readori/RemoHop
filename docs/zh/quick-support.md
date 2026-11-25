@@ -2,7 +2,7 @@
 
 [English](../en/quick-support.md)
 
-用来帮助一个永远不会打开终端的人：对方以快速协助方式启动一个文件，把 ID 和密码念给你，在你连接时点“允许”。不会留下任何东西：关闭窗口即结束。（[桌面应用](desktop-app.md)的“这台电脑”标签页也能做到，并且会一直保留。）
+用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。不会留下任何东西：关闭窗口即结束。（[桌面应用](desktop-app.md)的“这台电脑”标签页也能做到，并且会一直保留。）
 
 | 就绪 | 有人请求连接 |
 |---|---|
@@ -10,11 +10,11 @@
 
 | 系统 | 对方打开的文件 | `make quick` 的产物 |
 |---|---|---|
-| Windows 10/11 | `RemoHop.exe --quick` | `dist/quick/windows-amd64/RemoHop.exe`（以及 `windows-arm64`） |
-| macOS 12 及以上 | `open RemoHop.app --args --quick` | `dist/quick/macos/RemoHop.app`（通用二进制） |
-| Linux，或任何终端 | `remohop quick` | `dist/quick/linux-*/remohop-quick` |
+| Windows 10/11 | `RemoHop-QuickSupport.exe` | `dist/quick/windows-amd64/RemoHop-QuickSupport.exe`（以及 `windows-arm64`） |
+| macOS 12 及以上 | `RemoHop Quick Support.app` | `dist/quick/macos/RemoHop Quick Support.app`（通用二进制） |
+| Linux，或任何终端 | `remohop-quick`，或 `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.dmg`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；不带参数启动时打开[桌面应用](desktop-app.md)，带 `--quick` 时运行 `remohop quick`（建一个带 `--quick` 的快捷方式，就又能双击使用了）。
+每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.dmg`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；双击时打开什么由文件名决定：名字里有“quick”（`RemoHop-QuickSupport.exe`、`RemoHop Quick Support.app`、`remohop-quick`）就运行 `remohop quick`，否则打开[桌面应用](desktop-app.md)。任何名字下 `RemoHop.exe --quick` 都等同于前者。
 
 坐在电脑前的人会看到：
 

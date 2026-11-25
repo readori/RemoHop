@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Desktop app | RemoHop</title>
-<meta name="description" content="One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is what RemoHop.exe, RemoHop.app and…">
+<meta name="description" content="One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is RemoHop.exe, RemoHop.app and…">
 <link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="Desktop app | RemoHop">
-<meta property="og:description" content="One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is what RemoHop.exe, RemoHop.app and…">
+<meta property="og:description" content="One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is RemoHop.exe, RemoHop.app and…">
 <meta property="og:url" content="https://remohop.com/en/docs/desktop-app/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
 <meta property="og:image:width" content="1120">
@@ -51,7 +51,7 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
 <h1 id="desktop-app">Desktop app</h1>
-<p>One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is what RemoHop.exe, RemoHop.app and <code>remohop-quick</code> open on a double-click (<code>remohop app</code> from a terminal).</p>
+<p>One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is <code>RemoHop.exe</code>, <code>RemoHop.app</code> and <code>remohop-app</code> in the downloads (<a href="/en/docs/install/#desktop-app">Install</a>), and <code>remohop app</code> from a terminal.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="This computer / Someone asks to connect">
 <table>
 <thead><tr><th scope="col">This computer</th><th scope="col">Someone asks to connect</th></tr></thead>
@@ -78,16 +78,17 @@
 <ul>
 <li><strong>Allow incoming connections.</strong> Off at first. On, the tab shows this computer's <strong>ID</strong> and a <strong>temporary password</strong> (new on every start; "New" replaces it at once) with Copy buttons.</li>
 <li><strong>Every connection asks.</strong> A dialog comes to the front over any tab: who asks (the name it gave itself, its key, its address), whether it is a <strong>new device</strong>, and for new devices a warning: <em>someone who calls saying they are from support, your bank or the police and asks you to install remote software is a scammer.</em> An allowed device <strong>only sees the screen</strong> unless you tick <em>Control the mouse and keyboard</em> or <em>Transfer files and use the clipboard</em>. A request nobody answers is refused after a minute. <em>Remember this device</em> lets it in next time with the same access, without asking, while incoming connections are on; remembered devices are listed with a Forget button.</li>
-<li><strong>Connected now</strong> lists each device with switches for Control and Files, which apply at once (a withdrawn permission ends what was open with it), and Disconnect. A device that only watches can ask for more from its side; that is a new question here. The tab shows a red dot, and a small <strong>banner stays on top of all windows</strong> while anyone is connected, with a Disconnect button.</li>
-<li><strong>Unattended access</strong> makes this computer reachable without anyone at it, from start-up, with a strong password you choose (at least 12 characters, three kinds). It installs RemoHop as a service (<a href="/en/docs/quick-start/"><code>remohop service install</code></a>): on Windows the RemoHop service, which can also show the sign-in screen and UAC prompts (Windows asks for an administrator once); on macOS and Linux a service of your user account. Turn it off in the same place.</li>
+<li><strong>Connected now</strong> lists each device with switches for Control and Files, which apply at once (a withdrawn permission ends what was open with it), and Disconnect. A device that only watches can ask for more from its side; that is a new question here. The tab shows a red dot, and a small <strong>banner stays on top of all windows</strong> in the bottom-right corner of the screen while anyone is connected, with a Disconnect button.</li>
+<li><strong>Unattended access</strong> makes this computer reachable without anyone at it, from start-up, with a strong password you choose (at least 12 characters, three kinds). It installs RemoHop as a service (<a href="/en/docs/quick-start/"><code>remohop service install</code></a>): on Windows the RemoHop service, which can also show the sign-in screen and UAC prompts; on macOS and Linux a service of your user account. Once it is on, <strong>Connections</strong> lists who is connected through it (with Disconnect) and <strong>Change password</strong> replaces the password. The app itself never runs as administrator: on Windows, where the service's state belongs to the administrators, each of these steps (turning it on or off, looking at its connections, disconnecting, a new password) asks Windows for an administrator at that moment.</li>
 </ul>
 <h2 id="settings">Settings</h2>
 <p>The rendezvous server, the language (Chinese, English or the system's), light or dark (or the system's), and <strong>Start RemoHop when I sign in</strong> (it starts in the tray, without its window).</p>
 <h2 id="window-tray-and-background">Window, tray and background</h2>
 <p>Closing the window keeps RemoHop running in the tray (the menu bar on macOS), so incoming connections stay possible; Quit in the tray menu ends it and every connection. Starting RemoHop again brings the window back. Where the system has no tray (a Linux desktop without AppIndicator support), closing the window quits.</p>
 <p>The window uses the system's web engine: WebView2 on Windows (part of Windows 10 and 11), WKWebView on macOS, WebKitGTK on Linux (the remote desktop there needs GStreamer's H.264 decoder, <code>gstreamer1.0-libav</code> on Debian and Ubuntu). Without one the app opens in a browser window instead, as does <code>remohop app</code> from the command-line binary.</p>
+<p>On Linux <code>remohop-app</code> is linked against the GNU C library (it loads GTK for its window); on musl systems such as Alpine, run <code>remohop app</code> from the static <code>remohop</code> binary, which opens the app in a browser.</p>
 <h2 id="quick-support">Quick support</h2>
-<p>To help someone just once without anything staying behind, they can run quick support instead: <code>RemoHop.exe --quick</code> (or <code>remohop quick</code>), which shares the screen at once and quits when its window closes. See <a href="/en/docs/quick-support/">Quick support</a>.</p>
+<p>To help someone just once without anything staying behind, they download <strong>Quick Support</strong> instead (<code>RemoHop-QuickSupport.exe</code>, <code>RemoHop Quick Support.app</code>, <code>remohop-quick</code>): the same program, which starts in quick-support mode by its name, shares the screen at once and quits when its window closes. See <a href="/en/docs/quick-support/">Quick support</a>.</p>
 <h2 id="security">Security</h2>
 <p>The window is a page served by the app on <code>127.0.0.1</code> with a random token in its address, the same protections as <a href="/en/docs/quick-support/">quick support</a>, and nothing in it is reachable from another machine. The computers you connect to run in frames that only the app's own page may show. The design notes are in <a href="https://github.com/readori/RemoHop/blob/main/docs/desktop-app.md">desktop-app.md</a>.</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/desktop-app.md">Source file (GitHub)</a></p>

@@ -52,20 +52,19 @@
 <div class="wrap prose">
 <h1>Download RemoHop</h1>
 <p>Every file is on <a href="https://github.com/readori/RemoHop/releases/latest">GitHub Releases</a>; the links below always fetch the newest release. All of them are listed in its <code>SHA256SUMS</code>, which is signed (see <a href="#verify">Verify a download</a>).</p>
-<p>Two downloads, two people: the one being helped needs <a href="#quick">quick support</a>, a window to double-click. The one helping, or anyone reaching their own machines, uses <a href="#cli">the <code>remohop</code> program</a>, the browser client it serves, or a <a href="#mobile">phone app</a>.</p>
+<p>Most people want <a href="#quick">RemoHop</a>, the desktop app: one window to connect to your computers and to let others connect to this one. Someone who only needs help once takes <a href="#quick">Quick Support</a>, which runs without installing anything. Servers and scripts use <a href="#cli">the <code>remohop</code> program</a>; phones use the <a href="#mobile">apps</a>.</p>
 
-<h2 id="quick">Quick support, for the person being helped</h2>
-<p>One program to double-click. It shows a 9-digit ID and a temporary password to read to the helper, and asks before every connection. Nothing is installed. See the <a href="/en/docs/quick-support/">quick support guide</a>.</p>
-<p>Coming in the next release: the same download becomes the <a href="/en/docs/desktop-app/">RemoHop desktop app</a>, one window to connect to your computers and to let others connect to this one; quick support stays available as <code>RemoHop.exe --quick</code>.</p>
-<div class="table-wrap dl" tabindex="0" role="region" aria-label="Quick support downloads">
+<h2 id="quick">RemoHop and Quick Support</h2>
+<p><strong>RemoHop</strong> is the <a href="/en/docs/desktop-app/">desktop app</a>: connect to other computers in tabs, let others connect to this one (every connection asks first), unattended access, a tray icon. <strong>Quick Support</strong> is for the person being helped: double-click, read the 9-digit ID and the temporary password to the helper, press Allow; closing the window ends it and nothing stays installed. See the <a href="/en/docs/quick-support/">quick support guide</a>.</p>
+<div class="table-wrap dl" tabindex="0" role="region" aria-label="RemoHop downloads">
 <table>
-<thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
+<thead><tr><th scope="col">System</th><th scope="col">Desktop app</th><th scope="col">Quick Support (no install)</th></tr></thead>
 <tbody>
-<tr><td>Windows 10, 11<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-amd64.zip"><code>RemoHop-windows-amd64.zip</code></a><br><span class="small">Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.</span></td></tr>
-<tr><td>Windows 11<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-arm64.zip"><code>RemoHop-windows-arm64.zip</code></a><br><span class="small">As above.</span></td></tr>
-<tr><td>macOS 12 or later<br><span class="small">Apple silicon and Intel</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-macos.dmg"><code>RemoHop-macos.dmg</code></a><br><span class="small">Open it, drag RemoHop to the Applications folder, then open it from there. Signed with a Developer ID and notarized by Apple.</span></td></tr>
-<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_amd64.tar.gz"><code>remohop-quick_linux_amd64.tar.gz</code></a><br><span class="small">Unpack, then run ./remohop-quick; the window opens in the default browser.</span></td></tr>
-<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_arm64.tar.gz"><code>remohop-quick_linux_arm64.tar.gz</code></a><br><span class="small">As above.</span></td></tr>
+<tr><td>Windows 10, 11<br><span class="small">x64</span><br><span class="small">Unzip, then double-click. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.</span></td><td class="file"><a class="btn primary" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-amd64.zip">RemoHop</a><br><code class="small">RemoHop-windows-amd64.zip</code></td><td class="file"><a class="btn" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-QuickSupport-windows-amd64.zip">Quick Support (no install)</a><br><code class="small">RemoHop-QuickSupport-windows-amd64.zip</code></td></tr>
+<tr><td>Windows 11<br><span class="small">ARM64</span><br><span class="small">As above.</span></td><td class="file"><a class="btn primary" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-windows-arm64.zip">RemoHop</a><br><code class="small">RemoHop-windows-arm64.zip</code></td><td class="file"><a class="btn" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-QuickSupport-windows-arm64.zip">Quick Support (no install)</a><br><code class="small">RemoHop-QuickSupport-windows-arm64.zip</code></td></tr>
+<tr><td>macOS 12 or later<br><span class="small">Apple silicon and Intel</span><br><span class="small">RemoHop: open it and drag it to Applications. Quick support: unzip and open it. Both signed with a Developer ID and notarized by Apple.</span></td><td class="file"><a class="btn primary" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-macos.dmg">RemoHop</a><br><code class="small">RemoHop-macos.dmg</code></td><td class="file"><a class="btn" href="https://github.com/readori/RemoHop/releases/latest/download/RemoHop-QuickSupport-macos.zip">Quick Support (no install)</a><br><code class="small">RemoHop-QuickSupport-macos.zip</code></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span><br><span class="small">Unpack, then run ./remohop-app or ./remohop-quick. The app's window needs WebKitGTK (else it opens in a browser) and glibc.</span></td><td class="file"><a class="btn primary" href="https://github.com/readori/RemoHop/releases/latest/download/remohop-app_linux_amd64.tar.gz">RemoHop</a><br><code class="small">remohop-app_linux_amd64.tar.gz</code></td><td class="file"><a class="btn" href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_amd64.tar.gz">Quick Support (no install)</a><br><code class="small">remohop-quick_linux_amd64.tar.gz</code></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span><br><span class="small">As above.</span></td><td class="file"><a class="btn primary" href="https://github.com/readori/RemoHop/releases/latest/download/remohop-app_linux_arm64.tar.gz">RemoHop</a><br><code class="small">remohop-app_linux_arm64.tar.gz</code></td><td class="file"><a class="btn" href="https://github.com/readori/RemoHop/releases/latest/download/remohop-quick_linux_arm64.tar.gz">Quick Support (no install)</a><br><code class="small">remohop-quick_linux_arm64.tar.gz</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -108,7 +107,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <article class="panel">
 <p class="chip">Available</p>
 <h3>Homebrew Cask</h3>
-<p class="platforms">macOS · quick support</p>
+<p class="platforms">macOS · the RemoHop app</p>
 <pre tabindex="0"><code>brew install --cask readori/tap/remohop-quick</code></pre>
 </article>
 <article class="panel">

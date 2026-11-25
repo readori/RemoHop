@@ -40,7 +40,7 @@ and [zh/](zh/README.md); this page is for people reading the code.
 | Web gateway | `internal/web` | `remohop web`: a browser UI that is the client of a normal session |
 | Desktop app | `internal/desktop`, `internal/localui`, `cmd/remohop-quick` | `remohop app`, what a double-click on `RemoHop.exe` / `RemoHop.app` opens (see [desktop-app.md](desktop-app.md)) |
 | Native windows | `internal/nativeui`, `internal/webview` | WebView2, WKWebView and WebKitGTK windows and the tray, without cgo; linked only into `remohop-quick` |
-| Quick support | `internal/quick`, `cmd/remohop-quick` | `remohop quick` and `RemoHop.exe --quick` |
+| Quick support | `internal/quick`, `cmd/remohop-quick` | `remohop quick`, and the quick-support downloads (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`) |
 | OS services | `internal/service`, `internal/unattended` | `remohop service install` (systemd, launchd, Windows service); Windows console access for `--unattended` |
 | Input | `internal/inject` | pointer and keyboard injection (XTEST on X11, Quartz events on macOS, SendInput on Windows) |
 | Permissions | `internal/perm` | which feature switch each host service belongs to |

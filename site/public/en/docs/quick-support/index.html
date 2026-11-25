@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Quick support | RemoHop</title>
-<meta name="description" content="For helping someone who will never open a terminal: they start one file in quick-support mode, read you an ID and a password, and press Allow when you…">
+<meta name="description" content="For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect. Nothing…">
 <link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="Quick support | RemoHop">
-<meta property="og:description" content="For helping someone who will never open a terminal: they start one file in quick-support mode, read you an ID and a password, and press Allow when you…">
+<meta property="og:description" content="For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect. Nothing…">
 <meta property="og:url" content="https://remohop.com/en/docs/quick-support/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
 <meta property="og:image:width" content="1120">
@@ -51,7 +51,7 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
 <h1 id="quick-support">Quick support</h1>
-<p>For helping someone who will never open a terminal: they start one file in quick-support mode, read you an ID and a password, and press Allow when you connect. Nothing stays behind: closing the window ends it. (The <a href="/en/docs/desktop-app/">desktop app</a> does the same from its This computer tab, and stays installed.)</p>
+<p>For helping someone who will never open a terminal: they double-click one file, read you an ID and a password, and press Allow when you connect. Nothing stays behind: closing the window ends it. (The <a href="/en/docs/desktop-app/">desktop app</a> does the same from its This computer tab, and stays installed.)</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Ready / Someone asks to connect">
 <table>
 <thead><tr><th scope="col">Ready</th><th scope="col">Someone asks to connect</th></tr></thead>
@@ -64,13 +64,13 @@
 <table>
 <thead><tr><th scope="col">System</th><th scope="col">What they open</th><th scope="col">Built by <code>make quick</code> as</th></tr></thead>
 <tbody>
-<tr><td>Windows 10/11</td><td><code>RemoHop.exe --quick</code></td><td><code>dist/quick/windows-amd64/RemoHop.exe</code> (and <code>windows-arm64</code>)</td></tr>
-<tr><td>macOS 12+</td><td><code>open RemoHop.app --args --quick</code></td><td><code>dist/quick/macos/RemoHop.app</code> (universal)</td></tr>
-<tr><td>Linux, or any terminal</td><td><code>remohop quick</code></td><td><code>dist/quick/linux-*/remohop-quick</code></td></tr>
+<tr><td>Windows 10/11</td><td><code>RemoHop-QuickSupport.exe</code></td><td><code>dist/quick/windows-amd64/RemoHop-QuickSupport.exe</code> (and <code>windows-arm64</code>)</td></tr>
+<tr><td>macOS 12+</td><td><code>RemoHop Quick Support.app</code></td><td><code>dist/quick/macos/RemoHop Quick Support.app</code> (universal)</td></tr>
+<tr><td>Linux, or any terminal</td><td><code>remohop-quick</code>, or <code>remohop quick</code></td><td><code>dist/quick/linux-*/remohop-quick</code></td></tr>
 </tbody>
 </table>
 </div>
-<p>Every release has them as downloads (<code>RemoHop-windows-amd64.zip</code> and <code>-arm64.zip</code>, <code>RemoHop-macos.dmg</code>, <code>remohop-quick_linux_*.tar.gz</code>; see <a href="/en/docs/install/#quick-support">Install</a>). <code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; started without arguments they open the <a href="/en/docs/desktop-app/">desktop app</a>, and with <code>--quick</code> they run <code>remohop quick</code> (a shortcut with <code>--quick</code> makes it a double-click again).</p>
+<p>Every release has them as downloads (<code>RemoHop-windows-amd64.zip</code> and <code>-arm64.zip</code>, <code>RemoHop-macos.dmg</code>, <code>remohop-quick_linux_*.tar.gz</code>; see <a href="/en/docs/install/#quick-support">Install</a>). Every release has them as downloads (<code>RemoHop-QuickSupport-windows-amd64.zip</code> and <code>-arm64.zip</code>, <code>RemoHop-QuickSupport-macos.zip</code>, <code>remohop-quick_linux_*.tar.gz</code>; see <a href="/en/docs/install/#quick-support">Install</a>). <code>RemoHop.exe</code> and <code>RemoHop.app</code> are the same program as <code>remohop</code>; the program picks what a double-click opens by its file name: with "quick" in it (<code>RemoHop-QuickSupport.exe</code>, <code>RemoHop Quick Support.app</code>, <code>remohop-quick</code>) it runs <code>remohop quick</code>, otherwise the <a href="/en/docs/desktop-app/">desktop app</a>. <code>RemoHop.exe --quick</code> does the same from any name.</p>
 <p>What the person at the computer gets:</p>
 <ul>
 <li>
