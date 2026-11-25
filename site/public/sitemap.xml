@@ -225,6 +225,20 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/clipboard/"/>
   </url>
   <url>
+    <loc>https://remohop.com/docs/desktop-app/</loc>
+    <lastmod>2026-11-24</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/desktop-app/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/desktop-app/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/desktop-app/"/>
+  </url>
+  <url>
+    <loc>https://remohop.com/en/docs/desktop-app/</loc>
+    <lastmod>2026-11-24</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/desktop-app/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/docs/desktop-app/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/docs/desktop-app/"/>
+  </url>
+  <url>
     <loc>https://remohop.com/docs/files/</loc>
     <lastmod>2026-11-24</lastmod>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/files/"/>

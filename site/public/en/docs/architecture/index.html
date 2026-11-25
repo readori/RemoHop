@@ -84,7 +84,9 @@ and <a href="/docs/#more">zh/</a>; this page is for people reading the code.</p>
 <tr><td>Mesh</td><td><code>internal/mesh</code></td><td><code>remohop net</code>: the mesh network of an account's devices, running inside the host daemon (see <a href="/en/docs/net/">net.md</a>)</td></tr>
 <tr><td>Tailscale</td><td><code>internal/tailnet</code></td><td>detects a running Tailscale and offers its addresses as candidate paths</td></tr>
 <tr><td>Web gateway</td><td><code>internal/web</code></td><td><code>remohop web</code>: a browser UI that is the client of a normal session</td></tr>
-<tr><td>Quick support</td><td><code>internal/quick</code>, <code>cmd/remohop-quick</code></td><td><code>remohop quick</code> and the double-click <code>RemoHop.exe</code> / <code>RemoHop.app</code></td></tr>
+<tr><td>Desktop app</td><td><code>internal/desktop</code>, <code>internal/localui</code>, <code>cmd/remohop-quick</code></td><td><code>remohop app</code>, what a double-click on <code>RemoHop.exe</code> / <code>RemoHop.app</code> opens (see <a href="https://github.com/readori/RemoHop/blob/main/docs/desktop-app.md">desktop-app.md</a>)</td></tr>
+<tr><td>Native windows</td><td><code>internal/nativeui</code>, <code>internal/webview</code></td><td>WebView2, WKWebView and WebKitGTK windows and the tray, without cgo; linked only into <code>remohop-quick</code></td></tr>
+<tr><td>Quick support</td><td><code>internal/quick</code>, <code>cmd/remohop-quick</code></td><td><code>remohop quick</code> and <code>RemoHop.exe --quick</code></td></tr>
 <tr><td>OS services</td><td><code>internal/service</code>, <code>internal/unattended</code></td><td><code>remohop service install</code> (systemd, launchd, Windows service); Windows console access for <code>--unattended</code></td></tr>
 <tr><td>Input</td><td><code>internal/inject</code></td><td>pointer and keyboard injection (XTEST on X11, Quartz events on macOS, SendInput on Windows)</td></tr>
 <tr><td>Permissions</td><td><code>internal/perm</code></td><td>which feature switch each host service belongs to</td></tr>

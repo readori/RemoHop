@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>快速协助 | RemoHop</title>
-<meta name="description" content="用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。">
-<link rel="stylesheet" href="/assets/site.css?v=b880c3b3e2">
+<meta name="description" content="用来帮助一个永远不会打开终端的人：对方以快速协助方式启动一个文件，把 ID 和密码念给你，在你连接时点“允许”。不会留下任何东西：关闭窗口即结束。（桌面应用的“这台电脑”标签页也能做到，并且会一直保留。）">
+<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="快速协助 | RemoHop">
-<meta property="og:description" content="用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。">
+<meta property="og:description" content="用来帮助一个永远不会打开终端的人：对方以快速协助方式启动一个文件，把 ID 和密码念给你，在你连接时点“允许”。不会留下任何东西：关闭窗口即结束。（桌面应用的“这台电脑”标签页也能做到，并且会一直保留。）">
 <meta property="og:url" content="https://remohop.com/docs/quick-support/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
 <meta property="og:image:width" content="1120">
@@ -36,7 +36,6 @@
 <nav class="site-nav" aria-label="主导航">
 <ul>
 <li><a href="/features/">功能</a></li>
-<li><a href="/how-it-works/">工作原理</a></li>
 <li><a href="/docs/" aria-current="true">文档</a></li>
 <li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
@@ -52,7 +51,7 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/docs/#more">文档</a></p>
 <h1 id="快速协助">快速协助</h1>
-<p>用来帮助一个永远不会打开终端的人：对方双击一个文件，把 ID 和密码念给你，在你连接时点“允许”。</p>
+<p>用来帮助一个永远不会打开终端的人：对方以快速协助方式启动一个文件，把 ID 和密码念给你，在你连接时点“允许”。不会留下任何东西：关闭窗口即结束。（<a href="/docs/desktop-app/">桌面应用</a>的“这台电脑”标签页也能做到，并且会一直保留。）</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="就绪 / 有人请求连接">
 <table>
 <thead><tr><th scope="col">就绪</th><th scope="col">有人请求连接</th></tr></thead>
@@ -65,13 +64,13 @@
 <table>
 <thead><tr><th scope="col">系统</th><th scope="col">对方打开的文件</th><th scope="col"><code>make quick</code> 的产物</th></tr></thead>
 <tbody>
-<tr><td>Windows 10/11</td><td><code>RemoHop.exe</code></td><td><code>dist/quick/windows-amd64/RemoHop.exe</code>（以及 <code>windows-arm64</code>）</td></tr>
-<tr><td>macOS 12 及以上</td><td><code>RemoHop.app</code></td><td><code>dist/quick/macos/RemoHop.app</code>（通用二进制）</td></tr>
+<tr><td>Windows 10/11</td><td><code>RemoHop.exe --quick</code></td><td><code>dist/quick/windows-amd64/RemoHop.exe</code>（以及 <code>windows-arm64</code>）</td></tr>
+<tr><td>macOS 12 及以上</td><td><code>open RemoHop.app --args --quick</code></td><td><code>dist/quick/macos/RemoHop.app</code>（通用二进制）</td></tr>
 <tr><td>Linux，或任何终端</td><td><code>remohop quick</code></td><td><code>dist/quick/linux-*/remohop-quick</code></td></tr>
 </tbody>
 </table>
 </div>
-<p>每个发布版本都提供下载（<code>RemoHop-windows-amd64.zip</code> 和 <code>-arm64.zip</code>、<code>RemoHop-macos.dmg</code>、<code>remohop-quick_linux_*.tar.gz</code>，见<a href="/docs/install/#快速协助">安装</a>）。<code>RemoHop.exe</code> 和 <code>RemoHop.app</code> 与 <code>remohop</code> 是同一个程序；不带参数启动时运行的就是 <code>remohop quick</code>。</p>
+<p>每个发布版本都提供下载（<code>RemoHop-windows-amd64.zip</code> 和 <code>-arm64.zip</code>、<code>RemoHop-macos.dmg</code>、<code>remohop-quick_linux_*.tar.gz</code>，见<a href="/docs/install/#快速协助">安装</a>）。<code>RemoHop.exe</code> 和 <code>RemoHop.app</code> 与 <code>remohop</code> 是同一个程序；不带参数启动时打开<a href="/docs/desktop-app/">桌面应用</a>，带 <code>--quick</code> 时运行 <code>remohop quick</code>（建一个带 <code>--quick</code> 的快捷方式，就又能双击使用了）。</p>
 <p>坐在电脑前的人会看到：</p>
 <ul>
 <li>
@@ -117,7 +116,6 @@
 <h2>产品</h2>
 <ul>
 <li><a href="/features/">功能</a></li>
-<li><a href="/how-it-works/">工作原理</a></li>
 <li><a href="/docs/">文档</a></li>
 <li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>

@@ -13,7 +13,7 @@
     en: {
       'tab.connect': 'Connect', 'tab.computer': 'This computer', 'tab.settings': 'Settings',
       'wiz.title': 'Welcome to RemoHop', 'wiz.lead': 'Connect to your computers, or let someone help you.',
-      'wiz.server': 'Rendezvous server', 'next': 'Next', 'back': 'Back', 'done': 'Done', 'save': 'Save', 'cancel': 'Cancel',
+      'wiz.server': 'Rendezvous server', 'wiz.incoming': 'Let others connect to this computer now (each connection asks me)', 'next': 'Next', 'back': 'Back', 'done': 'Done', 'save': 'Save', 'cancel': 'Cancel',
       'auto': 'Auto', 'copy': 'Copy', 'copied': 'Copied', 'allow': 'Allow', 'deny': 'Deny', 'saved': 'Saved',
       'srv.official': 'Official server', 'srv.custom': 'My own server', 'srv.skip': 'Skip for now', 'srv.none': 'No server',
       'srv.skip.sub': 'Connect by address (host:port) only',
@@ -57,7 +57,7 @@
     zh: {
       'tab.connect': '连接', 'tab.computer': '这台电脑', 'tab.settings': '设置',
       'wiz.title': '欢迎使用 RemoHop', 'wiz.lead': '连接你的电脑，或者让别人帮你。',
-      'wiz.server': '中继服务器', 'next': '下一步', 'back': '上一步', 'done': '完成', 'save': '保存', 'cancel': '取消',
+      'wiz.server': '汇合服务器', 'wiz.incoming': '现在就允许别人连接这台电脑（每次连接都先问我）', 'next': '下一步', 'back': '上一步', 'done': '完成', 'save': '保存', 'cancel': '取消',
       'auto': '自动', 'copy': '复制', 'copied': '已复制', 'allow': '允许', 'deny': '拒绝', 'saved': '已保存',
       'srv.official': '官方服务器', 'srv.custom': '我自己的服务器', 'srv.skip': '暂时跳过', 'srv.none': '不用服务器',
       'srv.skip.sub': '只按地址（主机:端口）连接',
@@ -163,11 +163,17 @@
     if ((s.lang || sysLang()) !== lang || first) applyLang(s.lang);
     $('bar').hidden = !s.setup;
     if (!s.setup) { for (const el of document.querySelectorAll('#main > .view')) el.hidden = el.id !== 'v-wizard'; renderWizard(); return; }
-    if (first || view === 'wizard' || !$('v-wizard').hidden) show(view === 'wizard' ? 'connect' : view);
+    if (first || !$('v-wizard').hidden) { show(view); if (first) defaultView(); }
     renderComputer(s);
     renderSettings(s);
     renderRequests(s);
     if (s.smoke && s.smoke !== lastSmoke) { lastSmoke = s.smoke; smokeView(s.smoke); }
+  }
+  // The first tab: Connect when there are saved computers, else This
+  // computer (someone who has nothing to connect to is here to be helped).
+  async function defaultView() {
+    await loadPeers(false);
+    if (view === 'connect' && !peers.length && S.setup) show('computer');
   }
   let lastSmoke = '';
   function smokeView(v) {
@@ -191,7 +197,10 @@
   $('wiz-done').addEventListener('click', async () => {
     const mode = document.querySelector('input[name=wsrv]:checked').value;
     $('wiz-err').textContent = '';
-    try { await api('setup', {mode, addr: $('wiz-addr').value, lang: wizLang}); view = 'connect'; }
+    try {
+      await api('setup', {mode, addr: $('wiz-addr').value, lang: wizLang});
+      if ($('wiz-incoming').checked) { await api('incoming', {on: true}); view = 'computer'; } else view = 'connect';
+    }
     catch (e) { $('wiz-err').textContent = errText(e); }
   });
 
