@@ -435,11 +435,22 @@ final class GatewayE2ETests: XCTestCase {
         return value
     }
 
+    /// Before a store screen: the notice banner is tapped away (as a user does) and nothing
+    /// keeps the focus, so no caret or keyboard shows.
+    private func tidy() async {
+        _ = try? await js("""
+            const b = document.getElementById('banner');
+            if (b && !b.hidden) b.click();
+            if (document.activeElement) document.activeElement.blur();
+            return 'ok';
+            """)
+    }
+
     /// The store set for the iPad posters: the real app in a session with a saved, named host,
     /// stopped at four screens (remote desktop, terminal, files, and the connect screen with the
     /// session and the saved host). Same marker protocol and skip rules as `testScreenshots`.
     /// Optional: REMOHOP_SHOTS_ALIAS names the saved host, REMOHOP_SHOTS_COMMAND is run in the
-    /// terminal. CI's `capture` mode runs it and keeps the PNGs as an artifact (no upload).
+    /// terminal and REMOHOP_SHOTS_EXPECT is text its output ends with. CI's `capture` mode runs it and keeps the PNGs as an artifact (no upload).
     func testStoreScreens() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let dir = env["REMOHOP_SHOTS_DIR"], !dir.isEmpty else {
@@ -452,6 +463,7 @@ final class GatewayE2ETests: XCTestCase {
         let lang = env["REMOHOP_SHOTS_LANG"] ?? "en"
         let alias = env["REMOHOP_SHOTS_ALIAS"] ?? ""
         let command = env["REMOHOP_SHOTS_COMMAND"] ?? (cfg.dir.isEmpty ? "uname -a" : "cd \(cfg.dir) && ls -l")
+        let expect = env["REMOHOP_SHOTS_EXPECT"] ?? ""
         var found: WKWebView?
         for _ in 0..<240 {
             found = appWebView()
@@ -509,6 +521,7 @@ final class GatewayE2ETests: XCTestCase {
             print("store screens: no desktop frame: " + redact(String(m.prefix(200))))
         }
         await pause(3.0)
+        await tidy()
         try await shot(dir, "1-desktop")
 
         // 2. Terminal: a command with some output.
@@ -526,10 +539,12 @@ final class GatewayE2ETests: XCTestCase {
                 type('\\n');
                 return 'ok';
                 """)
-            ran = await eventually("document.getElementById('t-host').textContent.length > 200", timeout: 10)
+            ran = await eventually(expect.isEmpty ? "document.getElementById('t-host').textContent.length > 200"
+                                                  : "document.getElementById('t-host').textContent.includes(\(lit(expect)))", timeout: 15)
         }
-        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        if !ran { print("store screens: the terminal command did not finish") }
         await pause(1.5)
+        await tidy()
         try await shot(dir, "2-terminal")
 
         // 3. Files: the host directory.
@@ -542,7 +557,7 @@ final class GatewayE2ETests: XCTestCase {
             try await require("the host directory listing", "document.getElementById('f-path').value.indexOf(\(lit(leaf))) >= 0 && document.getElementById('f-body').children.length > 0",
                               detail: "return document.getElementById('f-err').textContent")
         }
-        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        await tidy()
         try await shot(dir, "3-files")
 
         // 4. Back to the connect screen: the open session and the saved host.
@@ -552,7 +567,9 @@ final class GatewayE2ETests: XCTestCase {
             left = await eventually("!document.getElementById('connect').hidden", timeout: 3)
         }
         XCTAssertTrue(left, "back never returned to the connect screen")
-        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        // An empty form under the open session and the saved host (the page fills in the last host).
+        _ = try? await js("document.getElementById('target').value = ''; return 'ok';")
+        await tidy()
         await pause(1.0)
         try await shot(dir, "4-connect")
     }
