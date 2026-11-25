@@ -25,21 +25,22 @@ repository) and on an Ubuntu 24.04 container:
 | WebCodecs `VideoDecoder` | yes | yes | yes (on by default in 2.52; the app switches it on where an older version has the setting off) |
 | H.264 1080p (`avc1.42002a`) | software (runner VM has no GPU) | hardware and software (VideoToolbox) | through GStreamer: needs `gstreamer1.0-libav` (or another H.264 decoder); without one `isConfigSupported` says false, honestly |
 | AV1 | software | hardware and software | needs GStreamer's dav1d plugin (`gstreamer1.0-plugins-bad`) |
-| Decode latency, 1080p clip at 30 fps, `prefer-software` (p50 / p95) | 1.4 / 1.6 ms | see below | 2 / 2 ms |
+| Decode latency, 1080p clip at 30 fps (p50 / p95) | 1.4 / 1.6 ms (`prefer-software`; the VM has no hardware decoder) | 6 / 49 ms (`prefer-hardware`, what the viewer asks for) | 2 / 2 ms |
 | Same page in the system's browser | Edge: 1.4 / 1.6 ms (same engine) | Safari: did not report on the runner (first-run prompt) | Chrome 157: 1.5 / 3.9 ms |
 
 Each pass feeds the clip at 30 frames a second, as a host sends it, and
 measures from `decode()` to the decoded frame. On the Windows runner (no GPU)
 `prefer-hardware` is refused and the first `no-preference` pass had a tail
 of about 0.8 s in WebView2 and in Edge alike (start-up), so the web view adds
-nothing over the browser. The macOS runner's first run, with hardware
-decoding, had a median of 7 ms but a tail of nearly two seconds: the decoder
-held frames back. The self-test now counts the frames that only come out at
-`flush()`, to tell buffering apart from slow decoding; this is the first
-thing to check on real Macs (the viewer would then ask for `prefer-software`
-there).
+nothing over the browser. On the macOS runner (a VM) the hardware decoder gave 6 / 49 ms while the
+software decoder and `no-preference` had tails of about 1.4 s with no frame
+held until `flush()`: the VM's CPU, not buffering. The viewer already asks for
+`prefer-hardware` first (`internal/web/assets/desktop.js`), which is the fast
+path there; real Macs should still be checked before a release.
 
 ![The app on Windows: native WebView2 window, tray icon, the banner on top while someone is connected](img/desktop-windows-native.png)
+
+![The app on macOS: WKWebView window with its menu bar, the status item, the banner on top](img/desktop-macos-native.png)
 
 Without any native web view (no WebView2 runtime, no WebKitGTK, a headless
 system, the static `remohop` binary) the app runs in a browser window
