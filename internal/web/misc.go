@@ -99,3 +99,26 @@ func (s *Server) handleScreenshot(w http.ResponseWriter, r *http.Request, ws *we
 	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
 	w.Write(img.Data)
 }
+
+// PendingAttempts counts the connection attempts that have not finished:
+// dialing, or waiting for the host's owner to approve. The phone apps keep
+// their process alive for them as for an open session.
+func (s *Server) PendingAttempts() int {
+	s.mu.Lock()
+	sessions := make([]*webSession, 0, len(s.sessions))
+	for _, ws := range s.sessions {
+		sessions = append(sessions, ws)
+	}
+	s.mu.Unlock()
+	n := 0
+	for _, ws := range sessions {
+		ws.mu.Lock()
+		for _, a := range ws.attempts {
+			if !a.finished() {
+				n++
+			}
+		}
+		ws.mu.Unlock()
+	}
+	return n
+}

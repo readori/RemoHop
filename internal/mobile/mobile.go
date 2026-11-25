@@ -689,12 +689,24 @@ func DevicesJSON(checkOnline bool) (string, error) {
 //
 // gomobile hands errors to Java and Swift as text only, so the outcome is
 // a JSON object either way: {"ok":true,"target","alias","host_identity",
-// "new_host"} or {"ok":false,"code","error"}, where code is one of
-// bad_password, unknown_id, host_offline, no_path, no_rendezvous,
-// host_key_changed, denied, locked_out, password_required, timeout,
-// canceled, signal_is_host (the rendezvous setting names a RemoHop host),
-// signal_wrong_protocol (it names something else), bad_request or error. The returned error is reserved for
-// calling it before Init.
+// "new_host"} or {"ok":false,"code","error"}. The apps show the code in
+// their own words and keep the error text for the diagnostic log only (it
+// is the core's English, and may name CLI commands).
+//
+// A request turned down before anything was tried has code bad_request and
+// a "reason": target_required, password_required (a field is empty),
+// bad_target (not an ID, a saved name or HOST:PORT), bad_alias or
+// already_pairing. Otherwise code is one of
+//
+//	bad_password, unknown_id, host_offline, host_unreachable (no answer from
+//	the host, by ID or at the address), cannot_resolve (the address's name
+//	does not resolve), no_path, no_rendezvous, rendezvous_unreachable,
+//	rendezvous_rate_limited, signal_is_host (the rendezvous setting names a
+//	RemoHop host), signal_wrong_protocol (it names something else),
+//	host_key_changed, denied, locked_out, host_busy, pairing_rejected,
+//	key_rejected, password_login_disabled, timeout, canceled or error.
+//
+// The returned error is reserved for calling it before Init.
 //
 // The password is used for this one login and not kept.
 func PairWithPassword(target, password, alias string) (string, error) {
@@ -704,43 +716,38 @@ func PairWithPassword(target, password, alias string) (string, error) {
 	}
 	res, perr := pair(d, target, password, alias)
 	if perr != nil {
-		code := codeOf(perr)
-		if errors.Is(perr, errBadRequest) {
-			code = "bad_request"
+		res = map[string]any{"ok": false, "code": codeOf(perr), "error": cli.Sanitize(perr.Error())}
+		if re, ok := errors.AsType[*requestError](perr); ok {
+			res["code"], res["reason"] = "bad_request", re.code
 		}
-		res = map[string]any{"ok": false, "code": code, "error": cli.Sanitize(perr.Error())}
 	}
 	b, err := json.Marshal(res)
 	return string(b), err
 }
 
-var errBadRequest = errors.New("bad request")
-
-type badRequest struct{ msg string }
-
-func (e *badRequest) Error() string   { return e.msg }
-func (e *badRequest) Is(t error) bool { return t == errBadRequest }
-
 func pair(d, target, password, alias string) (map[string]any, error) {
 	target = cli.NormalizeTarget(strings.TrimSpace(target))
 	if target == "" {
-		return nil, &badRequest{"enter a 9-digit ID, a saved name, or host:port"}
+		return nil, &requestError{"target_required", "enter a 9-digit ID, a saved name, or host:port"}
 	}
 	if password == "" {
-		return nil, &badRequest{"enter the host's password"}
+		return nil, &requestError{"password_required", "enter the host's password"}
 	}
 	alias = strings.TrimSpace(alias)
 	if alias != "" {
 		if err := dial.CheckAlias(alias); err != nil {
-			return nil, &badRequest{err.Error()}
+			return nil, &requestError{"bad_alias", err.Error()}
 		}
+	}
+	if err := checkTarget(d, target); err != nil {
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), pairTimeout)
 	defer cancel()
 	pairMu.Lock()
 	if pairCancel != nil {
 		pairMu.Unlock()
-		return nil, &badRequest{"a pairing is already in progress"}
+		return nil, &requestError{"already_pairing", errAlreadyPairing.Error()}
 	}
 	pairCancel = cancel
 	pairMu.Unlock()
@@ -831,40 +838,6 @@ func Forget(ref string) (int, error) {
 		}
 	}
 	return n, err
-}
-
-func codeOf(err error) string {
-	switch auth.CodeOf(err) {
-	case auth.CodeAuthFailed:
-		return "bad_password"
-	case auth.CodeLockedOut:
-		return "locked_out"
-	case auth.CodeDenied:
-		return "denied"
-	}
-	switch signal.CodeOf(err) {
-	case signal.CodeUnknownID:
-		return "unknown_id"
-	case signal.CodeOffline:
-		return "host_offline"
-	case signal.CodeIsHost, signal.CodeWrongProtocol:
-		return signal.CodeOf(err) // "signal_is_host", "signal_wrong_protocol"
-	}
-	switch {
-	case errors.Is(err, signal.ErrNotConfigured):
-		return "no_rendezvous"
-	case errors.Is(err, dial.ErrHostKeyChanged):
-		return "host_key_changed"
-	case errors.Is(err, context.DeadlineExceeded):
-		return "timeout"
-	case errors.Is(err, context.Canceled):
-		return "canceled"
-	case errors.Is(err, nat.ErrNoPath):
-		return "no_path"
-	case errors.Is(err, dial.ErrNoCredential):
-		return "password_required"
-	}
-	return "error"
 }
 
 // checkTimeout bounds CheckRendezvous.
