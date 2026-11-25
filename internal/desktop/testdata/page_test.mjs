@@ -166,6 +166,12 @@ try {
   await p.eval(`document.getElementById('req-allow').click()`);
   check(await p.waitFor(`document.querySelector('#tabs .tab.host .dot').classList.contains('on')`, 20000), 'the tab shows the session connected');
   check(await p.waitFor(`document.querySelector('#tabs .tab.host .name').textContent === 'Office-PC'`), 'the tab takes the saved name');
+  // The computer's tab follows the theme chosen in the app's Settings.
+  await p.eval(`document.querySelector('#set-theme [data-theme=dark]').click()`);
+  check(await p.waitFor(`document.documentElement.dataset.theme === 'dark'`, 10000, fc), 'the computer tab follows the dark theme');
+  await p.shot('console-dark');
+  await p.eval(`document.querySelector('#set-theme [data-theme=""]').click()`);
+  check(await p.waitFor(`!document.documentElement.dataset.theme`, 10000, fc), 'and back to the system theme');
   await sleep(1500);
   await p.shot('console');
   // With a desktop to show (the test runs under Xvfb), the view-only

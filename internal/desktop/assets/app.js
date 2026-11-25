@@ -36,6 +36,8 @@
       'un.lead': 'Choose a strong password. Anyone with this ID and password can connect without asking.',
       'un.pw': 'Password', 'un.pw2': 'Repeat', 'un.gen': 'Suggest a strong password', 'un.admin': 'Windows will ask for an administrator.',
       'un.mismatch': 'The passwords differ.', 'un.na': 'Not available on this system',
+      'un.sessions': 'Connections', 'un.change': 'Change password', 'un.none': 'Nobody is connected through unattended access.',
+      'un.pwdone': 'Password changed', 'un.newpw': 'New password',
       'help.un': 'Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.',
       'tr.title': 'Remembered devices', 'tr.forget': 'Forget', 'tr.control': 'control', 'tr.files': 'files', 'tr.view': 'view only',
       'help.tr': 'These devices connect without asking, with the access you chose, while incoming connections are on.',
@@ -80,6 +82,8 @@
       'un.lead': '请设一个强密码。知道这个 ID 和密码的人无需你同意即可连接。',
       'un.pw': '密码', 'un.pw2': '再输一次', 'un.gen': '生成强密码', 'un.admin': 'Windows 会要求管理员授权。',
       'un.mismatch': '两次输入的密码不一致。', 'un.na': '此系统不支持',
+      'un.sessions': '连接', 'un.change': '修改密码', 'un.none': '没有人通过无人值守访问连接。',
+      'un.pwdone': '密码已修改', 'un.newpw': '新密码',
       'help.un': '没人在电脑前也能连上，开机即可用，使用你设定的强密码。它作为后台服务运行。',
       'tr.title': '已记住的设备', 'tr.forget': '移除', 'tr.control': '控制', 'tr.files': '文件', 'tr.view': '仅查看',
       'help.tr': '允许连接打开时，这些设备无需询问即可连接，权限为你当时的选择。',
@@ -154,12 +158,17 @@
   for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => show(b.dataset.view === view && b.dataset.view === 'settings' ? 'connect' : b.dataset.view));
 
   // ---- state ----
-  let S = null;
+  let S = null, S0theme;
   function render(s) {
     const first = !S;
     S = s;
     document.documentElement.toggleAttribute('data-theme', !!s.theme);
     if (s.theme) document.documentElement.dataset.theme = s.theme;
+    // The computers' tabs follow the app's theme too.
+    if (!first && s.theme !== S0theme) for (const h of hosts.values()) {
+      try { h.iframe.contentWindow.postMessage({type: 'remohop-theme', theme: s.theme || ''}, h.origin); } catch (e) { /* not loaded yet */ }
+    }
+    S0theme = s.theme;
     if ((s.lang || sysLang()) !== lang || first) applyLang(s.lang);
     $('bar').hidden = !s.setup;
     if (!s.setup) { for (const el of document.querySelectorAll('#main > .view')) el.hidden = el.id !== 'v-wizard'; renderWizard(); return; }
@@ -333,6 +342,8 @@
     if (!h || ev.origin !== h.origin || !ev.data || typeof ev.data !== 'object') return;
     const m = ev.data;
     if (m.type === 'remohop-session') {
+      // A page that loaded while the theme changed gets it now.
+      if (h.theme !== (S && S.theme || '')) { h.theme = S && S.theme || ''; h.iframe.contentWindow.postMessage({type: 'remohop-theme', theme: h.theme}, h.origin); }
       h.dot.className = 'dot' + (m.state === 'connected' ? ' on' : m.state === 'closed' ? '' : ' wait');
       if (m.title && typeof m.title === 'string') { h.title = m.title.slice(0, 80); h.name.textContent = h.title; }
     } else if (m.type === 'remohop-closed') {
@@ -398,6 +409,8 @@
     $('un-state').textContent = us; $('un-sub').textContent = u.error ? errText({message: u.error}) : sub;
     $('un-btn').textContent = btn; $('un-btn').disabled = !u.available || !!u.busy;
     $('un-btn').dataset.on = u.installed ? '1' : '';
+    $('un-manage').hidden = !u.installed || !!u.busy;
+    $('un-admin2').hidden = !u.needs_admin;
     // trusted
     const tr = $('trusted'); tr.textContent = '';
     $('trusted-box').hidden = !s.trusted.length;
@@ -433,10 +446,13 @@
       try { await api('unattended/disable'); } catch (e) { snack(errText(e)); }
       return;
     }
+    pwMode = 'enable';
     $('un-pw1').value = $('un-pw2').value = ''; $('un-err').textContent = '';
     $('un-admin').hidden = S.unattended && !S.unattended.needs_admin;
+    $('un-ok').textContent = t('un.enable');
     $('dlg-un').showModal();
   });
+  let pwMode = 'enable';
   $('un-gen').addEventListener('click', () => {
     const a = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
     const r = crypto.getRandomValues(new Uint8Array(16));
@@ -450,8 +466,44 @@
     ev.preventDefault();
     if ($('un-pw1').value !== $('un-pw2').value) { $('un-err').textContent = t('un.mismatch'); return; }
     $('un-ok').disabled = true;
-    try { await api('unattended/enable', {password: $('un-pw1').value}); $('dlg-un').close(); }
+    try {
+      await api(pwMode === 'change' ? 'unattended/password' : 'unattended/enable', {password: $('un-pw1').value});
+      $('dlg-un').close();
+      if (pwMode === 'change') snack(t('un.pwdone'));
+    }
     catch (e) { $('un-err').textContent = errText(e); } finally { $('un-ok').disabled = false; }
+  });
+
+  // The service's connections: on Windows each look and each change is an
+  // administrator step (the service's state is administrators' only).
+  async function loadSvc() {
+    $('svc-err').textContent = '';
+    const box = $('svc-list'); box.textContent = '…';
+    try {
+      const ss = (await api('unattended/sessions')).sessions || [];
+      box.textContent = '';
+      if (!ss.length) { const p = document.createElement('p'); p.className = 'muted'; p.textContent = t('un.none'); box.append(p); }
+      for (const x of ss) {
+        const r = document.createElement('div'); r.className = 'list-row';
+        const g = document.createElement('div'); g.className = 'grow';
+        const a = document.createElement('div'); a.textContent = x.device || x.peer;
+        const b = document.createElement('div'); b.className = 'muted small'; b.textContent = [x.from, x.path].filter(Boolean).join(' · ');
+        g.append(a, b);
+        const d = document.createElement('button'); d.type = 'button'; d.className = 'btn text sm'; d.textContent = t('s.disc');
+        d.addEventListener('click', async () => { try { await api('unattended/disconnect', {id: x.id}); loadSvc(); } catch (e) { $('svc-err').textContent = errText(e); } });
+        r.append(g, d); box.append(r);
+      }
+      $('svc-all').hidden = !ss.length;
+    } catch (e) { box.textContent = ''; $('svc-err').textContent = errText(e); }
+  }
+  $('un-sess').addEventListener('click', () => { $('dlg-svc').showModal(); loadSvc(); });
+  $('svc-all').addEventListener('click', async () => { try { await api('unattended/disconnect', {id: 0}); loadSvc(); } catch (e) { $('svc-err').textContent = errText(e); } });
+  $('un-pw').addEventListener('click', () => {
+    pwMode = 'change';
+    $('un-pw1').value = $('un-pw2').value = ''; $('un-err').textContent = '';
+    $('un-admin').hidden = S.unattended && !S.unattended.needs_admin;
+    $('un-ok').textContent = t('un.change');
+    $('dlg-un').showModal();
   });
 
   // ---- connection requests ----

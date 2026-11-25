@@ -220,6 +220,13 @@
     history.replaceState(null, '', location.pathname + location.search);
   }
   if (embed) document.documentElement.classList.add('embed');
+  // The desktop app's theme (light, dark, or "" for the system's): from the
+  // address at first, then from the app's messages.
+  function applyTheme(t) {
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    else delete document.documentElement.dataset.theme;
+  }
+  if (embed) applyTheme(params.get('theme') || '');
   const inFrame = embed && parentOrigin && window.parent !== window;
   function tellParent(m) { if (inFrame) window.parent.postMessage(m, parentOrigin); }
   let embedConn = null; // the key of the session this page serves
@@ -229,6 +236,8 @@
       if (ev.data.type === 'remohop-disconnect' && embedConn) {
         callTabs('hide');
         try { await SD.api('POST', 'disconnect', {c: embedConn}); } catch (e) { /* gone */ }
+      } else if (ev.data.type === 'remohop-theme') {
+        applyTheme(String(ev.data.theme || ''));
       } else if (ev.data.type === 'remohop-sid-request' && st.sid) {
         tellParent({type: 'remohop-sid', sid: st.sid});
       }
