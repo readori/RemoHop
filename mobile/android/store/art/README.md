@@ -10,7 +10,7 @@ Locales are `en-US` and `zh-CN`.
 
 ## Captures
 
-`src/<locale>/<n>-<screen>.webp` are captures of the real app made by CI, nothing by hand: the CI repository's `sodesk-android.yml` with `screenshots=only` runs `StoreScreenshotsTest` on a 1080 × 1920 emulator against a `remohop host` on a demo machine (host name `studio-pc`, user `demo`, made-up files, an Xvfb desktop), and keeps the PNGs as the artifact `remohop-play-screenshots`. To refresh them, download that artifact and convert:
+`src/<locale>/<n>-<screen>.webp` are captures of the real app made by CI, nothing by hand: the CI repository's `sodesk-android.yml` with `screenshots=only` runs `StoreScreenshotsTest` on a 1080 × 1920 emulator against a `remohop host` on a demo machine (host name `studio-pc`, user `demo`, made-up files, an Xvfb desktop), and keeps the PNGs as the artifact `remohop-play-screenshots` (the set here: test-env-setup run 45542352192). To refresh them, download that artifact and convert:
 
 ```bash
 python3 -c 'import sys,glob,os; from PIL import Image
