@@ -17,13 +17,13 @@ import "strings"
 //   - colorFull: swscale converts with BT.709 at full range. Decoded in
 //     Chromium the worst error over saturated colours, greys and UI
 //     colours was 1 level (TestViewerColorsXvfb), against 12 for limited
-//     range, and full range keeps all 256 luma levels for dark themes.
-//   - colorLimited: BT.709 at limited range, for converters that cannot
-//     produce full range or encoders that cannot label it (Media
-//     Foundation writes no colour description at all, and an unlabelled
-//     limited-range BT.709 stream is exactly what a browser assumes), and
-//     for the GPU chains of Quick Sync and AMF, whose converters are told
-//     to produce it.
+//     range, and full range keeps all 256 luma levels for dark themes. It
+//     costs CPU, so it is used where the pixel rate leaves room (cpuColor).
+//   - colorLimited: BT.709 at limited range, for faster streams, for
+//     encoders that cannot label full range (Media Foundation writes no
+//     colour description at all, and an unlabelled limited-range BT.709
+//     stream is exactly what a browser assumes), and for the GPU chains of
+//     Quick Sync and AMF, whose converters are told to produce it.
 //   - colorRGB601: NVENC fed RGB textures (the zero-copy chain) converts
 //     itself with BT.601 at limited range and writes that matrix into the
 //     stream; browsers ignore a matrix that comes without primaries and
@@ -69,14 +69,29 @@ func (m colorMode) encArgs() []string {
 	return []string{"-colorspace", matrix, "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", m.rangeName()}
 }
 
-// cpuColor is how frames converted by swscale for e are made: full range
-// unless e cannot say so in its stream.
-func (e *encoder) cpuColor() colorMode {
-	if e.limitedRange {
+// cpuColor is how frames converted by swscale for e are made, at a pixel
+// rate of pixels x fps: full range where that is cheap, limited range
+// otherwise, and always when e cannot label full range in its stream.
+//
+// swscale has no SIMD path for full-range RGB to YUV: at 1080p it took 4.7
+// ms a frame against 3.3 for limited range (ffmpeg 6.1, 4-core x86), and in
+// a whole session at 1080p60 with libx264, where capture, conversion and
+// encoder already share the cores, capture-to-encoded latency went from
+// 18-21 ms (limited, as before) to 43-62 ms (TestPerfReportXvfb). So full
+// range, the exact colours, is used up to fullRangeRate (1080p at 30 fps,
+// 720p at 60), and faster streams are converted at limited range, which in
+// Chromium is off by at most 12 levels on fully saturated primaries (greys
+// and UI colours exact) where the unlabelled BT.601 stream was off by 39.
+func (e *encoder) cpuColor(pixels, fps int) colorMode {
+	if e.limitedRange || pixels <= 0 || pixels*fps > fullRangeRate {
 		return colorLimited
 	}
 	return colorFull
 }
+
+// fullRangeRate is the highest pixel rate converted at full range (see
+// cpuColor). A variable so tests can choose.
+var fullRangeRate = 1920 * 1080 * 30
 
 // gpuColor is what the capture's GPU chain (captureSpec.gpu) hands e: NVENC
 // converts RGB textures itself; the other chains are set up to convert to

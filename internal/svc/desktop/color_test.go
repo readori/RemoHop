@@ -7,7 +7,8 @@ import (
 
 // Every way frames reach an encoder converts them with one matrix and range
 // and labels the stream with the same: swscale at full range BT.709 (or
-// limited, for an encoder that cannot label full range), NVENC's own
+// limited, for an encoder that cannot label full range or a pixel rate
+// above fullRangeRate), NVENC's own
 // conversion of RGB textures as BT.601, Quick Sync's and AMF's GPU chains as
 // limited-range BT.709, and the capture hub's NV12 frames as what the hub
 // made of them.
@@ -44,11 +45,18 @@ func TestArgsColor(t *testing.T) {
 		// Scaled: the GPU chain is not used, swscale converts.
 		{"h264_nvenc", captureSpec{filter: "hwdownload,format=bgra", gpu: gpu}, 0.5, []string{"hwdownload,format=bgra", "out_range=pc", "format=yuv420p"},
 			[]string{"-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "pc"}},
-		{"libx264", captureSpec{filter: yuvSource(hubColor)}, 1, []string{"setparams=range=pc:colorspace=bt709", "out_range=pc", "format=yuv420p"},
+		{"libx264", captureSpec{filter: yuvSource(hubColor)}, 1, []string{"setparams=range=tv:colorspace=bt709", "out_range=pc", "format=yuv420p"},
 			[]string{"-color_range", "pc"}},
+		// Above fullRangeRate (here 1080p at 60 fps): limited range.
+		{"libx264@60", captureSpec{}, 1, []string{"out_color_matrix=bt709:out_range=tv", "format=yuv420p"},
+			[]string{"-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"}},
 	}
 	for _, c := range cases {
-		h := &hostSession{enc: lookupEncoder(c.enc), opts: Options{Scale: c.scale}, fps: 30, bitrate: 4_000_000}
+		name, fps := c.enc, 30
+		if n, ok := strings.CutSuffix(name, "@60"); ok {
+			name, fps = n, 60
+		}
+		h := &hostSession{enc: lookupEncoder(name), opts: Options{Scale: c.scale}, fps: fps, bitrate: 4_000_000}
 		h.spec = captureSpec{width: 1920, height: 1080}
 		args := strings.Join(h.argsFor(c.spec), " ")
 		vf := ""

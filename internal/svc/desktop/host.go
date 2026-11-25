@@ -597,6 +597,9 @@ func (h *hostSession) gopFrames() int {
 	return 2 * h.fps
 }
 
+// cpuColor is how swscale converts for the current encoder, size and rate.
+func (h *hostSession) cpuColor() colorMode { return h.enc.cpuColor(h.outputPixels(), h.fps) }
+
 // scaleFilter keeps the aspect ratio and even dimensions (4:2:0 needs
 // them). Expressions are single-quoted so their commas are not taken as
 // filter separators.
@@ -605,7 +608,7 @@ func (h *hostSession) scaleFilter() string {
 	if h.opts.MaxHeight > 0 {
 		k = fmt.Sprintf("min(%g,%d/ih)", h.opts.Scale, h.opts.MaxHeight)
 	}
-	return fmt.Sprintf("scale=w='trunc(iw*min(1,%s)/2)*2':h='trunc(ih*min(1,%s)/2)*2':flags=bilinear", k, k) + h.enc.cpuColor().scaleOpts()
+	return fmt.Sprintf("scale=w='trunc(iw*min(1,%s)/2)*2':h='trunc(ih*min(1,%s)/2)*2':flags=bilinear", k, k) + h.cpuColor().scaleOpts()
 }
 
 func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
@@ -632,7 +635,7 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 		chain = append(chain, spec.filter)
 	}
 	chain = append(chain, h.scaleFilter(), h.enc.pixFmt)
-	color := h.enc.cpuColor()
+	color := h.cpuColor()
 	h.gpuChain = false
 	// A scaled picture keeps the GPU chain where the chain can scale (Quick
 	// Sync's video processor): a 4K host viewed at 1080p is the case where

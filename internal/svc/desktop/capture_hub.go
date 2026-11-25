@@ -90,8 +90,10 @@ type hubSub struct {
 }
 
 // hubColor is how the hub converts the screen to NV12; sessions label the
-// frames they read with it (hubInput's filter).
-const hubColor = colorFull
+// frames they read with it (hubInput's filter). Limited range: the hub
+// converts every frame of a Retina screen at the highest rate any session
+// asked for, and full range has no fast path in swscale (see cpuColor).
+const hubColor = colorLimited
 
 // hubInput is what a session's ffmpeg is given to read the hub's frames
 // (which yuvSource(hubColor) then labels).
