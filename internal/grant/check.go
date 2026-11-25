@@ -40,8 +40,32 @@ const (
 	alwaysMeta = "$`\u0085\u2028\u2029\u2018\u2019\u201a\u201b\u201c\u201d\u201e\u201f"
 )
 
-// CheckCommand checks a command line against the allow-list. An empty list
-// allows everything. An entry matches when the command's leading words are
+// Dialect is the quoting dialect of the shell the host runs commands with.
+type Dialect int
+
+const (
+	// DialectPOSIX: sh and its relatives (bash, dash, zsh, ksh, ...).
+	DialectPOSIX Dialect = iota
+	// DialectPowerShell: Windows PowerShell and PowerShell 7.
+	DialectPowerShell
+	// DialectCmd: cmd.exe, where only double quotes quote, and %, ^ and
+	// ! expand or escape even inside them.
+	DialectCmd
+	// DialectUnknown: a shell whose rules the check does not know.
+	DialectUnknown
+)
+
+// HostShell reports the dialect and path of the shell the host runs
+// commands with. The shell service sets it; the default is POSIX.
+var HostShell = func() (Dialect, string) { return DialectPOSIX, "" }
+
+// cmdMeta are refused anywhere in a command for cmd.exe: % expands
+// variables and ! (with delayed expansion) too, even inside double quotes,
+// and ^ escapes the next character outside them.
+const cmdMeta = "%^!"
+
+// CheckCommand checks a command line against the allow-list, for the
+// host's shell (HostShell). An empty list allows everything. An entry matches when the command's leading words are
 // exactly the entry's words: "git" allows "git status" and "git log -1",
 // "go test" allows "go test ./..." but not "go run". Commands that chain,
 // redirect, substitute or expand anything are refused outright, because
@@ -55,6 +79,19 @@ func CheckCommand(cmd string, allow []string) error {
 	if len(allow) == 0 {
 		return nil
 	}
+	dialect, sh := HostShell()
+	return checkCommand(cmd, allow, dialect, sh)
+}
+
+func checkCommand(cmd string, allow []string, dialect Dialect, sh string) error {
+	switch dialect {
+	case DialectUnknown:
+		return fmt.Errorf("the host runs commands with %s, whose quoting the allow-list does not know (it knows POSIX sh, PowerShell and cmd.exe; the host's owner can set REMOHOP_SHELL)", sh)
+	case DialectCmd:
+		if strings.ContainsAny(cmd, cmdMeta) {
+			return errors.New("it contains %, ^ or !, which the allow-list does not permit when the host's shell is cmd.exe")
+		}
+	}
 	if strings.ContainsAny(cmd, alwaysMeta) || strings.ContainsFunc(cmd, func(r rune) bool { return r < 0x20 && r != '\t' || r == 0x7f }) {
 		return fmt.Errorf("it contains $, a backtick, a typographic quote, a line break or a control character, which the allow-list does not permit")
 	}
@@ -63,7 +100,7 @@ func CheckCommand(cmd string, allow []string) error {
 	if strings.Contains(cmd, `\"`) || strings.Contains(cmd, `\'`) {
 		return errors.New("it has a backslash before a quote, which the allow-list does not permit")
 	}
-	words, err := splitWords(cmd)
+	words, err := splitWords(cmd, dialect == DialectCmd)
 	if err != nil {
 		return err
 	}
@@ -82,8 +119,9 @@ func CheckCommand(cmd string, allow []string) error {
 // splitWords splits a command line into words the way both POSIX sh and
 // PowerShell would for the simple commands CheckCommand admits: blanks
 // separate words, and single or double quotes group (without escapes).
-// Shell operators outside quotes are an error.
-func splitWords(cmd string) ([]string, error) {
+// Shell operators outside quotes are an error. For cmd.exe (doubleOnly) a
+// single quote is an ordinary character, as it is there.
+func splitWords(cmd string, doubleOnly bool) ([]string, error) {
 	var words []string
 	var cur strings.Builder
 	inWord := false
@@ -96,7 +134,7 @@ func splitWords(cmd string) ([]string, error) {
 			} else {
 				cur.WriteRune(c)
 			}
-		case c == '\'' || c == '"':
+		case c == '"' || c == '\'' && !doubleOnly:
 			quote, inWord = c, true
 		case c == ' ' || c == '\t':
 			if inWord {
