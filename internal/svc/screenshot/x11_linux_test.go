@@ -18,7 +18,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -29,6 +28,8 @@ import (
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/peer/peertest"
 	"github.com/readori/RemoHop/internal/x11disp"
+
+	"github.com/readori/RemoHop/internal/x11disp/xvfbtest"
 )
 
 // startXvfb runs Xvfb on a free display (chosen by the server through
@@ -53,14 +54,9 @@ func startXvfb(t *testing.T, extra ...string) int {
 	w.Close()
 	exited := make(chan struct{})
 	go func() { cmd.Wait(); close(exited) }()
+	var display string // known once Xvfb reports it
 	t.Cleanup(func() {
-		cmd.Process.Signal(syscall.SIGTERM)
-		select {
-		case <-exited:
-		case <-time.After(5 * time.Second):
-			cmd.Process.Kill()
-			<-exited
-		}
+		xvfbtest.Stop(cmd, display, exited)
 		r.Close()
 	})
 
@@ -72,6 +68,7 @@ func startXvfb(t *testing.T, extra ...string) int {
 		if err != nil {
 			t.Skipf("Xvfb did not report a display (%q); cannot run X11 tests here", s)
 		}
+		display = ":" + strconv.Itoa(n)
 		return n
 	case <-exited:
 		t.Skip("Xvfb exited immediately; cannot run X11 tests here")

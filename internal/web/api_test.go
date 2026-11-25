@@ -542,6 +542,11 @@ func sendTerm(t *testing.T, ws *websocket.Conn, v any) {
 
 func TestTerminalBridge(t *testing.T) {
 	r := newRig(t, peertest.Options{})
+	// Shell sessions outlive the host of one test (they live in a
+	// process-wide table): end this one's, or -count=2 finds it there.
+	t.Cleanup(func() {
+		r.jsonCall("POST", "api/v1/term/kill", map[string]any{"c": r.key, "name": "web1"}, nil)
+	})
 	ws := r.dialWS(t, "term/ws", r.q("rows", "24", "cols", "80", "session", "web1"))
 	defer ws.Close()
 	att := readControl(t, ws, "attached")

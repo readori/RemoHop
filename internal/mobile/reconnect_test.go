@@ -3,6 +3,7 @@ package mobile
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"net/url"
 	"os"
@@ -205,7 +206,10 @@ func TestReconnectTerminalReattaches(t *testing.T) {
 	c := pageOn(t)
 	key := c.connect(h.Addr().String(), hostPassword)
 
-	ws, first := c.openTerm(key, "")
+	// A name of its own: shell sessions live in a process-wide table that
+	// outlives this test's host, so with the default one -count=2 found
+	// the first run's session there.
+	ws, first := c.openTerm(key, fmt.Sprintf("reattach%d", time.Now().UnixNano()%1e9))
 	if first.Session == "" || !first.Created {
 		t.Fatalf("first attach: %+v", first)
 	}

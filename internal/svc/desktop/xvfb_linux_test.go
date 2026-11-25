@@ -18,6 +18,8 @@ import (
 
 	"github.com/jezek/xgb"
 	"github.com/jezek/xgb/xproto"
+
+	"github.com/readori/RemoHop/internal/x11disp/xvfbtest"
 )
 
 // startXvfb runs a private X server on a free display (Xvfb picks it and
@@ -44,10 +46,8 @@ func startXvfb(t *testing.T, w, h int) *xgb.Conn {
 		t.Fatal(err)
 	}
 	pw.Close()
-	t.Cleanup(func() {
-		cmd.Process.Kill()
-		cmd.Wait()
-	})
+	var display string // known once Xvfb reports it
+	t.Cleanup(func() { xvfbtest.Stop(cmd, display, nil) })
 	line := make(chan string, 1)
 	go func() {
 		s, _ := bufio.NewReader(pr).ReadString('\n')
@@ -64,7 +64,8 @@ func startXvfb(t *testing.T, w, h int) *xgb.Conn {
 	if _, err := strconv.Atoi(n); err != nil {
 		t.Fatalf("Xvfb display %q", n)
 	}
-	t.Setenv("DISPLAY", ":"+n)
+	display = ":" + n
+	t.Setenv("DISPLAY", display)
 	t.Setenv("WAYLAND_DISPLAY", "")
 	c, err := xgb.NewConnDisplay(":" + n)
 	if err != nil {
