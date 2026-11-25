@@ -15,10 +15,7 @@
     <string name="not_set">Not set</string>
     <string name="optional">Optional</string>
     <string name="checking">Checking…</string>
-    <string name="value_ok">%1$s · OK</string>
-    <string name="value_problem">%1$s · Problem</string>
     <string name="info_about_screen">About this screen</string>
-    <string name="sec_connection">Connection</string>
     <string name="sec_hosts">Hosts</string>
     <string name="sec_general">General</string>
     <string name="sec_support">Support</string>
@@ -155,4 +152,12 @@
     <string name="rv_use_key">Use this key</string>
     <string name="rv_key_used">Server key saved.</string>
     <string name="privacy_questions">Privacy questions</string>
+    <!-- Material 3 Settings: the status card and badges. -->
+    <string name="rv_card_unset">Needed to connect by ID</string>
+    <string name="set_up">Set up</string>
+    <string name="badge_paired">Paired</string>
+    <string name="badge_key">Key</string>
+    <string name="badge_needs_password">Needs password</string>
+    <string name="no_hosts_next">Pair once with the host\'s password; later it connects without one.</string>
+    <string name="rv_no_key_short">This device trusts the first server that answers. Tap ⓘ for details.</string>
 </resources>

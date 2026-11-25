@@ -35,6 +35,5 @@
     <color name="md_surface_container_highest">#34343A</color>
     <color name="md_surface_dim">#121318</color>
     <color name="md_surface_bright">#38393F</color>
-    <color name="rh_bar_top">#121318</color>
     <color name="rh_bg">#121318</color>
 </resources>

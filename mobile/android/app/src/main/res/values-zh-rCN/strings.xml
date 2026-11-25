@@ -17,10 +17,7 @@
     <string name="not_set">未设置</string>
     <string name="optional">可选</string>
     <string name="checking">正在检查…</string>
-    <string name="value_ok">%1$s · 正常</string>
-    <string name="value_problem">%1$s · 有问题</string>
     <string name="info_about_screen">关于此页</string>
-    <string name="sec_connection">连接</string>
     <string name="sec_hosts">被控端</string>
     <string name="sec_general">通用</string>
     <string name="sec_support">支持</string>
@@ -154,4 +151,12 @@
     <string name="rv_use_key">使用此密钥</string>
     <string name="rv_key_used">已保存服务器密钥。</string>
     <string name="privacy_questions">隐私问题</string>
+    <!-- Material 3 设置：状态卡片与标签。 -->
+    <string name="rv_card_unset">用 ID 连接时需要</string>
+    <string name="set_up">去设置</string>
+    <string name="badge_paired">已配对</string>
+    <string name="badge_key">密钥</string>
+    <string name="badge_needs_password">需要密码</string>
+    <string name="no_hosts_next">用被控端的密码配对一次，以后连接无需密码。</string>
+    <string name="rv_no_key_short">本设备会信任首次应答的服务器。详情请点 ⓘ。</string>
 </resources>
