@@ -53,6 +53,8 @@ func newHarnessWith(t *testing.T, services *peer.Registry, tweak ...func(*Option
 	opts := Options{
 		DefaultTarget: "123456789",
 		IdleTimeout:   -1,
+		// The tests write below t.TempDir().
+		WriteDirs: []string{os.TempDir()},
 		Dial: func(ctx context.Context, target string) (*peer.Conn, error) {
 			h.dials.Add(1)
 			// Dial takes a moment so concurrent callers really overlap.

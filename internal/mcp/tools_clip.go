@@ -30,7 +30,7 @@ const (
 type clipGetIn struct {
 	Target    string `json:"target,omitempty" jsonschema:"Remote machine: 9-digit RemoHop ID, saved alias or host:port. Optional if the server has a default target."`
 	MaxBytes  int    `json:"max_bytes,omitempty" jsonschema:"Cap returned text at this many bytes (default 65536, max 1048576). Does not apply to images."`
-	SavePath  string `json:"save_path,omitempty" jsonschema:"Optional absolute path on THIS computer to also save the clipboard content to (text file or PNG). Refuses to replace an existing file unless overwrite is true; cannot point into RemoHop's own config directory."`
+	SavePath  string `json:"save_path,omitempty" jsonschema:"Optional path on THIS computer, inside the MCP server's download directory (a relative path lands there), to also save the clipboard content to (text file or PNG). Refuses to replace an existing file unless overwrite is true; cannot point into RemoHop's own config directory."`
 	Overwrite bool   `json:"overwrite,omitempty" jsonschema:"Allow save_path to replace an existing file."`
 }
 
@@ -94,7 +94,7 @@ func (s *Server) clipGet(ctx context.Context, in clipGetIn) (*reply[clipGetOut],
 	// Validate the destination before touching the remote machine.
 	var savePath string
 	if in.SavePath != "" {
-		p, err := guardLocal(in.SavePath)
+		p, err := s.guardWrite(in.SavePath)
 		if err != nil {
 			return nil, err
 		}

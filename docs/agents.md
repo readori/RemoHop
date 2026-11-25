@@ -163,6 +163,8 @@ and pass the same `REMOHOP_CONFIG_DIR` to the MCP server in the client configura
 
 `remohop mcp --read-only` additionally hides every tool that changes something (commands, writes, input, clipboard changes, forwards). That is a convenience on the agent's side; the grant is what the host enforces.
 
+On the agent's own computer, the tools write only into the MCP server's download directories: `remohop_download`, and `save_path` of `remohop_screenshot` and `remohop_clipboard_get`. The default is `~/Downloads/remohop` (created when first needed); `--download-dir DIR` replaces it and can be repeated. A relative path or bare file name lands in the first directory, and a path outside them (or through a link that leads out) is refused, as is anything in RemoHop's config directory. What these tools write came from a remote machine, and output of that machine can steer a model, so keep the download directories away from `~/.ssh`, shell startup files and other places where a file changes what runs. Reading local files (`remohop_upload`, `remohop_send`) is not confined beyond the config directory.
+
 ## Client setup
 
 `remohop` must be on the client's `PATH`, or give its absolute path (`which remohop`, or `where remohop` on Windows). Replace `276941009` with the host's ID, alias or `HOST:PORT`; omit `--target` to let the agent pass a target on every call.
@@ -240,7 +242,7 @@ Use the tools in Copilot Chat's agent mode.
 
 ### Other MCP clients
 
-Any client that starts stdio servers works: the command is `remohop`, the arguments `mcp` plus optional `--target ID`, `--read-only` and `--idle-timeout DURATION`. Nothing but protocol messages is written to stdout; diagnostics go to stderr (`-v` for debug logs).
+Any client that starts stdio servers works: the command is `remohop`, the arguments `mcp` plus optional `--target ID`, `--read-only`, `--idle-timeout DURATION` and `--download-dir DIR`. Nothing but protocol messages is written to stdout; diagnostics go to stderr (`-v` for debug logs).
 
 ## What the agent sees
 

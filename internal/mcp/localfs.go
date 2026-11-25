@@ -84,6 +84,69 @@ func guardLocal(arg string) (string, error) {
 	return p, nil
 }
 
+// DefaultDownloadDir is where the MCP tools write when `remohop mcp` is not
+// given --download-dir: a remohop folder in the user's Downloads.
+func DefaultDownloadDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "Downloads", "remohop"), nil
+}
+
+// writeDirs are the directories local writes may go to.
+func (s *Server) writeDirs() ([]string, error) {
+	if len(s.opts.WriteDirs) > 0 {
+		return s.opts.WriteDirs, nil
+	}
+	d, err := DefaultDownloadDir()
+	if err != nil {
+		return nil, err
+	}
+	return []string{d}, nil
+}
+
+// guardWrite validates a local path a tool is to write to: guardLocal, and
+// it must lie in one of the write directories (after resolving links). A
+// relative path is taken inside the first, which is created if missing.
+func (s *Server) guardWrite(arg string) (string, error) {
+	dirs, err := s.writeDirs()
+	if err != nil {
+		return "", err
+	}
+	if arg == "" {
+		return "", errors.New("empty local path")
+	}
+	if !filepath.IsAbs(arg) && arg != "~" && !strings.HasPrefix(arg, "~/") {
+		if !filepath.IsLocal(arg) {
+			return "", fmt.Errorf("relative local path %q must stay inside %s", arg, dirs[0])
+		}
+		if err := os.MkdirAll(dirs[0], 0o700); err != nil {
+			return "", err
+		}
+		arg = filepath.Join(dirs[0], arg)
+	}
+	p, err := guardLocal(arg)
+	if err != nil {
+		return "", err
+	}
+	real, err := resolve(p)
+	if err != nil {
+		return "", err
+	}
+	for _, d := range dirs {
+		rd, err := filepath.EvalSymlinks(d)
+		if err != nil {
+			continue
+		}
+		if rel, err := filepath.Rel(rd, real); err == nil && filepath.IsLocal(rel) {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("%s is outside the directories this MCP server may write to (%s): save there (a relative path lands in %s), or have the person start `remohop mcp` with --download-dir DIR",
+		p, strings.Join(dirs, ", "), dirs[0])
+}
+
 // writeLocal streams r into dest and returns the byte count. The data goes to
 // a private temporary file in dest's directory first, so a failed transfer
 // never leaves a partial file. Without overwrite, an existing dest (including
