@@ -365,6 +365,40 @@ func TestHostMovesBehindItsNAT(t *testing.T) {
 	}
 }
 
+// Introductions are remembered for a possible relay request, for a minute
+// and no longer, and without holding on to either peer's connection.
+func TestIntroductionsExpire(t *testing.T) {
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	hc := tn.dial(tn.socket(tn.net.Host("192.0.2.20")), Options{})
+	reg, err := hc.Register(ctx, newIdentity(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	go hc.ServeOffers(ctx, func(Offer) Answer { return Answer{} })
+	cc := tn.dial(tn.socket(tn.net.Host("192.0.2.10")), Options{})
+	if _, err := cc.Connect(ctx, reg.ID, nil, nat.TypeUnknown); err != nil {
+		t.Fatal(err)
+	}
+	cc.Close()
+	count := func() int {
+		tn.srv.mu.Lock()
+		defer tn.srv.mu.Unlock()
+		return len(tn.srv.intros)
+	}
+	if n := count(); n != 1 {
+		t.Fatalf("%d introductions remembered, want 1", n)
+	}
+	tn.srv.expireIntros(time.Now())
+	if n := count(); n != 1 {
+		t.Fatal("a fresh introduction was forgotten")
+	}
+	tn.srv.expireIntros(time.Now().Add(introTTL + time.Second))
+	if n := count(); n != 0 {
+		t.Fatalf("%d introductions left after their time", n)
+	}
+}
+
 func TestOneIdentityPerConnection(t *testing.T) {
 	tn := newTestNet(t, Limits{})
 	ctx := testCtx(t)
