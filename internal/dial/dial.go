@@ -519,7 +519,23 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 			return nil, err
 		}
 		d.opts.applyTransport(&d.sopts)
+		d.sopts.HintDir = d.dir
 		d.onWS = d.sopts.UseWS() && (!d.sopts.UseUDP() || d.signalAddr == "")
+	}
+	// UDP to the rendezvous server got no answer from this network moments
+	// ago and the bridge did: straight to the bridge (signal.UDPBlocked).
+	var locals []netip.Addr
+	hintedWS := false
+	if t.id != "" && !d.onWS && d.sopts.UseWS() {
+		if d.opts.Locals != nil {
+			locals = d.opts.Locals()
+		} else {
+			locals = nat.InterfaceAddrs()
+		}
+		if signal.UDPBlocked(d.dir, d.signalAddr, locals) {
+			d.log.Debug("rendezvous server was not reachable over UDP from this network moments ago; going to its websocket bridge")
+			d.onWS, hintedWS = true, true
+		}
 	}
 
 	sock, err := d.newSocket()
@@ -548,6 +564,13 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 		if err != nil && ctx.Err() == nil {
 			err = fmt.Errorf("%w (over UDP: %v)", err, useWS.err)
 		}
+		if err == nil || signal.CodeOf(err) != "" {
+			// The bridge reached the server: remember that UDP did not.
+			signal.SetUDPBlocked(d.dir, d.signalAddr, locals, true)
+		}
+	} else if hintedWS && err != nil && ctx.Err() == nil && signal.CodeOf(err) == "" {
+		// The bridge did not help this time; next time UDP is tried again.
+		signal.SetUDPBlocked(d.dir, d.signalAddr, locals, false)
 	}
 	if retry, isRetry := errors.AsType[*errRetryPunch](err); isRetry {
 		// The punch lost a race it can win on a second try. The second

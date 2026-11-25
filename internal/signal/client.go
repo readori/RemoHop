@@ -48,6 +48,11 @@ type Options struct {
 	// bridge if UDP does not get through), TransportUDP or TransportWS.
 	// Empty means auto.
 	Transport string
+
+	// HintDir is the configuration directory where Connect remembers that
+	// UDP to the server is blocked from the current network (see
+	// UDPBlocked); empty remembers in memory only.
+	HintDir string
 }
 
 // Client is a connection to a rendezvous server, made from a peer's shared

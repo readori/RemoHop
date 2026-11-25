@@ -245,13 +245,23 @@ func queryPresence(ctx context.Context, opts Options, ids []string) (map[string]
 		return nil, err
 	}
 	opts.applyTransport(&sopts)
+	if sopts.HintDir = opts.Dir; sopts.HintDir == "" {
+		sopts.HintDir, _ = config.Dir()
+	}
 	ctx, cancel := context.WithTimeout(ctx, signalTimeout)
 	defer cancel()
 	sc, sock, err := signal.Connect(ctx, addr, sopts, func() (*nat.Socket, error) {
+		var sock *nat.Socket
+		var err error
 		if opts.PacketConn != nil {
-			return nat.NewSocket(opts.PacketConn)
+			sock, err = nat.NewSocket(opts.PacketConn)
+		} else {
+			sock, err = nat.Listen("")
 		}
-		return nat.Listen("")
+		if err == nil && opts.Locals != nil {
+			sock.Locals = opts.Locals
+		}
+		return sock, err
 	}, opts.Logger)
 	if err != nil {
 		return nil, err

@@ -143,6 +143,23 @@ func TestEndToEndWebSocket(t *testing.T) {
 				t.Fatalf("host sees path %q, want %q", p, tc.wantHostPathContains)
 			}
 
+			// The next dial from this network goes to the bridge at once
+			// instead of waiting for UDP again (signal.UDPBlocked).
+			if tc.clientWS {
+				udpOpened := false
+				again := opts
+				again.Listen = func() (net.PacketConn, error) { udpOpened = true; return newBlockedUDP(), nil }
+				start := time.Now()
+				c2, err := Dial(ctx, h.ID(), again)
+				if err != nil {
+					t.Fatal(err)
+				}
+				c2.Close()
+				if udpOpened || time.Since(start) > signal.FallbackAfter {
+					t.Fatalf("second dial: tried UDP again %v, took %s", udpOpened, time.Since(start))
+				}
+			}
+
 			// ping says so.
 			if tc.clientWS {
 				env, stdout, stderr := cliEnv(h.ID(), "ws-test-password", opts)
