@@ -181,6 +181,9 @@
     const cb = $('d-viewonly');
     cb.disabled = !hostInput && !openedViewOnly;
     cb.checked = viewOnly || !hostInput;
+    // The host's owner let this session only watch (the desktop app's
+    // default for a device it does not know): it can ask for control.
+    $('d-askctl').hidden = hostInput || openedViewOnly;
     canvas.style.cursor = inputOK() ? 'crosshair' : 'default';
     // The monitor menu is rebuilt from every hello: another host has other
     // monitors.
@@ -382,6 +385,16 @@
   $('d-key').addEventListener('click', () => { requestKey(true); canvas.focus(); });
   $('d-stats').addEventListener('click', () => { const h = $('d-hud'); h.hidden = !h.hidden; $('d-stats').setAttribute('aria-pressed', String(!h.hidden)); });
   $('d-reconnect').addEventListener('click', open);
+  $('d-askctl').addEventListener('click', async () => {
+    const b = $('d-askctl'), c = conn;
+    b.disabled = true;
+    SD.say(b, 'd.asking');
+    try {
+      await SD.api('POST', 'access', {c, features: ['input']});
+      if (c === conn) open(); // a new stream gets the input the host now allows
+    } catch (e) { msg('d.askfailed', {msg: SD.errVar(e)}, false); setTimeout(() => { if (c === conn && !ended) msg(null); }, 6000); }
+    finally { b.disabled = false; SD.say(b, 'd.askctl'); }
+  });
   $('d-quality').addEventListener('change', () => { const v = +$('d-quality').value; send({type: 'config', max_height: v || -1}); });
   $('d-display').addEventListener('change', () => send({type: 'display', display: +$('d-display').value}));
   $('d-cad').addEventListener('click', () => {
