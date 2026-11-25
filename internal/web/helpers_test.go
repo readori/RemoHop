@@ -27,15 +27,30 @@ import (
 
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/peer/peertest"
+	"github.com/readori/RemoHop/internal/svc/clip"
+	"github.com/readori/RemoHop/internal/x11disp"
 )
 
-// testEnv isolates the config dir and the headless clipboard/shell.
+// testEnv isolates the config dir, the clipboard, the X displays and the
+// shell. DISPLAY="" alone isolated nothing: display discovery goes on to
+// every X socket in /tmp/.X11-unix, and the other packages' tests run
+// their own Xvfb servers in parallel, so the in-process host's clipboard
+// latched onto a foreign server that could vanish mid-write
+// (TestClipboardAndInfo then failed with a 502 after the 5 s write
+// confirmation) and carried its content from one run to the next.
 func testEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
 	t.Setenv("DISPLAY", "")
 	t.Setenv("WAYLAND_DISPLAY", "")
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv("SHELL", "/bin/sh")
+	restore := x11disp.SetSocketDir(t.TempDir())
+	clip.SetHostBoard(clip.NewMemoryBoard())
+	t.Cleanup(func() {
+		clip.SetHostBoard(nil)
+		restore()
+	})
 }
 
 // pairDial returns a Dial seam that hands out peertest sessions and checks

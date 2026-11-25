@@ -146,6 +146,14 @@ func x11Envs(ctx context.Context) [][]string {
 	if err != nil {
 		return nil
 	}
+	// Find answers from its cache for a while; a display that went away
+	// (the session ended) fails to open, which drops it from the cache,
+	// and the next Find looks again.
+	if c, err := d.Open(ctx); err == nil {
+		c.Close()
+	} else if d, err = x11disp.Find(ctx); err != nil {
+		return nil
+	}
 	return [][]string{d.Merge(nil)}
 }
 
@@ -175,9 +183,72 @@ func hostBoard(ctx context.Context) Board {
 	if hostBoards.override {
 		return hostBoards.board
 	}
+	return redetecting{}
+}
+
+// currentHostBoard is the detected host clipboard, detecting it when there
+// is none yet or the virtual one has been in use for redetectEvery.
+func currentHostBoard(ctx context.Context) Board {
+	hostBoards.mu.Lock()
+	defer hostBoards.mu.Unlock()
+	if hostBoards.override {
+		return hostBoards.board
+	}
 	_, isVirtual := hostBoards.board.(*MemoryBoard)
 	if hostBoards.board == nil || (isVirtual && time.Since(hostBoards.at) > redetectEvery) {
 		hostBoards.board, hostBoards.at = Detect(ctx), time.Now()
 	}
 	return hostBoards.board
+}
+
+// forgetHostBoard drops b as the host clipboard, so that the next use
+// detects again.
+func forgetHostBoard(b Board) {
+	hostBoards.mu.Lock()
+	if !hostBoards.override && hostBoards.board == b {
+		hostBoards.board = nil
+	}
+	hostBoards.mu.Unlock()
+}
+
+// redetecting is the host daemon's clipboard as detected, detected again
+// when it fails because its display is gone. Once a host has found an X or
+// Wayland clipboard it used to keep it, with the DISPLAY and XAUTHORITY it
+// captured, for the life of the process: after the desktop session ended
+// or restarted (a log out and in, a display manager writing a new
+// Xauthority file each time) every get and set failed until the host was
+// restarted, a set only after the 5 s confirmation timeout.
+type redetecting struct{}
+
+// stale reports whether err says the board's display is gone.
+func stale(err error) bool { return errors.Is(err, errUnavailable) || errors.Is(err, errNotTaken) }
+
+func (redetecting) Name() string { return currentHostBoard(context.Background()).Name() }
+
+func (redetecting) Read(ctx context.Context) (Content, error) {
+	b := currentHostBoard(ctx)
+	c, err := b.Read(ctx)
+	if stale(err) {
+		forgetHostBoard(b)
+		if nb := currentHostBoard(ctx); nb != b {
+			return nb.Read(ctx)
+		}
+	}
+	return c, err
+}
+
+func (redetecting) Write(ctx context.Context, c Content) error {
+	b := currentHostBoard(ctx)
+	err := b.Write(ctx, c)
+	if stale(err) {
+		forgetHostBoard(b)
+		if nb := currentHostBoard(ctx); nb != b {
+			return nb.Write(ctx, c)
+		}
+	}
+	return err
+}
+
+func (redetecting) Watch(ctx context.Context) <-chan Content {
+	return currentHostBoard(ctx).Watch(ctx)
 }

@@ -14,6 +14,10 @@ import (
 // detection treats it as "no system clipboard here".
 var errUnavailable = errors.New("clipboard helper cannot reach a display")
 
+// errNotTaken: a write was not read back (confirmWrite), which is how a
+// display that went away mid-write shows.
+var errNotTaken = errors.New("the clipboard did not take the new content")
+
 func cantConnect(stderr string) bool {
 	s := strings.ToLower(stderr)
 	return strings.Contains(s, "can't open display") || strings.Contains(s, "cannot open display") ||
@@ -123,6 +127,9 @@ func (b *x11Board) Write(ctx context.Context, c Content) error {
 		err = b.h.own(ctx, c.Data, "xclip", "-selection", "clipboard", "-i", "-t", "UTF8_STRING")
 	}
 	if err != nil {
+		if cantConnect(err.Error()) {
+			return fmt.Errorf("%w: %v", errUnavailable, err)
+		}
 		return err
 	}
 	return confirmWrite(ctx, b, c)
@@ -143,7 +150,7 @@ func confirmWrite(ctx context.Context, b Board, c Content) error {
 			return nil
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("%s: the clipboard did not take the new content within %s", b.Name(), confirmTimeout)
+			return fmt.Errorf("%s: %w within %s", b.Name(), errNotTaken, confirmTimeout)
 		}
 		select {
 		case <-ctx.Done():
