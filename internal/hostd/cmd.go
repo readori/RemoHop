@@ -107,7 +107,11 @@ const logUsage = `Usage: remohop log [N] [--json]
 Show the last N (default 50) entries of this machine's host audit log:
 logins accepted and refused (with the reason), approval decisions, the first
 use of each feature in a session, and session ends. The log is kept in the
-config directory (audit.jsonl, readable by you only, rotated at 1 MB).
+config directory, readable by you only: audit.jsonl (rotated at 1 MB, four
+old files kept) and, apart so that floods cannot push the records out,
+audit-refused.jsonl for refused logins and grant refusals. Past 10 refusals
+per source (or granted session) a minute, and 100 in all, the rest are
+counted and written as one entry with "suppressed" (their number).
 `
 
 const statusUsage = `Usage: remohop status [--json] [--show-password]

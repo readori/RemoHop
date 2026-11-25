@@ -128,7 +128,7 @@ remohop host audit --grant claude-session        # the last 100 entries of that 
 remohop host audit --grant claude-session 1000 --json
 ```
 
-With `--record`, the output of every command and interactive terminal under the grant is saved as an [asciicast v2](https://docs.asciinema.org/manual/asciicast/v2/) file in `recordings/NAME/` inside the config directory (files mode 0600). Play one back with `asciinema play FILE`, or read it as text: it is JSON lines. A recording stops at 64 MiB. Background jobs (`remohop_spawn`) are not recorded this way; their output is kept in the host's job logs (`jobs/` in the config directory) as for any job. The audit log is rotated at 1 MB (one old file is kept), so a busy grant can push older entries out; copy the log away if you need to keep it.
+With `--record`, the output of every command and interactive terminal under the grant is saved as an [asciicast v2](https://docs.asciinema.org/manual/asciicast/v2/) file in `recordings/NAME/` inside the config directory (files mode 0600). Play one back with `asciinema play FILE`, or read it as text: it is JSON lines. A recording stops at 64 MiB. Background jobs (`remohop_spawn`) are not recorded this way; their output is kept in the host's job logs (`jobs/` in the config directory) as for any job. The audit log is rotated at 1 MB with four old files kept, so a very busy grant can still push older entries out; copy the log away if you need to keep it. Refusals go to a separate file (`audit-refused.jsonl`) and are summarised past 10 a minute per session, so a session cannot evict its own trail by provoking refusals.
 
 ## Stopping everything
 
