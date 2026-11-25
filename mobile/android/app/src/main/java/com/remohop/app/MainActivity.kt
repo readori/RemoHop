@@ -85,7 +85,7 @@ class MainActivity : Activity(), BridgeHost {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        saver = DownloadSaver(this, REQ_SAVE)
+        saver = DownloadSaver(this, REQ_SAVE, { root })
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this)
         setContentView(root)
@@ -113,7 +113,7 @@ class MainActivity : Activity(), BridgeHost {
             val gen = Core.generation
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
-                url.onSuccess { loadedGen = gen; load(it) }.onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
+                url.onSuccess { loadedGen = gen; failed = false; load(it) }.onFailure { showError(str(R.string.gateway_failed, it.message ?: "")) }
             }
         }
     }
@@ -237,6 +237,9 @@ class MainActivity : Activity(), BridgeHost {
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                 Diag.log("web renderer gone (crashed: ${detail.didCrash()})")
+                // The page that asked for full screen and a screen kept on
+                // is gone; the new one starts in the normal layout.
+                setState(keepScreenOn = false, fullscreen = false)
                 // The renderer died (or was killed for memory): start over
                 // with a fresh WebView on the same gateway.
                 view.destroy()
@@ -296,9 +299,33 @@ class MainActivity : Activity(), BridgeHost {
         } else null
     }
 
+    /** The gateway could not start: the reason, and Try again (also tried again on every return to the app). */
+    private var failed = false
+
     private fun showError(text: String) {
+        failed = true
+        setState(keepScreenOn = false, fullscreen = false)
         root.removeAllViews()
-        root.addView(TextView(this).apply { this.text = text; setPadding(48, 48, 48, 48); textSize = 16f })
+        val col = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+        }
+        col.addView(TextView(this).apply {
+            this.text = text; textSize = 16f; gravity = android.view.Gravity.CENTER
+            setTextColor(getColor(R.color.md_on_surface))
+        })
+        col.addView(android.widget.Button(this).apply {
+            this.text = str(R.string.gateway_retry)
+            setOnClickListener { retryGateway() }
+        }, android.widget.LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = 32 })
+        root.addView(col, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+    }
+
+    private fun retryGateway() {
+        if (bg.isShutdown) return
+        newWebView()
+        startGateway()
     }
 
     private fun handleBack() {
@@ -341,6 +368,7 @@ class MainActivity : Activity(), BridgeHost {
         // failed listener, or starts again) before the page needs it. It
         // also re-establishes host sessions that dropped meanwhile.
         if (origin != null) ensureGateway {}
+        else if (failed) retryGateway()
         tellPage()
         main.removeCallbacks(watch)
         main.post(watch)
@@ -358,7 +386,7 @@ class MainActivity : Activity(), BridgeHost {
     private fun watchSessions() {
         if (bg.isShutdown) return
         bg.execute {
-            val has = SessionWatch.sessions().isNotEmpty()
+            val has = SessionWatch.busy()
             if (has) SessionWatch.check(this)
             runOnUiThread { if (has && !isDestroyed) askNotifications() }
         }
@@ -375,6 +403,7 @@ class MainActivity : Activity(), BridgeHost {
 
     override fun onDestroy() {
         main.removeCallbacks(watch)
+        if (::saver.isInitialized) saver.close()
         if (::web.isInitialized) {
             root.removeAllViews()
             web.destroy()

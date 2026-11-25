@@ -194,6 +194,23 @@ async function harnessTests(b) {
   check(m.length === 3 && m[0].type === 'move' && m[1].type === 'button' && m[1].button === 0 && m[1].down && !m[2].down &&
     near(m[1].x, 0.5) && near(m[1].y, 0.5), 'tap is a left click at the finger', m);
   check(await p.eval('window.__leaked') === 0, 'touch never reaches desktop.js listeners');
+  // A page loaded again tells the app its state at once (the app may still
+  // hold a dead page's full screen and keep-screen-on).
+  check(await p.eval('window.__native.some(n => n.method === "state" && n.args.fullscreen === false)'), 'the page says its state once ready');
+
+  // Double tap: the second tap lands where the first did, despite finger drift.
+  await sleep(600);
+  await p.touch('touchStart', [at(0.3, 0.3)]); await p.touch('touchEnd', []);
+  await sleep(80);
+  const [dx2, dy2] = at(0.3, 0.3);
+  await p.touch('touchStart', [[dx2 + 7, dy2 - 5]]); await p.touch('touchEnd', []);
+  m = (await sent()).filter(e => e.type === 'button' && e.down);
+  check(m.length === 2 && m[0].x === m[1].x && m[0].y === m[1].y, 'a double tap clicks twice at the same point', m);
+  await sleep(80);
+  await p.touch('touchStart', [at(0.8, 0.8)]); await p.touch('touchEnd', []);
+  m = (await sent()).filter(e => e.type === 'button' && e.down);
+  check(m.length === 1 && near(m[0].x, 0.8), 'a quick tap elsewhere clicks where it is', m);
+  await sleep(600);
 
   // Two-finger tap = right click.
   await p.touch('touchStart', [at(0.4, 0.5), at(0.6, 0.5)]); await sleep(50); await p.touch('touchEnd', []);
@@ -381,6 +398,18 @@ async function gatewayTests(b) {
   check(await p.waitFor('!document.getElementById("connect").hidden'), 'gateway page shows the connect form');
   check(await p.eval('!!document.getElementById("sdm-settings")'), 'settings button present on the gateway page');
   check(await p.eval('document.documentElement.scrollWidth <= innerWidth'), 'no horizontal scrolling at 390 px');
+  // An ID with no rendezvous server set: the app's words, and "Set up"
+  // opens Settings → Rendezvous server.
+  await p.eval(`document.getElementById('target').value = '123 456 789'; document.getElementById('hostpass').value = 'x';
+    document.getElementById('connectbtn').click()`);
+  check(await p.waitFor('!!document.getElementById("sdm-setup")', 15000), 'no rendezvous server: the error offers Set up',
+    await p.eval('document.getElementById("connerr").textContent'));
+  const nrErr = await p.eval('document.querySelector("#connerr .errmain").textContent');
+  check(/rendezvous server/.test(nrErr) && /host:port/.test(nrErr) && !/remohop |--signal|REMOHOP_/.test(nrErr), 'and says where to set one, with no command-line text', nrErr);
+  await p.shot('no-rendezvous');
+  await p.eval('window.__native.length = 0; document.getElementById("sdm-setup").click()');
+  check(await p.eval('window.__native.some(n => n.method === "openSettings" && n.args && n.args.page === "rendezvous")'), 'Set up opens the rendezvous settings');
+  await p.eval(`document.getElementById('target').value = ''; document.getElementById('connerr').textContent = ''`);
   // The way a user pairs in the app: host address, password and the pair
   // box in the connect form (a second host, so the saved pairing below is
   // not what makes this work).

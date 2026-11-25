@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stable IDs for the Settings fields (built in code), so that what the
+     user typed survives the activity being recreated. -->
+<resources>
+    <item name="field_signal" type="id" />
+    <item name="field_signal_pin" type="id" />
+    <item name="field_name" type="id" />
+    <item name="field_pair_target" type="id" />
+    <item name="field_pair_password" type="id" />
+    <item name="field_pair_alias" type="id" />
+    <item name="field_host_alias" type="id" />
+    <!-- A field's value when it was built (to tell what the user changed). -->
+    <item name="field_initial" type="id" />
+</resources>

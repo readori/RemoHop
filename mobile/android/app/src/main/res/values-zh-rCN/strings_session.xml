@@ -7,4 +7,5 @@
     <string name="session_reconnecting">正在重新连接 %1$s…</string>
     <string name="session_lost">与 %1$s 的连接已断开</string>
     <string name="session_disconnect">断开连接</string>
+    <string name="session_connecting">正在连接被控端…</string>
 </resources>
