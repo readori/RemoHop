@@ -166,6 +166,10 @@ html.pseudo-fs, html.pseudo-fs body { overflow: hidden; }
 .exitfs.dim { opacity: .4; }
 .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; background: rgba(0,0,0,.72); color: #eee; font-size: 1.05rem; overflow-wrap: anywhere; }
 .overlay:empty { display: none; }
+#d-msg { flex-direction: column; gap: 4px; }
+#d-msg .errdetail { max-width: min(640px, 100%); text-align: left; color: #ccc; }
+.paused { position: absolute; z-index: 4; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 6px 12px; border-radius: 6px; background: rgba(90, 60, 0, .9); color: #fff; font-size: .9rem; text-align: center; pointer-events: none; }
+.paused[hidden] { display: none; }
 
 .termhost { height: calc(100vh - 322px); min-height: 220px; background: #0c0c0c; border-radius: 10px; border: 1px solid var(--line); position: relative; overflow: hidden; }
 .keyrow { display: none; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
