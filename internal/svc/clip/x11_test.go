@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/readori/RemoHop/internal/x11disp"
+
+	"github.com/readori/RemoHop/internal/x11disp/xvfbtest"
 )
 
 // startXvfb runs a private X server and returns its DISPLAY. The test is
@@ -85,8 +87,7 @@ func tryXvfb(t *testing.T, n int) (string, bool) {
 	go func() { cmd.Wait(); close(exited) }()
 	stop := func() {
 		// Selection owners (xclip/xsel) exit when their X server goes away.
-		cmd.Process.Kill()
-		<-exited
+		xvfbtest.Stop(cmd, display, exited)
 	}
 	line := make(chan string, 1)
 	go func() {
@@ -100,12 +101,16 @@ func tryXvfb(t *testing.T, n int) (string, bool) {
 			return "", false
 		}
 		t.Cleanup(stop)
+		xvfbStops[display] = stop
 		return display, true
 	case <-time.After(15 * time.Second):
 		stop()
 		return "", false
 	}
 }
+
+// xvfbStops ends a test's X server before the test does.
+var xvfbStops = map[string]func(){}
 
 func x11For(display, tool string) *x11Board {
 	return &x11Board{tool: tool, h: helper{env: withEnv(map[string]string{"DISPLAY": display})}}
@@ -276,5 +281,49 @@ func TestSyncWithRealX11(t *testing.T) {
 	cancel()
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The host daemon's clipboard follows the desktop session: when the X
+// server it found goes away (a log out, a display manager that starts a new
+// server or writes a new Xauthority per session) and another comes up, the
+// next get or set finds the new one. It used to keep the first board for
+// the life of the process, failing every call (a set after the 5 s
+// confirmation timeout) until the host was restarted.
+func TestHostBoardRedetects(t *testing.T) {
+	a := startXvfb(t, "xclip")
+	b := startXvfb(t, "xclip")
+	dir := t.TempDir()
+	link := func(display string) {
+		sock := "X" + strings.TrimPrefix(display, ":")
+		if err := os.Symlink(filepath.Join("/tmp/.X11-unix", sock), filepath.Join(dir, sock)); err != nil {
+			t.Skipf("cannot link the X socket: %v", err)
+		}
+	}
+	link(a)
+	defer x11disp.SetSocketDir(dir)()
+	t.Setenv("DISPLAY", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	SetHostBoard(nil)
+	t.Cleanup(func() { SetHostBoard(nil) })
+	ctx := context.Background()
+	hb := hostBoard(ctx)
+	if err := hb.Write(ctx, Text("one")); err != nil || !strings.HasPrefix(hb.Name(), "x11/") {
+		t.Fatalf("first write: %v (%s)", err, hb.Name())
+	}
+	// The session ends; another X server comes up.
+	xvfbStops[a]()
+	os.Remove(filepath.Join(dir, "X"+strings.TrimPrefix(a, ":")))
+	link(b)
+	start := time.Now()
+	if err := hostBoard(ctx).Write(ctx, Text("two")); err != nil {
+		t.Fatalf("write after the display changed: %v", err)
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Errorf("the write took %v", took)
+	}
+	if c, err := x11For(b, "xclip").Read(ctx); err != nil || c.String() != "two" {
+		t.Fatalf("the new display's clipboard: %q %v (host board %s)", c.String(), err, hostBoard(ctx).Name())
 	}
 }
