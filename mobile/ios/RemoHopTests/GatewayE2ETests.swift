@@ -414,4 +414,146 @@ final class GatewayE2ETests: XCTestCase {
         }
         try await shot(dir, "3-files")
     }
+
+    /// Runs `body` (an async function body, with `return`) in the page, waits until its promise
+    /// settles and returns the result as a string, or throws the error it ended with.
+    private func jsAsync(_ body: String, timeout: Double = 30) async throws -> String {
+        let slot = lit("__remohopShot" + String(Int.random(in: 0..<1_000_000_000)))
+        _ = try await js("""
+            window[\(slot)] = null;
+            (async () => { \(body) })().then(
+              v => { window[\(slot)] = {ok: true, v: String(v)}; },
+              e => { window[\(slot)] = {ok: false, v: String((e && e.message) || e)}; });
+            return 'ok';
+            """)
+        try await require("a script in the page", "window[\(slot)]", timeout: timeout)
+        let ok = try await js("return window[\(slot)].ok ? 'ok' : 'failed'")
+        let value = try await js("return window[\(slot)].v")
+        if ok != "ok" {
+            throw Failure(description: "script in the page failed: " + redact(String(value.prefix(300))))
+        }
+        return value
+    }
+
+    /// The store set for the iPad posters: the real app in a session with a saved, named host,
+    /// stopped at four screens (remote desktop, terminal, files, and the connect screen with the
+    /// session and the saved host). Same marker protocol and skip rules as `testScreenshots`.
+    /// Optional: REMOHOP_SHOTS_ALIAS names the saved host, REMOHOP_SHOTS_COMMAND is run in the
+    /// terminal. CI's `capture` mode runs it and keeps the PNGs as an artifact (no upload).
+    func testStoreScreens() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let dir = env["REMOHOP_SHOTS_DIR"], !dir.isEmpty else {
+            throw XCTSkip("not taking screenshots: REMOHOP_SHOTS_DIR is not set")
+        }
+        let cfg = settings()
+        guard !cfg.target.isEmpty, !cfg.password.isEmpty else {
+            throw XCTSkip("no host to connect to")
+        }
+        let lang = env["REMOHOP_SHOTS_LANG"] ?? "en"
+        let alias = env["REMOHOP_SHOTS_ALIAS"] ?? ""
+        let command = env["REMOHOP_SHOTS_COMMAND"] ?? (cfg.dir.isEmpty ? "uname -a" : "cd \(cfg.dir) && ls -l")
+        var found: WKWebView?
+        for _ in 0..<240 {
+            found = appWebView()
+            if found != nil { break }
+            await pause(0.25)
+        }
+        web = try XCTUnwrap(found, "the app never showed its web view")
+        UserDefaults.standard.set(AppLanguage.system.rawValue, forKey: L10n.key)
+        try await require("the connect form", "document.getElementById('connect') && !document.getElementById('connect').hidden", timeout: 60)
+        try await require("the injected script", "typeof window.remohopMobile === 'object'")
+        try await require("the page in the chosen language", "document.documentElement.lang.indexOf(\(lit(lang == "zh" ? "zh" : "en"))) === 0", timeout: 15)
+
+        // A clean start: no saved hosts left from an earlier pass.
+        _ = try await jsAsync("""
+            try {
+              const r = await SD.json('GET', 'peers');
+              for (const p of (r && r.peers) || []) await SD.json('POST', 'peers/forget', {target: p.target});
+              if (SD.reloadPeers) await SD.reloadPeers();
+            } catch (e) { return 'no saved hosts'; }
+            return 'ok';
+            """)
+
+        // Connect with "Remember this computer" on, so the host is saved and paired.
+        _ = try await js("""
+            document.getElementById('target').value = \(lit(cfg.target));
+            document.getElementById('hostpass').value = \(lit(cfg.password));
+            const pair = document.getElementById('pair');
+            if (pair) pair.checked = true;
+            document.getElementById('connectbtn').click();
+            return 'ok';
+            """)
+        try await require("the session to the host", "!document.getElementById('workspace').hidden", timeout: 90,
+                          detail: "return document.getElementById('connerr').textContent || document.getElementById('connstatus').textContent")
+        if !alias.isEmpty {
+            // The name the user would give it with Rename in the host's ⋯ menu.
+            let named = try await jsAsync("""
+                let ps = [];
+                for (let i = 0; i < 40 && !ps.length; i++) {
+                  ps = ((await SD.json('GET', 'peers')) || {}).peers || [];
+                  if (!ps.length) await new Promise(r => setTimeout(r, 250));
+                }
+                if (!ps.length) return 'not saved';
+                await SD.json('POST', 'peers/alias', {target: ps[0].target, alias: \(lit(alias))});
+                await SD.reloadPeers();
+                return 'ok';
+                """)
+            if named != "ok" { print("store screens: the host was not named: " + named) }
+        }
+
+        // 1. Remote desktop: wait for the first frames.
+        _ = try await js("document.getElementById('tab-desktop').click(); return 'ok';")
+        let frames = await eventually("document.getElementById('d-canvas').width > 16 && !(document.getElementById('d-msg').textContent || '').trim()", timeout: 60)
+        if !frames {
+            let m = (try? await js("return document.getElementById('d-msg').textContent")) ?? ""
+            print("store screens: no desktop frame: " + redact(String(m.prefix(200))))
+        }
+        await pause(3.0)
+        try await shot(dir, "1-desktop")
+
+        // 2. Terminal: a command with some output.
+        _ = try await js("document.getElementById('tab-terminal').click(); return 'ok';")
+        try await require("the terminal", "document.querySelector('#t-host textarea')", detail: "return document.getElementById('t-err').textContent")
+        _ = await eventually("document.getElementById('t-host').textContent.trim() !== ''", timeout: 10)
+        await pause(1.0)
+        var ran = false
+        for _ in 0..<3 where !ran {
+            _ = try await js("""
+                const t = document.querySelector('#t-host textarea');
+                t.focus();
+                const type = v => { t.value = v; t.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: v, bubbles: true})); };
+                type(\(lit(command)));
+                type('\\n');
+                return 'ok';
+                """)
+            ran = await eventually("document.getElementById('t-host').textContent.length > 200", timeout: 10)
+        }
+        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        await pause(1.5)
+        try await shot(dir, "2-terminal")
+
+        // 3. Files: the host directory.
+        _ = try await js("document.getElementById('tab-files').click(); return 'ok';")
+        try await require("the Files tab's first listing", "document.getElementById('f-path').value !== ''",
+                          detail: "return document.getElementById('f-err').textContent")
+        if !cfg.dir.isEmpty {
+            _ = try await js("document.getElementById('f-path').value = \(lit(cfg.dir)); document.getElementById('f-go').click(); return 'ok';")
+            let leaf = (cfg.dir as NSString).lastPathComponent
+            try await require("the host directory listing", "document.getElementById('f-path').value.indexOf(\(lit(leaf))) >= 0 && document.getElementById('f-body').children.length > 0",
+                              detail: "return document.getElementById('f-err').textContent")
+        }
+        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        try await shot(dir, "3-files")
+
+        // 4. Back to the connect screen: the open session and the saved host.
+        var left = false
+        for _ in 0..<4 where !left {
+            _ = try await js("return remohopMobile.back()")
+            left = await eventually("!document.getElementById('connect').hidden", timeout: 3)
+        }
+        XCTAssertTrue(left, "back never returned to the connect screen")
+        _ = try? await js("if (document.activeElement) document.activeElement.blur(); return 'ok';")
+        await pause(1.0)
+        try await shot(dir, "4-connect")
+    }
 }
