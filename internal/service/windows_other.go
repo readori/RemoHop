@@ -26,3 +26,7 @@ func (winService) Logs(context.Context, Options, int, bool, io.Writer) error {
 func runAsService(context.Context, string, []string, bool, io.Writer) error { return errNotWindows }
 
 func openServiceLog(string) (io.WriteCloser, error) { return nil, errNotWindows }
+
+// The Windows service's copy of the binary (winstate_windows.go).
+func serviceExeDir() string        { return "" }
+func serviceExeName(string) string { return "" }
