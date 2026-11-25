@@ -20,14 +20,27 @@ const ALPN = "remohop/1"
 // is still far more concurrent forwarded connections than anyone needs.
 const MaxStreams = 1024
 
+// IdleTimeout ends a P2P session that has received nothing for this long;
+// see QUICConfig.
+const IdleTimeout = 20 * time.Second
+
 // QUICConfig returns the QUIC parameters used for P2P sessions. Keep-alives
 // hold the NAT mappings open; the generous flow-control windows let file
 // transfer and video use the whole path.
+//
+// The idle timeout is how long a peer that vanished (killed, unplugged, lid
+// closed) goes unnoticed: a frozen picture for the viewer, capture and
+// encoding running on for nobody on the host. 20 s with a keep-alive after
+// 8 s of silence leaves room for two keep-alives, each retransmitted within
+// a round trip or two if lost, so a lossy but working path is not taken for
+// a dead one; and a phone's radio is woken little more often than with the
+// 10 s keep-alive before. Peers negotiate the smaller of their two idle
+// timeouts, and older peers send keep-alives every 10 s, inside it.
 func QUICConfig() *quic.Config {
 	return &quic.Config{
 		HandshakeIdleTimeout:           10 * time.Second,
-		MaxIdleTimeout:                 45 * time.Second,
-		KeepAlivePeriod:                10 * time.Second,
+		MaxIdleTimeout:                 IdleTimeout,
+		KeepAlivePeriod:                8 * time.Second,
 		MaxIncomingStreams:             MaxStreams,
 		MaxIncomingUniStreams:          -1, // unused: refuse them
 		InitialStreamReceiveWindow:     2 << 20,

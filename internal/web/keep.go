@@ -294,7 +294,7 @@ const checkTimeout = 3 * time.Second
 
 // CheckSessions pings every connected session and closes the ones that do
 // not answer within three seconds, so that they reconnect now rather than
-// when QUIC's idle timeout notices (up to 45 seconds later); then it does
+// when QUIC's idle timeout notices (up to 20 seconds later); then it does
 // what ReconnectNow does. The apps call it when they return to the
 // foreground and when the network changes. It returns when the checks are
 // done.
