@@ -15,6 +15,7 @@ import (
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
+	"github.com/readori/RemoHop/internal/signal"
 	"github.com/readori/RemoHop/internal/wire"
 )
 
@@ -432,12 +433,12 @@ func TestSetupPhase(t *testing.T) {
 		t.Skipf("this build has a default rendezvous server (phase %s)", st.Phase)
 	}
 	for _, bad := range []string{"", "has spaces", "host:notaport"} {
-		if err := a.Configure(bad); err == nil {
+		if err := a.Configure("custom", bad); err == nil {
 			t.Errorf("server address %q accepted", bad)
 		}
 	}
 	// 127.0.0.1:9 answers nothing: the host starts and keeps trying.
-	if err := a.Configure("127.0.0.1:9"); err != nil {
+	if err := a.Configure("custom", "127.0.0.1:9"); err != nil {
 		t.Fatal(err)
 	}
 	st := a.State()
@@ -447,7 +448,58 @@ func TestSetupPhase(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, "config.json")); !strings.Contains(string(b), "127.0.0.1:9") {
 		t.Fatalf("server not stored: %s", b)
 	}
-	if err := a.Configure("127.0.0.1:10"); err == nil {
+	if err := a.Configure("official", ""); err == nil {
 		t.Fatal("the server could be changed from the page after setup")
+	}
+}
+
+// The server choice of the setup phase: the official server, or none (by
+// address), stored in the settings the desktop app shares, so a choice made
+// in either is not asked again.
+func TestSetupChoices(t *testing.T) {
+	newApp := func(dir string) *App {
+		a := NewApp(AppConfig{Dir: dir, Host: func(hc *hostd.Config) { hc.Listen, hc.Locals = "127.0.0.1:0", noLocals }})
+		a.Start()
+		t.Cleanup(a.Stop)
+		return a
+	}
+	t.Setenv("REMOHOP_SIGNAL", "")
+	t.Setenv("REMOHOP_SIGNAL_WS", "")
+
+	// None: running at once, reachable by address, and remembered.
+	dir := t.TempDir()
+	t.Setenv("REMOHOP_CONFIG_DIR", dir)
+	a := newApp(dir)
+	if st := a.State(); st.Phase != PhaseSetup {
+		t.Skipf("this build has a default rendezvous server (phase %s)", st.Phase)
+	}
+	if err := a.Configure("bogus", ""); err == nil {
+		t.Fatal("an unknown choice was accepted")
+	}
+	if err := a.Configure("none", ""); err != nil {
+		t.Fatal(err)
+	}
+	st := a.State()
+	// (No addresses here: the test host has no network interfaces to offer.)
+	if st.Phase != PhaseReady || st.Server != "" || st.Password == "" {
+		t.Fatalf("after choosing no server: %+v", st)
+	}
+	a.Stop()
+	if st := newApp(dir).State(); st.Phase != PhaseReady {
+		t.Fatalf("no server was chosen before, yet the next start is in phase %s", st.Phase)
+	}
+
+	// Official: the address is stored like `remohop config set signal`.
+	dir = t.TempDir()
+	t.Setenv("REMOHOP_CONFIG_DIR", dir)
+	a = newApp(dir)
+	if err := a.Configure("official", ""); err != nil {
+		t.Fatal(err)
+	}
+	if st := a.State(); st.Server != signal.OfficialAddr {
+		t.Fatalf("after choosing the official server: server %q", st.Server)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "config.json")); !strings.Contains(string(b), signal.OfficialAddr) {
+		t.Fatalf("server not stored: %s", b)
 	}
 }

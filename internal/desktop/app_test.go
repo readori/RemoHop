@@ -14,6 +14,7 @@ import (
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/localui"
 	"github.com/readori/RemoHop/internal/perm"
+	"github.com/readori/RemoHop/internal/signal"
 )
 
 func waitFor(t *testing.T, what string, cond func() bool) {
@@ -161,6 +162,9 @@ func TestServerChoice(t *testing.T) {
 	if m, _ := a.serverChoice(); m != serverNone {
 		t.Fatalf("fresh configuration: %s", m)
 	}
+	if a.State().Server.Chosen {
+		t.Fatal("a fresh configuration counts as chosen")
+	}
 	for _, c := range []struct{ mode, addr, code string }{
 		{serverOfficial, "", ""},
 		{serverCustom, "signal.example.net:21116", ""},
@@ -183,6 +187,11 @@ func TestServerChoice(t *testing.T) {
 			mode, addr := a.serverChoice()
 			if mode != c.mode {
 				t.Errorf("after SetServer(%q): %s %s", c.mode, mode, addr)
+			}
+			// Quick support shares the choice, "none" included.
+			none, _ := config.Get(signal.SettingNone)
+			if (none == "on") != (c.mode == serverNone) || !a.State().Server.Chosen {
+				t.Errorf("after SetServer(%q): signal-none %q, chosen %v", c.mode, none, a.State().Server.Chosen)
 			}
 		}
 	}

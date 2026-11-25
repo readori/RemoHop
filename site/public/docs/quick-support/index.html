@@ -98,14 +98,14 @@
 </ul>
 <p>窗口语言跟随系统（中文或英文），也可以在窗口右上角切换；切换后的选择下次启动时仍然有效，系统弹出的连接确认对话框也使用同一语言。<code>--lang zh|en</code> 优先于以上两者。</p>
 <p>你作为协助者照常连接：<code>remohop &lt;ID&gt; desktop</code>、浏览器客户端（<code>remohop web</code>）或手机应用，使用对方念给你的密码。</p>
-<p><strong>汇合服务器。</strong> 内置了服务器的构建（<code>-X .../internal/dial.DefaultSignal=HOST:PORT</code>，见<a href="/docs/self-hosting/">自建汇合服务器</a>）无需任何设置。否则窗口会在首次启动时询问服务器地址并保存（与 <code>remohop config set signal</code> 是同一项设置）。要把这个构建参数传给 <code>make quick</code>：<code>EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick</code>。</p>
+<p><strong>汇合服务器。</strong> 内置了服务器的构建（<code>-X .../internal/dial.DefaultSignal=HOST:PORT</code>，见<a href="/docs/self-hosting/">自建汇合服务器</a>）无需任何设置。否则窗口会像桌面应用的首次设置向导一样询问一次：官方服务器 <code>signal.remohop.com</code>（默认选中）、协助者给的地址，或不用服务器（协助者在同一网络中按地址连接）。所做的选择保存在共享设置中（<code>remohop config set signal</code> 或 <code>signal-none</code>），所以已在桌面应用中选过的电脑不会再被询问。要把这个构建参数传给 <code>make quick</code>：<code>EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21116" make quick</code>。</p>
 <p><strong>无论 <code>remohop config</code> 怎么设置，快速协助的被控端都只允许：</strong> 每次登录都要批准，包括已配对的客户端和已授权的密钥；只接受本次运行的临时密码（忽略固定的 <code>host-password</code>）；不签发新的配对；只开放窗口里勾选的功能。用 <code>remohop config feature</code> 关闭的功能仍然关闭。它和 <code>remohop host</code> 使用同一个身份，所以一台电脑只有一个 ID；如果那里已经有被控端在运行（系统服务，或终端里的 <code>remohop host</code>），窗口会说明这一点，而不是再启动一份。快速协助运行期间再次启动 RemoHop，会把它的窗口重新调出来。</p>
 <p><strong>窗口的工作方式和保护措施。</strong> RemoHop 不使用原生界面库（保持纯 Go、无 cgo），所以窗口是进程自己在 <code>127.0.0.1</code> 上提供的一个页面：在 Windows 上用 Microsoft Edge 的应用窗口打开，在其他系统上用默认浏览器打开（<code>--browser</code> 强制使用默认浏览器，<code>--no-open</code> 只打印地址）。别的机器访问不到它；地址里带有 128 位随机令牌；<code>Host</code> 或 <code>Origin</code> 不对的请求会被拒绝（防 DNS 重绑定和跨站请求）；每个操作都是携带第二个密钥的 JSON 请求。等待批准的客户端还没有会话，因此无法移动那台电脑的鼠标：没有人能批准自己。而已经被允许、并且可以使用鼠标的协助者，可以点击屏幕上的任何东西，包括这个窗口；这正是“允许远程控制”的含义，也是“鼠标和键盘”开关存在的原因。</p>
 <p>需要了解的限制：</p>
 <ul>
 <li><strong>Windows：</strong> <code>RemoHop.exe</code> 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。</li>
 <li><strong>macOS：</strong> 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 &gt; 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。下载的 <code>RemoHop-macos.dmg</code> 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 <code>RemoHop.app</code> 没有签名；签名和公证见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a>。</li>
-<li>页面及其服务器在 Linux 上用真实浏览器测试过。围绕它们的 Windows 和 macOS 部分（Edge 应用窗口、系统对话框、<code>.app</code> 包）能够编译，并做了结构检查，但尚未在这两个系统上实际运行。</li>
+<li>页面及其服务器在 Linux 上用真实浏览器测试过；启动器窗口在 CI 中于 Windows、macOS 和 Linux 上实际启动并截图。</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/quick-support.md">源文件（GitHub）</a></p>
 </div>

@@ -104,3 +104,14 @@ summary { cursor: pointer; font-weight: 650; }
 .bottom button { min-width: 60%; min-height: 46px; }
 #stop { background: var(--danger-bg); border-color: var(--danger-bg); color: var(--danger-fg); font-size: 1.02rem; }
 #stop:hover:not(:disabled) { filter: brightness(1.1); }
+
+/* The server choice of the setup step. */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+fieldset.choices { border: 0; padding: 0; margin: 12px 0 0; }
+label.choice { display: flex; gap: 10px; align-items: flex-start; padding: 11px 13px; margin: 0 0 8px; border: 1px solid var(--line);
+  border-radius: 10px; cursor: pointer; font-weight: 400; }
+label.choice:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+label.choice > input { margin-top: .3em; flex: none; width: 17px; height: 17px; accent-color: var(--accent); }
+label.choice .grow { flex: 1; min-width: 0; }
+.choice-t { display: block; font-weight: 650; }
+label.choice input[type=text] { margin-top: 8px; width: 100%; }

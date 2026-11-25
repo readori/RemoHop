@@ -77,7 +77,7 @@ const AskTimeout = 60 * time.Second
 
 // Phases of the app, as the page shows them.
 const (
-	PhaseSetup      = "setup"      // no rendezvous server is configured yet
+	PhaseSetup      = "setup"      // the rendezvous server has not been chosen yet
 	PhaseConnecting = "connecting" // host running, no ID yet
 	PhaseReady      = "ready"      // ID known
 	PhaseError      = "error"      // the host could not start
@@ -170,7 +170,11 @@ type State struct {
 	// one is possible.
 	Relay bool `json:"relay"`
 	// Waited is how many seconds the host has been trying to register.
-	Waited     int           `json:"waited,omitempty"`
+	Waited int `json:"waited,omitempty"`
+	// Addresses are where helpers on this network reach this computer
+	// when it runs without a rendezvous server (the user chose none).
+	// (null when it has a server; empty when none was found).
+	Addresses  []string      `json:"addresses"`
 	Device     string        `json:"device,omitempty"`
 	Requests   []Request     `json:"requests"`
 	Sessions   []SessionInfo `json:"sessions"`
@@ -288,12 +292,17 @@ func (a *App) Start() {
 	}
 	if !a.cfg.NoSignal {
 		addr, opts, err := signal.Resolve(a.cfg.Signal)
-		if errors.Is(err, signal.ErrNotConfigured) {
+		if errors.Is(err, signal.ErrNotConfigured) && !a.noServerChosen() {
 			a.mu.Lock()
 			a.phase = PhaseSetup
 			a.mu.Unlock()
 			a.wake()
 			return
+		}
+		if errors.Is(err, signal.ErrNotConfigured) {
+			// The user chose no server (here or in the desktop app, which
+			// shares the setting): helpers reach this computer by address.
+			addr, err = "", nil
 		}
 		if err == nil && addr != "" {
 			_, _, err = signal.SplitAddr(addr)
@@ -302,7 +311,7 @@ func (a *App) Start() {
 			a.fail(ErrStartFailed, err)
 			return
 		}
-		if addr == "" {
+		if addr == "" && opts.WS != "" {
 			addr = signal.Display("", opts) // only the websocket bridge is configured
 		}
 		hc.Signal, hc.SignalOptions = addr, opts
@@ -348,6 +357,21 @@ func (a *App) Start() {
 			a.fail(ErrStartFailed, err)
 		}
 	}()
+}
+
+// noServerChosen reports whether the user chose to use no rendezvous server
+// (signal.SettingNone, shared with the desktop app).
+func (a *App) noServerChosen() bool {
+	dir := a.cfg.Dir
+	if dir == "" {
+		d, err := config.Dir()
+		if err != nil {
+			return false
+		}
+		dir = d
+	}
+	s, _ := config.AllIn(dir)
+	return config.Bool(s[signal.SettingNone], false)
 }
 
 // features is the host's view of the options (hostd.Overrides.Features).
@@ -400,9 +424,12 @@ func (a *App) State() State {
 	st.Online, st.Transport = hs.Online, hs.Transport
 	st.Relay = signal.RelayAllowed(a.cfg.Dir)
 	st.Password = hs.Password
-	if hs.ID != "" || a.cfg.NoSignal {
+	if hs.ID != "" || a.cfg.NoSignal || st.Server == "" {
 		st.Phase = PhaseReady
 		st.ID = signal.FormatID(hs.ID)
+		if st.Server == "" && !a.cfg.NoSignal {
+			st.Addresses = append([]string{}, hs.Direct...)
+		}
 	} else {
 		st.Waited = int(now.Sub(started) / time.Second)
 	}
@@ -552,24 +579,41 @@ func (a *App) SetOption(name string, on bool) error {
 	return nil
 }
 
-// Configure stores the rendezvous server the user typed in the setup
-// phase and starts the host with it.
-func (a *App) Configure(server string) error {
+// Configure stores the user's choice in the setup phase and starts the
+// host with it: mode "official" (signal.OfficialAddr), "custom" (server,
+// as typed; also the default for an empty mode) or "none" (no server:
+// helpers on this network connect by address). The choice is the same
+// setting the desktop app and `remohop config` use, so it is asked once.
+func (a *App) Configure(mode, server string) error {
 	a.mu.Lock()
 	phase := a.phase
 	a.mu.Unlock()
 	if phase != PhaseSetup {
 		return errors.New("a server is already configured")
 	}
-	if server == "" {
-		return &codedError{code: "no_server", msg: "enter the server address"}
-	}
-	if err := checkServer(server); err != nil {
-		return &codedError{code: "bad_server", msg: err.Error()}
+	switch mode {
+	case "official":
+		server = signal.OfficialAddr
+	case "none":
+		if err := config.Set(signal.SettingNone, "on"); err != nil {
+			return err
+		}
+		a.Start()
+		return nil
+	case "", "custom":
+		if server == "" {
+			return &codedError{code: "no_server", msg: "enter the server address"}
+		}
+		if err := checkServer(server); err != nil {
+			return &codedError{code: "bad_server", msg: err.Error()}
+		}
+	default:
+		return &codedError{code: "bad_request", msg: "unknown server choice"}
 	}
 	if err := config.Set(signal.SettingAddr, server); err != nil {
 		return err
 	}
+	config.Set(signal.SettingNone, "")
 	a.Start()
 	return nil
 }

@@ -49,7 +49,9 @@ Flags:
                  picked in the window, else the system's)
 
 The rendezvous server is the configured one (global --signal, REMOHOP_SIGNAL,
-` + "`remohop config set signal`" + `). When none is configured the window asks for it.
+` + "`remohop config set signal`" + `). When none is configured the window asks once:
+the official server (signal.remohop.com), the helper's server, or none
+(connect by address); the choice is kept in the shared settings.
 `
 
 func init() {

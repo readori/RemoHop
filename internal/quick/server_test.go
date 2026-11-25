@@ -124,8 +124,12 @@ func (f *fake) SetOption(name string, on bool) error {
 	})
 	return err
 }
-func (f *fake) Configure(server string) error {
-	if err := f.call("configure %s", server); err != nil {
+func (f *fake) Configure(mode, server string) error {
+	call := "configure " + server
+	if mode != "" && mode != "custom" {
+		call = "configure " + mode
+	}
+	if err := f.call("%s", call); err != nil {
 		return err
 	}
 	f.set(func(s *State) { s.Phase, s.Server = PhaseConnecting, server })

@@ -66,9 +66,16 @@
       net_approve: 'The password alone lets nobody in: every connection waits for you to press Allow, and is refused after {s} seconds without an answer.',
       net_device: 'This computer\'s name: {name}',
       setup_title: 'One step before you start',
-      setup_text: 'Your helper reaches this computer through a small meeting-point server (a "rendezvous server") that they or their company run; RemoHop has no server of its own. Ask your helper for its address, which looks like support.example.com, and type it here. You only do this once.',
+      setup_text: 'How should your helper find this computer? If unsure, keep the first choice. You only do this once.',
       setup_why: 'Why is this needed?',
-      setup_why_text: 'The server only introduces the two computers to each other, so your helper can find this one by its ID. It cannot see your screen: the connection is end-to-end encrypted. If your helper is on the same network as you, they can also connect to this computer\'s address directly; they will tell you if so.',
+      setup_why_text: 'A small server introduces the two computers to each other, so your helper can find this one by its ID. It cannot see your screen: the connection is end-to-end encrypted. Use the official server unless your helper gave you the address of their own. Without a server, only a helper on the same network can connect, by this computer\'s address.',
+      setup_official: 'Use the official server',
+      setup_custom: 'My helper gave me a server address',
+      setup_none: 'No server',
+      setup_none_hint: 'My helper is on the same network',
+      your_address: 'Your address',
+      no_address: 'No network address found',
+      net_noserver_addr: 'No server: helpers on this network connect to this computer\'s address.',
       err_no_server: 'Enter the server address.',
       err_bad_server: '"{server}" is not a server address. It looks like support.example.com or support.example.com:21116.',
       setup_label: 'Server address',
@@ -146,11 +153,18 @@
       net_approve: '只有密码进不来：每个连接都要等你点“允许”，{s} 秒内没有答复就会被拒绝。',
       net_device: '这台电脑的名称：{name}',
       setup_title: '开始之前还差一步',
-      setup_text: '协助者要通过一台小小的“碰头点”服务器（汇合服务器）才能找到这台电脑，这台服务器由协助者或其公司运行；RemoHop 本身不提供服务器。请向协助者索取它的地址（类似 support.example.com），填在这里。只需填写一次。',
+      setup_text: '协助者要怎样找到这台电脑？不确定的话，保持第一项即可。只需选择一次。',
+      setup_official: '使用官方服务器',
+      setup_custom: '协助者给了我一个服务器地址',
+      setup_none: '不用服务器',
+      setup_none_hint: '协助者和我在同一个网络中',
+      your_address: '本机地址',
+      no_address: '没有找到网络地址',
+      net_noserver_addr: '不用服务器：同一网络中的协助者通过本机地址连接。',
       setup_label: '服务器地址',
       setup_go: '继续',
       setup_why: '为什么需要它？',
-      setup_why_text: '这台服务器只负责把两台电脑介绍给对方，让协助者能凭 ID 找到你的电脑。它看不到你的屏幕：连接是端到端加密的。如果协助者和你在同一个网络中，他们也可以直接连接这台电脑的地址；需要时他们会告诉你。',
+      setup_why_text: '一台小小的服务器负责把两台电脑介绍给对方，让协助者能凭 ID 找到你的电脑。它看不到你的屏幕：连接是端到端加密的。除非协助者给了你他们自己服务器的地址，否则请使用官方服务器。不用服务器时，只有同一网络中的协助者能通过本机地址连接。',
       err_running_title: 'RemoHop 已经在这台电脑上运行',
       err_running_text: '它正在后台运行（作为系统服务或在终端里），因此快速协助无法再启动一份。',
       err_running_id: '它的 ID 是 {id}。密码请询问为你设置它的人。',
@@ -197,6 +211,8 @@
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     var els = document.querySelectorAll('[data-t]');
     for (var i = 0; i < els.length; i++) els[i].textContent = t(els[i].getAttribute('data-t'));
+    var tas = document.querySelectorAll('[data-ta]');
+    for (var j = 0; j < tas.length; j++) tas[j].setAttribute('aria-label', t(tas[j].getAttribute('data-ta')));
     $('lang').textContent = t('other_lang');
     $('lang').setAttribute('lang', lang === 'zh' ? 'en' : 'zh-CN');
     $('lang').setAttribute('aria-label', t('lang_label'));
@@ -373,8 +389,12 @@
     }
 
     var id = $('id'), pw = $('pw');
-    id.textContent = s.id || t('waiting_id');
-    id.classList.toggle('pending', !s.id);
+    // Without a server (the user chose none) helpers come by address.
+    var byAddr = !s.server && !s.id && s.phase === 'ready' && Array.isArray(s.addresses);
+    $('idlabel').textContent = t(byAddr ? 'your_address' : 'your_id');
+    if (byAddr) id.textContent = (s.addresses && s.addresses.length) ? s.addresses[0] : t('no_address');
+    else id.textContent = s.id || t('waiting_id');
+    id.classList.toggle('pending', !s.id && !(byAddr && s.addresses && s.addresses.length));
     pw.textContent = s.password || '';
     $('copyid').disabled = !s.id;
     $('opt-input').checked = !!s.options.input;
@@ -392,6 +412,7 @@
     net.textContent = '';
     var add = function (text) { net.appendChild(el('li', '', text)); };
     if (s.server) add(t(s.online ? 'net_server' : 'net_noserver', { server: s.server }));
+    else if (s.addresses) add(t('net_noserver_addr'));
     if (s.transport === 'websocket') add(t('net_ws'));
     else add(t(s.relay ? 'net_direct_relay' : 'net_direct_only'));
     add(t('net_approve', { s: s.ask_timeout }));
@@ -457,11 +478,20 @@
   ['input', 'files', 'advanced'].forEach(function (name) {
     $('opt-' + name).addEventListener('change', function () { act('option', { name: name, on: this.checked }); });
   });
+  // Typing an address means "my helper gave me one".
+  ['focus', 'input'].forEach(function (type) {
+    $('server').addEventListener(type, function () {
+      var c = document.querySelector('input[name=mode][value=custom]');
+      if (c) c.checked = true;
+    });
+  });
   $('setupform').addEventListener('submit', function (ev) {
     ev.preventDefault();
     $('setuperr').textContent = '';
     var server = $('server').value.trim();
-    api('configure', { server: server }).catch(function (e) {
+    var picked = document.querySelector('input[name=mode]:checked');
+    var mode = picked ? picked.value : 'custom';
+    api('configure', { mode: mode, server: mode === 'custom' ? server : '' }).catch(function (e) {
       // English shows the process's own words; Chinese has its own.
       // In this page's words in either language; the process's own text
       // only for a case it has no words for.
