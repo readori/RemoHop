@@ -2,6 +2,8 @@
 
 [中文](../zh/how-it-works.md)
 
+The [How it works](https://remohop.com/en/how-it-works/) page on the website shows all of this as one diagram: the rendezvous server, the four connection paths, the default ports, the six connection steps and the session security. This guide has the details.
+
 ```
  controlling machine                                 controlled machine
 +--------------------------+   UDP hole punch + QUIC   +--------------------------+

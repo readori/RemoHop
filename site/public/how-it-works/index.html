@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>工作原理：P2P 打洞与端到端加密 | RemoHop</title>
+<meta name="description" content="RemoHop 怎样把两台设备直接连起来：汇合服务器的职责、局域网直连、公网打洞、中继和 WebSocket 桥四种路径、默认端口、六步连接流程，以及 QUIC、TLS 1.3 和 CPace 怎样保护会话。">
+<link rel="stylesheet" href="/assets/site.css?v=d77e34eabe">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1524" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://remohop.com/how-it-works/">
+<link rel="alternate" hreflang="zh-CN" href="https://remohop.com/how-it-works/">
+<link rel="alternate" hreflang="en" href="https://remohop.com/en/how-it-works/">
+<link rel="alternate" hreflang="x-default" href="https://remohop.com/how-it-works/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="RemoHop">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="工作原理：P2P 打洞与端到端加密 | RemoHop">
+<meta property="og:description" content="RemoHop 怎样把两台设备直接连起来：汇合服务器的职责、局域网直连、公网打洞、中继和 WebSocket 桥四种路径、默认端口、六步连接流程，以及 QUIC、TLS 1.3 和 CPace 怎样保护会话。">
+<meta property="og:url" content="https://remohop.com/how-it-works/">
+<meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
+<meta property="og:image:width" content="1120">
+<meta property="og:image:height" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="site-head">
+<div class="wrap">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<nav class="site-nav" aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/how-it-works/" aria-current="page">工作原理</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/support/">支持</a></li>
+</ul>
+</nav>
+<p class="lang mt0"><a href="/en/how-it-works/" lang="en" hreflang="en">English</a></p>
+</div>
+</header>
+<main id="main" tabindex="-1">
+<div class="wrap prose">
+<div class="hiw">
+<svg class="sprite" aria-hidden="true" focusable="false">
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5h.01"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="3.5" width="18" height="7" rx="2"/><rect x="3" y="13.5" width="18" height="7" rx="2"/><path d="M7 7h.01M7 17h.01M11 7h6M11 17h6"/></symbol>
+<symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19.5h20"/></symbol>
+<symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8.5h15l-3.5-3.5M20 15.5H5l3.5 3.5"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5v9l9 4.5 9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9"/></symbol>
+<symbol id="i-buoy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m5.6 5.6 3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11A8 8 0 0 0 5.7 6.1L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></symbol>
+<symbol id="i-route" viewBox="0 0 24 24"><path d="M12 3v18M5 5.5h11l3 2.75L16 11H5zM19 13.5H8l-3 2.75L8 19h11z"/></symbol>
+<symbol id="i-parts" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+<symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 4.5-9 4.5-9-4.5zM3 12l9 4.5 9-4.5M3 16.5 12 21l9-4.5"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></symbol>
+<symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-clip" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16.5" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20a6 6 0 0 1 12 0M18 8v6M15 11h6"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4.5M9 13h.01M15 13h.01M9.5 16.5h5"/><circle cx="12" cy="3.5" r="1"/></symbol>
+</svg>
+
+<header class="hiw-head">
+<h1>工作原理：P2P 打洞与端到端加密</h1>
+<p class="lede">RemoHop 怎样把两台设备直接连起来：汇合服务器负责什么、四种连接路径、默认端口、连接建立的六个步骤，以及会话为什么只有两端能读。更细的说明见文档《<a href="/docs/how-it-works/">工作原理</a>》和<a href="/security/">安全模型</a>。</p>
+</header>
+
+<div class="note hiw-overview">
+<svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>
+<p><b>概述：</b>被控端和控制端先联系 RemoHop 汇合服务器（<code>remohop signal</code>），完成 ID 注册、在线状态、NAT 类型探测和候选地址交换；随后双方同时互发 UDP 探测包打洞，在第一条有应答的路径上建立 <b>QUIC 直连</b>，用 <b>TLS 1.3 + CPace 密码认证（绑定 Ed25519 身份密钥）</b>做端到端加密。远程桌面、终端、文件等全部功能都在这一条会话里多路传输；打洞失败约 1.5 秒内自动切到（可选的）中继，中继也只转发密文。</p>
+</div>
+
+<section aria-labelledby="map-h">
+<h2 id="map-h" class="vh">连接示意图</h2>
+<div class="hiw-map">
+
+<section class="node srv" aria-labelledby="srv-h">
+<h3 id="srv-h"><svg class="ic" aria-hidden="true"><use href="#i-server"/></svg>RemoHop 汇合服务器 <span class="pill">remohop signal</span></h3>
+<p><span class="where">signal.remohop.com:21116/udp（官方，可自建）</span></p>
+<ul class="dots">
+<li>ID 分配与在线状态（9 位 ID ↔ Ed25519 身份密钥）</li>
+<li>NAT 类型探测（21117/udp）与候选地址交换</li>
+<li>可选：中继（默认关闭）、WebSocket 桥（仅 HTTPS 出网时）</li>
+<li>只看到密文，<strong>无法冒充任何一端</strong>（CPace + 身份固定）</li>
+</ul>
+</section>
+
+<div class="sig-steps a">
+<p class="who" aria-hidden="true">设备 A ↔ 服务器</p>
+<ol aria-label="控制端与汇合服务器之间">
+<li><span class="num">1</span><span>注册 / 心跳 <span class="arr" aria-hidden="true"></span></span></li>
+<li><span class="num">2</span><span>查询 ID、交换候选地址 <span class="arr" aria-hidden="true"></span></span></li>
+</ol>
+</div>
+
+<div class="sig-steps b">
+<p class="who" aria-hidden="true">设备 B ↔ 服务器</p>
+<ol aria-label="被控端与汇合服务器之间">
+<li><span class="num">1</span><span><span class="arr" aria-hidden="true"></span> 注册 / 心跳</span></li>
+<li><span class="num">2</span><span><span class="arr" aria-hidden="true"></span> 收到对方候选地址</span></li>
+</ol>
+</div>
+
+<section class="node dev-a" aria-labelledby="a-h">
+<h3 id="a-h"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>控制端 <span class="pill">你的设备 A</span></h3>
+<p class="runs">桌面 App · 网页控制台 · iOS / Android · 命令行 · AI（MCP）</p>
+<dl class="kv">
+<dt><abbr title="设备 ID">ID</abbr>输入</dt><dd>707 612 667</dd>
+<dt><abbr title="IP 地址">IP</abbr>本地地址</dt><dd>192.168.1.20</dd>
+<dt><span class="tag" aria-hidden="true"><svg class="ic"><use href="#i-swap"/></svg></span>公网映射</dt><dd>203.0.113.5:54321</dd>
+</dl>
+<p class="foot">身份：Ed25519 密钥；连过一次即固定对方密钥</p>
+</section>
+
+<div class="p2p">
+<p><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg><span>P2P 直连 · QUIC 端到端加密</span><small>两台设备之间直接传输，不经服务器</small></p>
+</div>
+
+<section class="node dev-b" aria-labelledby="b-h">
+<h3 id="b-h"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>被控端 <span class="pill">你的设备 B</span></h3>
+<p class="runs">Windows · macOS · Linux · 无显示器服务器</p>
+<dl class="kv">
+<dt><abbr title="设备 ID">ID</abbr>设备 ID</dt><dd>707 612 667</dd>
+<dt><abbr title="IP 地址">IP</abbr>本地地址</dt><dd>10.0.0.234</dd>
+<dt><span class="tag" aria-hidden="true"><svg class="ic"><use href="#i-swap"/></svg></span>公网映射</dt><dd>198.51.100.8:21118</dd>
+</dl>
+<p class="foot">临时密码 / 配对 / 授权范围 · 每次连接可弹窗批准</p>
+</section>
+
+<section class="node data" aria-labelledby="data-h">
+<h3 id="data-h"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>会话里传输的数据（不经服务器）</h3>
+<ul class="dots">
+<li>远程桌面视频 H.264 / AV1，最高 4K 60 帧</li>
+<li>键盘、鼠标（连发、组合键）</li>
+<li>音频 Opus</li>
+<li>终端与后台任务</li>
+<li>文件（断点续传）</li>
+<li>剪贴板双向同步</li>
+<li>端口转发 / VPN / 虚拟组网</li>
+<li>串口、USB、屏幕截图</li>
+</ul>
+</section>
+
+<section class="node opt" aria-labelledby="opt-h">
+<h3 id="opt-h"><svg class="ic" aria-hidden="true"><use href="#i-buoy"/></svg>特殊网络与可选项</h3>
+<ul class="dots">
+<li><strong>按地址直连</strong>：输入 地址:端口，完全不用服务器</li>
+<li><strong>Tailscale</strong>：双方在同一 tailnet 时优先走它</li>
+<li><strong>NAT64</strong>：纯 IPv6 网络（如 iOS 审核网络）</li>
+<li><strong>拒绝中继</strong>：<code>remohop config relay off</code></li>
+</ul>
+</section>
+
+<section class="node rel" aria-labelledby="rel-h">
+<h3 id="rel-h"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>稳定性</h3>
+<ul class="dots">
+<li>短暂断网不掉线，会话断开自动重连</li>
+<li>被控端换网、地址变化：几秒内重新登记</li>
+<li>小 MTU 网络（1200 字节起步）也能连</li>
+<li>对方意外离线约 25 秒内发现</li>
+</ul>
+</section>
+
+</div>
+</section>
+
+<section aria-labelledby="paths-h">
+<h2 id="paths-h"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>四种连接路径（自动选择，最快的胜出）</h2>
+<ol class="paths">
+<li><h3>① 局域网直连 <code>lan</code></h3><p>同一网络里直接连，数据不出局域网</p><p class="chip">建立约几毫秒</p></li>
+<li><h3>② 公网打洞 <code>punched</code></h3><p>跨网络、锥形 NAT，P2P 直连</p><p class="chip">建立约 30–60 ms</p></li>
+<li class="opt"><h3>③ 中继 <code>relayed</code>（可选）</h3><p>对称 NAT、客户端隔离时；只转发密文</p><p class="chip wait">约 1.5 秒内切换</p></li>
+<li class="opt"><h3>④ WebSocket 桥（可选）</h3><p>只能访问网页（HTTPS 443）的网络</p><p class="chip wait">记住后几十毫秒</p></li>
+</ol>
+</section>
+
+<div class="hiw-cards">
+<section class="panel" aria-labelledby="parts-h">
+<h2 id="parts-h"><svg class="ic" aria-hidden="true"><use href="#i-parts"/></svg>关键组件与职责</h2>
+<table>
+<thead><tr><th scope="col">组件</th><th scope="col">职责</th></tr></thead>
+<tbody>
+<tr><th scope="row">remohop signal</th><td>汇合服务器：ID、在线、打洞协调、可选中继</td></tr>
+<tr><th scope="row">remohop host</th><td>被控端：注册、认证、按授权提供各项服务</td></tr>
+<tr><th scope="row">remohop &lt;ID&gt;</th><td>控制端命令行：解析、打洞、连接、认证</td></tr>
+<tr><th scope="row">RemoHop App</th><td>桌面统一应用（控制 + 被控）、iOS / Android</td></tr>
+<tr><th scope="row">remohop web</th><td>网页控制台：浏览器里完整操作</td></tr>
+<tr><th scope="row">remohop mcp</th><td>让 AI 智能体安全地操作电脑</td></tr>
+</tbody>
+</table>
+</section>
+
+<section class="panel" aria-labelledby="ports-h">
+<h2 id="ports-h"><svg class="ic" aria-hidden="true"><use href="#i-plug"/></svg>使用的主要端口（默认）</h2>
+<table>
+<thead><tr><th scope="col">端口</th><th scope="col">协议</th><th scope="col">用途</th></tr></thead>
+<tbody>
+<tr><th scope="row">21116</th><td>UDP</td><td>汇合服务器（QUIC）</td></tr>
+<tr><th scope="row">21117</th><td>UDP</td><td>NAT 类型探测</td></tr>
+<tr><th scope="row">443</th><td>TCP</td><td>WebSocket 桥（可选，经反向代理）</td></tr>
+<tr><th scope="row" class="word">自选范围</th><td>UDP</td><td>中继（可选，<code>--relay-ports</code>）</td></tr>
+<tr><th scope="row" class="word">随机 / 固定</th><td>UDP</td><td>被控端 P2P 端口（<code>--listen</code> 可固定）</td></tr>
+</tbody>
+</table>
+<p class="small">汇合服务器 1 GB 内存的云主机即可；不开中继时几乎不耗带宽。见<a href="/self-hosting/">自建汇合服务器</a>。</p>
+</section>
+
+<section class="panel" aria-labelledby="proto-h">
+<h2 id="proto-h"><svg class="ic" aria-hidden="true"><use href="#i-layers"/></svg>主要协议与技术</h2>
+<ul class="dots">
+<li>UDP 打洞（低 TTL 预热、同时发探测）+ QUIC</li>
+<li>TLS 1.3 加密，CPace 密码认证绑定 TLS 与双方身份</li>
+<li>配对令牌：配对后免密码，可随时撤销</li>
+<li>授权范围（只看 / 控制 / 文件 / 命令白名单）+ 审计日志</li>
+<li>硬件编码 NVENC / QSV / AMF / VideoToolbox / VAAPI</li>
+</ul>
+</section>
+</div>
+
+<div class="hiw-cards four">
+<section class="panel" aria-labelledby="seq-h">
+<h2 id="seq-h"><svg class="ic" aria-hidden="true"><use href="#i-list"/></svg>连接建立流程（时序）</h2>
+<ol class="steps">
+<li><span><b>注册：</b>被控端用 Ed25519 身份向汇合服务器注册，拿到 9 位 ID 并保持心跳。</span></li>
+<li><span><b>发起：</b>控制端输入 ID（或直接输入 地址:端口，无需服务器）。</span></li>
+<li><span><b>交换：</b>服务器下发双方候选地址（局域网 / 公网 / IPv6 / Tailscale）与 NAT 类型。</span></li>
+<li><span><b>打洞：</b>双方同时互发探测包，第一条应答的路径胜出（局域网优先）；1.5 秒无路径则并行走中继。</span></li>
+<li><span><b>认证：</b>在 QUIC（TLS 1.3）上跑 CPace，密码或配对令牌从不上网传输；可弹窗批准。</span></li>
+<li><span><b>会话：</b>桌面、终端、文件等在同一条加密会话里多路传输，断线自动重连。</span></li>
+</ol>
+</section>
+
+<section class="panel" aria-labelledby="nat-h">
+<h2 id="nat-h"><svg class="ic" aria-hidden="true"><use href="#i-link"/></svg>NAT 打洞（UDP Hole Punching）原理</h2>
+<div class="lanes">
+<span class="when before">打洞前</span>
+<div class="lane" role="img" aria-label="打洞前：设备 A 和设备 B 各在一个 NAT 后面，对方的包进不来">
+<span class="dev"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>设备 A</span>
+<span class="wall">NAT</span><span class="x">✕</span><span class="wall r">NAT</span>
+<span class="dev"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>设备 B</span>
+</div>
+<span class="when after">打洞后</span>
+<div class="lane ok" role="img" aria-label="打洞后：设备 A 和设备 B 之间是 QUIC 直连，端到端加密">
+<span class="dev"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>设备 A</span>
+<span class="go">⟵ QUIC 直连 · 端到端加密 ⟶</span>
+<span class="dev"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>设备 B</span>
+</div>
+</div>
+<ul class="dots">
+<li>双方先向汇合服务器登记，服务器看到各自的公网地址和端口。</li>
+<li>服务器把对方的候选地址告诉双方，双方同时向对方发 UDP 探测。</li>
+<li>出站的探测在各自 NAT 上“开洞”，对方的包就能进来。</li>
+<li>锥形 NAT 基本都能打通；双方都是对称型 NAT 时自动走中继。</li>
+</ul>
+</section>
+
+<section class="panel" aria-labelledby="sec-h">
+<h2 id="sec-h"><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg>会话安全与协议细节</h2>
+<table>
+<thead><tr><th scope="col">项目</th><th scope="col">说明</th></tr></thead>
+<tbody>
+<tr><th scope="row" class="word">加密</th><td>QUIC 内 TLS 1.3；CPace 认证绑定本次连接</td></tr>
+<tr><th scope="row" class="word">身份</th><td>Ed25519 密钥，首次连接固定，变化即告警</td></tr>
+<tr><th scope="row" class="word">授权</th><td>临时密码 / 配对 / 限时授权；陌生设备默认只看</td></tr>
+<tr><th scope="row" class="word">视频</th><td>H.264、AV1；BT.709 色彩；局域网 1080p 15、2K 27、4K 60 Mbit/s</td></tr>
+<tr><th scope="row" class="word">音频</th><td>Opus 低延迟（20 ms 帧）</td></tr>
+<tr><th scope="row" class="word">发布</th><td>开源 AGPL；cosign 签名；macOS 签名公证并逐字节核对</td></tr>
+</tbody>
+</table>
+</section>
+
+<section class="panel good" aria-labelledby="sum-h">
+<h2 id="sum-h"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>关键结论</h2>
+<ul class="checks">
+<li>汇合服务器只负责注册、在线、打洞协调（和可选中继），从不接触明文。</li>
+<li>打洞成功后数据在两台设备之间直接传输，端到端加密。</li>
+<li>不需要注册账号；也能完全不用服务器，按地址直连。</li>
+<li>一个程序：控制、被控、服务器、网页、AI 接口全包含，可自建。</li>
+<li>体验主要取决于 NAT 类型与网络质量；连不通 1.5 秒内转中继。</li>
+</ul>
+</section>
+</div>
+
+<section class="hiw-more" aria-labelledby="feat-h">
+<h2 id="feat-h" class="vh">一条会话里的功能</h2>
+<ul class="feats">
+<li><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg><b>远程桌面</b>2K / 4K · 低延迟</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-term"/></svg><b>终端</b>后台任务</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg><b>文件</b>断点续传</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg><b>剪贴板</b>双向同步</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg><b>VPN / 组网</b>端口转发</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-help"/></svg><b>快速协助</b>免安装</li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-bot"/></svg><b>AI（MCP）</b>智能体接口</li>
+</ul>
+</section>
+
+<div class="actions">
+<a class="btn primary" href="/docs/how-it-works/">文档：工作原理详解</a>
+<a class="btn" href="/security/">安全模型</a>
+<a class="btn" href="/features/">功能与限制</a>
+</div>
+</div>
+</div>
+</main>
+<footer class="site-foot">
+<div class="wrap">
+<nav class="cols" aria-label="页脚">
+<div>
+<h2>产品</h2>
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/how-it-works/">工作原理</a></li>
+<li><a href="/docs/">文档</a></li>
+<li><a href="/download/">下载</a></li>
+<li><a href="/apps/">移动应用</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>条款</h2>
+<ul>
+<li><a href="/privacy/">隐私政策</a></li>
+<li><a href="/terms/">使用条款</a></li>
+<li><a href="/licensing/">许可证</a></li>
+</ul>
+</div>
+<div>
+<h2>联系</h2>
+<ul>
+<li><a href="/support/">支持</a></li>
+<li><a href="mailto:info@remohop.com">info@remohop.com</a></li>
+<li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+</nav>
+<p class="legal">RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。本网站不使用 Cookie、分析脚本或任何第三方资源。</p>
+</div>
+</footer>
+</body>
+</html>

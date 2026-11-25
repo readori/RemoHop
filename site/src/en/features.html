@@ -231,6 +231,7 @@ remohop log</code></pre>
 <li>On that connection the two ends run a password-authenticated key exchange (CPace). A man in the middle, the rendezvous server included, cannot complete it.</li>
 </ol>
 <p>Hole punching can fail, for example when both sides are behind symmetric NAT. If the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8 Mbit/s per session by default). <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
+<p>The ports, the six connection steps and hole punching step by step are on <a href="{{L:how-it-works}}">How it works</a>.</p>
 <p>Networks that let only HTTPS out, such as CI runners and corporate networks, can use the server's websocket bridge. Hole punching is impossible through the bridge, so those sessions are always relayed, and still ciphertext. If you can reach the host directly you need no server at all: <code>remohop host --no-signal --listen :21118</code>, then use the address in place of an ID.</p>
 
 <h2 id="security">Security in plain words</h2>

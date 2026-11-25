@@ -29,6 +29,20 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/features/"/>
   </url>
   <url>
+    <loc>https://remohop.com/how-it-works/</loc>
+    <lastmod>2026-11-24</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/how-it-works/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/how-it-works/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/how-it-works/"/>
+  </url>
+  <url>
+    <loc>https://remohop.com/en/how-it-works/</loc>
+    <lastmod>2026-11-24</lastmod>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/how-it-works/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://remohop.com/en/how-it-works/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://remohop.com/how-it-works/"/>
+  </url>
+  <url>
     <loc>https://remohop.com/docs/</loc>
     <lastmod>2026-11-24</lastmod>
     <xhtml:link rel="alternate" hreflang="zh-CN" href="https://remohop.com/docs/"/>
