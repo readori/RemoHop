@@ -425,6 +425,9 @@ func (b *systemd) Status(ctx context.Context, o Options) (*Status, error) {
 	}
 	st.Path, _ = b.unitFile(s, o)
 	st.Installed, st.Scope = true, s.String()
+	if text, err := os.ReadFile(st.Path); err == nil {
+		st.setExe(execStartBinary(string(text)))
+	}
 	if s == ScopeSystem {
 		st.ConfigDir = stateDir(o)
 	}
@@ -495,4 +498,34 @@ func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// execStartBinary returns the program of a unit's ExecStart= line, undoing
+// the quoting of quote(); "" if there is none.
+func execStartBinary(unit string) string {
+	for _, line := range strings.Split(unit, "\n") {
+		v, ok := strings.CutPrefix(strings.TrimSpace(line), "ExecStart=")
+		if !ok {
+			continue
+		}
+		v = strings.TrimLeft(v, "-@:+!")
+		if !strings.HasPrefix(v, `"`) {
+			w, _, _ := strings.Cut(v, " ")
+			return strings.NewReplacer("%%", "%", "$$", "$").Replace(w)
+		}
+		var b strings.Builder
+		for i := 1; i < len(v); i++ {
+			switch c := v[i]; {
+			case c == '\\' && i+1 < len(v):
+				i++
+				b.WriteByte(v[i])
+			case c == '"':
+				return strings.NewReplacer("%%", "%", "$$", "$").Replace(b.String())
+			default:
+				b.WriteByte(c)
+			}
+		}
+		return ""
+	}
+	return ""
 }

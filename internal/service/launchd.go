@@ -6,11 +6,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -399,6 +401,9 @@ func (b *launchd) Status(ctx context.Context, o Options) (*Status, error) {
 	if s == ScopeSystem {
 		st.ConfigDir = supportDir(o)
 	}
+	if text, err := os.ReadFile(st.Path); err == nil {
+		st.setExe(plistProgram(string(text)))
+	}
 	out, err := b.ctl(ctx, "print", b.domain(s)+"/"+b.label(o))
 	if err != nil {
 		st.State = "not loaded"
@@ -437,4 +442,15 @@ func (b *launchd) Logs(ctx context.Context, o Options, n int, follow bool, w io.
 		return errNotInstalled
 	}
 	return tailFile(ctx, b.logPath(s, o), n, follow, w)
+}
+
+var programRE = regexp.MustCompile(`<key>ProgramArguments</key>\s*<array>\s*<string>([^<]*)</string>`)
+
+// plistProgram returns the first ProgramArguments entry of a plist.
+func plistProgram(plist string) string {
+	m := programRE.FindStringSubmatch(plist)
+	if m == nil {
+		return ""
+	}
+	return html.UnescapeString(m[1])
 }

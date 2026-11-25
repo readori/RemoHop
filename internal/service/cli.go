@@ -489,6 +489,12 @@ func printStatus(w io.Writer, st *Status, signal bool) {
 	if st.Path != "" {
 		fmt.Fprintf(w, "  file:     %s\n", st.Path)
 	}
+	if st.Exe != "" {
+		fmt.Fprintf(w, "  runs:     %s\n", cli.Sanitize(st.Exe))
+	}
+	if st.ExeMissing {
+		fmt.Fprintf(w, "  WARNING:  that binary does not exist, so the service cannot start; reinstall it (remohop service install) or remove it (remohop service uninstall)\n")
+	}
 	if signal {
 		fmt.Fprintf(w, "  state:    %s  (server key: sudo remohop signal --show-key --data %s)\n", st.ConfigDir, st.ConfigDir)
 	} else if st.ConfigDir != "" {
