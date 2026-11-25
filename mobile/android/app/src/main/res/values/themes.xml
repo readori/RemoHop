@@ -38,5 +38,9 @@
         <item name="colorSurfaceDim">@color/md_surface_dim</item>
         <item name="colorSurfaceBright">@color/md_surface_bright</item>
         <item name="android:windowBackground">@color/md_surface</item>
+        <!-- Edge to edge on every version: the app bar's colour shows under
+             the status bar (not the theme's primary). -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
 </resources>
