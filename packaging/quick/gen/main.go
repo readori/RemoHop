@@ -127,9 +127,12 @@ func bundleVersion(v string) string {
 }
 
 // infoPlist describes the bundle. LSUIElement keeps it out of the Dock and
-// the app switcher: the program has no window of its own (its window is a
-// browser page), and a Dock icon for a program that never opens one would
-// bounce and then read as "not responding".
+// the app switcher until it has a window of its own: the desktop app
+// (`remohop app`, what a double-click opens) makes itself a regular app when
+// it opens its window, while quick support (--quick) and the command-line
+// uses have none (quick support's window is a browser page), and a Dock icon
+// for a program that never opens one would bounce and then read as "not
+// responding".
 func infoPlist(version string) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=RemoHop
+GenericName=Remote desktop
+GenericName[zh_CN]=远程桌面
+Comment=Connect to your computers, or let someone help you
+Comment[zh_CN]=连接你的电脑，或者让别人帮你
+Exec=remohop-quick
+Icon=remohop
+Terminal=false
+Categories=Network;RemoteAccess;
+Keywords=remote;desktop;support;vnc;
+StartupWMClass=remohop

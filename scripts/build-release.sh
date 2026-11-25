@@ -72,7 +72,7 @@ step_build() {
 	make cross VERSION="$VERSION" CROSS_TARGETS="${targets# } darwin/amd64 darwin/arm64"
 	# Quick support (RemoHop.exe, remohop-quick): same flags, see packaging/quick.
 	# RemoHop.app is built and signed on macOS by the signing workflow.
-	VERSION="$VERSION" OUT=dist/quick TARGETS="windows linux" sh packaging/quick/build.sh
+	VERSION="$VERSION" OUT=dist/quick TARGETS="windows linux icons" sh packaging/quick/build.sh
 }
 
 # Written once per run (package, darwin and darwin-app share it): a file left by an
@@ -128,8 +128,11 @@ step_package() {
 		[[ -f "dist/quick/linux-$a/remohop-quick" ]] || { echo "missing dist/quick/linux-$a/remohop-quick (run the build step)" >&2; exit 1; }
 		stage="$(mktemp -d)"
 		cp "dist/quick/linux-$a/remohop-quick" "$stage/remohop-quick"; chmod 755 "$stage/remohop-quick"
+		# The desktop app's menu entry and icon (see packaging/linux).
+		cp packaging/linux/remohop.desktop "$stage/remohop.desktop"
+		cp dist/quick/RemoHop.png "$stage/remohop.png"
 		stage_common "$stage"
-		make_tar "$OUT/remohop-quick_linux_$a.tar.gz" "$stage" remohop-quick LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		make_tar "$OUT/remohop-quick_linux_$a.tar.gz" "$stage" remohop-quick remohop.desktop remohop.png LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 		rm -rf "$stage"
 	done
 

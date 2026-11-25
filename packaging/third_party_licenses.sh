@@ -35,4 +35,12 @@ for m in $mods; do
 	echo "$m"
 	echo "------------------------------------------------------------------------"
 	if [ -n "$f" ]; then cat "$f"; else echo "(no license file found in the module; check upstream)"; fi
+	# go-webview2 embeds Microsoft's WebView2Loader.dll, under the WebView2
+	# SDK's own license.
+	if [ -f "$dir/webviewloader/sdk/LICENSE.txt" ]; then
+		echo
+		echo "$m includes WebView2Loader.dll from the Microsoft Edge WebView2 SDK:"
+		echo
+		cat "$dir/webviewloader/sdk/LICENSE.txt"
+	fi
 done
