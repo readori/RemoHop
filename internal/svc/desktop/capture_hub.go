@@ -88,7 +88,12 @@ type hubSub struct {
 	once   sync.Once
 }
 
-// hubInput is what a session's ffmpeg is given to read the hub's frames.
+// hubColor is how the hub converts the screen to NV12; sessions label the
+// frames they read with it (hubInput's filter).
+const hubColor = colorFull
+
+// hubInput is what a session's ffmpeg is given to read the hub's frames
+// (which yuvSource(hubColor) then labels).
 // Frames are stamped with the time they are read, which is within a frame
 // of when they were captured.
 func hubInput(w, h, fps int) []string {
@@ -194,7 +199,7 @@ func (h *captureHub) start(fps int) error {
 	args = append(args, h.input(fps)...)
 	// The size is forced so that the stream is exactly the frames readers
 	// expect, whatever the device delivers.
-	args = append(args, "-an", "-vf", fmt.Sprintf("scale=%d:%d:flags=fast_bilinear,format=nv12", h.w, h.h),
+	args = append(args, "-an", "-vf", fmt.Sprintf("scale=%d:%d:flags=fast_bilinear%s,format=nv12", h.w, h.h, hubColor.scaleOpts()),
 		"-fps_mode", "passthrough", "-f", "rawvideo", "pipe:1")
 	cmd := nowindow.Set(exec.Command(h.ffmpeg, args...))
 	cmd.Env = h.env

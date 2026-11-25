@@ -174,7 +174,10 @@ func ddaReason(out string, err error) string {
 // reach and adds milliseconds to every frame. NVENC and AMF encode BGRA
 // D3D11 textures themselves (ffmpeg's own ddagrab example feeds h264_nvenc
 // directly); Quick Sync needs the frames mapped into its device and
-// converted to NV12 by its video processor. A chain is used only after a
+// converted to NV12 by its video processor. NVENC converts RGB with BT.601
+// at limited range, Quick Sync's processor is told to produce limited-range
+// BT.709 and AMF's encoder converts as its colour options say (gpuColor
+// and colorMode). A chain is used only after a
 // test run of ddagrab into the session's encoder works on this machine
 // (cached like the ddagrab probe), and only when the picture is not scaled.
 var ddagrabGPU = map[string]string{
@@ -182,8 +185,8 @@ var ddagrabGPU = map[string]string{
 	"av1_nvenc":  "",
 	"h264_amf":   "",
 	"av1_amf":    "",
-	"h264_qsv":   "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12",
-	"av1_qsv":    "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12",
+	"h264_qsv":   "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12:out_color_matrix=bt709:out_range=tv",
+	"av1_qsv":    "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12:out_color_matrix=bt709:out_range=tv",
 }
 
 type gpuKey struct {
@@ -222,6 +225,7 @@ func ddagrabGPUChain(idx int, e *encoder) (string, bool) {
 		args = append(args, "-vf", chain)
 	}
 	args = append(args, e.args(encParams{fps: 10, bitrate: 2_000_000, gop: 20})...)
+	args = append(args, gpuColor(e).encArgs()...)
 	args = append(args, "-f", "null", "-")
 	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, args...)).CombinedOutput()
 	p := ddaProbe{at: time.Now()}
