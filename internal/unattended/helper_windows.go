@@ -16,6 +16,8 @@ import (
 
 	"github.com/readori/RemoHop/internal/inject"
 	"github.com/readori/RemoHop/internal/svc/screenshot"
+
+	"github.com/readori/RemoHop/internal/dpiaware"
 )
 
 const (
@@ -85,8 +87,9 @@ func RunHelper(ctx context.Context, stdin io.Reader, log io.Writer) error {
 		windows.WaitForSingleObject(parent, windows.INFINITE)
 		os.Exit(0)
 	}()
-	// Physical pixels, as the service and the clients count them.
-	procSetProcessDPIAware.Call()
+	// Physical pixels on every monitor, as the service and the clients
+	// count them.
+	dpiaware.Enable()
 
 	l, err := listenPipe(cfg.Pipe)
 	if err != nil {

@@ -14,6 +14,8 @@ import (
 	"github.com/readori/RemoHop/internal/nowindow"
 
 	"github.com/readori/RemoHop/internal/svc/screenshot"
+
+	"github.com/readori/RemoHop/internal/dpiaware"
 )
 
 var (
@@ -32,6 +34,10 @@ var (
 // in the interactive user session (not as a session-0 service) to see the
 // desktop.
 func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
+	// Physical pixels on every monitor, as ddagrab and gdigrab capture them
+	// (GetSystemMetrics below and the monitor list would otherwise be
+	// scaled when nothing in the process had set the awareness yet).
+	dpiaware.Enable()
 	idx := 0
 	if display > 0 {
 		idx = display - 1

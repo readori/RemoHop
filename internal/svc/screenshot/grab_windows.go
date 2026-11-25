@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"sync"
 	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/readori/RemoHop/internal/dpiaware"
 )
 
 var (
@@ -23,7 +24,6 @@ var (
 	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
 	procEnumDisplayMonitors = user32.NewProc("EnumDisplayMonitors")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
-	procSetProcessDPIAware  = user32.NewProc("SetProcessDPIAware")
 	procCreateCompatibleDC  = gdi32.NewProc("CreateCompatibleDC")
 	procCreateCompatibleBmp = gdi32.NewProc("CreateCompatibleBitmap")
 	procSelectObject        = gdi32.NewProc("SelectObject")
@@ -31,7 +31,6 @@ var (
 	procGetDIBits           = gdi32.NewProc("GetDIBits")
 	procDeleteObject        = gdi32.NewProc("DeleteObject")
 	procDeleteDC            = gdi32.NewProc("DeleteDC")
-	dpiOnce                 sync.Once
 )
 
 const (
@@ -72,7 +71,7 @@ type winGrabber struct{}
 func platformGrabber() grabber { return winGrabber{} }
 
 func (winGrabber) Displays(ctx context.Context) ([]Display, error) {
-	dpiOnce.Do(func() { procSetProcessDPIAware.Call() }) // report real pixels, not scaled ones
+	dpiaware.Enable() // report real pixels, not scaled ones
 	var ds []Display
 	cb := syscall.NewCallback(func(hmon, hdc, rc, data uintptr) uintptr {
 		mi := monitorInfo{size: uint32(unsafe.Sizeof(monitorInfo{}))}
@@ -95,7 +94,7 @@ func (winGrabber) Displays(ctx context.Context) ([]Display, error) {
 }
 
 func (g winGrabber) Grab(ctx context.Context, display int) (image.Image, error) {
-	dpiOnce.Do(func() { procSetProcessDPIAware.Call() })
+	dpiaware.Enable()
 	var x, y, w, h int
 	if display == AllDisplays {
 		x, y = metric(smXVirtualScreen), metric(smYVirtualScreen)

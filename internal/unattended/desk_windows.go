@@ -18,7 +18,6 @@ var (
 	procSetThreadDesktop    = user32.NewProc("SetThreadDesktop")
 	procCloseDesktop        = user32.NewProc("CloseDesktop")
 	procGetUserObjectInfoW  = user32.NewProc("GetUserObjectInformationW")
-	procSetProcessDPIAware  = user32.NewProc("SetProcessDPIAware")
 	procLockWorkStation     = user32.NewProc("LockWorkStation")
 	procGetDC               = user32.NewProc("GetDC")
 	procReleaseDC           = user32.NewProc("ReleaseDC")

@@ -15,6 +15,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/readori/RemoHop/internal/dpiaware"
 )
 
 var (
@@ -22,7 +24,6 @@ var (
 	procGetCursorPos        = user32.NewProc("GetCursorPos")
 	procSetCursorPos        = user32.NewProc("SetCursorPos")
 	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
-	procSetProcessDPIAware  = user32.NewProc("SetProcessDPIAware")
 	procGetProcessWinStn    = user32.NewProc("GetProcessWindowStation")
 	procGetThreadDesktop    = user32.NewProc("GetThreadDesktop")
 	procGetUserObjectInfoW  = user32.NewProc("GetUserObjectInformationW")
@@ -33,11 +34,10 @@ var (
 	procKeybdEvent          = user32.NewProc("keybd_event")
 	procWindowFromPoint     = user32.NewProc("WindowFromPoint")
 	procGetWindowThreadPID  = user32.NewProc("GetWindowThreadProcessId")
-	dpiOnce                 sync.Once
 )
 
 // DPIAware makes this process report physical pixels (as the host does).
-func DPIAware() { dpiOnce.Do(func() { procSetProcessDPIAware.Call() }) }
+func DPIAware() { dpiaware.Enable() }
 
 // CursorPos is the pointer position (GetCursorPos).
 func CursorPos() (x, y int, err error) {
