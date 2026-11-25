@@ -530,6 +530,8 @@ func TestAuditLog(t *testing.T) {
 	var raw []byte
 	for {
 		raw, _ = os.ReadFile(filepath.Join(dir, hostd.AuditFile))
+		refusedRaw, _ := os.ReadFile(filepath.Join(dir, hostd.AuditRefusedFile))
+		raw = append(raw, refusedRaw...)
 		if bytes.Count(raw, []byte(`"session-end"`)) == 2 && bytes.Contains(raw, []byte("auth_failed")) || time.Now().After(deadline) {
 			break
 		}
@@ -540,8 +542,10 @@ func TestAuditLog(t *testing.T) {
 	}
 	// Readable by the host's user only: mode bits on Unix, the config
 	// directory's access-control list on Windows.
-	if private, err := config.IsPrivate(filepath.Join(dir, hostd.AuditFile)); err != nil || !private {
-		t.Fatalf("audit log is not private to the user (%v)", err)
+	for _, name := range []string{hostd.AuditFile, hostd.AuditRefusedFile} {
+		if private, err := config.IsPrivate(filepath.Join(dir, name)); err != nil || !private {
+			t.Fatalf("%s is not private to the user (%v)", name, err)
+		}
 	}
 	code, out, _ := runCmd("log", "", "--json")
 	var entries []hostd.AuditEntry

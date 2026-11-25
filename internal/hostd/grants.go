@@ -423,7 +423,7 @@ func (s *Session) authorizeGrant(service string, f perm.Feature) error {
 		return nil
 	}
 	if !e.rules.AllowsService(service) {
-		s.host.audit.add("grant-refused", s.fields("service", service)...)
+		s.host.audit.addRefused(grantKey(s.grant, s.Auth.ClientKey), "grant-refused", s.fields("service", service)...)
 		return &grant.Refusal{Grant: s.grant, What: grant.ServiceLabel(service)}
 	}
 	switch service {
@@ -444,7 +444,7 @@ var _ grant.Guard = sessionGuard{}
 func (g sessionGuard) Name() string { return g.s.grant }
 
 func (g sessionGuard) refuse(kind string, err error, kv ...string) error {
-	g.s.host.audit.add("grant-refused", g.s.fields(append([]string{"kind", kind, "reason", err.Error()}, kv...)...)...)
+	g.s.host.audit.addRefused(grantKey(g.s.grant, g.s.Auth.ClientKey), "grant-refused", g.s.fields(append([]string{"kind", kind, "reason", err.Error()}, kv...)...)...)
 	return err
 }
 

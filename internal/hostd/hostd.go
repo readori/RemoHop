@@ -496,6 +496,7 @@ func (h *Host) Run(ctx context.Context) error {
 	if h.wsLn != nil {
 		h.wsLn.Close()
 	}
+	defer h.audit.close()
 	for _, s := range h.Sessions() {
 		s.conn.CloseWithReason("host shutting down")
 	}
@@ -732,7 +733,7 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 		// drain.
 		if e, ok := errors.AsType[*auth.Error](err); ok {
 			h.log.Warn("login rejected", "from", remote, "reason", e.Code)
-			h.audit.add("login", "result", "refused", "reason", string(e.Code), "from", remote.String(), "identity", peerFingerprint(q))
+			h.audit.addRefused(sourceKey(remote), "login", "result", "refused", "reason", string(e.Code), "from", remote.String(), "identity", peerFingerprint(q))
 			q.CloseWithError(closeAuth, closeReason(e))
 		} else {
 			// A connection that goes away before saying anything is
@@ -803,7 +804,7 @@ func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result) (*Se
 	denied := func(err error) (*Session, error) {
 		h.log.Info("login refused at admission", "from", remote, "reason", err)
 		if sess.grant != "" {
-			h.audit.add("grant-refused", "from", remote.String(), "identity", auth.Fingerprint(res.ClientKey), "grant", sess.grant, "reason", err.Error())
+			h.audit.addRefused(grantKey(sess.grant, res.ClientKey), "grant-refused", "from", remote.String(), "identity", auth.Fingerprint(res.ClientKey), "grant", sess.grant, "reason", err.Error())
 		}
 		return nil, &auth.Error{Code: auth.CodeDenied}
 	}
@@ -982,7 +983,7 @@ func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.Addr
 		if res.Grant != "" {
 			if err := h.grantLogin(res); err != nil {
 				h.log.Info("grant login refused", "from", remote, "grant", res.Grant, "reason", err)
-				h.audit.add("grant-refused", "from", remote.String(), "identity", auth.Fingerprint(res.ClientKey), "grant", res.Grant, "reason", err.Error())
+				h.audit.addRefused(grantKey(res.Grant, res.ClientKey), "grant-refused", "from", remote.String(), "identity", auth.Fingerprint(res.ClientKey), "grant", res.Grant, "reason", err.Error())
 				return err
 			}
 		}
@@ -1040,6 +1041,7 @@ func (h *Host) revocationLoop(ctx context.Context) {
 		// Grants expire, and are revoked or suspended from other
 		// processes; their sessions end within one tick.
 		h.enforceGrants()
+		h.audit.flush()
 	}
 }
 
