@@ -13,6 +13,7 @@ the English reference documents in docs/ into /docs/<name>/ and
 """
 import hashlib
 import html
+import json
 import os
 import pathlib
 import re
@@ -60,6 +61,14 @@ def pick(public, prelaunch):
 # README.md and docs/ say the same as the site), then run this script and commit.
 RELEASED = True
 
+# The newest published release. build.py writes it to /version.json, the file
+# the desktop app reads once a day to say that a newer version exists
+# (internal/update). Set it when a release is published, in the same change
+# that runs --release-docs. CI compares it with the repository's newest vX.Y.Z
+# tag (REMOHOP_LATEST_TAG), so a stale value fails the "website is up to
+# date" check instead of leaving people on an old version.
+LATEST_RELEASE = "v1.0.2"
+
 # The mobile apps in the App Store and on Google Play, one switch per store.
 # Same mechanism, with <!--ios-->...<!--/ios-->, <!--play-->...<!--/play--> and
 # their <!--noios-->/<!--noplay--> opposites; <!--store--> blocks need both
@@ -76,7 +85,7 @@ EMAIL = "info@remohop.com"  # general contact
 SUPPORT_EMAIL = "support@remohop.com"  # support page and store support lines
 PRIVACY_EMAIL = "privacy@remohop.com"  # privacy policy
 TELEGRAM = "https://t.me/remohop"
-UPDATED = "2026-11-24"
+UPDATED = "2026-11-25"
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -906,6 +915,12 @@ def main():
             sm.append("  </url>")
     sm.append("</urlset>")
     (OUT / "sitemap.xml").write_text("\n".join(sm) + "\n", encoding="utf-8")
+    if not re.fullmatch(r"v\d+\.\d+\.\d+", LATEST_RELEASE):
+        raise SystemExit(f"LATEST_RELEASE {LATEST_RELEASE!r} is not vX.Y.Z")
+    tag = os.environ.get("REMOHOP_LATEST_TAG", "")
+    if tag and tag != LATEST_RELEASE:
+        raise SystemExit(f"LATEST_RELEASE is {LATEST_RELEASE} but the newest release tag is {tag}: set it and rebuild")
+    (OUT / "version.json").write_text(json.dumps({"version": LATEST_RELEASE}) + "\n", encoding="utf-8")
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE_URL}/sitemap.xml\n", encoding="utf-8")
 
     # Before launch, nothing published may point at the private repository.

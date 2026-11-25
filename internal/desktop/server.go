@@ -146,6 +146,7 @@ func (s *Server) routes() {
 		Password string `json:"password"`
 		Refresh  bool   `json:"refresh"`
 		SID      string `json:"sid"`
+		Version  string `json:"version"`
 	}
 	post := func(path string, h func(r *http.Request, q req) (any, error)) {
 		s.Post(path, true, func(r *http.Request, b json.RawMessage) (any, error) {
@@ -225,6 +226,19 @@ func (s *Server) routes() {
 	})
 	post("/api/unattended/disconnect", func(r *http.Request, q req) (any, error) { return nil, a.ServiceDisconnect(r.Context(), q.ID) })
 	post("/api/unattended/password", func(r *http.Request, q req) (any, error) { return nil, a.ServicePassword(r.Context(), q.Password) })
+	post("/api/update/check", func(r *http.Request, _ req) (any, error) {
+		a.CheckUpdate(r.Context())
+		return nil, nil
+	})
+	post("/api/update/auto", func(_ *http.Request, q req) (any, error) { return nil, a.SetUpdateAuto(q.On) })
+	post("/api/update/skip", func(_ *http.Request, q req) (any, error) { return nil, a.SkipUpdate(q.Version) })
+	post("/api/update/open", func(_ *http.Request, q req) (any, error) {
+		u, err := a.UpdateLink(q.Target, q.Lang)
+		if err != nil {
+			return nil, err
+		}
+		return nil, openURL(u)
+	})
 	post("/api/show", func(*http.Request, req) (any, error) { s.shell().Show(); return nil, nil })
 	post("/api/hide", func(*http.Request, req) (any, error) { s.shell().Hide(); return nil, nil })
 	post("/api/quit", func(*http.Request, req) (any, error) {

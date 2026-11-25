@@ -13,6 +13,12 @@
   Cross-Origin-Opener-Policy: same-origin
   Permissions-Policy: accelerometer=(), autoplay=(), browsing-topics=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()
 
+# The version file the desktop app reads once a day (internal/update): short
+# caching, so a release reaches the apps within the hour.
+/version.json
+  Cache-Control: public, max-age=600
+  X-Robots-Tag: noindex
+
 # The stylesheet URL carries a content hash (?v=...), and images are replaced
 # under a new name when they change, so both can be cached for a year.
 /assets/*

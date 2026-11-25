@@ -145,7 +145,11 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	}
 	defer unlock()
 
-	app, err := NewApp(Config{Signal: env.Globals.Signal, Logger: log})
+	// The smoke test takes screenshots; a notice about a newer release
+	// would only make them differ from run to run.
+	// REMOHOP_UPDATE_URL points the update check at another copy of the
+	// version file (a mirror, or a test server).
+	app, err := NewApp(Config{Signal: env.Globals.Signal, Logger: log, NoUpdateCheck: o.smoke != "", UpdateURL: os.Getenv("REMOHOP_UPDATE_URL")})
 	if err != nil {
 		env.Errorf("app: %v", err)
 		return cli.ExitError

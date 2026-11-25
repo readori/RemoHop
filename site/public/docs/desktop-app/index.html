@@ -84,6 +84,9 @@
 </ul>
 <h2 id="设置">设置</h2>
 <p>汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及<strong>登录时启动 RemoHop</strong>（启动后只在托盘中，不显示窗口）。</p>
+<h2 id="更新">更新</h2>
+<p>应用启动后不久以及之后每天一次，从 <code>https://remohop.com/version.json</code> 读取最新的版本号（请求不带任何标识）。有更新的版本时，标签栏下方会出现一条提示，带<strong>下载</strong>（打开下载页）、<strong>更新内容</strong>（发布说明）和 ×（跳过这个版本）。用 Homebrew、Scoop、winget 或 Snap 安装的，提示里给出对应的升级命令（<code>brew upgrade --cask remohop-quick</code>、<code>scoop update remohop</code>、<code>winget upgrade RemoHop.RemoHop</code>、<code>sudo snap refresh remohop</code>）；用 .deb 或 .rpm 安装的，请用系统的包管理器升级。应用不会自己下载或安装任何东西。</p>
+<p><strong>设置 &gt; 更新</strong>可以关闭每天的检查，也可以<strong>立即检查</strong>。管理员可以设置环境变量 <code>REMOHOP_NO_UPDATE_CHECK=1</code> 统一关闭。开着无人值守访问的电脑，升级后请把它关闭再打开一次，让服务运行新版程序。</p>
 <h2 id="窗口托盘与后台">窗口、托盘与后台</h2>
 <p>关闭窗口后 RemoHop 会留在托盘（macOS 上是菜单栏）中继续运行，别人仍可连接；托盘菜单中的“退出”会结束它和所有连接。再次启动 RemoHop 会显示原来的窗口。系统没有托盘时（不支持 AppIndicator 的 Linux 桌面），关闭窗口即退出。</p>
 <p>窗口使用系统自带的网页引擎：Windows 上是 WebView2（Windows 10 和 11 自带），macOS 上是 WKWebView，Linux 上是 WebKitGTK（远程桌面需要 GStreamer 的 H.264 解码器，Debian 和 Ubuntu 上是 <code>gstreamer1.0-libav</code>）。没有时应用会改在浏览器窗口中打开，命令行程序的 <code>remohop app</code> 也是如此。</p>

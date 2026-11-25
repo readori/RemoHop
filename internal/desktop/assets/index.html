@@ -32,6 +32,16 @@
   <button class="icon-btn" id="tab-settings" data-view="settings" aria-pressed="false" data-ta="tab.settings" aria-label="Settings" title="Settings"><svg><use href="#i-settings"/></svg></button>
 </header>
 
+<!-- a newer release (update.go) -->
+<div class="upd" id="upd" role="status" hidden>
+  <svg class="ic"><use href="#i-refresh"/></svg>
+  <div class="grow"><b id="upd-title"></b> <span class="muted small" id="upd-how"></span> <code class="upd-cmd" id="upd-cmd" hidden></code></div>
+  <button class="btn sm tonal" id="upd-copy" data-copy="upd-cmd" data-t="copy" hidden>Copy</button>
+  <button class="btn sm" id="upd-get" data-t="upd.get">Download</button>
+  <button class="btn sm text" id="upd-notes" data-t="upd.notes">What's new</button>
+  <button class="icon-btn" id="upd-skip" data-ta="upd.skip" aria-label="Skip this version"><svg><use href="#i-close"/></svg></button>
+</div>
+
 <main id="main">
   <!-- first-run wizard -->
   <section class="view" id="v-wizard" hidden>
@@ -146,6 +156,12 @@
       <div id="autostart-box">
         <h3 data-t="set.start">Start</h3>
         <div class="card row"><div class="grow" data-t="set.autostart">Start RemoHop when I sign in</div><input type="checkbox" class="switch" id="autostart" role="switch"></div>
+      </div>
+      <h3 data-t="upd.h">Updates</h3>
+      <div class="card">
+        <div class="row"><div class="grow" data-t="upd.auto">Check for updates automatically (once a day)</div><input type="checkbox" class="switch" id="upd-auto" role="switch"></div>
+        <div class="row mt8"><div class="grow muted small" id="upd-status"></div><button class="btn sm tonal" id="upd-now" data-t="upd.now">Check now</button></div>
+        <p class="muted small mt8" data-t="upd.privacy">Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.</p>
       </div>
       <p class="muted small mt" id="about"></p>
     </div>

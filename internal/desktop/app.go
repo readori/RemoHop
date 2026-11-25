@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/netip"
 	"net/url"
 	"sort"
@@ -58,6 +59,14 @@ type Config struct {
 	Gateway  func(*web.Config)
 	NoSignal bool
 	Now      func() time.Time
+	// The update check (update.go): the version file's address (empty:
+	// update.URL), the HTTP client, the first check's delay and the
+	// interval. NoUpdateCheck leaves the check out altogether.
+	UpdateURL     string
+	UpdateClient  *http.Client
+	UpdateDelay   time.Duration
+	UpdateEvery   time.Duration
+	NoUpdateCheck bool
 }
 
 // Hooks are how the window shell learns what needs the user's attention.
@@ -107,6 +116,8 @@ type App struct {
 	peers    []Peer
 	peersAt  time.Time
 	peersErr string
+
+	upd updateInfo
 }
 
 // NewApp loads the settings. Start brings things up.
@@ -133,7 +144,7 @@ func NewApp(cfg Config) (*App, error) {
 		cfg.Logger.Warn("the app's settings could not be read; starting with defaults", "err", err)
 	}
 	a := &App{cfg: cfg, log: cfg.Logger, dir: dir, settings: st, phase: PhaseOff,
-		subs: map[chan struct{}]struct{}{}, firstSeen: map[int]bool{}}
+		subs: map[chan struct{}]struct{}{}, firstSeen: map[int]bool{}, upd: updateInfo{current: cli.Version, method: detectMethod()}}
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	return a, nil
 }
@@ -210,6 +221,9 @@ func (a *App) Start() error {
 		a.startHost()
 	}
 	go a.watchSessions()
+	if !a.cfg.NoUpdateCheck {
+		go a.updateLoop()
+	}
 	return nil
 }
 
@@ -800,6 +814,7 @@ type State struct {
 	Incoming Incoming        `json:"incoming"`
 	Trusted  []TrustedDevice `json:"trusted"`
 	Timeout  int             `json:"ask_timeout"`
+	Update   UpdateState     `json:"update"`
 }
 
 // ServerState is the rendezvous server choice.
@@ -888,6 +903,7 @@ func (a *App) State() State {
 		sort.Slice(in.Sessions, func(i, j int) bool { return in.Sessions[i].ID < in.Sessions[j].ID })
 	}
 	st.Incoming = in
+	st.Update = a.updateState()
 	return st
 }
 
