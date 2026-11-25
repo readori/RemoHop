@@ -44,6 +44,13 @@ final class GatewayURLsTests: XCTestCase {
         for (code, english) in L10n.pairErrors {
             XCTAssertNotNil(L10n.zh[english], "no Chinese for the pairing error \(code)")
         }
+        for (code, english) in L10n.settingErrors {
+            XCTAssertNotNil(L10n.zh[english], "no Chinese for the setting error \(code)")
+        }
+        XCTAssertNotNil(L10n.zh[L10n.pairFailed])
+        // Every failure reads in the app's words in English too, never as the core's text.
+        XCTAssertEqual(L10n.pairError(code: "no_rendezvous"), L10n.text(L10n.pairErrors["no_rendezvous"]!))
+        XCTAssertEqual(L10n.pairError(code: "something_new"), L10n.text(L10n.pairFailed))
     }
 
     func testDownloads() {

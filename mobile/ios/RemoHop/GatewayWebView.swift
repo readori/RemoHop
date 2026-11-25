@@ -138,6 +138,9 @@ struct GatewayWebView: UIViewRepresentable {
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             Diag.log("web content process terminated")
+            // The page that asked for full screen and a screen kept on is
+            // gone; the reloaded one starts in the normal layout.
+            setState(keepScreenOn: false, fullscreen: false)
             // The content process was killed (memory): load the page again.
             if let url = gatewayURL { webView.load(URLRequest(url: GatewayURLs.withLang(url, lang))) }
         }

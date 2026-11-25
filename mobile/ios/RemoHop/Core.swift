@@ -72,6 +72,14 @@ enum Core {
         return err == nil && s != "[]" && !s.isEmpty
     }
 
+    /// Connection attempts still dialing or waiting for the host's owner to approve.
+    static var pendingConnections: Int { RemohopcorePendingConnections() }
+
+    /// Whether there is anything to keep the app running for in the
+    /// background: a host session, or an attempt (the user switches to a
+    /// chat to ask for approval exactly then).
+    static var busy: Bool { hasSessions || pendingConnections > 0 }
+
     /// Re-establishes host sessions that stopped answering (the network changed).
     static func checkSessions() { RemohopcoreCheckSessions() }
 
@@ -94,6 +102,17 @@ enum Core {
     static func setSetting(_ key: String, _ value: String) throws {
         var err: NSError?
         if !RemohopcoreSetSetting(key, value, &err) { throw err ?? Failure(message: "could not save \(key)") }
+    }
+
+    /// Saves a setting; nil when saved, else the core's code (bad_address,
+    /// bad_key, bad_name, bad_value, error) and its text for the log.
+    static func setSettingCode(_ key: String, _ value: String) -> (code: String, message: String)? {
+        var err: NSError?
+        let s = RemohopcoreSetSettingJSON(key, value, &err)
+        if let err { return ("error", err.localizedDescription) }
+        let obj = (try? JSONSerialization.jsonObject(with: Data(s.utf8))) as? [String: Any] ?? [:]
+        if (obj["ok"] as? Bool) == true { return nil }
+        return (obj["code"] as? String ?? "error", obj["error"] as? String ?? "")
     }
 
     static func identity() throws -> String {
