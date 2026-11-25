@@ -33,8 +33,11 @@ func serviceExeDir() string {
 }
 
 func serviceExeName(svcName string) string {
-	if strings.EqualFold(svcName, "RemoHop") {
+	switch l := strings.ToLower(svcName); {
+	case l == "remohop":
 		return "remohop.exe"
+	case strings.HasPrefix(l, "remohop"):
+		return svcName + ".exe"
 	}
 	return "remohop-" + svcName + ".exe"
 }

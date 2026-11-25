@@ -147,6 +147,13 @@ step_package() {
 		done
 	done
 	rm -rf packaging/stage
+	# nfpm names prerelease packages with "~" (1.2.3~rc.1, so that they sort before
+	# 1.2.3); GitHub would rename such an asset on upload, and SHA256SUMS would then
+	# list a name the release does not have.
+	local f
+	for f in "$OUT"/*~*; do
+		[[ -e "$f" ]] && mv "$f" "${f//\~/.}"
+	done
 
 	# SBOM: one for the release, from the binaries just built. The darwin builds stand
 	# in for the signed macOS binary: the release workflow checks that it is exactly

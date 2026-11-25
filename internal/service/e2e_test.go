@@ -105,6 +105,25 @@ func TestServiceE2E(t *testing.T) {
 	}
 	waitFor("`remohop status` to report the host", hostUp)
 
+	// Installing again is the upgrade step: the service is replaced in place
+	// and runs again (launchd: after bootout has finished; Windows: the copy
+	// in Program Files is replaced and the service updated).
+	pid := status().PID
+	out, err = remohop(false, install...)
+	if err != nil {
+		t.Fatalf("second install (upgrade): %v\n%s", err, out)
+	}
+	t.Logf("second install:\n%s", out)
+	waitFor("the service to run again", func() bool { st := status(); return st.Running && st.PID != pid })
+	waitFor("`remohop status` to report the host again", hostUp)
+	var winCopy string
+	if runtime.GOOS == "windows" {
+		winCopy = filepath.Join(serviceExeDir(), serviceExeName(name))
+		if _, err := os.Stat(winCopy); err != nil {
+			t.Errorf("the service's copy of the binary: %v", err)
+		}
+	}
+
 	if out, err := remohop(false, "service", "stop", "--name", name); err != nil {
 		t.Fatalf("stop: %v\n%s", err, out)
 	}
@@ -118,6 +137,11 @@ func TestServiceE2E(t *testing.T) {
 	}
 	if st := status(); st.Installed {
 		t.Errorf("still installed after uninstall: %+v", st)
+	}
+	if winCopy != "" {
+		if _, err := os.Stat(winCopy); !os.IsNotExist(err) {
+			t.Errorf("%s still exists after uninstall (%v)", winCopy, err)
+		}
 	}
 	if runtime.GOOS == "darwin" {
 		home, _ := os.UserHomeDir()
