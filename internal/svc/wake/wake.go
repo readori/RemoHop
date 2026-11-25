@@ -31,6 +31,11 @@ const (
 	packetLen    = 6 + 16*macLen
 	maxTargets   = 64              // broadcast destinations per request
 	sendDeadline = 3 * time.Second // one UDP write never blocks long; this is a backstop
+	// A single broadcast frame is easily lost (Wi-Fi, a switch port coming
+	// out of power saving), so the magic packet goes out sendRepeats times,
+	// sendGap apart, as other wake tools do.
+	sendRepeats = 3
+	sendGap     = 100 * time.Millisecond
 	hostBurst    = 10              // remote requests per window a host accepts
 	hostWindow   = time.Minute     // length of that window
 )
@@ -196,6 +201,16 @@ func Send(ctx context.Context, mac string, opts Options) (*Result, error) {
 	}
 	if len(res.Targets) == 0 {
 		return nil, fmt.Errorf("wake: could not send the magic packet: %w", errors.Join(errs...))
+	}
+	for i := 1; i < sendRepeats; i++ {
+		select {
+		case <-ctx.Done():
+			return res, nil // the first round went out
+		case <-time.After(sendGap):
+		}
+		for _, d := range dests {
+			sendOne(d, port, pkt) // the first round decided what works
+		}
 	}
 	return res, nil
 }
