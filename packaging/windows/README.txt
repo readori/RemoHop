@@ -9,6 +9,13 @@ service from an ELEVATED prompt (Run as administrator):
     remohop.exe service logs -f
     remohop.exe service uninstall
 
+The service runs as LocalSystem, so whoever could replace the program it starts
+would get LocalSystem. `service install` therefore copies remohop.exe to
+%ProgramFiles%\RemoHop (only administrators can change it) and the service runs
+that copy. After installing a newer remohop.exe, run `remohop.exe service
+install` again from an elevated prompt: it stops the service, replaces the copy
+and starts it again. `service uninstall` removes the copy too.
+
 The service is named "RemoHop", starts automatically (delayed) and is restarted
 by the Service Control Manager when it fails. It runs as LocalSystem in
 session 0, which is isolated from the interactive desktop: shell, file
@@ -24,9 +31,12 @@ anyone who can log in to this host controls the machine as SYSTEM. Without
 it, run `remohop host` inside the user's session (for example from a Task
 Scheduler task "At log on").
 
-State (identity key, pairings, host password) is in %ProgramData%\RemoHop and
-the service's output is in %ProgramData%\RemoHop\service.log. Read the ID and
-password of the service instance with:
+State (identity key, pairings, host password) is in %ProgramData%\RemoHop,
+owned by the Administrators and open only to SYSTEM and Administrators;
+install refuses a directory there that another user created (it could hold
+planted credentials). The service's output is in
+%ProgramData%\RemoHop\service.log (rotated to service.log.1 at 10 MiB). Read
+the ID and password of the service instance with:
 
     set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop
     remohop.exe status
