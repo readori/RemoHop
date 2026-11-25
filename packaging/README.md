@@ -17,8 +17,8 @@ For a tag `vX.Y.Z` the release has these assets (names carry no version, so
 | `RemoHop-macos.dmg`: quick support, the usual Mac download: disk image with `RemoHop.app` and an Applications link; the image and the app are Developer ID signed, notarized and stapled |
 | `RemoHop-macos.zip`: the same `RemoHop.app` as a `ditto` zip (signed, notarized, stapled), for scripts and tools that want a zip | built, signed, notarized and stapled in the CI repo, checked and copied by `build-release.sh darwin-app` |
 | `remohop-quick_linux_{amd64,arm64}.tar.gz`: quick support for Linux | `build-release.sh build` + `package` |
-| `remohop_<ver>_{amd64,arm64}.deb`, `remohop-<ver>-1.{x86_64,aarch64}.rpm`, `remohop_<ver>_{x86_64,aarch64}.apk` | nfpm, from `packaging/nfpm.yaml` |
-| `remohop_sbom.cdx.json` | `scripts/sbom.sh` (CycloneDX, from `go version -m`) |
+| `remohop_<ver>_{amd64,arm64}.deb`, `remohop-<ver>-1.{x86_64,aarch64}.rpm`, `remohop_<ver>_{x86_64,aarch64}.apk` | nfpm, from `packaging/nfpm.yaml` (prerelease names get `.` for nfpm's `~`, which GitHub would rename) |
+| `remohop_sbom.cdx.json` | `scripts/sbom.sh` (CycloneDX, from `go version -m` of the linux, windows and darwin builds) |
 | `install.sh`, `install.ps1` | copied from `packaging/` by `scripts/finalize-release.sh` |
 | `SHA256SUMS` | `finalize-release.sh`, over every file above (it refuses to run when one of the version-free archives is missing) |
 | `SHA256SUMS.sigstore.json` | cosign keyless signature bundle over `SHA256SUMS` |
@@ -27,8 +27,8 @@ Also published, not as release assets: the image `ghcr.io/<owner>/remohop-signal
 signed, SBOM + provenance attached), and a workflow artifact `package-manager-manifests` (stable tags only).
 
 Every archive contains the binary, `LICENSE` (AGPL-3.0), `NOTICE` and `THIRD_PARTY_LICENSES.txt`
-(`packaging/third_party_licenses.sh`); `RemoHop.app` carries the same three files in `Contents/Resources`,
-inside the signature. Archives and the SBOM are reproducible: the same commit
+(`packaging/third_party_licenses.sh`: the Go project's license and every linked module's); `RemoHop.app` carries
+the same three files in `Contents/Resources`, inside the signature, and the container image has them at `/`. Archives and the SBOM are reproducible: the same commit
 and Go toolchain give byte-identical files (`SOURCE_DATE_EPOCH` is the commit time).
 
 ## Cutting a release
@@ -36,11 +36,14 @@ and Go toolchain give byte-identical files (`SOURCE_DATE_EPOCH` is the commit ti
 1. Merge to `main`; make sure CI is green and `docs/` match.
 2. Optional dry run: Actions, "Release", Run workflow, version `v0.0.0-test.1`. It builds and keeps the
    files as the artifact `assets-linux-windows`; it never signs, releases or pushes.
-3. Tag and push: `git tag -s v1.2.3 -m v1.2.3 && git push origin v1.2.3`. Tags with a `-` (`v1.2.3-rc.1`)
-   become prereleases and are not tagged `latest` in Docker or rendered into manifests.
-4. The workflow runs `build`, then `macos` (starts the signing workflow in the CI repo and waits, about
-   10 to 20 minutes; it signs and notarizes the CLI and RemoHop.app), then `publish` (draft release, signature,
-   publish), then `docker`.
+3. Create the tag `v1.2.3` on the release commit, which must be on `main` (`verify` refuses any other). Tags
+   are created through the GitHub API by the owner's operations session, e.g.
+   `gh api repos/readori/RemoHop/git/refs -f ref=refs/tags/v1.2.3 -f sha=<full commit SHA>`. Tags with a `-`
+   (`v1.2.3-rc.1`) become prereleases and are not tagged `latest` in Docker or rendered into manifests.
+4. The workflow runs `verify` (tag format first, then: on `main`, gofmt, vet for linux/darwin/windows, the unit
+   tests of both modules, govulncheck); nothing else starts unless it passes. Then `build`, and `macos` (starts the
+   signing workflow in the CI repo and waits, about 10 to 20 minutes, then checks the returned files against a
+   rebuild, see below), then `publish` (draft release, signature, publish), then `docker`.
 5. Verify (below), then submit the package-manager files (below) and the Store package
    ([windows/msix/README.md](windows/msix/README.md)).
 6. Website: set `RELEASED = True` in `site/build.py`, run `python3 site/build.py --release-docs` (rewrites the
@@ -48,14 +51,16 @@ and Go toolchain give byte-identical files (`SOURCE_DATE_EPOCH` is the commit ti
    `python3 site/build.py`, and commit. As each package manager goes live, set its `"live": True` in `CHANNELS`
    there; when the phone apps are in the stores, set `STORES_LIVE = True` and run `--release-docs` again.
 
-If `macos` fails, nothing is released; re-run the failed jobs. If only `docker` fails, the release is out;
-re-run that job.
+If `verify`, `build` or `macos` fails, nothing is released; re-run the failed jobs (a failed `verify` on a
+broken commit means a new tag on a fixed commit). If `publish` fails after creating the draft, re-run it: it
+continues with that draft and replaces its files. If only `docker` fails, the release is out; re-run that job.
 
 ### Secrets and variables
 
 | Name | Where | Needed for |
 |---|---|---|
-| `CI_REPO_TOKEN` (secret) | RemoHop repo | the `macos` job: a fine-grained personal access token, resource owner `readori`, **only** repository `test-env-setup`, permission "Actions: Read and write". Lets it start and read runs of the signing workflow and download its artifact. Nothing else. Set an expiry and rotate it. |
+| `CI_REPO_TOKEN` (secret) | RemoHop repo | the `macos` job: a fine-grained personal access token, resource owner `readori`, **only** repository `test-env-setup`, permission "Actions: Read and write". Lets it start and read runs of the signing workflow and download its artifact. Nothing else. Set an expiry and rotate it. The job also checks that the run it follows was started by this token's account. |
+| `APPLE_TEAM_ID` (in `release.yml`, not a setting) | RemoHop repo | the Apple team whose Developer ID must sign the macOS files (`H7FLAAL9RB`). Public; changing it is a reviewed change to the workflow. |
 | `MACOS_DEVID_P12_BASE64`, `MACOS_DEVID_P12_PASSWORD`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY`, `ASC_TEAM_ID`, `TARGET_REPO_PAT` (secrets) | **CI repo** | signing, notarization, and checking out the RemoHop source (`TARGET_REPO_PAT` is needed only while the RemoHop repository is private). They never need to exist in the RemoHop repo. |
 | `WINDOWS_SIGNING` (variable) | RemoHop repo | unset today. Switches the Windows hook on (see Windows signing). |
 | `SKIP_MACOS` (variable) | RemoHop repo | `true` releases without macOS. For tests only: `install.sh` and Homebrew need the macOS asset. |
@@ -72,11 +77,23 @@ is stored anywhere.
 - **`sodesk-macos-release.yml` (CI repo `readori/test-env-setup`; the CI workflow files keep their pre-rename `sodesk-` file names)** keeps the Developer ID certificate and
   App Store Connect key, which live there with a hardened workflow (no pull_request triggers, SHA-pinned
   actions, temporary keychain, strict request parsing). The release workflow calls it with `workflow_dispatch`
-  (`ref=<commit>`, `version=<tag>`, `upload=true`, `correlation=<id>`); with `upload=true` it also uploads the
-  signed binary and `RemoHop-macos.zip` as the artifact `remohop-macos-universal` (3 days). The release job
-  downloads it, checks the recorded hashes, that the binary is a universal Mach-O and carries the version string,
-  and wraps it into `remohop_darwin_universal.tar.gz`; `build-release.sh darwin-app` checks the app's layout,
-  license files, stapled ticket, universal program and version, and copies the zip unchanged. The same run signs
+  (`ref=<commit>`, `version=<tag>`, `upload=true`, `correlation=<id>`) and follows the run whose ID the
+  dispatch API returns (falling back to the correlation string), after checking that it is that workflow on the CI
+  repository's `main`, dispatched by the token's account, for this commit. With `upload=true` it also uploads the
+  signed binary, `RemoHop-macos.zip` and `RemoHop-macos.dmg` as the artifact `remohop-macos-universal` (3 days).
+  The release job does not take those files on the CI repository's word:
+  `scripts/verify-macos-release.sh` rebuilds the darwin binaries and `RemoHop.app` from the tagged commit (Go builds
+  are reproducible: same source, Go and flags give the same bytes on any host) and `scripts/machocmp` requires each
+  signed slice to be byte for byte the rebuild before the code signature, with nothing added but that signature,
+  whose code directories must cover exactly that code with matching page hashes, carry no entitlements, have the
+  hardened runtime, the identifier `com.remohop.cli` (`com.remohop.quick` for the app) and the team
+  `APPLE_TEAM_ID`. The app must hold exactly the rebuilt files plus its signature and stapled ticket, and the disk
+  image (read with 7-Zip) exactly that app and the `/Applications` link. The certificate chain and the
+  notarization are checked by codesign, spctl and stapler in the signing run and by Gatekeeper on every Mac. Then
+  the binary is wrapped into `remohop_darwin_universal.tar.gz`; `build-release.sh darwin-app` checks the app's
+  layout once more and copies the zip unchanged. A compromise of the CI repository can therefore at worst ship this
+  commit's code with a broken signature (which macOS refuses), not other code. The CI repository should still
+  protect `main` and its workflow file (branch protection, required review). The same run signs
   `RemoHop.app` as a whole (hardened runtime, timestamp, no entitlements, identifier `com.remohop.quick` from
   `Info.plist`), notarizes it, staples it, and checks a quarantined copy unpacked from the zip with `spctl`, its UI
   server, and a LaunchServices start. Requests that do not set `upload` upload nothing.
@@ -90,16 +107,20 @@ is stored anywhere.
 - **cosign keyless** signs `SHA256SUMS`, because it needs no long-lived secret: the job gets a short-lived
   GitHub OIDC token, Sigstore's Fulcio issues a certificate naming this repository, workflow file and tag, and the
   signature is recorded in the public Rekor log. There is no private key to leak, rotate or lose; what users trust
-  is "this GitHub workflow, for this tag", which is what `install.sh` checks (`--certificate-identity-regexp` for
-  `.github/workflows/release.yml@refs/tags/v*` and the GitHub issuer). The trade-offs: verifying needs cosign (the
-  scripts continue on the checksum alone when it is missing, unless `--verify require`), and the identity includes
-  the repository path, so a rename or transfer changes it (update the regexp in `install.sh`/`install.ps1`).
+  is "this GitHub workflow, for this tag", which is what `install.sh`, `install.ps1` and `snap/bump.sh` check
+  (`--certificate-identity` `.github/workflows/release.yml@refs/tags/<the requested tag>` and the GitHub issuer;
+  "latest" is resolved to its tag first, so an older signed release cannot be passed off as the requested one). The
+  trade-offs: verifying needs cosign (the scripts continue on the checksum alone when it is missing, unless
+  `--verify require`), and the identity includes the repository path, so a rename or transfer changes it (update
+  `install.sh`/`install.ps1`/`snap/bump.sh`). The identity is only as strong as control over `v*` tags: restrict
+  creating, updating and deleting them to the owner with a tag ruleset.
   minisign would work offline but needs a secret key in CI and a public key distributed out of band.
 - Because the whole release hangs on `SHA256SUMS`, one signature covers every file and the installers.
 - **cosign** itself is downloaded by `scripts/install-cosign.sh` as a pinned version whose SHA-256 is checked
   (hashes copied from the project's `cosign_checksums.txt`). To upgrade, change the version and both hashes together.
 - **SBOM:** `remohop_sbom.cdx.json` lists the Go toolchain and every module linked into the release binaries
-  (union over the four linux/windows builds; the macOS binary is the same source and module set). It is generated
+  (union over the linux, windows and darwin builds; the darwin builds are the code of the signed macOS binary, which
+  the `macos` job checks, and macOS links `github.com/ebitengine/purego`, which the others do not). It is generated
   from the module data Go embeds in each binary, so no extra tool is downloaded. The Docker image additionally carries
   BuildKit's SBOM and SLSA provenance (`--sbom=true --provenance=mode=max`) as OCI attestations.
 - **Provenance:** the Fulcio certificate in the bundle records repository, workflow, tag and commit SHA; the
@@ -113,7 +134,7 @@ is stored anywhere.
 ```bash
 gh release download v1.2.3 -R readori/RemoHop -p 'SHA256SUMS*' -p 'remohop_linux_amd64.tar.gz'
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-identity https://github.com/readori/RemoHop/.github/workflows/release.yml@refs/tags/v1.2.3 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
 sha256sum --ignore-missing -c SHA256SUMS
 ```
@@ -149,15 +170,19 @@ them): today only the AUR maintainer. The winget publisher defaults to `RemoHop`
 | `aur/remohop-bin/{PKGBUILD,.SRCINFO}` | `ssh://aur@aur.archlinux.org/remohop-bin.git` | prebuilt binaries; regenerate `.SRCINFO` with `makepkg --printsrcinfo` on Arch before pushing. |
 | `nix/remohop.nix` | your overlay/flake, later nixpkgs | binary package (fetchurl); a source `buildGoModule` package is better for nixpkgs once the repo is public. |
 
-None of these work before the first release is published from a public repository (until then the download URLs return 404). The `.deb/.rpm/.apk` files are
-attached to the release and not in a repository; an apt/dnf repository is future work.
+The tap and the bucket are live and are updated by hand after each release (commit the rendered files); until
+then they install the previous version. The snap's pinned release moves with `packaging/snap/bump.sh vX.Y.Z
+--verify require`. The `.deb/.rpm/.apk` files are attached to the release and not in a repository; an apt/dnf
+repository is future work.
 
 ## Docker image
 
 `packaging/docker/` has the Dockerfile (scratch, non-root UID 65532, read-only friendly, `/healthcheck`
 probe in `packaging/docker/healthcheck/`), `compose.yaml` and the user-facing `README.md`. The release workflow builds
 `linux/amd64` and `linux/arm64` with `docker buildx build` (no third-party actions, no QEMU), pushes to ghcr.io and signs
-the digest with cosign. After the first push, set the package visibility to public in the GitHub package settings.
+the digest with cosign. Every image the build uses is pinned by digest: the `# syntax=` line and `GO_IMAGE` in the
+Dockerfile, BuildKit in `release.yml`. Raise `GO_IMAGE` (tag and digest) with go.mod's `go` line; take the digest of
+the multi-platform index (`docker buildx imagetools inspect golang:<tag>`). After the first push, set the package visibility to public in the GitHub package settings.
 The probe imports `internal/signal` and `internal/nat`; if their `Dial`/`Listen` signatures change, update
 `packaging/docker/healthcheck/main.go` (`go vet ./...` catches it).
 
@@ -178,14 +203,27 @@ Requirements: Go (version in `go.mod`), `make`, GNU `tar`, `zip`, `jq`; nfpm is 
 pinned version when it is not on `PATH`. No goreleaser: the pipeline is plain scripts so that every step is readable
 and nothing has to be downloaded and trusted besides pinned cosign.
 
+## Upgrades and removal
+
+What each channel does with a running host (user-facing text: [docs/en/install.md](../docs/en/install.md#upgrading)):
+
+- `.deb`/`.rpm` (`packaging/scripts/`): a first install enables nothing. An upgrade restarts a running
+  `remohop.service` (`systemctl try-restart`), unless an ancestor of the maintainer script is a `remohop`
+  process (the upgrade runs in a RemoHop shell, which the restart would cut off): then it prints how to restart.
+  It lists remohop processes still running the replaced binary. Removal stops and disables the system unit and says
+  how to remove a per-user one; a deb purge deletes `/var/lib/remohop`. `remohop service` sees the packaged units
+  once they are enabled.
+- `install.sh`/`install.ps1`: replace the file and say when a running service keeps the old version.
+- Windows service: `remohop service install` again is the upgrade (stop, replace the copy in Program Files,
+  update in place, start).
+- Homebrew/Nix: the service names the stable link it was started by, which upgrades keep.
+
 ## Not done yet
 
 - Windows code signing (hook only), see above.
-- `install.ps1` has not been run on Windows yet. Run it once against a dry-run release before the first release.
-- apt/dnf repositories, a Homebrew core submission, Chocolatey, Flatpak/Snap.
-- With the first release, the "no release has been published yet" statements in `README.md`, `README.zh-CN.md`,
-  `docs/*/install.md`, `docs/*/platforms.md`, `docs/*/quick-support.md` and `docs/security.md` change: they are listed
-  in `RELEASE_DOC_EDITS` in `site/build.py` and applied with `--release-docs` (step 6 of "Cutting a release");
-  `docs/*/mobile-apps.md` follows `STORES_LIVE` the same way.
+- apt/dnf repositories, a Homebrew core submission, Chocolatey, Flatpak.
+- `filippo.io/cpace` (the password login's PAKE) is an unreleased module its author calls experimental; see the
+  note in `go.mod`. Vendoring it with a recorded review, or moving to an implementation of the current CPace
+  draft with test vectors, is open.
 - The Microsoft Store package of quick support: built and install-tested in CI, not submitted yet; see
   [windows/msix/README.md](windows/msix/README.md).

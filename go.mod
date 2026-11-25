@@ -3,6 +3,11 @@ module github.com/readori/RemoHop
 go 1.26.11
 
 require (
+	// The PAKE behind password logins. An unreleased module (the last commit is
+	// from January 2021) whose README calls it experimental and not
+	// standardized; pinned here on purpose. Review any change to this line, and
+	// see packaging/README.md ("Not done yet") for the plan to vendor it with a
+	// recorded review or move to an implementation of the current CPace draft.
 	filippo.io/cpace v0.0.0-20210101143347-24d601e2e469
 	github.com/creack/pty v1.1.24
 	github.com/ebitengine/purego v0.11.3

@@ -13,25 +13,54 @@ Releases are built by the release workflow on every `v*` tag and published on [G
 | Alpine | download `remohop_<version>_<x86_64\|aarch64>.apk`, then `sudo apk add --allow-untrusted ./remohop_*.apk` |
 | Docker (rendezvous server only) | `docker run ... ghcr.io/readori/remohop-signal:<version>`, see [packaging/docker/README.md](../../packaging/docker/README.md) |
 
-The scripts download the archive for your OS and CPU, check it against the release's `SHA256SUMS`, check that file's signature when [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) is installed, and copy `remohop` to `~/.local/bin` (as root: `/usr/local/bin`; Windows: `%LOCALAPPDATA%\Programs\RemoHop`, added to your user `PATH`). They never use `sudo` and never edit shell profiles. Options: `--version vX.Y.Z`, `--bindir DIR`, `--verify require` (fail unless the signature checks out); `install.ps1` takes `-Version`, `-BinDir`, `-Verify`, `-NoPath`.
+The scripts download the archive for your OS and CPU, check it against the release's `SHA256SUMS`, check that file's signature when [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) is installed (it must come from this repository's release workflow for exactly the tag being installed; "latest" is first resolved to its tag), check that the binary reports that version, and copy `remohop` to `~/.local/bin` (as root: `/usr/local/bin`; Windows: `%LOCALAPPDATA%\Programs\RemoHop`, added to your user `PATH`). They never use `sudo` and never edit shell profiles. Options: `--version vX.Y.Z`, `--bindir DIR`, `--verify require` (fail unless the signature checks out); `install.ps1` takes `-Version`, `-BinDir`, `-Verify`, `-NoPath`.
 
-Package managers (planned; the tap, bucket and packages are not published yet, see [packaging/README.md](../../packaging/README.md)):
+Package managers:
 
-| Manager | Command once published |
+| Manager | Command |
 |---|---|
 | Homebrew (macOS, Linux) | `brew install readori/tap/remohop` |
 | Homebrew cask (macOS, quick support) | `brew install --cask readori/tap/remohop-quick` |
 | Scoop (Windows) | `scoop bucket add readori https://github.com/readori/scoop-bucket` then `scoop install remohop` |
-| winget (Windows) | `winget install RemoHop.RemoHop` |
-| AUR (Arch) | `yay -S remohop-bin` |
+| winget (Windows; **not published yet**) | `winget install RemoHop.RemoHop` |
+| AUR (Arch; **not published yet**) | `yay -S remohop-bin` |
 | Snap (Linux; **coming soon**: the Snap Store listing is not public yet) | `sudo snap install remohop --classic`; also installs quick support as `remohop.quick` with a launcher entry. See [packaging/snap/README.md](../../packaging/snap/README.md) |
 | Nix | `callPackage` of the generated `remohop.nix` |
 
+The tap and the bucket are updated by hand after each release, so they can trail the newest release for a while.
+
 Notes:
 
-- **macOS:** releases carry one universal (Apple silicon and Intel) binary, which the release workflow signs with a Developer ID and submits to Apple for notarization. Gatekeeper checks the notarization online on first run; a bare executable cannot carry an offline ticket.
+- **macOS:** releases carry one universal (Apple silicon and Intel) binary, which is signed with a Developer ID and notarized by Apple; the release workflow rebuilds it from the tagged source and checks that the signed file is exactly that code. Gatekeeper checks the notarization online on first run; a bare executable cannot carry an offline ticket.
 - **Windows:** the binaries are **not code-signed yet**, so SmartScreen may warn on first run. The checksum and cosign signature are how to verify a download until signing is set up.
-- **Linux packages** install `remohop` and the systemd unit files and enable nothing. `remohop service install` is the supported way to run the host at boot or login.
+- **Linux packages** install `remohop` and the systemd unit files and enable nothing on a first install. Enable a unit with `systemctl` (the package says how) or use `remohop service install`; either way `remohop service status`, `logs`, `restart` and `uninstall` manage it.
+
+## Running the host as a service
+
+`remohop service install` runs the host at boot or login (details: `remohop service --help`).
+
+- A **per-user** service (the default without root) runs as you, from wherever `remohop` is installed.
+- A **system** service (`sudo remohop service install --system` on Linux and macOS) runs as root, and every **Windows** service runs as LocalSystem. Whoever can change the binary it starts would get those rights, so:
+  - On Linux and macOS, install refuses a binary that another account can change, such as `~/.local/bin/remohop` or one in a Homebrew prefix, and prints the commands that copy it where only root can write (`/usr/local/bin`, or `/Library/RemoHop` on macOS). Simplest on Linux: install with `sudo sh install.sh`, which puts `remohop` in `/usr/local/bin`.
+  - On Windows, install copies `remohop.exe` to `%ProgramFiles%\RemoHop` and the service runs that copy. Its state lives in `%ProgramData%\RemoHop`, owned by the Administrators and open only to SYSTEM and Administrators; install refuses an existing directory there that another user created.
+
+## Upgrading
+
+Install the new version the way you installed the old one. A host that is already running keeps the old version until it restarts:
+
+| Installed with | Then |
+|---|---|
+| `install.sh` | `remohop service restart` (the script reminds you when a service runs). A system service runs its own root-owned copy: replace it (`sudo sh install.sh`, or the `sudo install` command `service install` printed) and run `sudo remohop service restart` |
+| `install.ps1`, Scoop | from an elevated prompt, `remohop service install` again: it stops the service, replaces its copy in Program Files and starts it. A `remohop host` you started yourself: stop and start it |
+| `.deb`, `.rpm` | a running system service (`remohop.service`) is restarted by the upgrade, unless the upgrade runs inside a RemoHop shell (a restart would cut that shell off); then run `sudo systemctl restart remohop.service` afterwards. Per-user services: `systemctl --user restart remohop.service` |
+| Homebrew | `brew upgrade remohop`, then `remohop service restart` (the service names Homebrew's `bin/remohop` link, which the upgrade keeps) |
+| Snap | after a refresh, `sudo remohop service restart` (the unit runs `/snap/remohop/current/...`, which follows refreshes) |
+
+## Uninstalling
+
+Remove the service before the binary, or it keeps trying to start a program that no longer exists: `remohop service uninstall` (`sudo` for a system service; elevated on Windows, which also deletes the copy in Program Files). Then remove the package or the binary. Removing the `.deb`/`.rpm` stops and disables the system unit; `apt purge remohop` also deletes `/var/lib/remohop`.
+
+What stays behind is the hosts' state (identity key, password, pairings): `~/.config/remohop` (macOS: `~/Library/Application Support/remohop`), and for a system service `/var/lib/remohop`, `/Library/Application Support/remohop` or `%ProgramData%\RemoHop`. Delete those directories to forget the machine's identity.
 
 ## Quick support
 
@@ -52,9 +81,11 @@ Every file of a release is listed in its `SHA256SUMS`, and that file carries a k
 ```bash
 sha256sum --ignore-missing -c SHA256SUMS
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
-  --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
+  --certificate-identity https://github.com/readori/RemoHop/.github/workflows/release.yml@refs/tags/vX.Y.Z \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
 ```
+
+Put the tag you downloaded in place of `vX.Y.Z`: a signature names the tag it was made for, so an older release cannot pass for the one you asked for.
 
 Each release also lists its dependencies in `remohop_sbom.cdx.json` (CycloneDX).
 

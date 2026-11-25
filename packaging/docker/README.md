@@ -36,7 +36,13 @@ already sets `--data /data`.
   for outside traffic; rootless Docker, Podman with slirp4netns, and testing from the same machine show the
   bridge address instead. On Linux, `--network host` (no `-p`) avoids all of that.
 - **Health.** `HEALTHCHECK` runs `/healthcheck`, which does a real QUIC/TLS handshake with the server on
-  loopback (a scratch image has no `curl` or `nc`). `docker ps` shows `(healthy)`.
+  loopback (a scratch image has no `curl` or `nc`). `docker ps` shows `(healthy)`. It probes
+  `127.0.0.1:21116`; if you pass `--listen` with another port, or an address that is not reachable as
+  `127.0.0.1` inside the container (a specific IP), set the same address for the probe with
+  `-e REMOHOP_HEALTH_ADDR=IP:PORT` (compose: `environment: [REMOHOP_HEALTH_ADDR=IP:PORT]`), or the container
+  stays "unhealthy" and anything waiting for `service_healthy` (the tunnel in `compose.yaml`) never starts.
+- **Licenses.** The image carries `/LICENSE` (AGPL-3.0), `/NOTICE` and `/THIRD_PARTY_LICENSES.txt` (the Go
+  runtime's and every linked module's license).
 - **Read-only.** Nothing is written outside `/data`, so `--read-only` needs no tmpfs.
 - **Accounts and mail.** `--accounts ...` options work as documented in `remohop help signal` and
   [docs/en/accounts.md](../../docs/en/accounts.md); the image
