@@ -380,7 +380,7 @@ class StoreScreenshotsTest {
             poll(s, "document.getElementById('t-host').textContent.trim()!==''", "terminal prompt", 15)
             click(s, "t-smaller")
             Thread.sleep(1500)
-            type(s, "clear")
+            type(s, "cd && clear") // from the home folder, as a fresh shell starts (the session outlives a pass)
             Thread.sleep(1000)
             // As a user types it: a directory in the home folder as ~/...
             val typed = Regex("^/home/[^/]+/").replace(dir, "~/")
