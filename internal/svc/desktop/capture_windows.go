@@ -11,6 +11,8 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"github.com/readori/RemoHop/internal/nowindow"
+
 	"github.com/readori/RemoHop/internal/svc/screenshot"
 )
 
@@ -128,9 +130,9 @@ func ddagrabProblem(ffmpeg string, idx int) string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error",
+	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-nostdin", "-loglevel", "error",
 		"-f", "lavfi", "-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=10", idx),
-		"-frames:v", "1", "-vf", "hwdownload,format=bgra", "-f", "null", "-").CombinedOutput()
+		"-frames:v", "1", "-vf", "hwdownload,format=bgra", "-f", "null", "-")).CombinedOutput()
 	p := ddaProbe{at: time.Now()}
 	if err != nil {
 		p.problem = ddaReason(string(out), err)

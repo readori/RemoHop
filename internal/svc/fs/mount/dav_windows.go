@@ -10,6 +10,8 @@ import (
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+
+	"github.com/readori/RemoHop/internal/nowindow"
 )
 
 // davTarget validates a Windows mount target: a drive letter ("Z:") or "*"
@@ -56,7 +58,7 @@ func freeDrive() (string, error) {
 // webClientCheck makes sure the WebClient service (the WebDAV redirector)
 // can be used, starting it if it is merely stopped.
 func webClientCheck() error {
-	out, err := exec.Command("sc.exe", "query", "WebClient").CombinedOutput()
+	out, err := nowindow.Set(exec.Command("sc.exe", "query", "WebClient")).CombinedOutput()
 	if err != nil {
 		// 1060: the service does not exist (Windows Server without the
 		// WebDAV Redirector feature).
@@ -65,12 +67,12 @@ func webClientCheck() error {
 	if strings.Contains(string(out), "RUNNING") {
 		return nil
 	}
-	if qc, _ := exec.Command("sc.exe", "qc", "WebClient").CombinedOutput(); strings.Contains(string(qc), "DISABLED") {
+	if qc, _ := nowindow.Set(exec.Command("sc.exe", "qc", "WebClient")).CombinedOutput(); strings.Contains(string(qc), "DISABLED") {
 		return errors.New("the WebClient service (Windows' WebDAV redirector) is disabled. Enable it from an elevated prompt with `sc config WebClient start= demand`, then `net start WebClient`")
 	}
 	// Stopped but startable: `net use` triggers it for ordinary users;
 	// starting it here covers elevated shells where the trigger is slow.
-	exec.Command("sc.exe", "start", "WebClient").Run()
+	nowindow.Set(exec.Command("sc.exe", "start", "WebClient")).Run()
 	for i := 0; i < 20 && !webClientRunning(); i++ {
 		time.Sleep(250 * time.Millisecond)
 	}
@@ -78,7 +80,7 @@ func webClientCheck() error {
 }
 
 func webClientRunning() bool {
-	out, err := exec.Command("sc.exe", "query", "WebClient").CombinedOutput()
+	out, err := nowindow.Set(exec.Command("sc.exe", "query", "WebClient")).CombinedOutput()
 	return err == nil && strings.Contains(string(out), "RUNNING")
 }
 
@@ -116,7 +118,7 @@ func davMount(url string, port int, secret, target string, o Options) (string, e
 		target = t
 	}
 	unc := fmt.Sprintf(`\\127.0.0.1@%d\DavWWWRoot\%s`, port, secret)
-	out, err := exec.Command("net.exe", "use", target, unc, "/persistent:no").CombinedOutput()
+	out, err := nowindow.Set(exec.Command("net.exe", "use", target, unc, "/persistent:no")).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("net use %s: %v: %s (is the WebClient service running? `sc query WebClient`)", target, err, strings.TrimSpace(string(out)))
 	}
@@ -127,7 +129,7 @@ func davMount(url string, port int, secret, target string, o Options) (string, e
 }
 
 func davUnmount(target string, force bool) error {
-	out, err := exec.Command("net.exe", "use", target, "/delete", "/y").CombinedOutput()
+	out, err := nowindow.Set(exec.Command("net.exe", "use", target, "/delete", "/y")).CombinedOutput()
 	if err != nil && davMounted(target) {
 		return fmt.Errorf("net use %s /delete: %v: %s", target, err, strings.TrimSpace(string(out)))
 	}
