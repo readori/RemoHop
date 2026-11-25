@@ -15,6 +15,8 @@ import (
 
 	"github.com/jezek/xgb"
 	"github.com/jezek/xgb/xproto"
+
+	"github.com/readori/RemoHop/internal/x11disp/xvfbtest"
 )
 
 func TestMain(m *testing.M) {
@@ -40,12 +42,14 @@ func startXvfb(t *testing.T) string {
 		t.Fatal(err)
 	}
 	pw.Close()
-	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	var display string // known once Xvfb reports it
+	t.Cleanup(func() { xvfbtest.Stop(cmd, display, nil) })
 	line := make(chan string, 1)
 	go func() { s, _ := bufio.NewReader(pr).ReadString('\n'); line <- s; pr.Close() }()
 	select {
 	case n := <-line:
-		return ":" + strings.TrimSpace(n)
+		display = ":" + strings.TrimSpace(n)
+		return display
 	case <-time.After(15 * time.Second):
 		t.Fatal("Xvfb did not start")
 	}

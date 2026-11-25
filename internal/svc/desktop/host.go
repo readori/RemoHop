@@ -331,10 +331,10 @@ type hostSession struct {
 	// next is an encoder started to replace proc (make before break, see
 	// startEncoder): proc keeps streaming until next delivers its first
 	// frame, a key frame. nextCfg is its avcC record, held until then.
-	next      *encProc
-	nextCfg   *encFrame
-	noOverlap bool // replacing while proc runs failed once: stop it first
-	lastGen   int  // last generation handed out
+	next            *encProc
+	nextCfg         *encFrame
+	noOverlap       bool // replacing while proc runs failed once: stop it first
+	lastGen         int  // last generation handed out
 	lastScreenCheck time.Time
 	// keyOnly: the pending restart (restartAt) is only for a key frame,
 	// so a key frame the encoder sends first makes it unnecessary.
