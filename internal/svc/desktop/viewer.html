@@ -75,7 +75,22 @@ button.on{background:#7a2020;border-color:#c44}
   const $ = id => document.getElementById(id);
   const canvas = $('screen');
   const g = canvas.getContext('2d', {alpha: false, desynchronized: true});
-  const nowUs = () => (performance.timeOrigin + performance.now()) * 1000;
+  // Wall-clock microseconds, the clock capture times are converted to.
+  // performance.timeOrigin + performance.now() drifts from it: the
+  // monotonic clock stops while the machine sleeps, so after a suspend the
+  // latency read seconds off. Date.now() is resynchronised every second
+  // for its milliseconds; performance.now() adds the fraction between.
+  let wallOff = Date.now() - performance.now();
+  setInterval(() => { wallOff = Date.now() - performance.now(); }, 1000);
+  const nowUs = () => (performance.now() + wallOff) * 1000;
+  // Only a decoder this many frames behind is skipped to the next key
+  // frame: a burst (Wi-Fi power saving, a scheduling hiccup) decodes far
+  // faster than real time, and a skip costs the host an encoder restart.
+  const maxDecodeQueue = 6;
+  // Heights to step down through when the decoder cannot take the size the
+  // host sends.
+  const fallbackHeights = [2160, 1440, 1080, 720, 480];
+  let shown = null, drawing = false;
 
   let ws = null, decoder = null, cfg = null, hello = null;
   let configuring = false, pendingVideo = [], waitKey = true, ended = false;
@@ -227,6 +242,7 @@ button.on{background:#7a2020;border-color:#c44}
     meta.clear();
     pendingVideo = [];
     waitKey = true;
+    if (shown) { shown.frame.close(); shown = null; }
   }
 
   function newDecoder() {
@@ -318,6 +334,16 @@ button.on{background:#7a2020;border-color:#c44}
       want.hardwareAcceleration = 'no-preference';
       if (!await supported(want)) {
         configuring = false;
+        // Too large for this decoder: ask the host for the next smaller
+        // size (it follows with a new hello) before giving up.
+        const next = fallbackHeights.find(v => v < h.height);
+        if (next && h.height > 480) {
+          resetDecoder();
+          cfg = null;
+          send({type: 'config', max_height: next});
+          toast(`This browser cannot decode ${h.width}×${h.height}; asking the host for ${next}p`);
+          return;
+        }
         fatal(`This browser cannot decode ${h.codec} with WebCodecs.`);
         return;
       }
@@ -363,7 +389,7 @@ button.on{background:#7a2020;border-color:#c44}
     if (waitKey && !key) return skip();
     // Falling behind: rather than queueing in the decoder (latency), skip
     // to the next key frame.
-    if (!key && decoder.decodeQueueSize > 2) {
+    if (!key && decoder.decodeQueueSize > maxDecodeQueue) {
       waitKey = true;
       behind();
       return skip();
@@ -381,19 +407,36 @@ button.on{background:#7a2020;border-color:#c44}
     }
   }
 
+  // A decoded frame is acknowledged at once (the decoder keeps up) and
+  // drawn at the next display refresh; one that a newer frame overtakes
+  // before then is never drawn. Drawing from the decoder's callback drew
+  // frames no display showed and tied the acknowledgements, and so the
+  // host's flow control, to how fast the page paints.
   function onFrame(frame) {
     const m = meta.get(frame.timestamp);
     meta.delete(frame.timestamp);
-    g.drawImage(frame, 0, 0, canvas.width, canvas.height);
-    frame.close();
     st.decoded++;
-    st.winFrames++;
     if (m) {
       send({type: 'ack', seq: Math.max(m.seq, skippedSeq)});
       if (m.seq >= skippedSeq) skippedSeq = -1;
-      const now = nowUs();
-      st.decodeMs = ewma(st.decodeMs, (now - m.arr) / 1000);
-      if (m.cap > 0) st.latency = ewma(st.latency, (now - m.cap) / 1000);
+      st.decodeMs = ewma(st.decodeMs, (nowUs() - m.arr) / 1000);
+    }
+    if (shown) shown.frame.close();
+    shown = {frame, cap: m ? m.cap : 0};
+    if (!drawing) { drawing = true; requestAnimationFrame(paint); }
+  }
+
+  function paint() {
+    drawing = false;
+    if (!shown) return;
+    const {frame, cap} = shown;
+    shown = null;
+    g.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    frame.close();
+    st.winFrames++;
+    if (cap > 0) {
+      const ms = (nowUs() - cap) / 1000;
+      if (ms > -50 && ms < 10000) st.latency = ewma(st.latency, Math.max(ms, 0.1));
     }
   }
 
@@ -420,10 +463,11 @@ button.on{background:#7a2020;border-color:#c44}
     const h = st.host || {};
     $('hud').textContent =
       `${hello.width}×${hello.height}  ${hello.codec}\n` +
-      `${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'}  target ${(hello.bitrate / 1e6).toFixed(1)} Mbit/s\n` +
+      `${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'}  target ${((h.bitrate || hello.bitrate) / 1e6).toFixed(1)} Mbit/s\n` +
       `${st.fps.toFixed(0)} fps  ${st.mbps.toFixed(2)} Mbit/s\n` +
       `latency ${st.latency ? st.latency.toFixed(0) + ' ms' : 'n/a'}  rtt ${st.rtt.toFixed(1)} ms  decode ${st.decodeMs.toFixed(1)} ms\n` +
-      `host: ${(h.fps || 0).toFixed(0)} fps  dropped ${h.dropped || 0}  encode ${(h.pipeline_ms || 0).toFixed(0)} ms\n` +
+      `host: ${(h.fps || 0).toFixed(0)} fps  dropped ${h.dropped || 0}  encode ${(h.pipeline_ms || 0).toFixed(0)} ms` +
+      `${h.restarts ? '  restarts ' + h.restarts : ''}${st.skipped ? '  skipped here ' + st.skipped : ''}\n` +
       (au.on ? `audio opus  buffer ${au.s.bufMs.toFixed(0)} ms  delay ${au.s.delayMs.toFixed(0)} ms  skew ${au.s.skewMs.toFixed(0)} ms${au.muted ? '  muted' : ''}\n` : '') +
       (inputOK ? 'input on' : 'view only' + (viewOnly ? ' (toggled)' : hello.input_error ? ': ' + hello.input_error : ''));
   }
@@ -501,8 +545,8 @@ button.on{background:#7a2020;border-color:#c44}
     if (!q || !hello) return;
     const w = hello.screen_width || hello.width, h = hello.screen_height || hello.height;
     const presets = {
-      // Twice the automatic bits per pixel, at half the frame rate.
-      clear: {fps: 30, scale: 1, max_height: -1, bitrate: Math.round(Math.min(80e6, Math.max(1e6, w * h * 30 * 0.12)))},
+      // Twice the automatic bits per pixel of a fast path, at half the frame rate.
+      clear: {fps: 30, scale: 1, max_height: -1, bitrate: Math.round(Math.min(100e6, Math.max(1e6, w * h * 30 * 0.24)))},
       balanced: {fps: 60, scale: 1, max_height: -1, bitrate: -1},
       smooth: {fps: 60, scale: 1, max_height: 720, bitrate: -1},
     };
