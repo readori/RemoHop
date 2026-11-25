@@ -73,6 +73,12 @@ func GetSetting(key string) (string, error) { return mobile.GetSetting(key) }
 // SetSetting validates and stores one of those settings ("" removes it).
 func SetSetting(key, value string) error { return mobile.SetSetting(key, value) }
 
+// SetSettingJSON is SetSetting with a JSON outcome carrying a code.
+func SetSettingJSON(key, value string) (string, error) { return mobile.SetSettingJSON(key, value) }
+
+// PendingConnections counts connection attempts that have not finished.
+func PendingConnections() int { return mobile.PendingConnections() }
+
 // SettingsJSON returns the managed settings and the identity fingerprint.
 func SettingsJSON() (string, error) { return mobile.SettingsJSON() }
 
