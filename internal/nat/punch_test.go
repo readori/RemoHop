@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -886,4 +887,60 @@ func TestPunchPreference(t *testing.T) {
 	if addr.Addr() != public || took > wait {
 		t.Errorf("no preference: path %s took %s", addr, took)
 	}
+}
+
+// lossyStart drops the large packets (QUIC Initials are padded to at least
+// 1200 bytes; punch probes are small) that arrive before until.
+type lossyStart struct {
+	net.PacketConn
+	mu    sync.Mutex
+	until time.Time
+}
+
+func (l *lossyStart) ReadFrom(p []byte) (int, net.Addr, error) {
+	for {
+		n, a, err := l.PacketConn.ReadFrom(p)
+		l.mu.Lock()
+		drop := err == nil && n >= 1200 && time.Now().Before(l.until)
+		l.mu.Unlock()
+		if !drop {
+			return n, a, err
+		}
+	}
+}
+
+func (*lossyStart) SetReadBuffer(int) error  { return nil }
+func (*lossyStart) SetWriteBuffer(int) error { return nil }
+
+// A path that the punch has proven but that loses the first QUIC packets
+// (a Wi-Fi station waking up, a firewall entry being set up) is not left to
+// QUIC's exponential retransmission: further handshakes are started over
+// it, and the first to finish wins.
+func TestPunchHedgesLostHandshake(t *testing.T) {
+	w := newWorld(t)
+	box := w.net.NAT("203.0.113.10", vnet.PortRestrictedCone)
+	client := w.peer(box.Host("192.168.1.10"))
+	hostBox := box.Host("192.168.1.20")
+	pc := &lossyStart{PacketConn: hostBox.MustListen(0)}
+	host := w.peerOn(hostBox, pc)
+	serve(t, host)
+	const lossy = 2500 * time.Millisecond
+	pc.mu.Lock()
+	pc.until = time.Now().Add(lossy)
+	pc.mu.Unlock()
+	start := time.Now()
+	addr, err := connect(t, client, host, 5*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	took := time.Since(start)
+	if addr.Addr() != netip.MustParseAddr("192.168.1.20") {
+		t.Fatalf("path %s, want the host's LAN address", addr)
+	}
+	// Without hedging the handshake waits for QUIC's retransmission at
+	// 4.5 s; the hedge started at 2.4 s retransmits at about 2.7 s.
+	if took < lossy || took > 3800*time.Millisecond {
+		t.Fatalf("connected after %s with the first %s of handshake packets lost", took, lossy)
+	}
+	t.Logf("connected after %s", took)
 }

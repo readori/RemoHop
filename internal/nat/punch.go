@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
@@ -36,6 +37,10 @@ const (
 
 	// maxDials bounds the QUIC handshakes raced over working paths.
 	maxDials = 3
+
+	// maxHedges bounds the extra handshakes started over a path whose
+	// first one has not finished (see hedgeAfter).
+	maxHedges = 6
 
 	// maxRoutable bounds how many globally routable addresses one session
 	// probes on somebody's say-so. The candidates come from the other peer
@@ -337,7 +342,22 @@ type ConnectConfig struct {
 	// the same QUIC session and login, whatever the path.
 	Prefer     func(netip.AddrPort) bool
 	PreferWait time.Duration
+	// Logger, if set, gets the timing of each step at debug level: when
+	// each path answered, when each handshake started and how it ended.
+	Logger *slog.Logger
 }
+
+// hedgeAfter are the delays, from a path's first QUIC handshake, after
+// which another handshake is started over the same path if none has
+// finished. The punch has proven the path both ways, so a handshake that
+// has not completed within a few round trips lost its first packets (a
+// Wi-Fi station waking up, a neighbour or firewall entry being set up,
+// an access point in power save), and QUIC retransmits a lost Initial
+// with exponential backoff: after 0.3, 0.9, 2.1, 4.5 and 9.3 s, so
+// packets lost for the first few seconds cost up to ten. A fresh
+// handshake sends its Initial at once. Whichever finishes first wins and
+// the others are closed, as when several paths race.
+var hedgeAfter = []time.Duration{400 * time.Millisecond, 1200 * time.Millisecond, 2400 * time.Millisecond, 4 * time.Second}
 
 // DefaultPreferWait is how long a proven but not preferred path waits for
 // a preferred one. An overlay network answers within its round trip, which
@@ -368,11 +388,32 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 		err  error
 		pref bool
 	}
+	logf := func(msg string, args ...any) {
+		if cfg.Logger != nil {
+			cfg.Logger.Debug(msg, args...)
+		}
+	}
+	begin := time.Now()
+	since := func() string { return time.Since(begin).Round(time.Millisecond).String() }
 	dctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	results := make(chan result, maxDials)
-	started, active := 0, 0
+	results := make(chan result, maxDials+maxHedges)
+	started, active, hedges := 0, 0, 0
 	var lastErr error
+	// pending counts the unfinished handshakes per path; hedge receives a
+	// path whose hedge delay has passed.
+	pending := map[netip.AddrPort]int{}
+	type hedgeReq struct {
+		addr netip.AddrPort
+		pref bool
+	}
+	hedge := make(chan hedgeReq, maxDials*len(hedgeAfter))
+	var timers []*time.Timer
+	defer func() {
+		for _, t := range timers {
+			t.Stop()
+		}
+	}()
 
 	// Preference (see ConnectConfig.Prefer): held are proven paths waiting
 	// for a preferred one, holdC fires when they have waited long enough.
@@ -380,12 +421,9 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 	var holdC <-chan time.Time
 	holdOver := cfg.Prefer == nil
 	prefActive := 0
-	startDial := func(addr netip.AddrPort, pref bool) {
-		if started == maxDials {
-			return
-		}
-		started++
+	dialOne := func(addr netip.AddrPort, pref bool) {
 		active++
+		pending[addr]++
 		if pref {
 			prefActive++
 		}
@@ -393,6 +431,22 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			q, err := s.tr.Dial(dctx, net.UDPAddrFromAddrPort(addr), cfg.TLS, cfg.QUIC)
 			results <- result{q, addr, err, pref}
 		}()
+	}
+	startDial := func(addr netip.AddrPort, pref bool) {
+		if started == maxDials {
+			return
+		}
+		started++
+		logf("punch: QUIC handshake started", "remote", addr, "after", since())
+		dialOne(addr, pref)
+		for _, d := range hedgeAfter {
+			timers = append(timers, time.AfterFunc(d, func() {
+				select {
+				case hedge <- hedgeReq{addr, pref}:
+				default:
+				}
+			}))
+		}
 	}
 	release := func() {
 		for _, a := range held {
@@ -412,7 +466,14 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			return nil, netip.AddrPort{}, ErrNoPath
 		}
 		select {
+		case h := <-hedge:
+			if pending[h.addr] > 0 && hedges < maxHedges {
+				hedges++
+				logf("punch: QUIC handshake not finished; starting another", "remote", h.addr, "after", since())
+				dialOne(h.addr, h.pref)
+			}
 		case addr := <-sess.Paths():
+			logf("punch: path answered", "remote", addr, "after", since())
 			pref := cfg.Prefer != nil && cfg.Prefer(addr)
 			if pref || lanLike(addr.Addr()) || (holdOver && prefActive == 0) {
 				startDial(addr, pref)
@@ -435,10 +496,15 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			}
 		case r := <-results:
 			active--
+			pending[r.addr]--
 			if r.pref {
 				prefActive--
 			}
 			if r.err != nil {
+				logf("punch: QUIC handshake failed", "remote", r.addr, "after", since(), "err", r.err)
+				if pending[r.addr] > 0 {
+					continue // another handshake over this path is still running
+				}
 				lastErr = fmt.Errorf("QUIC handshake with %s: %w", r.addr, r.err)
 				if holdOver && prefActive == 0 {
 					release()
@@ -447,6 +513,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			}
 			// Winner. Stop the other handshakes, and close any that
 			// completed in the same instant.
+			logf("punch: QUIC handshake done", "remote", r.addr, "after", since())
 			cancel()
 			go func(n int) {
 				for ; n > 0; n-- {
