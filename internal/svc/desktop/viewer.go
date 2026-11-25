@@ -407,7 +407,7 @@ func (v *viewer) bridge(ws *websocket.Conn) {
 			case c.Type == ctlKeyframe:
 				sess.RequestKeyframe()
 			case c.Type == ctlBehind:
-				sess.reportBehind()
+				sess.ReportBehind()
 			case c.Type == ctlConfig && c.Display != nil:
 				d := *c.Display
 				reply(c.ID, call(func(ctx context.Context) error { return sess.SetDisplay(ctx, d) }))
