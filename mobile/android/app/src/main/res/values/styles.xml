@@ -5,6 +5,10 @@
         <item name="android:colorPrimary">@color/md_primary</item>
         <item name="android:colorAccent">@color/md_primary</item>
         <item name="android:windowBackground">@color/rh_bg</item>
+        <!-- Edge to edge on every version (Android 15+ enforces it): the bars
+             are transparent over the page colour (BarsBackground). -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>
