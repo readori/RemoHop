@@ -150,7 +150,7 @@ Failed logins are limited by the host (`internal/auth/limiter.go`). With its def
 
 - Per source address, the first two failures are free. From the third consecutive failure the source is locked out for 10 seconds; each further failure doubles the lockout, up to 10 minutes.
 - A source's failure count is cleared after 30 minutes without attempts.
-- Across all sources there is a burst of 20 failed attempts, refilled at one attempt every 5 seconds.
+- Across all sources there is a burst of 20 failed attempts, refilled at one attempt every 5 seconds. Someone with a few dozen addresses could keep that budget empty and so keep every password login out; a source that logged in with the password within the last 30 days (since the host started) is therefore exempt from it, though not from its own lockouts, and its failures do not spend it. Pairing and key logins are never limited.
 
 Online guessing at this rate is slow, but not impossible against a weak password. Prefer pairing or key authorisation to typing a password, and consider `remohop config ask on` for hosts whose password is shared.
 

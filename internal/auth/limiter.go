@@ -28,6 +28,11 @@ type LimiterConfig struct {
 	GlobalRefill time.Duration
 	// MaxSources caps the per-source table. Default 4096.
 	MaxSources int
+	// KnownFor is how long a source that logged in with the password
+	// stays exempt from the global budget (not from its own lockouts).
+	// Default 30 days. MaxKnown caps that table; default 1024.
+	KnownFor time.Duration
+	MaxKnown int
 	// Now is the clock; tests replace it.
 	Now func() time.Time
 }
@@ -54,6 +59,12 @@ func (c *LimiterConfig) defaults() {
 	if c.MaxSources == 0 {
 		c.MaxSources = 4096
 	}
+	if c.KnownFor == 0 {
+		c.KnownFor = 30 * 24 * time.Hour
+	}
+	if c.MaxKnown == 0 {
+		c.MaxKnown = 1024
+	}
 	if c.Now == nil {
 		c.Now = time.Now
 	}
@@ -64,9 +75,11 @@ func (c *LimiterConfig) defaults() {
 // Two budgets apply. Per source (an IPv4 address or an IPv6 /64): a few free
 // failures, then exponentially growing lockouts. Globally: a token bucket of
 // failures, so a botnet that never reuses an address is still limited to a
-// trickle. The global budget can delay a legitimate password login while an
-// attack is running; paired clients are unaffected because token logins
-// bypass the limiter.
+// trickle. Anyone who keeps the global budget empty (a few dozen addresses
+// suffice) would keep every password login out, so a source that logged in
+// with the password within KnownFor is exempt from it, though not from its
+// own lockouts: strangers then lock out only strangers. Paired clients are
+// unaffected anyway because token logins bypass the limiter.
 //
 // Attempts in progress count as if they had already failed. A source may
 // have only as many attempts open at once as it has failures left before
@@ -79,7 +92,8 @@ type Limiter struct {
 
 	mu      sync.Mutex
 	sources map[netip.Addr]*source
-	tokens  float64 // global budget
+	known   map[netip.Addr]time.Time // source → last password login
+	tokens  float64                  // global budget
 	filled  time.Time
 	changed chan struct{} // closed and replaced whenever an attempt ends
 }
@@ -97,6 +111,7 @@ func NewLimiter(cfg LimiterConfig) *Limiter {
 	return &Limiter{
 		cfg:     cfg,
 		sources: map[netip.Addr]*source{},
+		known:   map[netip.Addr]time.Time{},
 		tokens:  float64(cfg.GlobalBurst),
 		filled:  cfg.Now(),
 		changed: make(chan struct{}),
@@ -140,6 +155,8 @@ type Attempt struct {
 	l    *Limiter
 	key  netip.Addr
 	done bool
+	// charged: the attempt took a token of the global budget.
+	charged bool
 }
 
 // Begin admits a password attempt from src, waiting (until ctx ends) while
@@ -175,7 +192,9 @@ func (l *Limiter) Begin(ctx context.Context, src netip.Addr) (*Attempt, error) {
 			}
 		}
 		l.refill(now)
-		if l.tokens < 1 {
+		t, known := l.known[key]
+		known = known && now.Sub(t) < l.cfg.KnownFor
+		if l.tokens < 1 && !known {
 			wait := time.Duration((1 - l.tokens) * float64(l.cfg.GlobalRefill))
 			l.mu.Unlock()
 			return nil, &Error{Code: CodeLockedOut, RetryAfter: wait}
@@ -185,11 +204,13 @@ func (l *Limiter) Begin(ctx context.Context, src netip.Addr) (*Attempt, error) {
 			s = &source{}
 			l.sources[key] = s
 		}
-		l.tokens--
+		if !known {
+			l.tokens--
+		}
 		s.pending++
 		s.last = now
 		l.mu.Unlock()
-		return &Attempt{l: l, key: key}, nil
+		return &Attempt{l: l, key: key, charged: !known}, nil
 	}
 }
 
@@ -232,16 +253,22 @@ func (a *Attempt) finish(success bool) {
 	close(l.changed)
 	l.changed = make(chan struct{})
 
+	now := l.cfg.Now()
+	if success {
+		if a.charged {
+			l.tokens = min(float64(l.cfg.GlobalBurst), l.tokens+1)
+		}
+		l.remember(a.key, now)
+	}
 	s := l.sources[a.key]
 	if s == nil {
 		return
 	}
 	s.pending--
-	now := l.cfg.Now()
 	s.last = now
 	if success {
-		// The global charge is refunded and the source's history cleared.
-		l.tokens = min(float64(l.cfg.GlobalBurst), l.tokens+1)
+		// The global charge was refunded above; the source's history is
+		// cleared.
 		s.fails, s.lockedUntil = 0, time.Time{}
 		if s.pending == 0 {
 			delete(l.sources, a.key)
@@ -252,6 +279,21 @@ func (a *Attempt) finish(success bool) {
 	if d := l.lockFor(s.fails); d > 0 {
 		s.lockedUntil = now.Add(d)
 	}
+}
+
+// remember records a password login from key, keeping the table bounded.
+func (l *Limiter) remember(key netip.Addr, now time.Time) {
+	if _, ok := l.known[key]; !ok && len(l.known) >= l.cfg.MaxKnown {
+		var oldest netip.Addr
+		first := now
+		for k, t := range l.known {
+			if !t.After(first) {
+				oldest, first = k, t
+			}
+		}
+		delete(l.known, oldest)
+	}
+	l.known[key] = now
 }
 
 // Success records that the client proved knowledge of the password.
