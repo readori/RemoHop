@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -663,4 +664,75 @@ func TestGrantCLI(t *testing.T) {
 // the saved token (the dialler then reports that no credential is left).
 func tokenRefused(err error) bool {
 	return auth.CodeOf(err) == auth.CodeUnknownToken || errors.Is(err, dial.ErrNoCredential) && strings.Contains(err.Error(), "no longer works")
+}
+
+// A session under a grant sees and handles only the background jobs started
+// under that grant: the owner's jobs, and their logs, are not its business
+// (security audit finding 10).
+func TestGrantSeesOnlyItsOwnJobs(t *testing.T) {
+	h, dir := ownedHost(t, hostd.Config{})
+	full, err := dial.Dial(testCtx(t), h.Addr().String(), dial.Options{Dir: t.TempDir(), Password: h.Password(), Locals: noLocals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer full.Close()
+	ownerJob, err := shell.Spawn(testCtx(t), full, shell.SpawnRequest{Command: "echo owner-secret", Name: "backup"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := shell.Wait(testCtx(t), full, ownerJob.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	conn, _, err := redeem(t, h, dir, hostd.GrantRequest{Name: "agent", For: time.Hour,
+		Allow: []string{"shell:run-only"}, Commands: []string{"echo"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mine, err := shell.Spawn(testCtx(t), conn, shell.SpawnRequest{Command: "echo agent-output"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := shell.Wait(testCtx(t), conn, mine.ID); err != nil {
+		t.Fatal(err)
+	}
+	js, err := shell.Jobs(testCtx(t), conn)
+	if err != nil || len(js) != 1 || js[0].ID != mine.ID || js[0].Grant != "agent" {
+		t.Fatalf("jobs seen by the grant: %+v %v", js, err)
+	}
+	for _, ref := range []string{ownerJob.ID, "backup"} {
+		if r, err := shell.Logs(testCtx(t), conn, shell.LogsRequest{Job: ref}); err == nil {
+			b, err := io.ReadAll(r)
+			r.Close()
+			if err == nil || strings.Contains(string(b), "owner-secret") {
+				t.Fatalf("the grant read the owner's job log %s: %q %v", ref, b, err)
+			}
+		}
+		if _, err := shell.Kill(testCtx(t), conn, ref, ""); err == nil || !strings.Contains(err.Error(), "no job") {
+			t.Fatalf("kill of the owner's job %s: %v", ref, err)
+		}
+		if _, err := shell.Wait(testCtx(t), conn, ref); err == nil {
+			t.Fatalf("wait on the owner's job %s succeeded", ref)
+		}
+		if _, err := shell.RemoveJobs(testCtx(t), conn, shell.RemoveRequest{Jobs: []string{ref}}); err == nil {
+			t.Fatalf("remove of the owner's job %s succeeded", ref)
+		}
+	}
+	r, err := shell.Logs(testCtx(t), conn, shell.LogsRequest{Job: mine.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(r)
+	r.Close()
+	if !strings.Contains(string(b), "agent-output") {
+		t.Fatalf("own job log: %q", b)
+	}
+	removed, err := shell.RemoveJobs(testCtx(t), conn, shell.RemoveRequest{Exited: true})
+	if err != nil || len(removed) != 1 || removed[0] != mine.ID {
+		t.Fatalf("remove --exited under the grant: %v %v", removed, err)
+	}
+	// Full access still sees the owner's job.
+	if js, err := shell.Jobs(testCtx(t), full); err != nil || len(js) != 1 || js[0].ID != ownerJob.ID {
+		t.Fatalf("jobs seen with full access: %+v %v", js, err)
+	}
 }
