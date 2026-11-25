@@ -190,7 +190,13 @@ jobs:
           [ -n "$id" ] || { echo "::error::the signing run did not appear in $CI_REPO"; exit 1; }
           # Whatever way it was found, it must be the run this job started: the release workflow
           # of the CI repository's main branch, dispatched by this token's account, for this commit.
-          gh api "repos/$CI_REPO/actions/runs/$id" >run.json
+          # A run's title (its run-name, which carries the commit and the correlation string) is
+          # filled in shortly after the run is created; until then it is the workflow's name.
+          for _ in $(seq 1 24); do
+            gh api "repos/$CI_REPO/actions/runs/$id" >run.json
+            jq -e --arg corr "[$corr]" '.display_title | endswith($corr)' run.json >/dev/null && break
+            sleep 5
+          done
           jq -e --arg wf ".github/workflows/$CI_WORKFLOW" --arg me "$me" --arg corr "[$corr]" --arg sha "$GITHUB_SHA" '
             .path == $wf and .event == "workflow_dispatch" and .head_branch == "main"
             and .triggering_actor.login == $me and (.display_title | endswith($corr))
