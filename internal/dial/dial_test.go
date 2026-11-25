@@ -920,6 +920,39 @@ func TestEndToEndSmallPathMTU(t *testing.T) {
 	}
 }
 
+// Two machines behind one router that keeps them apart (Wi-Fi client
+// isolation, a guest network) and does not hairpin: no direct path, and a
+// second punch could not change that. The relay is set up alongside the
+// punch after a moment of silence, instead of after a 8 s punch and a 4 s
+// retry.
+func TestRelayRacesAHopelessPunch(t *testing.T) {
+	w := relayWorld(t, &signal.RelayConfig{})
+	box := w.net.NAT("203.0.113.10", vnet.PortRestrictedCone)
+	box.SetIsolation(true)
+	hh := box.Host("192.168.1.20")
+	host := startHost(t, hostd.Config{Signal: vnetSignal, PacketConn: hh.MustListen(0), Locals: noLocals})
+	ch := box.Host("192.168.1.10")
+	opts := w.options(ch, host.Password())
+	opts.PacketConn, opts.Listen, opts.PunchTime = nil, listenOn(ch), 0
+	var attempts []int
+	beforePunch = func(n int) { attempts = append(attempts, n) }
+	defer func() { beforePunch = nil }()
+	start := time.Now()
+	conn, err := Dial(testCtx(t), host.ID(), opts)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	took := time.Since(start)
+	if InfoOf(conn).Path != PathRelayed {
+		t.Fatalf("path %s", InfoOf(conn).Path)
+	}
+	if took > relayAfter+2*time.Second || fmt.Sprint(attempts) != "[1]" {
+		t.Fatalf("relayed after %s and punch attempts %v; want about %s and one attempt", took, attempts, relayAfter)
+	}
+	echo(t, conn)
+}
+
 func TestEndToEndSameLAN(t *testing.T) {
 	w := newVnetWorld(t)
 	box := w.net.NAT("203.0.113.10", vnet.PortRestrictedCone)
