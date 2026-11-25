@@ -17,6 +17,7 @@ import (
 	"github.com/quic-go/quic-go"
 
 	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/nat"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/wire"
 )
@@ -407,6 +408,9 @@ func (n *Node) dialLink(ctx context.Context, p *peerInfo) (*link, error) {
 			c.CloseWithReason("mesh link failed")
 		}
 	}()
+	if throughMesh(c) {
+		return nil, errThroughMesh
+	}
 	h, own := n.helloFor(c)
 	s, err := c.Open(ctx, Service, h)
 	if err != nil {
@@ -435,6 +439,17 @@ func (n *Node) dialLink(ctx context.Context, p *peerInfo) (*link, error) {
 	n.offerPolicy(l, rep.Policy)
 	ok = true
 	return l, nil
+}
+
+// errThroughMesh refuses a session whose packets run through the mesh
+// itself: a link over it would ride on another link, or on itself, and die
+// with it. Package nat keeps punches off the mesh's networks (exclude.go);
+// this also covers a peer that does not.
+var errThroughMesh = errors.New("the session runs through the mesh itself")
+
+func throughMesh(c *peer.Conn) bool {
+	r := remoteOf(c)
+	return r.IsValid() && nat.Excluded(r.Addr())
 }
 
 type refusedError struct{ msg string }

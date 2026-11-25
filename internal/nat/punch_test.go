@@ -944,3 +944,101 @@ func TestPunchHedgesLostHandshake(t *testing.T) {
 	}
 	t.Logf("connected after %s", took)
 }
+
+// A network the mesh tunnels (nat.ExcludeNetworks) never carries a punched
+// path, whichever side knows about it: two devices of a mesh would
+// otherwise prove the "LAN" path through an existing mesh link, and a link
+// set up over it dies with the link it rides on. The LAN here stands for
+// that network: it works, but must not be used.
+func TestPunchAvoidsExcludedNetworks(t *testing.T) {
+	tunnel := netip.MustParsePrefix("10.78.0.0/16")
+	inTunnel := func(ip netip.Addr) bool { return tunnel.Contains(ip) }
+	for _, tc := range []struct {
+		name                   string
+		clientKnows, hostKnows bool
+		hairpin                bool
+	}{
+		{"both sides", true, true, false},
+		{"host only (a client that does not filter)", false, true, false},
+		{"client only (a host that does not filter)", true, false, false},
+		{"both sides, hairpin NAT: the public path", true, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newWorld(t)
+			kind := vnet.PortRestrictedCone
+			if tc.hairpin {
+				kind = vnet.FullCone
+			}
+			box := w.net.NAT("203.0.113.10", kind)
+			box.SetHairpin(tc.hairpin)
+			client := w.peer(box.Host("10.78.1.10"))
+			host := w.peer(box.Host("10.78.1.20"))
+			for _, p := range []struct {
+				peer  *peer
+				knows bool
+			}{{client, tc.clientKnows}, {host, tc.hostKnows}} {
+				if !p.knows {
+					continue
+				}
+				p.peer.sock.Excluded = inTunnel
+				p.peer.candidates = append([]netip.AddrPort{p.peer.reflexive}, p.peer.sock.Candidates()...)
+				for _, c := range p.peer.candidates {
+					if inTunnel(c.Addr()) {
+						t.Fatalf("advertises %s, an address in the excluded network", c)
+					}
+				}
+			}
+			serve(t, host)
+			addr, err := connect(t, client, host, 1500*time.Millisecond)
+			if tc.hairpin {
+				if err != nil || addr != host.reflexive {
+					t.Fatalf("path %s (err %v), want the public %s", addr, err, host.reflexive)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("connected over %s, through the excluded network", addr)
+			}
+			if !errors.Is(err, nat.ErrNoPath) {
+				t.Fatalf("err = %v, want ErrNoPath", err)
+			}
+		})
+	}
+}
+
+func TestExcludeNetworks(t *testing.T) {
+	a, b := netip.MustParseAddr("10.78.3.4"), netip.MustParseAddr("fd44:1::5")
+	if nat.Excluded(a) {
+		t.Fatalf("%s excluded before anything was registered", a)
+	}
+	r1 := nat.ExcludeNetworks(netip.MustParsePrefix("10.78.0.0/16"), netip.MustParsePrefix("fd44:1::/64"))
+	r2 := nat.ExcludeNetworks(netip.MustParsePrefix("10.78.9.9/16")) // the same network, unmasked
+	if !nat.Excluded(a) || !nat.Excluded(b) || !nat.Excluded(netip.AddrFrom16(a.As16())) {
+		t.Fatal("registered networks are not excluded")
+	}
+	if nat.Excluded(netip.MustParseAddr("10.79.0.1")) {
+		t.Fatal("an address outside the networks is excluded")
+	}
+	r1()
+	r1() // a second release changes nothing
+	if !nat.Excluded(a) || nat.Excluded(b) {
+		t.Fatal("releasing one registration of a network registered twice must keep it")
+	}
+	r2()
+	if nat.Excluded(a) {
+		t.Fatal("still excluded after every release")
+	}
+
+	// InterfaceAddrs and Candidates leave them out.
+	addrs := nat.InterfaceAddrs()
+	if len(addrs) == 0 {
+		t.Skip("no usable interface address here")
+	}
+	release := nat.ExcludeNetworks(netip.PrefixFrom(addrs[0], addrs[0].BitLen()))
+	defer release()
+	for _, ip := range nat.InterfaceAddrs() {
+		if ip == addrs[0] {
+			t.Fatalf("InterfaceAddrs still lists %s", ip)
+		}
+	}
+}

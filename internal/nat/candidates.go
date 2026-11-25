@@ -27,7 +27,8 @@ const MaxCandidates = 6
 // InterfaceAddrs returns the addresses of this machine's active network
 // interfaces that a peer might reach: every IPv4 address except loopback
 // and link-local (private ones matter most: they are how two machines on
-// the same LAN find each other), and global or unique-local IPv6 addresses.
+// the same LAN find each other), and global or unique-local IPv6 addresses;
+// not those in a network the mesh registered (see ExcludeNetworks).
 //
 // Only the first MaxCandidates are advertised, so the order matters:
 //
@@ -71,7 +72,7 @@ func InterfaceAddrs() []netip.Addr {
 				continue
 			}
 			ip = ip.Unmap()
-			if !usableLocal(ip) {
+			if !usableLocal(ip) || Excluded(ip) {
 				continue
 			}
 			ips = append(ips, ip)

@@ -31,6 +31,12 @@ type Socket struct {
 	// network replace it before use.
 	Locals func() []netip.Addr
 
+	// Excluded reports addresses no punched path may use: neither
+	// advertised, nor probed, nor accepted as the source of a probe or an
+	// ack. It defaults to the package's Excluded (networks the mesh
+	// registered with ExcludeNetworks); tests replace it before use.
+	Excluded func(netip.Addr) bool
+
 	cancel context.CancelFunc
 	done   chan struct{}
 
@@ -95,6 +101,7 @@ func NewSocket(pc net.PacketConn) (*Socket, error) {
 		pc:         pc,
 		tr:         &quic.Transport{Conn: pc},
 		Locals:     InterfaceAddrs,
+		Excluded:   Excluded,
 		cancel:     cancel,
 		done:       make(chan struct{}),
 		sessions:   map[[8]byte]*Session{},
@@ -217,7 +224,7 @@ func (s *Socket) Candidates() []netip.AddrPort {
 		return nil
 	}
 	if !bound.Addr().IsUnspecified() {
-		if !usableLocal(bound.Addr()) {
+		if !usableLocal(bound.Addr()) || s.Excluded(bound.Addr()) {
 			return nil
 		}
 		return []netip.AddrPort{bound}
@@ -226,6 +233,9 @@ func (s *Socket) Candidates() []netip.AddrPort {
 	for _, ip := range s.Locals() {
 		if len(out) == MaxCandidates {
 			break
+		}
+		if s.Excluded(ip) {
+			continue // see exclude.go
 		}
 		out = append(out, netip.AddrPortFrom(ip, bound.Port()))
 	}

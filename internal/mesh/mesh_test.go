@@ -1,6 +1,7 @@
 package mesh
 
 import (
+	"context"
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"github.com/readori/RemoHop/internal/account"
 	"github.com/readori/RemoHop/internal/account/ledger"
 	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/nat"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -702,5 +704,54 @@ func TestStalledPeerDoesNotBlock(t *testing.T) {
 	l.close(errors.New("test"))
 	if err := l.send(pkt); err == nil {
 		t.Fatal("a closed link took a packet")
+	}
+}
+
+// fakeMux is a session to a peer at a given address that does nothing.
+type fakeMux struct {
+	peer.Mux
+	remote netip.AddrPort
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+func newFakeMux(remote string) *fakeMux {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &fakeMux{remote: netip.MustParseAddrPort(remote), ctx: ctx, cancel: cancel}
+}
+
+func (m *fakeMux) RemoteAddr() net.Addr     { return net.UDPAddrFromAddrPort(m.remote) }
+func (m *fakeMux) LocalAddr() net.Addr      { return &net.UDPAddr{} }
+func (m *fakeMux) Context() context.Context { return m.ctx }
+func (m *fakeMux) Close(string) error       { m.cancel(); return nil }
+func (m *fakeMux) AcceptStream(ctx context.Context) (peer.Stream, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// A session that runs through the mesh itself (to a peer's mesh address,
+// over an existing link) never becomes a link: once the link under it is
+// replaced or ends, it would carry its packets into its own tunnel.
+func TestNoLinkThroughTheMesh(t *testing.T) {
+	defer nat.ExcludeNetworks(DefaultPrefix4)()
+	for remote, want := range map[string]bool{"10.78.1.2:41000": true, "100.65.3.2:41000": false} {
+		m := newFakeMux(remote)
+		c := peer.NewConn(m, peer.Options{Role: peer.RoleClient})
+		if got := throughMesh(c); got != want {
+			t.Errorf("throughMesh(session to %s) = %v, want %v", remote, got, want)
+		}
+		if !want {
+			c.Close()
+			continue
+		}
+		n := &Node{dialPeer: func(context.Context, string) (*peer.Conn, error) { return c, nil }}
+		if _, err := n.dialLink(context.Background(), &peerInfo{ID: "123456789"}); !errors.Is(err, errThroughMesh) {
+			t.Errorf("dialLink over a session to %s: err = %v, want %v", remote, err, errThroughMesh)
+		}
+		select {
+		case <-m.ctx.Done():
+		case <-time.After(time.Second):
+			t.Errorf("the session to %s was not closed", remote)
+		}
 	}
 }
