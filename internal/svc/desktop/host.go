@@ -433,10 +433,12 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, f
 		inputChanged: make(chan struct{}, 1),
 	}
 	h.inputOff.Store(hostOff)
-	h.enc, err = selectEncoder(ctx, ffmpeg, encRequest{forced: opts.Encoder, codec: opts.Codec, decode: opts.Decode})
+	req := encRequest{forced: opts.Encoder, codec: opts.Codec, decode: opts.Decode}
+	h.enc, err = selectEncoder(ctx, ffmpeg, req)
 	if err != nil {
 		return nil, err
 	}
+	h.enc = preferGPUChain(ctx, ffmpeg, spec, h.enc, req)
 	h.ctx, h.cancel = context.WithCancel(ctx)
 	h.bitrate = h.targetBitrate()
 	// Room for a full window of video at the highest frame rate a config
@@ -451,6 +453,38 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, f
 		}
 	}
 	return h, nil
+}
+
+// preferGPUChain swaps enc for another GPU encoder of the same class whose
+// GPU chain works with this capture, when enc's does not. On a laptop with
+// two GPUs the panel is usually driven by the integrated one, so Desktop
+// Duplication's textures live there: NVENC, ranked first, cannot take them
+// and every frame goes through the CPU (download and conversion, the most
+// expensive path at 1440p and 4K), while Quick Sync on the same machine
+// takes them in place.
+func preferGPUChain(ctx context.Context, ffmpeg string, spec captureSpec, enc *encoder, req encRequest) *encoder {
+	if spec.gpu == nil || !enc.hw || req.forced != "" {
+		return enc
+	}
+	if _, ok := spec.gpu(enc, 0, 0); ok {
+		return enc
+	}
+	class := classOf(enc, false)
+	exclude := append(append([]string(nil), req.exclude...), enc.name)
+	for range 4 {
+		r := req
+		r.exclude = exclude
+		e, err := selectEncoder(ctx, ffmpeg, r)
+		if err != nil || !e.hw || classOf(e, false) != class {
+			return enc
+		}
+		if _, ok := spec.gpu(e, 0, 0); ok {
+			slog.Debug("desktop: using the GPU encoder whose GPU chain works with this capture", "instead_of", enc.name, "encoder", e.name)
+			return e
+		}
+		exclude = append(exclude, e.name)
+	}
+	return enc
 }
 
 // setHostInput applies the host owner's input switch to the running
@@ -600,8 +634,15 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	chain = append(chain, h.scaleFilter(), h.enc.pixFmt)
 	color := h.enc.cpuColor()
 	h.gpuChain = false
-	if spec.gpu != nil && !h.noGPU && h.scaleFactor() >= 1 {
-		if c, ok := spec.gpu(h.enc); ok {
+	// A scaled picture keeps the GPU chain where the chain can scale (Quick
+	// Sync's video processor): a 4K host viewed at 1080p is the case where
+	// downloading and converting every full frame on the CPU costs most.
+	sw, sh := 0, 0
+	if k := h.scaleFactor(); k < 1 {
+		sw, sh = int(float64(spec.width)*k)/2*2, int(float64(spec.height)*k)/2*2
+	}
+	if spec.gpu != nil && !h.noGPU && (sw > 0 || h.scaleFactor() >= 1) {
+		if c, ok := spec.gpu(h.enc, sw, sh); ok {
 			h.gpuChain, chain, color = true, nil, gpuColor(h.enc)
 			if c != "" {
 				chain = []string{c}

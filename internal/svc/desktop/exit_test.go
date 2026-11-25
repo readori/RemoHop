@@ -70,3 +70,30 @@ func TestGPUChainFailures(t *testing.T) {
 		t.Fatal("a GPU chain that failed twice after delivering is still used")
 	}
 }
+
+// On a hybrid-GPU laptop the encoder whose GPU chain works with the
+// capture (Quick Sync, on the GPU that drives the panel) is preferred to a
+// higher-ranked one whose chain does not (NVENC).
+func TestPreferGPUChain(t *testing.T) {
+	dir := t.TempDir()
+	fake := filepath.Join(dir, "ffmpeg")
+	script := "#!/bin/sh\ncase \"$*\" in *-encoders*) printf ' V....D h264_nvenc NVIDIA\\n V....D h264_qsv QSV\\n V....D libx264 x264\\n';; esac\nexit 0\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	req := encRequest{codec: codecH264}
+	first, err := selectEncoder(ctx, fake, req)
+	if err != nil || first.name != "h264_nvenc" {
+		t.Fatalf("first choice %v %v", first, err)
+	}
+	works := map[string]bool{"h264_qsv": true}
+	spec := captureSpec{gpu: func(e *encoder, w, h int) (string, bool) { return "", works[e.name] }}
+	if e := preferGPUChain(ctx, fake, spec, first, req); e.name != "h264_qsv" {
+		t.Errorf("picked %s, want h264_qsv", e.name)
+	}
+	works = map[string]bool{}
+	if e := preferGPUChain(ctx, fake, spec, first, req); e.name != "h264_nvenc" {
+		t.Errorf("with no working chain picked %s, want the first choice", e.name)
+	}
+}

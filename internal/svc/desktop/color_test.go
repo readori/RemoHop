@@ -12,7 +12,10 @@ import (
 // limited-range BT.709, and the capture hub's NV12 frames as what the hub
 // made of them.
 func TestArgsColor(t *testing.T) {
-	gpu := func(e *encoder) (string, bool) {
+	gpu := func(e *encoder, w, h int) (string, bool) {
+		if w > 0 {
+			return "", false
+		}
 		if c, ok := map[string]string{"h264_nvenc": "", "h264_amf": "",
 			"h264_qsv": "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12:out_color_matrix=bt709:out_range=tv"}[e.name]; ok {
 			return c, true
@@ -67,5 +70,20 @@ func TestArgsColor(t *testing.T) {
 		if want := strings.Join(c.wantColor, " "); !strings.Contains(args, want) {
 			t.Errorf("%s (scale %g): args %q lack %q", c.enc, c.scale, args, want)
 		}
+	}
+}
+
+// A scaled picture keeps Quick Sync's GPU chain (its video processor
+// scales); NVENC's and AMF's chains cannot scale and say so.
+func TestScaleGPUChain(t *testing.T) {
+	qsv := "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12:out_color_matrix=bt709:out_range=tv"
+	if c, ok := scaleGPUChain(qsv, 1920, 1080); !ok || c != "hwmap=derive_device=qsv,format=qsv,vpp_qsv=w=1920:h=1080:format=nv12:out_color_matrix=bt709:out_range=tv" {
+		t.Errorf("qsv scaled: %q %v", c, ok)
+	}
+	if c, ok := scaleGPUChain(qsv, 0, 0); !ok || c != qsv {
+		t.Errorf("qsv native: %q %v", c, ok)
+	}
+	if _, ok := scaleGPUChain("", 1280, 720); ok {
+		t.Error("NVENC's chain claims to scale")
 	}
 }
