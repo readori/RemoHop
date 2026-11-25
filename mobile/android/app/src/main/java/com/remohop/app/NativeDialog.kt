@@ -10,6 +10,8 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -26,7 +28,7 @@ import com.google.android.material.R as M
  * the error colour). Each answers exactly once; dismissing is Cancel.
  */
 object NativeDialog {
-    fun show(a: Activity, r: DialogRequest, done: (DialogAnswer) -> Unit) {
+    fun show(a: Activity, r: DialogRequest, done: (DialogAnswer) -> Unit): AlertDialog {
         val ctx = DynamicColors.wrapContextIfAvailable(ContextThemeWrapper(a, R.style.Theme_RemoHop_Settings))
         var answered = false
         val finish = { ans: DialogAnswer -> if (!answered) { answered = true; done(ans) } }
@@ -59,7 +61,9 @@ object NativeDialog {
                         setSingleLine()
                         imeOptions = EditorInfo.IME_ACTION_DONE
                     }
-                    layout.addView(e, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+                    // TextInputLayout moves the field into its inner LinearLayout and casts
+                    // the params: plain ViewGroup.LayoutParams crash there.
+                    layout.addView(e, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                     val box = FrameLayout(ctx).apply { setPadding(ui.dp(24), ui.dp(8), ui.dp(24), 0) }
                     box.addView(layout)
                     b.setView(box)
@@ -80,5 +84,6 @@ object NativeDialog {
                 if (id == EditorInfo.IME_ACTION_DONE) { d.getButton(DialogInterface.BUTTON_POSITIVE)?.performClick(); true } else false
             }
         }
+        return d
     }
 }
