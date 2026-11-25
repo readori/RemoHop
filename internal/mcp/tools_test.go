@@ -152,8 +152,8 @@ func TestClipboard(t *testing.T) {
 	if b, _ := os.ReadFile(save); string(b) != "héllo\nclipboard" {
 		t.Fatalf("saved clipboard: %q", b)
 	}
-	if msg := h.fail("remohop_clipboard_get", map[string]any{"save_path": "relative.txt"}); !strings.Contains(msg, "absolute") {
-		t.Errorf("relative save path: %s", msg)
+	if msg := h.fail("remohop_clipboard_get", map[string]any{"save_path": "../relative.txt"}); !strings.Contains(msg, "must stay inside") {
+		t.Errorf("relative save path out of the download dir: %s", msg)
 	}
 	if msg := h.fail("remohop_clipboard_set", map[string]any{"text": ""}); !strings.Contains(msg, "empty") {
 		t.Errorf("empty set: %s", msg)

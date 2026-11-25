@@ -94,7 +94,7 @@ type uploadIn struct {
 type downloadIn struct {
 	Target     string `json:"target,omitempty" jsonschema:"Remote machine: 9-digit RemoHop ID, saved alias or host:port. Optional if the server has a default target."`
 	RemotePath string `json:"remote_path" jsonschema:"Regular file on the remote machine."`
-	LocalPath  string `json:"local_path" jsonschema:"Absolute destination path on THIS computer. If it is an existing directory the file keeps its name inside it."`
+	LocalPath  string `json:"local_path" jsonschema:"Destination on THIS computer, inside the MCP server's download directory (a relative path or file name lands there; the server's instructions name it). If it is an existing directory the file keeps its name inside it."`
 	Overwrite  bool   `json:"overwrite,omitempty" jsonschema:"Replace the destination if it exists (default: refuse)."`
 }
 
@@ -431,12 +431,12 @@ func (s *Server) download(ctx context.Context, in downloadIn) (*reply[transferOu
 	if in.RemotePath == "" {
 		return nil, errors.New("remote_path is required")
 	}
-	dest, err := guardLocal(in.LocalPath)
+	dest, err := s.guardWrite(in.LocalPath)
 	if err != nil {
 		return nil, err
 	}
 	if st, err := os.Stat(dest); err == nil && st.IsDir() {
-		if dest, err = guardLocal(filepath.Join(dest, remoteBase(in.RemotePath))); err != nil {
+		if dest, err = s.guardWrite(filepath.Join(dest, remoteBase(in.RemotePath))); err != nil {
 			return nil, err
 		}
 	}

@@ -60,6 +60,13 @@ type Options struct {
 	// writes, input, clipboard changes or forwards). It is a convenience on
 	// this side; what a host allows is enforced by the host (grants).
 	ReadOnly bool
+	// WriteDirs are the directories on this computer that tools may
+	// write to (downloads, saved screenshots and clipboard contents); a
+	// relative path lands in the first. Nil means DefaultDownloadDir.
+	// What a tool writes comes from a remote machine and the model may
+	// have been misled, so it must not reach ~/.ssh, shell startup files
+	// and the like.
+	WriteDirs []string
 }
 
 // Server is the MCP server. Create it with New, serve it with Run, and call
@@ -94,6 +101,10 @@ func New(opts Options) *Server {
 	s.pool = newPool(opts.Dial, opts.IdleTimeout, opts.DialTimeout, s.log)
 	s.fwd = newForwards()
 	instr := instructions
+	if dirs, err := s.writeDirs(); err == nil {
+		instr += "\nFiles you download or save on this computer (remohop_download, save_path) must go in " + strings.Join(dirs, " or ") +
+			"; a relative path or a bare file name lands in " + dirs[0] + "."
+	}
 	if opts.ReadOnly {
 		instr += "\nThis server runs in read-only mode: only tools that change nothing are available."
 	}

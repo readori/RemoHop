@@ -29,7 +29,7 @@ type screenshotIn struct {
 	MaxWidth  int    `json:"max_width,omitempty" jsonschema:"Downscale to at most this many pixels wide (default 1568, which suits vision models; max 8192). Raise it, or use region, to read small text."`
 	Format    string `json:"format,omitempty" jsonschema:"png (default, lossless) or jpeg (smaller)."`
 	Quality   int    `json:"quality,omitempty" jsonschema:"JPEG quality 1-100 (default 80)."`
-	SavePath  string `json:"save_path,omitempty" jsonschema:"Optional absolute path on THIS computer to also save the image file to. Refuses to replace an existing file unless overwrite is true; cannot point into RemoHop's own config directory."`
+	SavePath  string `json:"save_path,omitempty" jsonschema:"Optional path on THIS computer, inside the MCP server's download directory (a relative path lands there), to also save the image file to. Refuses to replace an existing file unless overwrite is true; cannot point into RemoHop's own config directory."`
 	Overwrite bool   `json:"overwrite,omitempty" jsonschema:"Allow save_path to replace an existing file."`
 }
 
@@ -111,7 +111,7 @@ func (s *Server) screenshot(ctx context.Context, in screenshotIn) (*reply[screen
 	}
 	var savePath string
 	if in.SavePath != "" {
-		p, err := guardLocal(in.SavePath)
+		p, err := s.guardWrite(in.SavePath)
 		if err != nil {
 			return nil, err
 		}

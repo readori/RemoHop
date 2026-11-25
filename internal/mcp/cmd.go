@@ -16,6 +16,7 @@ import (
 )
 
 const usage = `Usage: remohop mcp [--target ID] [--idle-timeout DURATION] [--read-only]
+                   [--download-dir DIR]...
 
 Run RemoHop as a Model Context Protocol server on stdin/stdout, so an AI agent
 (Claude Code, Cursor, Codex, ...) can operate remote machines by ID: run
@@ -32,6 +33,13 @@ Flags:
                         with an active port forward are never closed.
   --read-only           offer only tools that change nothing (screenshots,
                         reading files, system information, job logs, limits)
+  --download-dir DIR    a directory on this computer the tools may write to
+                        (remohop_download, saved screenshots and clipboard
+                        contents); repeat for more. A relative path the
+                        agent gives lands in the first. Default:
+                        ~/Downloads/remohop. Anything a tool writes came from
+                        a remote machine, so keep this away from ~/.ssh,
+                        shell startup files and the like
 
 What the agent may do on a machine is decided there: a host owner can hand
 the machine over with a grant (` + "`remohop host grant`" + `) that limits tools, files and
@@ -88,6 +96,15 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	target := fs.String("target", "", "")
 	idle := fs.Duration("idle-timeout", DefaultIdleTimeout, "")
 	readOnly := fs.Bool("read-only", false, "")
+	var writeDirs []string
+	fs.Func("download-dir", "", func(v string) error {
+		p, err := localPath(v)
+		if err != nil {
+			return err
+		}
+		writeDirs = append(writeDirs, p)
+		return nil
+	})
 	if err := fs.Parse(args); err != nil {
 		if err == flag.ErrHelp {
 			return cli.ExitOK
@@ -116,6 +133,7 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 		DefaultTarget: strings.TrimSpace(*target),
 		IdleTimeout:   idleTimeout,
 		ReadOnly:      *readOnly,
+		WriteDirs:     writeDirs,
 		Version:       cli.Version,
 		Logger:        slog.New(slog.NewTextHandler(env.Stderr, &slog.HandlerOptions{Level: level})),
 	})
