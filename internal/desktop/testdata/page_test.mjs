@@ -168,6 +168,19 @@ try {
   check(await p.waitFor(`document.querySelector('#tabs .tab.host .name').textContent === 'Office-PC'`), 'the tab takes the saved name');
   await sleep(1500);
   await p.shot('console');
+  // With a desktop to show (the test runs under Xvfb), the view-only
+  // session asks for control from the viewer and the owner allows it.
+  if (await p.waitFor(`!document.getElementById('d-askctl').hidden`, 15000, fc)) {
+    check(await p.eval(`document.getElementById('d-viewonly').checked`, fc), 'the console session only watches');
+    await p.shot('console-viewonly');
+    await p.eval(`document.getElementById('d-askctl').click()`, fc);
+    check(await p.waitFor(`document.getElementById('dlg-req').open && document.getElementById('req-title').textContent.includes('asks for more')`), 'Request control asks the owner');
+    check(await p.eval(`document.getElementById('req-kv').textContent.includes('control the mouse and keyboard')`), 'and says what for');
+    await p.shot('request-access');
+    await p.eval(`document.getElementById('req-allow').click()`);
+    check(await p.waitFor(`document.getElementById('d-askctl').hidden && !document.getElementById('d-viewonly').checked`, 20000, fc), 'allowed: the viewer takes control');
+    await p.shot('console-control');
+  } else console.log('skip request-control (no desktop to show here)');
   await p.eval(`document.querySelector('#tabs .tab.host .x[aria-label="Disconnect and close"]').click()`);
   check(await p.waitFor(`document.querySelectorAll('#tabs .tab.host').length === 0 && !document.getElementById('v-connect').hidden`), 'closing the tab');
   await p.eval(`document.getElementById('tab-computer').click()`);

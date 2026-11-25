@@ -56,6 +56,7 @@
 //	POST   files/upload?c&dir&name&overwrite   (raw body)
 //	POST   files/mkdir|rename|delete
 //	POST   clip/get|clip/set
+//	POST   access            {c, features} ask the host's owner for more (embed.go)
 //	GET    info?c            ; GET screenshot?c&display
 //	GET    term/sessions?c   ; POST term/kill
 //	WS     term/ws?t&c&session&new&rows&cols
@@ -538,6 +539,7 @@ func (s *Server) routes() *http.ServeMux {
 	api("POST /api/v1/files/delete", s.handleDelete)
 	api("POST /api/v1/clip/get", s.handleClipGet)
 	api("POST /api/v1/clip/set", s.handleClipSet)
+	api("POST /api/v1/access", s.handleAccess)
 	api("GET /api/v1/info", s.handleInfo)
 	api("GET /api/v1/screenshot", s.handleScreenshot)
 	api("GET /api/v1/term/sessions", s.handleTermSessions)
