@@ -16,12 +16,14 @@
 //     files that outlive this process (the systemd unit of `remohop service
 //     install`).
 //
-// Outside a snap both are no-ops.
+// Outside a snap both are no-ops, and so is everything on systems other than
+// Linux, where snaps do not exist.
 package snapenv
 
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -38,6 +40,9 @@ var (
 // this binary runs from (one leaked from another snap's terminal, say) is
 // left alone.
 func Setup() {
+	if runtime.GOOS != "linux" {
+		return
+	}
 	exe, err := os.Executable()
 	if err != nil {
 		return
