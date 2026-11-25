@@ -99,6 +99,18 @@ func TestCaptureHub(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+	// And it leaves the registry (one hub per size seen piled up).
+	for end := time.Now().Add(time.Second); ; time.Sleep(20 * time.Millisecond) {
+		hubs.mu.Lock()
+		_, still := hubs.m[hub.key]
+		hubs.mu.Unlock()
+		if !still {
+			break
+		}
+		if time.Now().After(end) {
+			t.Fatal("a stopped capture stays in the registry")
+		}
+	}
 
 	// A capture that cannot start says why.
 	_, _, err = attachCapture(key+"bad", ffmpeg, func(int) []string { return []string{"-f", "lavfi", "-i", "nosuchsource"} }, nil, w, h, 10)
@@ -156,5 +168,28 @@ func TestCaptureHubColors(t *testing.T) {
 	probe, _ := exec.Command("ffprobe", "-v", "error", "-show_entries", "stream=color_range,color_space,color_primaries,color_transfer", "-of", "csv=p=0", out).Output()
 	if p := strings.TrimSpace(string(probe)); p != "pc,bt709,bt709,bt709" {
 		t.Errorf("stream colour description %q", p)
+	}
+}
+
+// A reader slower than the capture gets its own frame rate on average, not
+// the capture's rate divided by a whole number (with the capture at 60 fps,
+// 26 to 50 fps all used to give 30).
+func TestHubReaderRate(t *testing.T) {
+	const capFPS = 60
+	capPeriod := time.Second / capFPS
+	for _, want := range []int{50, 40, 30, 26, 20, 17, 10} {
+		s := &hubSub{fps: want}
+		t0 := time.Unix(100, 0)
+		got := 0
+		for i := 0; i < capFPS*10; i++ {
+			// The capture's frames come with a little jitter.
+			jitter := time.Duration(i%3-1) * time.Millisecond
+			if s.take(t0.Add(time.Duration(i)*capPeriod+jitter), capPeriod) {
+				got++
+			}
+		}
+		if got < want*10*97/100 || got > want*10*103/100 {
+			t.Errorf("reader at %d fps got %d frames in 10 s of a %d fps capture", want, got, capFPS)
+		}
 	}
 }

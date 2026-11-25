@@ -88,6 +88,20 @@ func discoverCapture(display, fps int) (captureSpec, error) {
 	return spec, nil
 }
 
+func init() {
+	// The capture hub forces its frames to the size it was started with,
+	// so after a display mode change the session would go on with the old
+	// size, rescaled, and input aimed with the old geometry.
+	screenChanged = func(spec captureSpec) bool {
+		ds, err := inject.MacDisplays()
+		if err != nil || spec.screen < 0 || spec.screen >= len(ds) {
+			return false
+		}
+		d := ds[spec.screen]
+		return d.PixelWidth > 0 && (d.PixelWidth != spec.width || d.PixelHeight != spec.height)
+	}
+}
+
 var (
 	screenAccessOnce sync.Once
 	// cgPreflightScreenCapture is CGPreflightScreenCaptureAccess (macOS
