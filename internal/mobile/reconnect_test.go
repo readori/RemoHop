@@ -33,14 +33,16 @@ func runHost(t *testing.T, cfg hostd.Config) *hostd.Host {
 	done := make(chan error, 1)
 	go func() { done <- h.Run(ctx) }()
 	t.Cleanup(func() { cancel(); <-done })
+	t.Cleanup(StopGateway) // runs first: the gateway goes before the host (see startHost)
 	return h
 }
 
 type connState struct {
-	Key     string
-	State   string
-	Retries int
-	Error   *struct{ Code, Message string }
+	Key        string
+	State      string
+	Retries    int
+	Reconnects int
+	Error      *struct{ Code, Message string }
 }
 
 func (c *freshClient) states() []connState {
@@ -63,6 +65,37 @@ func (c *freshClient) waitState(key, state string, timeout time.Duration) connSt
 	}
 	c.t.Fatalf("%s never reached %q: %+v", key, state, last)
 	return connState{}
+}
+
+// reconnects is how often key's session has been re-established so far.
+func (c *freshClient) reconnects(key string) int {
+	c.t.Helper()
+	for _, s := range c.states() {
+		if s.Key == key {
+			return s.Reconnects
+		}
+	}
+	c.t.Fatalf("no session %s", key)
+	return 0
+}
+
+// dropAndWait drops every host session and waits until key's is connected
+// again. "connected" alone would not do: the gateway notices the drop a
+// moment later, and until then the list still shows the old connection.
+func (c *freshClient) dropAndWait(key string, timeout time.Duration) {
+	c.t.Helper()
+	before := c.reconnects(key)
+	DropSessionsForTest()
+	var last []connState
+	for end := time.Now().Add(timeout); time.Now().Before(end); time.Sleep(50 * time.Millisecond) {
+		last = c.states()
+		for _, s := range last {
+			if s.Key == key && s.State == "connected" && s.Reconnects > before {
+				return
+			}
+		}
+	}
+	c.t.Fatalf("%s was not re-established: %+v", key, last)
 }
 
 func pageOn(t *testing.T) *freshClient {
@@ -99,15 +132,13 @@ func TestReconnectWithOneTimePassword(t *testing.T) {
 	if savedPairing(d, key) {
 		t.Fatal("the session's re-login pairing was saved to disk")
 	}
-	DropSessionsForTest()
-	c.waitState(key, "connected", 20*time.Second)
+	c.dropAndWait(key, 20*time.Second)
 	c.listFiles(key)
 	if savedPairing(d, key) {
 		t.Fatal("reconnecting saved a pairing to disk")
 	}
 	// And again (the in-memory pairing is not used up).
-	DropSessionsForTest()
-	c.waitState(key, "connected", 20*time.Second)
+	c.dropAndWait(key, 20*time.Second)
 	c.listFiles(key)
 	// Disconnect ends it for good.
 	c.call("POST", "disconnect", map[string]string{"c": key}, nil)
@@ -167,8 +198,7 @@ func TestReconnectTerminalReattaches(t *testing.T) {
 	websocket.Message.Send(ws, `{"type":"in","data":"echo remohop-$((6*7))\n"}`)
 	readUntil(t, ws, "remohop-42")
 
-	DropSessionsForTest()
-	c.waitState(key, "connected", 20*time.Second)
+	c.dropAndWait(key, 20*time.Second)
 	ws.Close()
 	ws2, again := c.openTerm(key, first.Session)
 	defer ws2.Close()

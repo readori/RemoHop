@@ -399,7 +399,9 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 }
 
-// Close stops the server and ends every host session.
+// Close stops the server and ends every host session. It returns once
+// nothing of the server runs any more, reconnections included: after it,
+// no gateway code touches the configuration directory.
 func (s *Server) Close() {
 	s.cancel()
 	s.srv.Close()

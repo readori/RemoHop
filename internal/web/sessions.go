@@ -256,15 +256,30 @@ func (ws *webSession) acquire(key string, now func() time.Time) (*pooled, func()
 
 // adopt adds a freshly dialled session to the pool. It reports false (and
 // closes nothing) when the browser session was dropped meanwhile.
+//
+// The goroutine that watches (and in persistent mode reconnects) the session
+// is counted in s.wg, so Close returns only once no reconnection is running
+// any more; a server that is closing adopts nothing.
 func (s *Server) adopt(ws *webSession, p *pooled, release func()) (*pooled, bool) {
+	s.mu.Lock()
+	if s.ctx.Err() != nil {
+		s.mu.Unlock()
+		return nil, false
+	}
+	// Under s.mu, after the check: Close cancels s.ctx before it takes s.mu,
+	// so this Add happens before its Wait or not at all.
+	s.wg.Add(1)
+	s.mu.Unlock()
 	ws.mu.Lock()
 	if ws.closed {
 		ws.mu.Unlock()
+		s.wg.Done()
 		return nil, false
 	}
 	old := ws.conns[p.key]
 	if old != nil && old.state() == stateConnected && !dead(old.current()) {
 		ws.mu.Unlock()
+		s.wg.Done()
 		return old, false
 	}
 	p.last = s.now()
@@ -273,7 +288,10 @@ func (s *Server) adopt(ws *webSession, p *pooled, release func()) (*pooled, bool
 	if old != nil {
 		old.close() // a session that was reconnecting or had failed: the new one replaces it
 	}
-	go s.keep(ws, p, release)
+	go func() {
+		defer s.wg.Done()
+		s.keep(ws, p, release)
+	}()
 	return p, true
 }
 
