@@ -167,6 +167,9 @@
       'd.hud.na': 'n/a',
       'd.hud.rtt': 'rtt',
       'd.hud.host': 'host {fps} fps, dropped {n}',
+      'd.hud.restarts': 'restarts {n}',
+      'd.hud.skipped': 'skipped here {n}',
+      'd.hud.encode': 'capture+encode',
       'd.hud.viewonly': 'view only',
       'd.hud.input': 'input on',
 
@@ -458,6 +461,9 @@
       'd.hud.na': '无',
       'd.hud.rtt': '往返',
       'd.hud.host': '被控端 {fps} fps，丢弃 {n}',
+      'd.hud.restarts': '编码器重启 {n}',
+      'd.hud.skipped': '本端跳过 {n}',
+      'd.hud.encode': '采集+编码',
       'd.hud.viewonly': '仅查看',
       'd.hud.input': '可控制',
 

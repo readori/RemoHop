@@ -6,11 +6,27 @@
   const $ = id => document.getElementById(id);
   const SD = window.SD;
   const canvas = $('d-canvas'), g = canvas.getContext('2d', {alpha: false});
-  const nowUs = () => (performance.timeOrigin + performance.now()) * 1000;
+  // Wall-clock microseconds, the clock the gateway stamps capture times
+  // with. performance.timeOrigin + performance.now() is not that clock: the
+  // monotonic clock stops while the device sleeps or the app is suspended
+  // (iOS), so after a while it lags the wall clock by seconds. Date.now()
+  // is resynchronised every second for its milliseconds; performance.now()
+  // adds the fraction between.
+  let wallOff = Date.now() - performance.now();
+  setInterval(() => { wallOff = Date.now() - performance.now(); }, 1000);
+  const nowUs = () => (performance.now() + wallOff) * 1000;
+  // A burst of frames (Wi-Fi power saving delivers them in clumps) is
+  // decoded far faster than real time; only a decoder that has this many
+  // frames queued is really behind, and only then is it worth skipping to
+  // the next key frame, which costs the host an encoder restart.
+  const maxDecodeQueue = 6;
+  // Heights to step down through when the decoder cannot take the stream
+  // at the size the host sends (a phone that decodes 1440p but not 4K).
+  const fallbackHeights = [2160, 1440, 1080, 720, 480];
 
   let ws = null, decoder = null, cfg = null, hello = null, gen = 0, conn = null;
   let configuring = false, pending = [], waitKey = true, ended = false;
-  let viewOnly = false, hostInput = false, fit = true, skippedSeq = -1, lastKey = 0, lastBehind = 0;
+  let viewOnly = false, hostInput = false, fit = true, skippedSeq = -1, lastKey = 0, lastBehind = 0, shown = null, drawing = false;
   const meta = new Map(), pressed = new Set(), buttons = new Set();
   const stats = {decoded: 0, skipped: 0, errors: 0, fps: 0, mbps: 0, latency: 0, rtt: 0, host: null, wf: 0, wb: 0, ws: performance.now(), bytes: 0};
   window.remohopDesktop = {stats: () => Object.assign({}, stats, {hello, configured: !!decoder && decoder.state === 'configured'})};
@@ -34,6 +50,7 @@
   function resetDecoder() {
     if (decoder && decoder.state !== 'closed') decoder.close();
     decoder = null; meta.clear(); pending = []; waitKey = true;
+    if (shown) { shown.frame.close(); shown = null; }
   }
   function newDecoder() {
     decoder = new VideoDecoder({output: onFrame, error: e => {
@@ -100,7 +117,15 @@
     configuring = true;
     if (!await supported(want)) {
       want.hardwareAcceleration = 'no-preference';
-      if (!await supported(want)) { configuring = false; ended = true; msg('d.cannot', {codec: h.codec}, false); return; }
+      if (!await supported(want)) {
+        // Too large for this decoder (4K on a phone that tops out at
+        // 1440p, say): ask the host for the next smaller size, which it
+        // sends with a new hello, rather than give up.
+        const next = fallbackHeights.find(v => v < h.height);
+        configuring = false;
+        if (next && h.height > 480) { resetDecoder(); cfg = null; send({type: 'config', max_height: next}); return; }
+        ended = true; msg('d.cannot', {codec: h.codec}, false); return;
+      }
     }
     cfg = want; canvas.width = h.width; canvas.height = h.height; layout();
     if (!decoder || decoder.state === 'closed') newDecoder();
@@ -121,7 +146,7 @@
     const skip = () => { stats.skipped++; skippedSeq = seq; };
     if (!decoder || decoder.state !== 'configured') return skip();
     if (waitKey && !key) return skip();
-    if (!key && decoder.decodeQueueSize > 2) { waitKey = true; behind(); return skip(); }
+    if (!key && decoder.decodeQueueSize > maxDecodeQueue) { waitKey = true; behind(); return skip(); }
     waitKey = false;
     meta.set(pts, {seq, cap, arr});
     if (meta.size > 240) meta.delete(meta.keys().next().value);
@@ -129,15 +154,31 @@
     catch (e) { stats.errors++; waitKey = true; requestKey(); skip(); }
   }
 
+  // Decoded frames are acknowledged at once (the decoder keeps up) and
+  // drawn at the next display refresh; a frame that a newer one overtakes
+  // before then is never drawn. Drawing from the decoder's callback drew
+  // frames the display never showed, and tied the acknowledgements (and so
+  // the host's flow control) to how fast the page could paint.
   function onFrame(frame) {
     const m = meta.get(frame.timestamp); meta.delete(frame.timestamp);
-    g.drawImage(frame, 0, 0, canvas.width, canvas.height);
-    frame.close(); stats.decoded++; stats.wf++;
+    stats.decoded++;
     if (m) {
       send({type: 'ack', seq: Math.max(m.seq, skippedSeq)});
       if (m.seq >= skippedSeq) skippedSeq = -1;
-      const now = nowUs();
-      if (m.cap > 0) stats.latency = ewma(stats.latency, (now - m.cap) / 1000);
+    }
+    if (shown) shown.frame.close();
+    shown = {frame, cap: m ? m.cap : 0};
+    if (!drawing) { drawing = true; requestAnimationFrame(paint); }
+  }
+  function paint() {
+    drawing = false;
+    if (!shown) return;
+    const {frame, cap} = shown; shown = null;
+    g.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    frame.close(); stats.wf++;
+    if (cap > 0) {
+      const ms = (nowUs() - cap) / 1000;
+      if (ms > -50 && ms < 10000) stats.latency = ewma(stats.latency, Math.max(ms, 0.1));
     }
   }
 
@@ -160,9 +201,10 @@
     if (dt >= 0.5) { stats.fps = stats.wf / dt; stats.mbps = stats.wb * 8 / dt / 1e6; stats.wf = 0; stats.wb = 0; stats.ws = t; }
     if (!hello || $('d-hud').hidden) return;
     const h = stats.host || {}, tr = SD.t;
-    $('d-hud').textContent = `${hello.width}×${hello.height} ${hello.codec}\n${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'}\n` +
-      `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
-      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), n: h.dropped || 0}) + '\n' + tr(viewOnly ? 'd.hud.viewonly' : 'd.hud.input');
+    $('d-hud').textContent = `${hello.width}×${hello.height} ${hello.codec}\n${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'} ${((h.bitrate || hello.bitrate || 0) / 1e6).toFixed(0)} Mbit/s\n` +
+      `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s` + (h.pipeline_ms ? ` (${tr('d.hud.encode')} ${h.pipeline_ms.toFixed(0)} ms)` : '') + `\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
+      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), n: h.dropped || 0}) + (h.restarts ? ' ' + tr('d.hud.restarts', {n: h.restarts}) : '') +
+      (stats.skipped ? ' ' + tr('d.hud.skipped', {n: stats.skipped}) : '') + '\n' + tr(viewOnly ? 'd.hud.viewonly' : 'd.hud.input');
   }, 500);
 
   // ---- input ----
