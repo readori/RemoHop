@@ -210,21 +210,25 @@ class SettingsUi(private val a: Activity) {
      * A status on a coloured card: a dot in the state's role ([tone]: primary
      * working, error a problem, outline unknown) and the words, on the surface.
      */
-    fun statusBadge(text: String, tone: Tone): TextView {
+    fun statusBadge(text: String, tone: Tone): TextView =
+        pill(text, color(M.attr.colorSurfaceContainerLowest), color(M.attr.colorOnSurface)).also { setStatus(it, text, tone) }
+
+    /** Changes a [statusBadge]'s words and state. */
+    fun setStatus(tv: TextView, text: String, tone: Tone) {
         val dot = color(when (tone) {
             Tone.ERROR -> M.attr.colorError
             Tone.NEUTRAL -> M.attr.colorOutline
             else -> M.attr.colorPrimary
         })
-        return pill(text, color(M.attr.colorSurfaceContainerLowest), color(M.attr.colorOnSurface)).apply {
-            val d = MaterialShapeDrawable(ShapeAppearanceModel.builder().setAllCornerSizes(dp(4).toFloat()).build()).apply {
-                fillColor = ColorStateList.valueOf(dot)
-                setBounds(0, 0, dp(8), dp(8))
-            }
-            setCompoundDrawablesRelative(d, null, null, null)
-            compoundDrawablePadding = dp(6)
-            setPadding(dp(10), dp(4), dp(12), dp(4))
+        val d = MaterialShapeDrawable(ShapeAppearanceModel.builder().setAllCornerSizes(dp(4).toFloat()).build()).apply {
+            fillColor = ColorStateList.valueOf(dot)
+            setBounds(0, 0, dp(8), dp(8))
         }
+        tv.text = text
+        tv.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+        tv.setCompoundDrawablesRelative(d, null, null, null)
+        tv.compoundDrawablePadding = dp(6)
+        tv.setPadding(dp(10), dp(4), dp(12), dp(4))
     }
 
     private fun pill(text: String, bg: Int, fg: Int): TextView {

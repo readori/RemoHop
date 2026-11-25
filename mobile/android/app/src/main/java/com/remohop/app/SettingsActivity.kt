@@ -299,7 +299,11 @@ class SettingsActivity : AppCompatActivity() {
                     checkingMain = false
                     rendezvousStatus = r?.status ?: RendezvousStatus.of("error")
                     r?.key?.let { rendezvousKey = it }
-                    if (stack.isEmpty()) show()
+                    // In place: the page keeps its scroll position.
+                    if (stack.isEmpty() && hero.view.isAttachedToWindow) {
+                        ui.setStatus(hero.status, heroStatus(), heroTone())
+                        hero.view.contentDescription = listOf(getString(R.string.rendezvous_heading), hero.value.text, hero.status.text).joinToString(", ")
+                    } else if (stack.isEmpty()) show() // the page was built again meanwhile
                 }
             }
         }
@@ -520,9 +524,22 @@ class SettingsActivity : AppCompatActivity() {
     /** Paired and key hosts in the primary role, the others neutral. */
     private fun hostTone(h: SavedHost) = if (h.kind == SavedHost.Kind.RECENT) SettingsUi.Tone.NEUTRAL else SettingsUi.Tone.PRIMARY
 
-    private fun lastSeen(h: SavedHost): String = if (h.lastSeen <= 0) "" else
-        android.text.format.DateUtils.getRelativeTimeSpanString(h.lastSeen * 1000, System.currentTimeMillis(),
-            android.text.format.DateUtils.MINUTE_IN_MILLIS, android.text.format.DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+    /** "5 min. ago", "3 days ago" in the app's language (not the system's); a date after a week. */
+    private fun lastSeen(h: SavedHost): String {
+        if (h.lastSeen <= 0) return ""
+        val loc = resources.configuration.locales[0]
+        val mins = (System.currentTimeMillis() / 1000 - h.lastSeen) / 60
+        if (mins >= 7 * 24 * 60) return java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, loc).format(java.util.Date(h.lastSeen * 1000))
+        val f = android.icu.text.RelativeDateTimeFormatter.getInstance(android.icu.util.ULocale.forLocale(loc), null,
+            android.icu.text.RelativeDateTimeFormatter.Style.SHORT, android.icu.text.DisplayContext.CAPITALIZATION_FOR_STANDALONE)
+        val last = android.icu.text.RelativeDateTimeFormatter.Direction.LAST
+        return when {
+            mins < 1 -> f.format(android.icu.text.RelativeDateTimeFormatter.Direction.PLAIN, android.icu.text.RelativeDateTimeFormatter.AbsoluteUnit.NOW)
+            mins < 60 -> f.format(mins.toDouble(), last, android.icu.text.RelativeDateTimeFormatter.RelativeUnit.MINUTES)
+            mins < 24 * 60 -> f.format((mins / 60).toDouble(), last, android.icu.text.RelativeDateTimeFormatter.RelativeUnit.HOURS)
+            else -> f.format((mins / (24 * 60)).toDouble(), last, android.icu.text.RelativeDateTimeFormatter.RelativeUnit.DAYS)
+        }
+    }
 
     private fun savedHosts(col: LinearLayout) {
         pageTitle(R.string.hosts_heading)
