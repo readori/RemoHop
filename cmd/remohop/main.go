@@ -13,6 +13,7 @@ import (
 
 	// Every feature registers its commands and host services from init().
 	_ "github.com/readori/RemoHop/internal/bg"
+	_ "github.com/readori/RemoHop/internal/desktop"
 	_ "github.com/readori/RemoHop/internal/dial"
 	_ "github.com/readori/RemoHop/internal/doctor"
 	_ "github.com/readori/RemoHop/internal/hostd"

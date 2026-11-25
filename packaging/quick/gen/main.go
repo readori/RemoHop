@@ -33,7 +33,19 @@ func main() {
 	version := flag.String("version", "0.0.0", "with -app: the version (a leading v and anything after the numbers is dropped)")
 	verify := flag.String("verify", "", "check that this Windows program carries the icon and the manifest")
 	msix := flag.String("msix-assets", "", "write the MSIX package's logos (Store, tiles, app list) into this directory")
+	tray := flag.String("tray", "", "write the desktop app's tray icons (tray.png, tray-template.png) into this directory")
 	flag.Parse()
+	if *tray != "" {
+		if err := os.WriteFile(filepath.Join(*tray, "tray.png"), pngBytes(render(64, 0)), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "gen:", err)
+			os.Exit(1)
+		}
+		if err := os.WriteFile(filepath.Join(*tray, "tray-template.png"), pngBytes(trayTemplate(64)), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "gen:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(*syso, *ico, *icns, *pngOut, *app, *binary, *version, *verify, *msix); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
