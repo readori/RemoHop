@@ -313,9 +313,18 @@ func (c *nat64Conn) SetWriteBuffer(n int) error {
 // SetNAT64LookupForTest replaces the ipv4only.arpa lookup (tests of other
 // packages simulating an IPv6-only network) and returns the function that
 // restores it.
+//
+// The swap happens under the discovery lock, which discoverNAT64 holds while
+// it calls nat64Lookup: a socket left over from an earlier test may still be
+// sending (and so discovering) while the next test swaps the function.
 func SetNAT64LookupForTest(f func(context.Context) ([]netip.Addr, error)) (restore func()) {
-	old := nat64Lookup
-	nat64Lookup = f
-	forgetNAT64()
-	return func() { nat64Lookup = old; forgetNAT64() }
+	swap := func(g func(context.Context) ([]netip.Addr, error)) (prev func(context.Context) ([]netip.Addr, error)) {
+		nat64Disc.mu.Lock()
+		defer nat64Disc.mu.Unlock()
+		prev, nat64Lookup = nat64Lookup, g
+		nat64Disc.until = time.Time{}
+		return prev
+	}
+	old := swap(f)
+	return func() { swap(old) }
 }
