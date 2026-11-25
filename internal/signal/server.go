@@ -37,7 +37,17 @@ const (
 	closeBusy     quic.ApplicationErrorCode = 1
 	closeReplaced quic.ApplicationErrorCode = 2
 	closeIdle     quic.ApplicationErrorCode = 3
+	// closeMoved: a registered host's packets now come from another
+	// address (its NAT rebound, its router got a new public address, the
+	// machine changed networks). The connection followed it, but the NAT
+	// type the host measured may no longer hold: it registers again and
+	// measures afresh.
+	closeMoved quic.ApplicationErrorCode = 4
 )
+
+// moveCheckEvery is how often registered hosts are checked for a changed
+// address (see closeMoved). A variable for tests.
+var moveCheckEvery = 5 * time.Second
 
 // Config configures a Server.
 type Config struct {
@@ -175,7 +185,10 @@ type Server struct {
 }
 
 type serverConn struct {
-	q      *quic.Conn
+	q *quic.Conn
+	// addr is where the connection came from when it was accepted. A QUIC
+	// connection follows its peer to a new address; current says where it
+	// is now.
 	addr   netip.AddrPort
 	source netip.Addr             // IPv4 address or IPv6 /64
 	net    netip.Addr             // IPv6 /48; the address itself for IPv4
@@ -185,15 +198,28 @@ type serverConn struct {
 	// bridge socket; source and net are the WebSocket client's).
 	bridged bool
 	// real is the peer's own address: addr's, or the WebSocket client's.
-	real netip.Addr
+	real  netip.Addr
+	moved atomic.Bool // asked to register again (closeMoved)
 }
 
-// peerAddr is the address others are told about for this peer.
+// current is the address the peer's packets come from now.
+func (c *serverConn) current() netip.AddrPort {
+	if c.bridged {
+		return c.addr
+	}
+	if ap, ok := remoteAddrPort(c.q); ok {
+		return ap
+	}
+	return c.addr
+}
+
+// peerAddr is the address others are told about for this peer: where its
+// packets come from now, not where they came from when it connected.
 func (c *serverConn) peerAddr() netip.AddrPort {
 	if c.bridged {
 		return bridgedPeerAddr
 	}
-	return c.addr
+	return c.current()
 }
 
 // via is the peerInfo marker for this peer's transport.
@@ -340,6 +366,7 @@ func (s *Server) Serve(ctx context.Context, main, alt net.PacketConn) error {
 		s.mainPort.Store(int32(ua.Port))
 	}
 	go s.housekeeping(ctx)
+	go s.watchMoves(ctx)
 	if s.cfg.Relay != nil {
 		go s.relayHousekeeping(ctx)
 	}
@@ -434,6 +461,40 @@ func (s *Server) housekeeping(ctx context.Context) {
 		}
 		if dropped > 0 {
 			s.log.Info("expired idle IDs", "count", dropped, "remaining", s.store.count())
+		}
+	}
+}
+
+// watchMoves asks registered hosts whose address changed to register
+// again (closeMoved). Until they do, introductions already carry the new
+// address (peerAddr).
+func (s *Server) watchMoves(ctx context.Context) {
+	t := time.NewTicker(moveCheckEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		s.mu.Lock()
+		hosts := make([]*serverConn, 0, len(s.online))
+		for _, c := range s.online {
+			hosts = append(hosts, c)
+		}
+		s.mu.Unlock()
+		for _, c := range hosts {
+			if c.bridged {
+				continue
+			}
+			if now := c.current(); now != c.addr && c.moved.CompareAndSwap(false, true) {
+				id := ""
+				if p := c.id.Load(); p != nil {
+					id = *p
+				}
+				s.log.Info("host moved; asking it to register again", "id", id, "from", c.addr, "to", now)
+				c.q.CloseWithError(closeMoved, "your address changed; register again")
+			}
 		}
 	}
 }
@@ -695,7 +756,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		fail(CodeRateLimited, "too many connection requests from this network", wait)
 		return
 	}
-	local, err := parseCandidates(req.Candidates, c.addr.Addr())
+	local, err := parseCandidates(req.Candidates, c.current().Addr())
 	if err != nil {
 		fail(CodeBadRequest, err.Error(), 0)
 		return
@@ -754,7 +815,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		fail(CodeDeclined, auth.CleanText(answer.Error, maxErrorText), 0)
 		return
 	}
-	hostLocal, err := parseCandidates(answer.Candidates, host.addr.Addr())
+	hostLocal, err := parseCandidates(answer.Candidates, host.current().Addr())
 	if err != nil {
 		fail(CodeNoAnswer, "", 0)
 		return
@@ -774,7 +835,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		s.intros[string(nonce)] = &intro{client: c, host: host, at: time.Now()}
 	}
 	s.mu.Unlock()
-	s.log.Debug("introduced", "id", req.ID, "client", c.addr, "host", host.addr)
+	s.log.Debug("introduced", "id", req.ID, "client", c.current(), "host", host.current())
 	writeMsg(st, response{
 		OK:      true,
 		Nonce:   nonce,
