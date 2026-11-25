@@ -293,7 +293,12 @@ type HostStats struct {
 	// AckMS is the smoothed time from sending a frame to its ack (round
 	// trip plus the viewer's decode), WindowMS how much video may be
 	// unacknowledged (see flow.go).
-	AckMS    float64 `json:"ack_ms,omitempty"`
+	AckMS float64 `json:"ack_ms,omitempty"`
+	// Paused says why the host cannot capture its screen right now (the
+	// session goes on and the picture resumes when it can; "" otherwise).
+	// On Windows: the secure desktop of a UAC prompt, the lock screen or
+	// Ctrl+Alt+Del, which only the unattended service can capture.
+	Paused   string  `json:"paused,omitempty"`
 	WindowMS float64 `json:"window_ms,omitempty"`
 }
 
