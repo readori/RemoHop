@@ -138,6 +138,10 @@ type Config struct {
 	// same target and the password typed for it (kept in memory), or with
 	// the saved pairing if the connect paired.
 	Redial RedialFunc
+	// FrameAncestor is the one origin allowed to show the page in a frame
+	// (the desktop app's own page, http://127.0.0.1:PORT; see embed.go).
+	// Empty: the page cannot be framed. Loopback only.
+	FrameAncestor string
 
 	// Seams for tests; the defaults use internal/dial.
 	Dial  DialFunc
@@ -219,6 +223,14 @@ func New(cfg Config) (*Server, error) {
 	}
 	if cfg.Persistent && cfg.PasswordFile != "" {
 		return nil, errors.New("web: persistent (app) mode is for a loopback gateway without a login")
+	}
+	if cfg.FrameAncestor != "" {
+		if !loop || cfg.PasswordFile != "" {
+			return nil, errors.New("web: a frame ancestor is for a loopback gateway without a login (the desktop app)")
+		}
+		if err := checkFrameAncestor(cfg.FrameAncestor); err != nil {
+			return nil, err
+		}
 	}
 	if cfg.APITokenFile != "" && cfg.PasswordFile == "" {
 		return nil, errors.New("--api-token-file needs --password-file: program access is for gateways that have a login")
@@ -438,7 +450,9 @@ func (s *Server) setHeaders(w http.ResponseWriter, r *http.Request) {
 	h.Set("Cache-Control", "no-store")
 	h.Set("Referrer-Policy", "no-referrer")
 	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("X-Frame-Options", "DENY")
+	if s.cfg.FrameAncestor == "" {
+		h.Set("X-Frame-Options", "DENY")
+	}
 	h.Set("Cross-Origin-Opener-Policy", "same-origin")
 	h.Set("Cross-Origin-Resource-Policy", "same-origin")
 	h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
@@ -448,7 +462,7 @@ func (s *Server) setHeaders(w http.ResponseWriter, r *http.Request) {
 		h.Set("Strict-Transport-Security", "max-age=31536000")
 	}
 	h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; "+
-		"connect-src 'self' "+ws+"; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		"connect-src 'self' "+ws+"; frame-ancestors "+s.frameAncestors()+"; base-uri 'none'; form-action 'none'")
 }
 
 // ServeHTTP checks the Host header, strips the loopback token prefix and

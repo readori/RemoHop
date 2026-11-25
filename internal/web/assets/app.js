@@ -203,6 +203,50 @@
   function store(k, v) { try { if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { /* private mode */ } }
   function load(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
 
+  // ---- embedded in the desktop app ----
+  // The desktop app (internal/desktop) shows each host in a tab of its own
+  // window: this page in an iframe, with ?embed=1&connect=TARGET&parent=
+  // ORIGIN. The page then serves that one host: no header or host
+  // switcher, it connects at once (or asks for the password), and tells
+  // the app how the session is doing. It takes orders from that one parent
+  // origin only: disconnect, and hand over the session id when the user
+  // pops the host out into a window (which loads the page with #sid=...).
+  const params = new URLSearchParams(location.search);
+  const embed = params.get('embed') === '1';
+  const embedTarget = (params.get('connect') || '').trim();
+  const parentOrigin = (() => { try { const o = new URL(params.get('parent') || ''); return o.protocol === 'http:' && (o.hostname === '127.0.0.1' || o.hostname === 'localhost') ? o.origin : ''; } catch (e) { return ''; } })();
+  if (/^#sid=[A-Za-z0-9_-]{16,64}$/.test(location.hash)) {
+    try { sessionStorage.setItem('sd.sid', location.hash.slice(5)); } catch (e) { /* storage blocked */ }
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  if (embed) document.documentElement.classList.add('embed');
+  const inFrame = embed && parentOrigin && window.parent !== window;
+  function tellParent(m) { if (inFrame) window.parent.postMessage(m, parentOrigin); }
+  let embedConn = null; // the key of the session this page serves
+  if (inFrame) {
+    window.addEventListener('message', async ev => {
+      if (ev.source !== window.parent || ev.origin !== parentOrigin || !ev.data || typeof ev.data !== 'object') return;
+      if (ev.data.type === 'remohop-disconnect' && embedConn) {
+        callTabs('hide');
+        try { await SD.api('POST', 'disconnect', {c: embedConn}); } catch (e) { /* gone */ }
+      } else if (ev.data.type === 'remohop-sid-request' && st.sid) {
+        tellParent({type: 'remohop-sid', sid: st.sid});
+      }
+    });
+  }
+  function embedFollow() {
+    if (!embed) return;
+    const c = st.conns.find(x => x.key === embedConn) || st.conns.find(x => x.target === embedTarget || x.key === embedTarget);
+    if (c) {
+      embedConn = c.key;
+      const saved = (st.peers || []).find(p => p.target === c.target && p.alias);
+      tellParent({type: 'remohop-session', state: c.state || 'connected', title: saved ? saved.alias : c.target});
+    } else if (embedConn) {
+      tellParent({type: 'remohop-closed'});
+      embedConn = null;
+    }
+  }
+
   function applySession(j) {
     st.csrf = j.csrf; st.mode = j.mode; st.version = j.version;
     if (j.sid) { st.sid = j.sid; store('sd.sid', j.sid); }
@@ -281,7 +325,17 @@
     // gateway (loopback); on a shared one (password mode) it stays a choice.
     if (st.mode !== 'password' && !pairDefaulted) { pairDefaulted = true; $('pair').checked = true; }
     refreshConns(st.conns);
-    if (st.conns.length) selectConn(st.conns[0].key); else showConnect();
+    if (embed) {
+      const c = st.conns.find(x => x.target === embedTarget || x.key === embedTarget);
+      if (c) selectConn(c.key);
+      else {
+        showConnect();
+        if (embedTarget) {
+          const p = (st.peers || []).find(q => q.target === embedTarget || q.alias === embedTarget);
+          if (p) pickPeer(p); else { $('target').value = embedTarget; $('hostpass').focus(); }
+        }
+      }
+    } else if (st.conns.length) selectConn(st.conns[0].key); else showConnect();
     // One heartbeat, however often the user logs in again or retries.
     if (!heartbeatTimer) heartbeatTimer = setInterval(heartbeat, 15000);
   }
@@ -420,11 +474,13 @@
       st.cur = null;
       callTabs('hide');
       banner('sess.ended', {target: old}, true);
+      if (embed) { embedFollow(); showConnect(); return; }
       if (st.conns.length) selectConn(st.conns[0].key); else showConnect();
       return;
     }
     if (st.cur) sel.value = st.cur;
     followState();
+    embedFollow();
   }
 
   // In the phone apps the gateway re-establishes a session that dropped:
@@ -562,6 +618,7 @@
         if (notices.length) banner('raw', {s: notices.join(' ')}, false);
         await loadPeers();
         $('peerrow').hidden = !(st.peers && st.peers.length);
+        if (embed) embedConn = j.conn.key;
         refreshConns((await SD.json('GET', 'connections')).conns);
         selectConn(j.conn.key);
         if (pairMsg) {

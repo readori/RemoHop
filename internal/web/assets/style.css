@@ -800,3 +800,8 @@ html.app.platform-android #sdm-bar { background: var(--app-page) !important; gap
 html.app.platform-android #sdm-bar button { height: 44px !important; border: 0 !important; border-radius: 12px !important;
   background: var(--app-item) !important; color: var(--md-on-surface) !important; }
 html.app.platform-android #sdm-bar button[aria-pressed=true] { background: var(--md-primary) !important; color: var(--md-on-primary) !important; }
+
+/* Embedded in the desktop app (app.js "embed"): the app's own tab bar names
+   the host, so the page drops its header and host switcher. */
+html.embed .top { display: none; }
+html.embed #hostbar, html.embed #newconn, html.embed #peerrow, html.embed footer { display: none !important; }
