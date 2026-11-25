@@ -178,15 +178,35 @@
         if (this.ctrl) this.setCtrl(false);
         if (seq !== null) { e.preventDefault(); this.send(seq); }
       });
+      // Touch keyboards (Gboard and most Android ones) compose every word,
+      // even in Latin scripts: waiting for the word to be committed would
+      // show nothing until space or Enter, and a Tab or arrow from the key
+      // bar would act on a line without the word. On a touch screen the
+      // composition is sent as it changes, as backspaces and new text (an
+      // autocorrection then erases and retypes). Desktop input methods
+      // (pinyin) keep committing whole words.
+      const live = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+      let composed = '';
+      const sendComposition = cur => {
+        const a = Array.from(composed), b = Array.from(cur);
+        let p = 0;
+        while (p < a.length && p < b.length && a[p] === b[p]) p++;
+        this.send('\x7f'.repeat(a.length - p) + b.slice(p).join(''));
+        composed = cur;
+      };
+      inp.addEventListener('compositionstart', () => { composed = ''; });
       inp.addEventListener('input', e => {
-        if (e.isComposing) return;
+        if (e.isComposing) { if (live) sendComposition(inp.value); return; }
         let v = inp.value; inp.value = '';
         if (!v) { if (e.inputType === 'deleteContentBackward') this.send('\x7f'); return; }
         if (e.inputType === 'insertLineBreak' || v === '\n') { this.send('\r'); return; }
         if (this.ctrl && v.length === 1) { const s = t.keySeq({key: v, ctrlKey: true}); this.setCtrl(false); if (s) { this.send(s); return; } }
         this.send(v);
       });
-      inp.addEventListener('compositionend', e => { inp.value = ''; if (e.data) this.send(e.data); });
+      inp.addEventListener('compositionend', e => {
+        inp.value = '';
+        if (live) { sendComposition(e.data || ''); composed = ''; } else if (e.data) this.send(e.data);
+      });
       inp.addEventListener('paste', e => {
         e.preventDefault();
         const text = (e.clipboardData || window.clipboardData).getData('text');
@@ -311,8 +331,11 @@
       const list = await loadSessions();
       if (list === null) return;
       if (view) view.fit(true);
-      // After a reconnection, the shell this tab had (the host kept it).
-      const pick = list.find(s => s.name === sessionName) || list.find(s => !s.attached) || list[0];
+      // After a reconnection, the shell this tab had (the host kept it);
+      // else one nobody is attached to. A shell another client is using is
+      // never taken over unasked: a new one starts (the list still offers
+      // the others).
+      const pick = list.find(s => s.name === sessionName) || list.find(s => !s.attached);
       open(pick ? pick.name : '', !pick);
     },
     hide() { closeWS(); status(null); },

@@ -559,6 +559,18 @@ async function gatewayTests(b) {
     i.value = 'echo remohop-$((5*9))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
     i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
   check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-45")'), 'terminal takes input events');
+  // A touch keyboard composing a word (Gboard does it for Latin words too):
+  // the word reaches the shell as it is typed, and an autocorrection at the
+  // end ("echp" -> "echo") is erased and retyped.
+  await p.eval(`(() => { const i = document.querySelector('#t-host textarea'); i.focus();
+    i.dispatchEvent(new CompositionEvent('compositionstart', {data: '', bubbles: true}));
+    for (const v of ['e', 'ec', 'ech', 'echp']) { i.value = v; i.dispatchEvent(new InputEvent('input', {inputType: 'insertCompositionText', data: v, isComposing: true, bubbles: true})); } })()`);
+  check(await p.waitFor('document.getElementById("t-host").textContent.includes("echp")', 5000), 'a composing word shows before it is committed');
+  await p.eval(`(() => { const i = document.querySelector('#t-host textarea');
+    i.value = 'echo'; i.dispatchEvent(new CompositionEvent('compositionend', {data: 'echo', bubbles: true}));
+    i.value = ' remohop-$((7*7))'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: i.value, bubbles: true}));
+    i.value = '\\n'; i.dispatchEvent(new InputEvent('input', {inputType: 'insertLineBreak', bubbles: true})); })()`);
+  check(await p.waitFor('document.getElementById("t-host").textContent.includes("remohop-49")'), 'the composed word, corrected, runs');
 
   // The connection to the host drops (the app was suspended, the network
   // changed): the gateway re-establishes it and the terminal re-attaches to
