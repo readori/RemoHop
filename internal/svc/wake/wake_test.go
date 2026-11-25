@@ -88,6 +88,12 @@ func TestSendLoopback(t *testing.T) {
 	if !bytes.Equal(buf[:n], Packet(mac)) {
 		t.Errorf("received % x", buf[:n])
 	}
+	// More than one: a single broadcast frame is easily lost.
+	for i := 1; i < sendRepeats; i++ {
+		if n, _, err := l.ReadFromUDP(buf); err != nil || !bytes.Equal(buf[:n], Packet(mac)) {
+			t.Fatalf("magic packet %d: %v", i+1, err)
+		}
+	}
 }
 
 func TestSendRejects(t *testing.T) {
