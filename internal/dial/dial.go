@@ -792,6 +792,12 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 	// differently.
 	if d.natType == "" || d.natType == nat.TypeUnknown {
 		d.natType = sc.NATType()
+		if d.natType == nat.TypeUnknown && !sc.Bridged() {
+			// Costs natGrace on every dial and the fast path between two
+			// symmetric NATs; usually a firewall in front of the server.
+			d.log.Debug("could not measure this network's NAT: the rendezvous server's NAT-probe port did not answer " +
+				"(its operator must open UDP on the port after the main one too, 21117 by default)")
+		}
 	}
 	natType := d.natType
 	intro, err := sc.Connect(sctx, t.id, sock.Candidates(), natType)
