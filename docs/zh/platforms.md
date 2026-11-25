@@ -29,6 +29,6 @@ Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测�
 - **shell 会话**在客户端断开后会保留一段时间。被控端重启后会话不会保留。
 - **打包与发布。** `packaging/` 中有 nfpm 配置（.deb、.rpm、.apk）、安装脚本、systemd 单元、launchd 模板、汇合服务器的 Dockerfile，以及 Homebrew、Scoop、winget、AUR 和 Nix 的模板。发布版本由推送 `v*` 标签触发的发布工作流发布到 GitHub Releases；macOS 二进制和 `RemoHop.app` 已签名并经过公证，Windows 二进制未签名。让被控端开机自启的受支持方式是 `remohop service install`。
 - **尚未实现：** 把移动设备（Android 或 iOS）作为被控机。
-- **未在真实硬件上测试：** 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器、设备上的 iOS 应用（它在 CI 的模拟器中运行）、Android 应用（没有真机测试）。
+- **未在真实硬件上测试：** 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器。手机应用每次改动都在 CI 中测试（iOS 应用在模拟器中，Android 应用在模拟器上），两者都即将上架 App Store 和 Google Play。
 - **账号**由汇合服务器托管，需要运营者开启；服务器可以对设备隐瞒最新的日志条目，见 [security.md](../security.md#accounts)。
 - **许可证：** AGPL-3.0，另提供商业授权，见[许可证](../../README.zh-CN.md#许可证)。
