@@ -62,6 +62,23 @@ const (
 	// startupGrace is how long after the session starts congestion does
 	// not lower the bitrate or frame rate.
 	startupGrace = 3 * time.Second
+	// The frame rate is fitted to what capture and encoder sustain: a
+	// pipeline that cannot keep up with its source does not drop frames,
+	// it queues them (ffmpeg 7 keeps up to eight frames before each of its
+	// decoder, filter and encoder threads), and every queued frame is
+	// latency. Measured on a 4-core box, libx264 at 1080p kept up with 47
+	// of 60 fps and frames arrived 84 ms after capture; asked for 40 fps,
+	// 17 ms. A pipeline whose frames come slower than asked (below
+	// fitSlowRatio of the rate) and late (fitLate frame periods plus
+	// fitLateMS) for fitHold, starting fitAfter after an encoder start, is
+	// given a rate just under what it delivered; the rate is not raised
+	// above that again for fitCeilingLife.
+	fitAfter       = 3 * time.Second
+	fitHold        = 2 * time.Second
+	fitSlowRatio   = 0.92
+	fitLate        = 2.5
+	fitLateMS      = 20
+	fitCeilingLife = 2 * time.Minute
 	// firstFrameTimeout is how long a freshly started encoder may take to
 	// deliver anything. A capture device or encoder that starts but never
 	// produces a frame would otherwise leave the viewer waiting forever
@@ -318,6 +335,18 @@ type hostSession struct {
 	// (captureSpec.gpu); noGPU: that chain failed in this session.
 	gpuChain, noGPU bool
 
+	// Throughput of the current encoder over the current second (see
+	// fitAfter): frames, and the sum and count of capture-to-encoded
+	// delays in milliseconds.
+	encWinStart  time.Time
+	encWinFrames int
+	encWinPipe   float64
+	encWinPipeN  int
+	slowSince    time.Time
+	fpsCeil      int // highest rate the pipeline sustained, 0 if unknown
+	fpsCeilAt    time.Time
+	limitWarn    string // why the rate is below the one asked for
+
 	// stats
 	sentFrames  int
 	sentBytes   int64
@@ -569,6 +598,7 @@ func (h *hostSession) startEncoder() error {
 	h.proc = p
 	h.lastRestart = time.Now()
 	h.restartAt = time.Time{}
+	h.encWinStart, h.encWinFrames, h.encWinPipe, h.encWinPipeN, h.slowSince = h.lastRestart, 0, 0, 0, time.Time{}
 	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast)
 	go h.readEncoder(p, stdout)
 	return nil
@@ -725,6 +755,7 @@ func (h *hostSession) run() error {
 				}
 				h.restarts++
 			}
+			h.fitRate(now)
 			h.adapt(now)
 			if now.Sub(h.lastStatsAt) >= statsEvery {
 				h.sendStats(now)
@@ -804,6 +835,7 @@ func (h *hostSession) onFrame(f encFrame) {
 	if key {
 		h.lastKey = f.readAt
 	}
+	h.encWinFrames++
 	capture := int64(0)
 	// Wall-clock capture timestamps (x11grab, or frames stamped on arrival
 	// from a shared capture, which are rounded to the frame period and so
@@ -812,6 +844,8 @@ func (h *hostSession) onFrame(f encFrame) {
 		d = max(d, 0)
 		capture = f.readAt.UnixMicro() - d
 		ms := float64(d) / 1000
+		h.encWinPipe += ms
+		h.encWinPipeN++
 		if h.pipelineEW == 0 {
 			h.pipelineEW = ms
 		} else {
@@ -873,13 +907,22 @@ func (h *hostSession) sendHello() bool {
 	hello := Hello{
 		FPS: h.fps, Bitrate: h.bitrate, Encoder: h.enc.name, Hardware: h.enc.hw,
 		ScreenWidth: h.spec.width, ScreenHeight: h.spec.height,
-		Input: input, InputError: inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning),
+		Input: input, InputError: inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning, h.limitWarn),
 		Display: h.opts.Display, Displays: h.spec.displays, AllDisplays: h.spec.all,
 		Unsupported: unsupportedControls(inErr),
 		Generation:  h.gen,
 	}
 	if h.enc.codec == codecH264 {
-		hello.Width, hello.Height, hello.Codec, hello.CodecConfig = h.avc.Width, h.avc.Height, h.avc.Codec(), h.avcC
+		// Some encoders (Quick Sync among them) label 1440p60 with level
+		// 4.2, which a decoder's support check (WebCodecs
+		// isConfigSupported) reads as 1080p at most. The level in the
+		// codec string is what that check sees; decoding goes by the
+		// stream itself, so it is raised to what the size and rate need.
+		info := *h.avc
+		if need := h264LevelFor(info.Width, info.Height, h.fps); need > info.Level {
+			info.Level = need
+		}
+		hello.Width, hello.Height, hello.Codec, hello.CodecConfig = info.Width, info.Height, info.Codec(), h.avcC
 	} else {
 		si, err := parseSequenceHeaderOBU(h.seqHdr)
 		if err != nil {
@@ -941,8 +984,17 @@ func (h *hostSession) adapt(now time.Time) {
 	}
 	changed := false
 	if h.fps < h.opts.FPS {
-		h.fps = min(h.opts.FPS, h.fps*3/2)
-		changed = true
+		up := min(h.opts.FPS, h.fps*3/2)
+		if h.fpsCeil > 0 && now.Sub(h.fpsCeilAt) < fitCeilingLife {
+			up = min(up, h.fpsCeil)
+		}
+		if up > h.fps {
+			h.fps = up
+			changed = true
+		}
+		if h.fps >= h.opts.FPS {
+			h.limitWarn = ""
+		}
 	}
 	if target := h.targetBitrate(); h.opts.Bitrate == 0 && h.bitrate < target {
 		h.bitrate = min(target, int64(float64(h.bitrate)*recoverFactor))
@@ -951,6 +1003,55 @@ func (h *hostSession) adapt(now time.Time) {
 	if changed {
 		h.scheduleRestart(now)
 	}
+}
+
+// fitRate runs periodically: once a second it looks at how many frames the
+// encoder delivered and how late, and lowers the frame rate to what the
+// pipeline sustains when it falls behind its source (see fitAfter).
+func (h *hostSession) fitRate(now time.Time) {
+	dt := now.Sub(h.encWinStart)
+	if dt < time.Second {
+		return
+	}
+	rate := float64(h.encWinFrames) / dt.Seconds()
+	late := 0.0
+	if h.encWinPipeN > 0 {
+		late = h.encWinPipe / float64(h.encWinPipeN)
+	}
+	h.encWinStart, h.encWinFrames, h.encWinPipe, h.encWinPipeN = now, 0, 0, 0
+	period := 1000 / float64(h.fps)
+	behind := h.restartAt.IsZero() && now.Sub(h.lastRestart) >= fitAfter &&
+		rate < fitSlowRatio*float64(h.fps) && late > fitLate*period+fitLateMS
+	if !behind {
+		h.slowSince = time.Time{}
+		return
+	}
+	if h.slowSince.IsZero() {
+		h.slowSince = now
+		return
+	}
+	if now.Sub(h.slowSince) < fitHold {
+		return
+	}
+	h.slowSince = time.Time{}
+	fps := max(minAdaptFPS, int(rate*0.9))
+	if fps >= h.fps {
+		return
+	}
+	slog.Debug("desktop: pipeline falls behind its source; lowering the frame rate", "delivered_fps", rate, "late_ms", late, "fps", fps)
+	h.fps, h.fpsCeil, h.fpsCeilAt = fps, fps, now
+	h.limitWarn = fmt.Sprintf("the host's capture and encoder keep up with about %.0f fps at %s, so it streams %d fps: more would only queue frames and add latency",
+		rate, h.sizeText(), fps)
+	if h.opts.Bitrate == 0 {
+		h.bitrate = min(h.bitrate, h.targetBitrate())
+	}
+	h.scheduleRestart(now)
+}
+
+// sizeText is the output size, for messages.
+func (h *hostSession) sizeText() string {
+	k := h.scaleFactor()
+	return fmt.Sprintf("%dx%d", int(float64(h.spec.width)*k)&^1, int(float64(h.spec.height)*k)&^1)
 }
 
 // requestKeyframe gets a key frame out soon: from the encoder's own schedule
@@ -1083,6 +1184,7 @@ func (h *hostSession) onControl(c Control) {
 		h.reply(c, nil)
 		h.opts = next
 		h.fps = next.FPS
+		h.fpsCeil, h.limitWarn = 0, ""
 		h.bitrate = h.targetBitrate()
 		h.scheduleRestart(now)
 	}

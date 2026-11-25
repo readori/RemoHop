@@ -147,6 +147,29 @@ func (a AVCInfo) Codec() string {
 	return fmt.Sprintf("avc1.%02x%02x%02x", a.Profile, a.Compat, a.Level)
 }
 
+// h264Levels are H.264's levels (Table A-1) with the largest macroblock
+// rate and frame size of each.
+var h264Levels = []struct {
+	idc       byte
+	mbps, mfs int
+}{
+	{31, 108000, 3600}, {32, 216000, 5120}, {40, 245760, 8192}, {42, 522240, 8704},
+	{50, 589824, 22080}, {51, 983040, 36864}, {52, 2073600, 36864},
+	{60, 4177920, 139264}, {61, 8355840, 139264}, {62, 16711680, 139264},
+}
+
+// h264LevelFor is the lowest level whose limits admit w x h at fps
+// (0 when even the highest does not).
+func h264LevelFor(w, h, fps int) byte {
+	fs := ((w + 15) / 16) * ((h + 15) / 16)
+	for _, l := range h264Levels {
+		if fs <= l.mfs && fs*fps <= l.mbps {
+			return l.idc
+		}
+	}
+	return 0
+}
+
 // parseAVCC reads an AVCDecoderConfigurationRecord (ISO 14496-15 5.2.4.1)
 // and the picture size from its first SPS.
 func parseAVCC(b []byte) (AVCInfo, error) {

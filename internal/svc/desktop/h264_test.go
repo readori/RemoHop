@@ -127,3 +127,17 @@ func TestFLVTime(t *testing.T) {
 		t.Error("took a timestamp from the future for wall clock")
 	}
 }
+
+func TestH264LevelFor(t *testing.T) {
+	for _, c := range []struct {
+		w, h, fps int
+		want      byte
+	}{
+		{1280, 720, 30, 31}, {1920, 1080, 30, 40}, {1920, 1080, 60, 42}, {2560, 1440, 30, 50},
+		{2560, 1440, 60, 51}, {3840, 2160, 30, 51}, {3840, 2160, 60, 52}, {7680, 4320, 60, 61},
+	} {
+		if got := h264LevelFor(c.w, c.h, c.fps); got != c.want {
+			t.Errorf("%dx%d@%d: level %d, want %d", c.w, c.h, c.fps, got, c.want)
+		}
+	}
+}
