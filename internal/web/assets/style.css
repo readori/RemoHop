@@ -278,10 +278,12 @@ dialog h2 { margin-top: 0; }
    keeps the site's cobalt design.
 
    One markup, two native idioms, from role tokens:
-   - Android: Material 3 (the cobalt-seeded scheme the native Settings use
-     when there is no dynamic colour): small top app bar, primary tabs,
-     outlined text fields, filled/tonal buttons, M3 switch, list items on
-     the surface with dividers (no cards), dialogs and bottom sheets.
+   - Android: Material 3 (the app's roles: dynamic colour from the
+     wallpaper, or the cobalt-seeded scheme the native Settings use without
+     it): small top app bar, primary tabs, outlined text fields in a card,
+     filled/tonal buttons with icons, M3 switch, grouped list items like the
+     native Settings (see "Android: Material 3" at the end), dialogs and
+     bottom sheets.
    - iOS: Apple HIG system colours with the cobalt tint: navigation bar,
      segmented control, inset grouped lists, bordered buttons, iOS switch,
      alerts and sheets.
@@ -661,3 +663,138 @@ html.app .banner.bad::before { content: ""; flex: none; width: 20px; height: 20p
 html.app #gwretry { flex: none; margin-left: auto; min-height: var(--app-target); padding: 0 12px; border: 0; border-radius: var(--app-btn-radius);
   background: transparent; color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 html.app.platform-android #gwretry { text-decoration: none; font-size: 14px; font-weight: 500; }
+
+/* ==== Android: Material 3, grouped like the native Settings ============
+   The page sits on surfaceContainer (surface in the dark scheme) with its
+   groups in brighter items: 24px outer corners, 4px between items, 2px
+   apart; leading icons in tonal circles; the connect form in a card;
+   tonal toolbar buttons with icons; a one-line notice bar. The roles come
+   from the app (Material You, see remohop-mobile.js appTheme) or the
+   cobalt scheme above. iOS keeps its own rules. */
+html.app.platform-android {
+  --md-surface-bright: #fbf8ff; --md-tertiary-container: #ffd7f5; --md-on-tertiary-container: #2c1229;
+  --md-inverse-surface: #2f3036; --md-inverse-on-surface: #f2f0f7;
+  --app-page: var(--md-surface-container); --app-item: var(--md-surface-bright);
+  --bg: var(--app-page); --app-bar-bg: var(--app-page);
+  --app-group-bg: var(--app-item); --app-group-radius: 24px;
+  --app-item-radius: 4px; --app-card-radius: 28px;
+  --i-key: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='7.5' cy='15.5' r='4.5'/%3E%3Cpath d='M10.7 12.3L21 2M17 6l3 3M15 8l2 2'/%3E%3C/svg%3E");
+  --i-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E");
+  --i-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+  --i-refresh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-2.64-6.36L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E");
+  --i-folderplus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z'/%3E%3Cpath d='M12 10v6M9 13h6'/%3E%3C/svg%3E");
+  --i-upload: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M17 8l-5-5-5 5M12 3v12'/%3E%3C/svg%3E");
+  --i-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M7 10l5 5 5-5M12 15V3'/%3E%3C/svg%3E");
+  --i-fit: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2'/%3E%3Crect x='7' y='8' width='10' height='8' rx='1'/%3E%3C/svg%3E");
+  --i-expand: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7'/%3E%3C/svg%3E");
+  --i-copy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+  --i-paste: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='2' width='8' height='4' rx='1'/%3E%3Cpath d='M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2'/%3E%3C/svg%3E");
+  --i-plus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
+  --i-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 2L11 13M22 2l-7 20-4-9-9-4z'/%3E%3C/svg%3E");
+  --i-camera: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z'/%3E%3Ccircle cx='12' cy='13' r='3'/%3E%3C/svg%3E");
+  --i-chart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='M7 16v-5M12 16V7M17 16v-8'/%3E%3C/svg%3E");
+  --i-keyboard: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='5' width='20' height='14' rx='2'/%3E%3Cpath d='M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M8 16h8'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  html.app.platform-android {
+    --md-surface-bright: #38393f; --md-tertiary-container: #5b3d57; --md-on-tertiary-container: #ffd7f5;
+    --md-inverse-surface: #e3e1e9; --md-inverse-on-surface: #2f3036;
+    --app-page: var(--md-surface); --app-item: var(--md-surface-container-high);
+  }
+}
+html.app.platform-android body { background: var(--app-page); }
+html.app.platform-android .top, html.app.platform-android.insession .top { background: var(--app-page); }
+
+/* Grouped list items (saved hosts, open sessions, files). */
+html.app.platform-android .peerlist, html.app.platform-android table.files tbody { display: grid; gap: 2px; background: transparent; border-radius: 0; overflow: visible; }
+html.app.platform-android table.files { background: transparent; border-radius: 0; overflow: visible; }
+html.app.platform-android .peerlist > li, html.app.platform-android table.files tr { background: var(--app-item); border-radius: var(--app-item-radius); overflow: hidden; }
+html.app.platform-android .peerlist > li:first-child, html.app.platform-android table.files tr:first-child { border-top-left-radius: var(--app-group-radius); border-top-right-radius: var(--app-group-radius); }
+html.app.platform-android .peerlist > li:last-child, html.app.platform-android table.files tr:last-child { border-bottom-left-radius: var(--app-group-radius); border-bottom-right-radius: var(--app-group-radius); }
+html.app.platform-android .peerlist li + li::before, html.app.platform-android table.files tr + tr::before { display: none; }
+html.app.platform-android .peers h3 { margin: 0 16px 8px; font-size: 14px; font-weight: 500; letter-spacing: .01em; color: var(--md-primary); } /* titleSmall */
+html.app.platform-android .peer { padding: 12px 8px 12px 16px; min-height: 72px; }
+html.app.platform-android .peer:active, html.app.platform-android table.files tr:active { background: color-mix(in srgb, var(--md-on-surface) 10%, transparent); }
+html.app.platform-android .peericon { width: 40px; height: 40px; flex: none; }
+html.app.platform-android #peercards-recent .peericon { background: var(--md-surface-container-highest); }
+html.app.platform-android #peercards-recent .peericon::after { background: var(--md-on-surface-variant); }
+html.app.platform-android .peertext strong { font-size: 16px; font-weight: 400; } /* bodyLarge */
+html.app.platform-android .peertext small, html.app.platform-android .peer.live .peertext small { font-family: inherit; font-size: 14px; }
+html.app.platform-android .peermore { margin-right: 8px; }
+
+/* Connect: the form in a card, the host list under it. */
+html.app.platform-android #connectform { margin-top: 16px; padding: 4px 20px 20px; background: var(--app-item); border-radius: var(--app-card-radius); }
+html.app.platform-android #connectform > label:not(.check) { margin-top: 16px; }
+html.app.platform-android #pairrow { margin-top: 12px; }
+html.app.platform-android .formbuttons { margin-top: 20px; }
+html.app.platform-android .formbuttons button.primary { box-shadow: none; }
+html.app.platform-android #sdm-active { margin: 20px 0 4px; }
+html.app.platform-android .peers { margin-top: 24px; }
+
+/* The notice bar: one line (two at most), its icon, and a close mark; a tap closes it. */
+html.app.platform-android #banner:not(.bad):not([hidden]) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  position: relative; margin: 8px 12px 0; padding: 10px 44px 10px 44px; min-height: 0; border-radius: 16px; font-size: 14px; line-height: 20px;
+  background: var(--md-secondary-container); color: var(--md-on-secondary-container); cursor: pointer; }
+html.app.platform-android #banner:not(.bad):not([hidden])::before { content: ""; position: absolute; left: 14px; top: 10px; width: 20px; height: 20px;
+  border: 0; border-radius: 0; animation: none; background: currentColor; -webkit-mask: var(--i-info) center / contain no-repeat; mask: var(--i-info) center / contain no-repeat; }
+html.app.platform-android #banner[data-i18n="sess.firstkey"]::before, html.app.platform-android #banner[data-i18n="pair2"]::before { -webkit-mask-image: var(--i-key); mask-image: var(--i-key); }
+html.app.platform-android #banner:not(.bad):not([hidden])::after { content: ""; position: absolute; right: 14px; top: 11px; width: 18px; height: 18px; background: currentColor; opacity: .8;
+  -webkit-mask: var(--i-x) center / contain no-repeat; mask: var(--i-x) center / contain no-repeat; }
+html.app.platform-android #banner[data-i18n="sess.reconnecting"]:not([hidden])::before, html.app.platform-android #banner[data-i18n="sess.reapproval"]:not([hidden])::before {
+  width: 14px; height: 14px; top: 12px; left: 16px; background: none; -webkit-mask: none; mask: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: sdm-spin .8s linear infinite; }
+html.app.platform-android .banner.bad { margin: 8px 12px 0; border-radius: 16px; }
+
+/* Session: tabs on the page colour, more room for the desktop. */
+html.app.platform-android .tabs { background: var(--app-page); margin-bottom: 8px; }
+html.app.platform-android .tabs button[aria-selected=true]::after { left: 22%; right: 22%; }
+html.app.platform-android .stage, html.app.platform-android .termhost { border-radius: 16px; }
+html.app.platform-android .keyrow button { background: var(--app-item); border-radius: 12px; }
+
+/* Toolbars: filled tonal buttons with a leading icon; a selected toggle shows a check. */
+html.app.platform-android .toolbar button, html.app.platform-android .toolbar select, html.app.platform-android .toolbar label.check { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+html.app.platform-android .toolbar button:is(#d-fit, #d-fs, #d-key, #d-reconnect, #d-cad, #d-stats, #t-new, #t-kill, #t-copy, #t-paste, #f-refresh, #f-mkdir, #f-upload, #c-fetch, #c-copy, #c-paste, #c-send, #i-refresh, #i-shot) { display: inline-flex; align-items: center; gap: 8px; padding: 0 16px 0 12px; }
+html.app.platform-android .toolbar button:is(#d-fit, #d-fs, #d-key, #d-reconnect, #d-cad, #d-stats, #t-new, #t-kill, #t-copy, #t-paste, #f-refresh, #f-mkdir, #f-upload, #c-fetch, #c-copy, #c-paste, #c-send, #i-refresh, #i-shot)::before { content: ""; flex: none; width: 18px; height: 18px; background: currentColor;
+  -webkit-mask: var(--ic) center / contain no-repeat; mask: var(--ic) center / contain no-repeat; }
+html.app.platform-android .toolbar button[aria-pressed=true]::before { content: ""; --ic: var(--i-check); }
+html.app.platform-android .toolbar button[aria-pressed=true]:not(:is(#d-fit, #d-fs, #d-key, #d-reconnect, #d-cad, #d-stats, #t-new, #t-kill, #t-copy, #t-paste, #f-refresh, #f-mkdir, #f-upload, #c-fetch, #c-copy, #c-paste, #c-send, #i-refresh, #i-shot)) { display: inline-flex; align-items: center; gap: 8px; padding: 0 16px 0 12px; }
+html.app.platform-android .toolbar button[aria-pressed=true]:not(:is(#d-fit, #d-fs, #d-key, #d-reconnect, #d-cad, #d-stats, #t-new, #t-kill, #t-copy, #t-paste, #f-refresh, #f-mkdir, #f-upload, #c-fetch, #c-copy, #c-paste, #c-send, #i-refresh, #i-shot))::before { flex: none; width: 18px; height: 18px; background: currentColor;
+  -webkit-mask: var(--i-check) center / contain no-repeat; mask: var(--i-check) center / contain no-repeat; }
+html.app.platform-android .toolbar button[aria-pressed=true] { background: var(--md-primary); color: var(--md-on-primary); }
+html.app.platform-android #d-cad, html.app.platform-android #t-kill { background: var(--md-error-container); color: var(--md-on-error-container); }
+html.app.platform-android #d-fit { --ic: var(--i-fit); } html.app.platform-android #d-fs { --ic: var(--i-expand); }
+html.app.platform-android #d-key, html.app.platform-android #d-reconnect, html.app.platform-android #f-refresh, html.app.platform-android #i-refresh { --ic: var(--i-refresh); }
+html.app.platform-android #d-cad { --ic: var(--i-keyboard); } html.app.platform-android #d-stats { --ic: var(--i-chart); }
+html.app.platform-android #t-new { --ic: var(--i-plus); } html.app.platform-android #t-kill { --ic: var(--i-x); }
+html.app.platform-android #t-copy, html.app.platform-android #c-copy { --ic: var(--i-copy); }
+html.app.platform-android #t-paste, html.app.platform-android #c-paste { --ic: var(--i-paste); }
+html.app.platform-android #f-mkdir { --ic: var(--i-folderplus); } html.app.platform-android #f-upload { --ic: var(--i-upload); }
+html.app.platform-android #c-fetch { --ic: var(--i-download); } html.app.platform-android #c-send { --ic: var(--i-send); }
+html.app.platform-android #i-shot { --ic: var(--i-camera); }
+html.app.platform-android .toolbar button.primary { background: var(--md-primary); color: var(--md-on-primary); }
+
+/* Files: the path field and buttons, then the list with tonal icons. */
+html.app.platform-android #panel-files .toolbar { margin-bottom: 12px; }
+html.app.platform-android #f-path { background: var(--app-item); border-color: transparent; border-radius: 20px; }
+html.app.platform-android #f-path:focus { border-color: var(--md-primary); }
+html.app.platform-android #f-refresh, html.app.platform-android #f-mkdir, html.app.platform-android #f-upload { justify-content: center; padding: 0 8px; }
+html.app.platform-android table.files tr { min-height: 64px; padding: 0 4px 0 12px; }
+html.app.platform-android table.files td.name { position: relative; }
+html.app.platform-android table.files td.name::before { width: 40px; height: 40px; border-radius: 50%; background: var(--md-surface-container-highest); -webkit-mask: none; mask: none; }
+html.app.platform-android table.files td.name.dir::before { background: var(--md-primary-container); -webkit-mask: none; mask: none; }
+html.app.platform-android table.files td.name::after { content: ""; position: absolute; left: 10px; top: 50%; width: 20px; height: 20px; margin-top: -10px;
+  background: var(--md-on-surface-variant); -webkit-mask: var(--i-file) center / contain no-repeat; mask: var(--i-file) center / contain no-repeat; pointer-events: none; }
+html.app.platform-android table.files td.name.dir::after { background: var(--md-on-primary-container); -webkit-mask-image: var(--i-folder); mask-image: var(--i-folder); }
+html.app.platform-android #f-empty { margin: 8px 0; padding: 32px 16px; background: var(--app-item); border-radius: var(--app-group-radius); }
+
+/* Clipboard and info: cards. */
+html.app.platform-android #panel-clipboard .card, html.app.platform-android #panel-info .card { padding: 16px; background: var(--app-item); border-radius: var(--app-group-radius); }
+html.app.platform-android #panel-clipboard h2 { margin-left: 0; color: var(--md-primary); }
+html.app.platform-android #panel-clipboard .toolbar, html.app.platform-android #panel-info .toolbar { gap: 8px; }
+html.app.platform-android dl.info { padding: 0; background: transparent; }
+html.app.platform-android dl.info dt, html.app.platform-android dl.info dd { border-top-color: var(--md-outline-variant); }
+html.app.platform-android .peerlist + h3 { margin-top: 24px; }
+/* The desktop's key bar (remohop-mobile.js) in the same roles as the terminal's keys. */
+html.app.platform-android #sdm-bar { background: var(--app-page) !important; gap: 6px !important; }
+html.app.platform-android #sdm-bar button { height: 44px !important; border: 0 !important; border-radius: 12px !important;
+  background: var(--app-item) !important; color: var(--md-on-surface) !important; }
+html.app.platform-android #sdm-bar button[aria-pressed=true] { background: var(--md-primary) !important; color: var(--md-on-primary) !important; }

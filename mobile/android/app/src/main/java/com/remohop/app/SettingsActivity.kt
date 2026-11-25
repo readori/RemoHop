@@ -20,9 +20,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.NestedScrollView
 import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.appbar.CollapsingToolbarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomsheet.BottomSheetDialog
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -36,10 +36,12 @@ import java.util.concurrent.Executors
 import com.google.android.material.R as M
 
 /**
- * Native settings in Material 3 (Material Components): a small top app bar
- * that lifts on scroll, list items grouped by task under subheaders with
- * dividers, M3 switches, outlined text fields, dialogs, bottom sheets and
- * snackbars; dynamic colour on Android 12+ and the cobalt scheme otherwise.
+ * Native settings in Material 3 (Material Components): a large top app bar
+ * that collapses on scroll (medium on the pages under it), list items in
+ * rounded groups by task under subheaders (see [SettingsUi]), a status card
+ * for the rendezvous server, M3 switches, outlined text fields, filled and
+ * tonal buttons, dialogs, bottom sheets and snackbars; dynamic colour on
+ * Android 12+ and the cobalt scheme otherwise, light and dark.
  *
  * No paragraphs on the screens: each page's explanation is a bottom sheet
  * behind the ⓘ in its app bar. Fields save themselves when they are left
@@ -55,6 +57,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var root: CoordinatorLayout
     private lateinit var bar: AppBarLayout
     private lateinit var toolbar: MaterialToolbar
+    private lateinit var collapsing: CollapsingToolbarLayout
     private var content: View? = null
     private val stack = ArrayList<String>()
     private var info: Pair<String, List<Pair<String, String>>>? = null
@@ -88,11 +91,26 @@ class SettingsActivity : AppCompatActivity() {
             isAppearanceLightStatusBars = !night
             isAppearanceLightNavigationBars = !night
         }
-        root = CoordinatorLayout(this)
+        root = CoordinatorLayout(this).apply { setBackgroundColor(ui.pageColor) }
+        // A large top app bar on the page colour; collapsed, it takes the
+        // surfaceContainerHigh role (the scrim) instead of a shadow.
         bar = AppBarLayout(this).apply {
             fitsSystemWindows = true
-            isLiftOnScroll = true
-            statusBarForeground = com.google.android.material.shape.MaterialShapeDrawable.createWithElevationOverlay(this@SettingsActivity)
+            isLiftOnScroll = false
+            setBackgroundColor(ui.pageColor)
+            stateListAnimator = null
+            elevation = 0f
+        }
+        collapsing = CollapsingToolbarLayout(this, null, M.attr.collapsingToolbarLayoutLargeStyle).apply {
+            fitsSystemWindows = true
+            setContentScrimColor(ui.color(M.attr.colorSurfaceContainerHigh))
+            setStatusBarScrimColor(ui.color(M.attr.colorSurfaceContainerHigh))
+            setExpandedTitleColor(ui.color(M.attr.colorOnSurface))
+            setCollapsedTitleTextColor(ui.color(M.attr.colorOnSurface))
+            expandedTitleMarginStart = ui.dp(16)
+            expandedTitleMarginEnd = ui.dp(16)
+            setExpandedTitleTextAppearance(ui.textAppearance(M.attr.textAppearanceHeadlineMedium))
+            setCollapsedTitleTextAppearance(ui.textAppearance(M.attr.textAppearanceTitleLarge))
         }
         toolbar = MaterialToolbar(this).apply {
             setNavigationIcon(R.drawable.ic_arrow_back)
@@ -106,7 +124,13 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
         }
-        bar.addView(toolbar, AppBarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        collapsing.addView(toolbar, CollapsingToolbarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, actionBarSize()).apply {
+            collapseMode = CollapsingToolbarLayout.LayoutParams.COLLAPSE_MODE_PIN
+        })
+        bar.addView(collapsing, AppBarLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ui.dp(152)).apply {
+            scrollFlags = AppBarLayout.LayoutParams.SCROLL_FLAG_SCROLL or AppBarLayout.LayoutParams.SCROLL_FLAG_EXIT_UNTIL_COLLAPSED or
+                AppBarLayout.LayoutParams.SCROLL_FLAG_SNAP
+        })
         root.addView(bar, CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         setContentView(root)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -188,6 +212,12 @@ class SettingsActivity : AppCompatActivity() {
         d.show()
     }
 
+    private fun actionBarSize(): Int {
+        val tv = android.util.TypedValue()
+        return if (theme.resolveAttribute(android.R.attr.actionBarSize, tv, true))
+            android.util.TypedValue.complexToDimensionPixelSize(tv.data, resources.displayMetrics) else ui.dp(64)
+    }
+
     private fun resolve(attr: Int): Int {
         val tv = android.util.TypedValue()
         theme.resolveAttribute(attr, tv, true)
@@ -214,8 +244,13 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(scroll, CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
             behavior = AppBarLayout.ScrollingViewBehavior()
         })
-        bar.isLifted = false
-        bar.liftOnScrollTargetViewId = View.generateViewId().also { scroll.id = it }
+        scroll.id = View.generateViewId()
+        // Large on the main page, medium on the ones under it; expanded on arrival.
+        val h = ui.dp(if (stack.isEmpty()) 152 else 112)
+        (collapsing.layoutParams as AppBarLayout.LayoutParams).let { if (it.height != h) { it.height = h; collapsing.layoutParams = it } }
+        collapsing.setExpandedTitleTextAppearance(ui.textAppearance(if (stack.isEmpty()) M.attr.textAppearanceHeadlineMedium else M.attr.textAppearanceHeadlineSmall))
+        collapsing.expandedTitleMarginBottom = ui.dp(if (stack.isEmpty()) 28 else 20)
+        bar.setExpanded(true, false)
         ViewCompat.setOnApplyWindowInsetsListener(scroll) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
             v.setPadding(bars.left, 0, bars.right, bars.bottom)
@@ -237,7 +272,8 @@ class SettingsActivity : AppCompatActivity() {
         for (i in 0 until menu.size()) menu.getItem(i).icon?.setTint(tint)
     }
 
-    private fun pageTitle(id: Int) { toolbar.title = getString(id); title = toolbar.title }
+    private fun pageTitle(id: Int) = pageTitle(getString(id))
+    private fun pageTitle(s: CharSequence) { collapsing.title = s; title = s }
 
     private fun snack(text: CharSequence) = Snackbar.make(root, text, Snackbar.LENGTH_SHORT).show()
     private fun snack(id: Int) = snack(getString(id))
@@ -246,27 +282,50 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun main(col: LinearLayout) {
         pageTitle(R.string.settings)
-        var c = ui.section(col, getString(R.string.sec_connection))
-        ui.row(c, getString(R.string.rendezvous_heading), summary = rendezvousSummary(), icon = R.drawable.ic_s_network, chevron = true) { open(PAGE_RENDEZVOUS) }
-        c = ui.section(col, getString(R.string.device_heading))
+        // The connection's status card: the rendezvous server and whether it
+        // answers, with "Set up" while there is none.
+        val set = signal.isNotEmpty()
+        val hero = ui.hero(col, R.drawable.ic_s_network, getString(R.string.rendezvous_heading),
+            if (set) signal else getString(R.string.not_set),
+            if (set) heroStatus() else null, heroTone(),
+            if (set) null else getString(R.string.set_up), if (set) null else getString(R.string.rv_card_unset)) { open(PAGE_RENDEZVOUS) }
+        hero.view.contentDescription = listOf(getString(R.string.rendezvous_heading), hero.value.text, hero.status.text,
+            if (set) "" else getString(R.string.rv_card_unset)).filter { it.isNotEmpty() }.joinToString(", ")
+        if (set && rendezvousStatus == null && RendezvousCheck.AVAILABLE && !checkingMain) {
+            checkingMain = true
+            bg.execute {
+                val r = RendezvousCheck.check()
+                ui {
+                    checkingMain = false
+                    rendezvousStatus = r?.status ?: RendezvousStatus.of("error")
+                    r?.key?.let { rendezvousKey = it }
+                    if (stack.isEmpty()) show()
+                }
+            }
+        }
+        var c = ui.section(col, getString(R.string.device_heading), SettingsUi.Tone.SECONDARY)
         ui.row(c, getString(R.string.device_name), summary = name.ifEmpty { Diag.device() }, icon = R.drawable.ic_s_device, chevron = true) { open(PAGE_NAME) }
         ui.row(c, getString(R.string.identity_heading), summary = AppInfo.shortFingerprint(fingerprint), icon = R.drawable.ic_s_key, chevron = true) { open(PAGE_IDENTITY) }
-        c = ui.section(col, getString(R.string.sec_hosts))
+        c = ui.section(col, getString(R.string.sec_hosts), SettingsUi.Tone.PRIMARY)
         ui.row(c, getString(R.string.hosts_heading), value = hosts.length().toString(), icon = R.drawable.ic_s_host, chevron = true) { open(PAGE_HOSTS) }
         ui.row(c, getString(R.string.pair_heading), icon = R.drawable.ic_s_link, chevron = true) { open(PAGE_PAIR) }
-        c = ui.section(col, getString(R.string.sec_general))
+        c = ui.section(col, getString(R.string.sec_general), SettingsUi.Tone.SECONDARY)
         ui.row(c, getString(R.string.language_heading), summary = languageName(Lang.choice(this)), icon = R.drawable.ic_s_language) { chooseLanguage() }
-        c = ui.section(col, getString(R.string.sec_support))
+        c = ui.section(col, getString(R.string.sec_support), SettingsUi.Tone.TERTIARY)
         ui.row(c, getString(R.string.diag_title), summary = getString(if (Diag.enabled) R.string.on else R.string.off), icon = R.drawable.ic_s_diag, chevron = true) { open(PAGE_DIAGNOSTICS) }
         ui.row(c, getString(R.string.privacy_title), icon = R.drawable.ic_s_privacy, chevron = true) { open(PAGE_PRIVACY) }
         ui.row(c, getString(R.string.about_title), summary = getString(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), icon = R.drawable.ic_s_info, chevron = true) { open(PAGE_ABOUT) }
     }
 
-    private fun rendezvousSummary(): String = when {
-        signal.isEmpty() -> getString(R.string.not_set)
-        rendezvousStatus == RendezvousStatus.OK -> getString(R.string.value_ok, signal)
-        rendezvousStatus != null -> getString(R.string.value_problem, signal)
-        else -> signal
+    private var checkingMain = false
+
+    /** The status card's badge: checking, working, or what is wrong (in words). */
+    private fun heroStatus(): String = if (rendezvousStatus == null) getString(R.string.checking) else statusText(rendezvousStatus)
+
+    private fun heroTone() = when {
+        signal.isEmpty() || rendezvousStatus == null -> SettingsUi.Tone.NEUTRAL
+        rendezvousStatus == RendezvousStatus.OK -> SettingsUi.Tone.SECONDARY
+        else -> SettingsUi.Tone.ERROR
     }
 
     private fun languageName(choice: String) = when (choice) {
@@ -326,7 +385,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.relay_short) to getString(R.string.info_relay),
             getString(R.string.info_admin_title) to getString(R.string.info_rendezvous_admin),
         )
-        val c = ui.section(col, getString(R.string.server))
+        val c = ui.section(col, getString(R.string.server), SettingsUi.Tone.PRIMARY)
         var testRow: SettingsUi.Row? = null
         val check = {
             val row = testRow
@@ -359,22 +418,28 @@ class SettingsActivity : AppCompatActivity() {
         // No key: the first connection trusts whichever server answers (trust
         // on first use). Say so, and offer the key the server presented.
         if (signal.isNotEmpty() && pin.isBlank()) {
-            val w = ui.section(col, null)
-            val warn = ui.row(w, getString(R.string.rv_no_key_title), summary = getString(R.string.rv_no_key_msg), icon = R.drawable.ic_info)
-            warn.summary.maxLines = 6
+            // Short here; the whole story is in the ⓘ sheet.
+            info = info?.let { (t, items) -> t to items + (getString(R.string.rv_no_key_title) to getString(R.string.rv_no_key_msg)) }
+            val w = ui.notice(col, R.drawable.ic_info, getString(R.string.rv_no_key_title), getString(R.string.rv_no_key_short), SettingsUi.Tone.TERTIARY)
             if (rendezvousStatus == RendezvousStatus.OK && rendezvousKey.isNotEmpty()) {
-                val use = ui.row(w, getString(R.string.rv_use_key), summary = rendezvousKey, icon = R.drawable.ic_s_key) {
-                    val k = rendezvousKey
-                    key.editText?.setText(k)
-                    commit("signal-pin", k, key) { snack(R.string.rv_key_used); show() }
-                }
-                use.title.setTextColor(ui.color(M.attr.colorPrimary))
-                use.summary.typeface = android.graphics.Typeface.MONOSPACE
-                use.summary.setTextIsSelectable(false)
+                // The presented key, to compare, and a button to save it.
+                w.addView(TextView(this).apply {
+                    text = rendezvousKey
+                    androidx.core.widget.TextViewCompat.setTextAppearance(this, resolve(M.attr.textAppearanceBodyMedium))
+                    setTextColor(ui.color(M.attr.colorOnTertiaryContainer))
+                    typeface = android.graphics.Typeface.MONOSPACE
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12); marginStart = ui.dp(40) })
+                w.addView(ui.button(getString(R.string.rv_use_key), SettingsUi.ButtonStyle.FILLED, R.drawable.ic_s_key).apply {
+                    setOnClickListener {
+                        val k = rendezvousKey
+                        key.editText?.setText(k)
+                        commit("signal-pin", k, key) { snack(R.string.rv_key_used); show() }
+                    }
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12); marginStart = ui.dp(40) })
             }
         }
         val r = ui.section(col, null)
-        ui.switchRow(r, getString(R.string.relay_short), relay) { on -> commit("relay", if (on) "on" else "off", null) }
+        ui.switchRow(r, getString(R.string.relay_short), relay, R.drawable.ic_send) { on -> commit("relay", if (on) "on" else "off", null) }
         if (rendezvousStatus == null) check()
     }
 
@@ -445,23 +510,43 @@ class SettingsActivity : AppCompatActivity() {
         SavedHost.Kind.RECENT -> R.string.host_recent_sub
     })
 
+    /** The host's login as a badge: paired or key (no password), or needs the password. */
+    private fun kindBadge(h: SavedHost) = when (h.kind) {
+        SavedHost.Kind.PAIRED -> ui.badge(getString(R.string.badge_paired), SettingsUi.Tone.PRIMARY)
+        SavedHost.Kind.KEY -> ui.badge(getString(R.string.badge_key), SettingsUi.Tone.PRIMARY)
+        SavedHost.Kind.RECENT -> ui.badge(getString(R.string.badge_needs_password), SettingsUi.Tone.NEUTRAL)
+    }
+
+    /** Paired and key hosts in the primary role, the others neutral. */
+    private fun hostTone(h: SavedHost) = if (h.kind == SavedHost.Kind.RECENT) SettingsUi.Tone.NEUTRAL else SettingsUi.Tone.PRIMARY
+
+    private fun lastSeen(h: SavedHost): String = if (h.lastSeen <= 0) "" else
+        android.text.format.DateUtils.getRelativeTimeSpanString(h.lastSeen * 1000, System.currentTimeMillis(),
+            android.text.format.DateUtils.MINUTE_IN_MILLIS, android.text.format.DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+
     private fun savedHosts(col: LinearLayout) {
         pageTitle(R.string.hosts_heading)
         info = getString(R.string.hosts_heading) to listOf("" to getString(R.string.info_hosts))
-        val c = ui.section(col, null)
         val list = hostList()
         if (list.isEmpty()) {
             // Empty state: what it means, and the next step.
-            ui.text(c, getString(R.string.no_hosts))
+            val e = ui.notice(col, R.drawable.ic_s_host, getString(R.string.no_hosts), getString(R.string.no_hosts_next), SettingsUi.Tone.SECONDARY)
+            e.addView(ui.button(getString(R.string.pair_heading), SettingsUi.ButtonStyle.FILLED, R.drawable.ic_s_link).apply {
+                setOnClickListener { open(PAGE_PAIR) }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12); marginStart = ui.dp(40) })
+        } else {
+            val c = ui.section(col, null)
+            for (h in list) {
+                // Every row opens the host's page: name, address, status, Connect, Forget.
+                val online = h.presence.takeIf { it != "not_checked" && it.isNotEmpty() }?.let { presence(it) }
+                val sum = listOfNotNull(h.target.takeIf { h.alias.isNotEmpty() }, online, lastSeen(h).ifEmpty { null }).joinToString(" · ")
+                val row = ui.row(c, h.label, summary = sum.ifEmpty { null }, leading = ui.avatar(h.label, hostTone(h)), trailing = kindBadge(h)) { open(PAGE_HOST + h.target) }
+                row.title.maxLines = 1
+                row.title.ellipsize = android.text.TextUtils.TruncateAt.END
+                row.view.contentDescription = listOf(h.label, kindSub(h), sum).filter { it.isNotEmpty() }.joinToString(", ")
+            }
+            ui.row(ui.section(col, null), getString(R.string.pair_heading), icon = R.drawable.ic_s_link, chevron = true, tone = SettingsUi.Tone.PRIMARY) { open(PAGE_PAIR) }
         }
-        for (h in list) {
-            // Every row opens the host's page: name, address, status, Connect, Forget.
-            val sum = listOfNotNull(h.target.takeIf { h.alias.isNotEmpty() }, kindSub(h),
-                presence(h.presence).takeIf { h.presence != "not_checked" && h.presence.isNotEmpty() }).joinToString(" · ")
-            val row = ui.row(c, h.label, summary = sum, icon = R.drawable.ic_s_host, chevron = true) { open(PAGE_HOST + h.target) }
-            row.view.contentDescription = "${h.label}, $sum"
-        }
-        ui.row(ui.section(col, null), getString(R.string.pair_heading), icon = R.drawable.ic_s_link, chevron = true) { open(PAGE_PAIR) }
     }
 
     private fun refreshHosts(online: Boolean) {
@@ -485,10 +570,21 @@ class SettingsActivity : AppCompatActivity() {
             savedHosts(col)
             return
         }
-        toolbar.title = h.label
-        title = h.label
+        pageTitle(h.label)
         info = h.label to listOf(getString(R.string.pair_alias) to getString(R.string.info_host_name),
             getString(R.string.host_forget) to getString(R.string.info_host_forget))
+        // Who it is at a glance, and the main action: Connect.
+        val badges = listOfNotNull(kindBadge(h), h.presence.takeIf { it == "online" || it == "offline" }?.let {
+            ui.badge(presence(it).replaceFirstChar { c -> c.uppercaseChar() }, if (it == "online") SettingsUi.Tone.SECONDARY else SettingsUi.Tone.NEUTRAL)
+        })
+        ui.header(col, "", if (h.alias.isNotEmpty()) h.target else "", ui.avatar(h.label, hostTone(h), 88), badges)
+        val connectBtn = ui.button(getString(R.string.host_connect), SettingsUi.ButtonStyle.FILLED, R.drawable.ic_s_link).apply {
+            // The page connects (a paired host) or asks for the password (a recent one).
+            setOnClickListener { PendingPage.connect(target); finish() }
+        }
+        col.addView(connectBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            marginStart = ui.dp(16); marginEnd = ui.dp(16); topMargin = ui.dp(8)
+        })
         val c = ui.section(col, null)
         lateinit var f: TextInputLayout
         f = ui.field(c, getString(R.string.pair_alias), h.alias, h.target, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) { v ->
@@ -506,7 +602,7 @@ class SettingsActivity : AppCompatActivity() {
                         val list = runCatching { JSONArray(Remohopcore.devicesJSON(false)) }.getOrNull()
                         ui {
                             if (list != null) hosts = list
-                            if (stack.lastOrNull() == PAGE_HOST + target) { toolbar.title = name.ifEmpty { target }; title = toolbar.title }
+                            if (stack.lastOrNull() == PAGE_HOST + target) pageTitle(name.ifEmpty { target })
                         }
                     }
                 }
@@ -531,16 +627,10 @@ class SettingsActivity : AppCompatActivity() {
                 android.text.format.DateUtils.MINUTE_IN_MILLIS, android.text.format.DateUtils.WEEK_IN_MILLIS, 0).toString()
             ui.row(d, getString(R.string.host_last_seen), summary = whenText, icon = R.drawable.ic_refresh)
         }
-        if (h.presence.isNotEmpty() && h.presence != "not_checked") {
+        if (h.presence.isNotEmpty() && h.presence !in setOf("not_checked", "online", "offline")) {
             ui.row(d, getString(R.string.host_online), summary = presence(h.presence), icon = R.drawable.ic_s_network)
         }
         val a = ui.section(col, null)
-        val connect = ui.row(a, getString(R.string.host_connect), icon = R.drawable.ic_s_link) {
-            // The page connects (a paired host) or asks for the password (a recent one).
-            PendingPage.connect(target)
-            finish()
-        }
-        connect.title.setTextColor(ui.color(M.attr.colorPrimary))
         ui.row(a, getString(R.string.host_forget), icon = R.drawable.ic_delete, danger = true) { forget(target, h.label) }
     }
 
@@ -597,18 +687,13 @@ class SettingsActivity : AppCompatActivity() {
         password.endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
         val alias = ui.field(c, getString(R.string.pair_alias), "", getString(R.string.optional), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {}
         alias.helperText = getString(R.string.optional)
-        val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            setPadding(ui.dp(16), ui.dp(16), ui.dp(16), ui.dp(8))
-        }
-        val pairBtn = MaterialButton(this).apply { text = getString(R.string.pair) }
-        val cancelBtn = MaterialButton(this, null, M.attr.materialButtonOutlinedStyle).apply { text = getString(R.string.cancel); visibility = View.GONE }
+        val actions = ui.buttons(c)
+        val pairBtn = ui.button(getString(R.string.pair), SettingsUi.ButtonStyle.FILLED, R.drawable.ic_s_link)
+        val cancelBtn = ui.button(getString(R.string.cancel), SettingsUi.ButtonStyle.OUTLINED).apply { visibility = View.GONE }
         val progress = CircularProgressIndicator(this).apply { isIndeterminate = true; visibility = View.GONE; indicatorSize = ui.dp(24) }
         actions.addView(pairBtn)
         actions.addView(cancelBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = ui.dp(8) })
         actions.addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = ui.dp(16) })
-        c.addView(actions)
         val status = ui.text(c, "")
         status.visibility = View.GONE
         cancelBtn.setOnClickListener { Thread { Remohopcore.cancelPair() }.start() }
@@ -703,7 +788,7 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.privacy_gateway_title) to getString(R.string.info_privacy_gateway),
             getString(R.string.diag_title) to getString(R.string.info_privacy_diag),
         )
-        val c = ui.section(col, null)
+        val c = ui.section(col, null, SettingsUi.Tone.PRIMARY)
         ui.row(c, getString(R.string.privacy_no_tracking), icon = R.drawable.ic_s_privacy)
         ui.row(c, getString(R.string.privacy_on_device), icon = R.drawable.ic_s_device)
         ui.row(c, getString(R.string.privacy_e2e), icon = R.drawable.ic_s_key)
@@ -735,7 +820,7 @@ class SettingsActivity : AppCompatActivity() {
                 .setNeutralButton(R.string.about_third_party) { _, _ -> Diag.open(this, AppInfo.THIRD_PARTY) }
                 .show()
         }
-        c = ui.section(col, getString(R.string.about_contact))
+        c = ui.section(col, getString(R.string.about_contact), SettingsUi.Tone.TERTIARY)
         ui.row(c, AppInfo.CONTACT_EMAIL, icon = R.drawable.ic_mail) { Diag.open(this, "mailto:" + AppInfo.CONTACT_EMAIL) }
         ui.row(c, getString(R.string.about_telegram), icon = R.drawable.ic_send) { Diag.open(this, AppInfo.TELEGRAM) }
         c = ui.section(col, null)

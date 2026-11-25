@@ -178,7 +178,8 @@ class MainActivity : Activity(), BridgeHost {
      */
     private fun applyBarColors() {
         val top = barsBackground?.top ?: 0
-        barsBackground = BarsBackground(getColor(R.color.rh_bar_top), getColor(R.color.rh_bg)).also { it.top = top; root.background = it }
+        val page = AppTheme.pageColor(this) // the page's colour (dynamic where the device has it)
+        barsBackground = BarsBackground(page, page).also { it.top = top; root.background = it }
         val night = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
         WindowCompat.getInsetsController(window, root).apply {
             isAppearanceLightStatusBars = !night
@@ -424,6 +425,8 @@ class MainActivity : Activity(), BridgeHost {
         startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_PAGE, page))
 
     override fun diagLog(text: String) = Diag.logPage(text)
+
+    override fun theme(): JSONObject = AppTheme.webRoles(this)
 
     override fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) {
         if (isFinishing || isDestroyed) return done(DialogAnswer.Cancelled)

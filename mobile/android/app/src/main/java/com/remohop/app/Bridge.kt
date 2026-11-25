@@ -22,6 +22,8 @@ interface BridgeHost {
      * loaded again.
      */
     fun ensureGateway(done: (Boolean) -> Unit) = done(true)
+    /** The app's colour roles for the page ({"light": {...}, "dark": {...}}, see [AppTheme]); empty: the page's own. */
+    fun theme(): JSONObject = JSONObject()
     /** Shows a native dialog for the page; [done] gets the user's answer (UI thread), once. */
     fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) = done(DialogAnswer.Cancelled)
 }
@@ -158,6 +160,7 @@ class Bridge(private val host: BridgeHost, private val origin: String) {
                     null
                 }
                 "log" -> { host.diagLog(args.optString("text").take(MAX_LOG)); null }
+                "theme" -> { val t = host.theme(); for (k in t.keys()) result.put(k, t.get(k)); null }
                 "ready" -> null
                 else -> "unknown method"
             }
