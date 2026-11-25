@@ -61,6 +61,8 @@ Accounts are optional and off by default. The rendezvous operator enables them w
 
 **How membership is protected.** The membership of an account is an append-only, hash-chained log. Each entry is signed with the identity key of a device that is a member at that point: the first device creates the account, an existing member signs each addition, and any member can sign a removal. The hash of the first entry is the account ID. The server stores and relays the log but holds no member key.
 
+**Device IDs are the server's word.** The log vouches for each device's key, not for the 9-digit ID the server lists it under. A client that dials one of its account's devices by ID, with no password or pairing, pins the key the account lists under that ID; a dishonest server could move an ID from one of your devices to another, and the client would then reach (and pin) your other device. It gains no access that way, and a host refuses a client that dialled an ID other than the one the host holds. A client pins nothing for an ID the list gives to two devices, and a host remembers the ID each server gave it and records a change in its audit log (`id-changed`) and log.
+
 **Joining a device.** Two comparisons make this safe against the server, and both are required:
 
 1. The new device shows the account fingerprint. Confirm it equals the one `remohop account` shows on a device already in the account (scripts pass `--account-fingerprint`).

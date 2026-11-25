@@ -301,16 +301,24 @@ func HostKey(ctx context.Context, opts Options, id string, refresh bool) (ed2551
 			return nil, false
 		}
 		self := mustIdentity(dir)
+		var found ed25519.PublicKey
 		for _, d := range devices {
 			if d.ID != id {
 				continue
 			}
 			key, err := auth.DecodeKey(d.Key)
-			if err == nil && ls.IsMember(key) && !bytes.Equal(key, self) {
-				return key, true
+			if err != nil || !ls.IsMember(key) {
+				continue
 			}
+			// The ID is the server's word. One that it gives to two
+			// devices (or to this one as well) says nothing about which
+			// of them answers: pin neither.
+			if found != nil || bytes.Equal(key, self) {
+				return nil, false
+			}
+			found = key
 		}
-		return nil, false
+		return found, found != nil
 	}
 	st, err := Load(dir)
 	if err != nil || st.Status != StatusMember {

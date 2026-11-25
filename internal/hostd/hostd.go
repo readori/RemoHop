@@ -631,7 +631,10 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 	} else {
 		h.log.Info("registered with the rendezvous server", "id", signal.FormatID(reg.ID), "server", h.cfg.Signal, "public_addr", reg.Reflexive)
 	}
-	if changed && !first {
+	if prev := noteID(h.dir, h.cfg.Signal, reg.ID); prev != "" {
+		h.log.Warn("the rendezvous server assigned a different ID", "id", signal.FormatID(reg.ID), "previous", signal.FormatID(prev))
+		h.audit.add("id-changed", "server", h.cfg.Signal, "id", reg.ID, "previous", prev)
+	} else if changed && !first {
 		h.log.Warn("the rendezvous server assigned a different ID", "id", signal.FormatID(reg.ID))
 	}
 	h.notify()
