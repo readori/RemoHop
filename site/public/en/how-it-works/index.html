@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>How it works: P2P hole punching and end-to-end encryption | RemoHop</title>
 <meta name="description" content="How RemoHop connects two devices directly: what the rendezvous server does, the four paths (LAN, hole punching, relay, websocket bridge), the default ports, the six connection steps, and how QUIC, TLS 1.3 and CPace protect the session.">
-<link rel="stylesheet" href="/assets/site.css?v=d77e34eabe">
+<link rel="stylesheet" href="/assets/site.css?v=b880c3b3e2">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -120,7 +120,7 @@
 
 <section class="node dev-a" aria-labelledby="a-h">
 <h3 id="a-h"><svg class="ic" aria-hidden="true"><use href="#i-laptop"/></svg>Controller <span class="pill">your device A</span></h3>
-<p class="runs">Desktop app · web console · iOS / Android · command line · AI (MCP)</p>
+<p class="runs">Web console · iOS / Android · command line · AI (MCP)<span class="soon">Desktop app coming soon</span></p>
 <dl class="kv">
 <dt><abbr title="Device ID">ID</abbr>Enters</dt><dd>707 612 667</dd>
 <dt><abbr title="IP address">IP</abbr>Local address</dt><dd>192.168.1.20</dd>
@@ -200,7 +200,7 @@
 <tr><th scope="row">remohop signal</th><td>Rendezvous server: IDs, presence, punch coordination, optional relay</td></tr>
 <tr><th scope="row">remohop host</th><td>Host: registers, authenticates, serves what each grant allows</td></tr>
 <tr><th scope="row">remohop &lt;ID&gt;</th><td>Command-line controller: resolves, punches, connects, authenticates</td></tr>
-<tr><th scope="row">RemoHop App</th><td>One desktop app (controller + host); iOS / Android</td></tr>
+<tr><th scope="row">RemoHop App</th><td>iOS / Android apps; the unified desktop app (controller + host) is coming soon</td></tr>
 <tr><th scope="row">remohop web</th><td>Web console: full control from a browser</td></tr>
 <tr><th scope="row">remohop mcp</th><td>Lets AI agents operate a computer safely</td></tr>
 </tbody>
