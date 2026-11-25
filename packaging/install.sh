@@ -13,7 +13,7 @@
 #   BINDIR=/usr/local/bin sh install.sh     # fails if you cannot write there
 #
 # Options (or the environment variable in brackets):
-#   --version vX.Y.Z   release to install               [VERSION]  default: latest
+#   --version vX.Y.Z   release to install               [VERSION]  default: the latest
 #   --bindir DIR       install directory                [BINDIR]
 #   --repo OWNER/NAME  GitHub repository                [REPO]     default: readori/RemoHop
 #   --verify MODE      signature check: auto, require, off   [VERIFY]  default: auto
@@ -25,9 +25,14 @@
 #
 # Trust: the checksum alone only detects a damaged download, because SHA256SUMS comes
 # from the same place as the archive. The signature is what ties SHA256SUMS to the
-# release workflow of this repository (cosign keyless, see packaging/README.md);
-# install cosign (https://docs.sigstore.dev/cosign/system_config/installation/) and use
-# --verify require to get that guarantee.
+# release workflow of this repository, run for the requested tag (cosign keyless, see
+# packaging/README.md): an older signed release cannot pass for a newer one. "latest"
+# is resolved to its tag first. Install cosign
+# (https://docs.sigstore.dev/cosign/system_config/installation/) and use
+# --verify require to get that guarantee. With --base-url, give --version too.
+#
+# Upgrading: run it again. A running host keeps the old version until restarted; the
+# script says so when a RemoHop service is running.
 set -eu
 
 REPO="${REPO:-readori/RemoHop}"
@@ -69,13 +74,37 @@ esac
 if [ "$os" = darwin ]; then arch=universal; fi
 asset="remohop_${os}_${arch}.tar.gz"
 
+if command -v curl >/dev/null 2>&1; then
+	fetch() { curl -fsSL --retry 3 -o "$2" "$1"; }
+	# The URL a redirect leads to (for /releases/latest -> /releases/tag/vX.Y.Z).
+	redirect() { curl -fsSLI --retry 3 -o /dev/null -w '%{url_effective}' "$1"; }
+elif command -v wget >/dev/null 2>&1; then
+	fetch() { wget -q -O "$2" "$1"; }
+	redirect() { wget -S --spider --max-redirect=0 "$1" 2>&1 | sed -n 's/^ *[Ll]ocation: *//p' | tr -d '\r' | tail -n 1; }
+else
+	die "need curl or wget"
+fi
+
+valid_tag() {
+	case "$1" in v[0-9]*.[0-9]*.[0-9]*) ;; *) return 1 ;; esac
+	case "$1" in *[!0-9A-Za-z.-]*) return 1 ;; esac
+}
+
+if [ -n "$VERSION" ]; then
+	case "$VERSION" in [0-9]*) VERSION="v$VERSION" ;; esac
+	valid_tag "$VERSION" || die "VERSION must look like v1.2.3"
+fi
 if [ -n "$BASE_URL" ]; then
 	base="${BASE_URL%/}"
-elif [ -n "$VERSION" ]; then
-	case "$VERSION" in v[0-9]*) ;; [0-9]*) VERSION="v$VERSION" ;; *) die "VERSION must look like v1.2.3" ;; esac
-	base="https://github.com/$REPO/releases/download/$VERSION"
 else
-	base="https://github.com/$REPO/releases/latest/download"
+	if [ -z "$VERSION" ]; then
+		# Resolve "latest" to its tag, so that the signature can be required to come from
+		# that tag's release run (and the download cannot change half-way).
+		url="$(redirect "https://github.com/$REPO/releases/latest" || true)"
+		VERSION="${url##*/}"
+		valid_tag "$VERSION" || die "cannot find the latest release of $REPO (got ${url:-nothing}); use --version"
+	fi
+	base="https://github.com/$REPO/releases/download/$VERSION"
 fi
 
 if [ -n "$BINDIR" ]; then
@@ -86,13 +115,6 @@ else
 	dest="${HOME:?HOME is not set; use --bindir}/.local/bin"
 fi
 
-if command -v curl >/dev/null 2>&1; then
-	fetch() { curl -fsSL --retry 3 -o "$2" "$1"; }
-elif command -v wget >/dev/null 2>&1; then
-	fetch() { wget -q -O "$2" "$1"; }
-else
-	die "need curl or wget"
-fi
 if command -v sha256sum >/dev/null 2>&1; then
 	sha256() { sha256sum "$1" | cut -d ' ' -f 1; }
 elif command -v shasum >/dev/null 2>&1; then
@@ -114,14 +136,22 @@ if [ "$VERIFY" != off ]; then
 	if command -v cosign >/dev/null 2>&1; then
 		fetch "$base/SHA256SUMS.sigstore.json" "$tmp/SHA256SUMS.sigstore.json" ||
 			die "download failed: $base/SHA256SUMS.sigstore.json (use --verify off to skip the signature check)"
-		# The certificate must name this repository's release workflow, run for a tag.
+		# The certificate must name this repository's release workflow, run for the tag
+		# that was asked for: a mirror cannot answer with an older signed release.
+		if [ -n "$VERSION" ]; then
+			set -- --certificate-identity "https://github.com/$REPO/.github/workflows/release.yml@refs/tags/$VERSION"
+		elif [ "$VERIFY" = require ]; then
+			die "--verify require with --base-url needs --version: the signature is checked against that release's tag"
+		else
+			warn "no --version given with --base-url: a signature from any release of $REPO is accepted"
+			set -- --certificate-identity-regexp "^https://github\\.com/$(printf '%s' "$REPO" | sed 's/[.]/\\./g')/\\.github/workflows/release\\.yml@refs/tags/v.+\$"
+		fi
 		if cosign verify-blob \
-			--bundle "$tmp/SHA256SUMS.sigstore.json" \
-			--certificate-identity-regexp "^https://github\\.com/$(printf '%s' "$REPO" | sed 's/[.]/\\./g')/\\.github/workflows/release\\.yml@refs/tags/v.+\$" \
+			--bundle "$tmp/SHA256SUMS.sigstore.json" "$@" \
 			--certificate-oidc-issuer https://token.actions.githubusercontent.com \
 			"$tmp/SHA256SUMS" >"$tmp/cosign.out" 2>&1; then
 			sig_ok=yes
-			say "Signature OK (cosign: $REPO release workflow)"
+			say "Signature OK (cosign: $REPO release workflow, ${VERSION:-any tag})"
 		else
 			cat "$tmp/cosign.out" >&2
 			die "the signature of SHA256SUMS is not valid; nothing was installed"
@@ -142,6 +172,12 @@ say "Checksum OK"
 
 tar -xzf "$tmp/$asset" -C "$tmp" remohop || die "could not extract remohop from $asset"
 [ -f "$tmp/remohop" ] || die "the archive has no remohop binary"
+chmod 755 "$tmp/remohop"
+if [ -n "$VERSION" ]; then
+	got_version="$("$tmp/remohop" version 2>/dev/null || true)"
+	[ "$got_version" = "remohop $VERSION" ] ||
+		die "the archive holds ${got_version:-an unknown version}, not remohop $VERSION; nothing was installed"
+fi
 
 if ! mkdir -p "$dest" 2>/dev/null || [ ! -w "$dest" ]; then
 	die "cannot write to $dest. Pick a directory you own (--bindir ~/bin), or run this as root for a system-wide install. Nothing was installed."
@@ -158,4 +194,12 @@ case ":$PATH:" in
 *":$dest:"*) ;;
 *) say "Note: $dest is not on your PATH. Add it, for example:  export PATH=\"$dest:\$PATH\"" ;;
 esac
+# A running host keeps the old binary until it is restarted.
+if st="$("$dest/remohop" service status --json 2>/dev/null)"; then
+	sudo=
+	case "$st" in *'"scope": "system"'*) sudo="sudo " ;; esac
+	say "Note: a RemoHop service is running and keeps the previous version until it is restarted:"
+	say "      ${sudo}remohop service restart"
+	[ -z "$sudo" ] || say "      (a system service runs its own copy of remohop; update that copy first, see: remohop service --help)"
+fi
 say "Next: remohop host   (or: remohop service install  to run it at boot/login)"
