@@ -128,8 +128,13 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 			switch m.Type {
 			case "ack":
 				sess.Ack(m.Seq)
-			case "keyframe", "behind":
+			case "keyframe":
 				sess.RequestKeyframe()
+			case "behind":
+				// The page's decoder cannot keep up: besides a key frame,
+				// the host lowers the frame rate (it only asked for a key
+				// frame before, so a slow decoder kept falling behind).
+				sess.ReportBehind()
 			case "config":
 				sess.Configure(desktop.Config{FPS: m.FPS, Bitrate: m.Bitrate, MaxHeight: m.MaxHeight})
 			case "display":

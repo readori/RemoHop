@@ -15,18 +15,21 @@
   let wallOff = Date.now() - performance.now();
   setInterval(() => { wallOff = Date.now() - performance.now(); }, 1000);
   const nowUs = () => (performance.now() + wallOff) * 1000;
-  // A burst of frames (Wi-Fi power saving delivers them in clumps) is
-  // decoded far faster than real time; only a decoder that has this many
-  // frames queued is really behind, and only then is it worth skipping to
-  // the next key frame, which costs the host an encoder restart.
-  const maxDecodeQueue = 6;
+  // A decoder with more than two frames queued for longer than behindMs,
+  // or more than maxDecodeQueue at once, is behind: the page skips to the
+  // next key frame and tells the host, which lowers its frame rate. A
+  // burst of frames (Wi-Fi power saving delivers them in clumps) drains far
+  // faster than that on any hardware decoder, and is no reason to skip,
+  // which costs the host an encoder restart.
+  const maxDecodeQueue = 6, behindMs = 100;
+  let queuedSince = 0;
   // Heights to step down through when the decoder cannot take the stream
   // at the size the host sends (a phone that decodes 1440p but not 4K).
   const fallbackHeights = [2160, 1440, 1080, 720, 480];
 
   let ws = null, decoder = null, cfg = null, hello = null, gen = 0, conn = null;
   let configuring = false, pending = [], waitKey = true, ended = false;
-  let viewOnly = false, hostInput = false, fit = true, skippedSeq = -1, lastKey = 0, lastBehind = 0, shown = null, drawing = false;
+  let viewOnly = false, hostInput = false, fit = true, skippedSeq = -1, lastKey = 0, lastBehind = 0;
   const meta = new Map(), pressed = new Set(), buttons = new Set();
   const stats = {decoded: 0, skipped: 0, errors: 0, fps: 0, mbps: 0, latency: 0, rtt: 0, host: null, wf: 0, wb: 0, ws: performance.now(), bytes: 0};
   window.remohopDesktop = {stats: () => Object.assign({}, stats, {hello, configured: !!decoder && decoder.state === 'configured'})};
@@ -50,7 +53,6 @@
   function resetDecoder() {
     if (decoder && decoder.state !== 'closed') decoder.close();
     decoder = null; meta.clear(); pending = []; waitKey = true;
-    if (shown) { shown.frame.close(); shown = null; }
   }
   function newDecoder() {
     decoder = new VideoDecoder({output: onFrame, error: e => {
@@ -146,7 +148,11 @@
     const skip = () => { stats.skipped++; skippedSeq = seq; };
     if (!decoder || decoder.state !== 'configured') return skip();
     if (waitKey && !key) return skip();
-    if (!key && decoder.decodeQueueSize > maxDecodeQueue) { waitKey = true; behind(); return skip(); }
+    if (decoder.decodeQueueSize <= 2) queuedSince = 0;
+    else if (!queuedSince) queuedSince = performance.now();
+    if (!key && (decoder.decodeQueueSize > maxDecodeQueue || (queuedSince && performance.now() - queuedSince > behindMs))) {
+      waitKey = true; queuedSince = 0; behind(); return skip();
+    }
     waitKey = false;
     meta.set(pts, {seq, cap, arr});
     if (meta.size > 240) meta.delete(meta.keys().next().value);
@@ -154,11 +160,8 @@
     catch (e) { stats.errors++; waitKey = true; requestKey(); skip(); }
   }
 
-  // Decoded frames are acknowledged at once (the decoder keeps up) and
-  // drawn at the next display refresh; a frame that a newer one overtakes
-  // before then is never drawn. Drawing from the decoder's callback drew
-  // frames the display never showed, and tied the acknowledgements (and so
-  // the host's flow control) to how fast the page could paint.
+  // A decoded frame is acknowledged before it is drawn: the decoder keeps
+  // up, and the host's flow control should not wait on the page's paint.
   function onFrame(frame) {
     const m = meta.get(frame.timestamp); meta.delete(frame.timestamp);
     stats.decoded++;
@@ -166,18 +169,10 @@
       send({type: 'ack', seq: Math.max(m.seq, skippedSeq)});
       if (m.seq >= skippedSeq) skippedSeq = -1;
     }
-    if (shown) shown.frame.close();
-    shown = {frame, cap: m ? m.cap : 0};
-    if (!drawing) { drawing = true; requestAnimationFrame(paint); }
-  }
-  function paint() {
-    drawing = false;
-    if (!shown) return;
-    const {frame, cap} = shown; shown = null;
     g.drawImage(frame, 0, 0, canvas.width, canvas.height);
     frame.close(); stats.wf++;
-    if (cap > 0) {
-      const ms = (nowUs() - cap) / 1000;
+    if (m && m.cap > 0) {
+      const ms = (nowUs() - m.cap) / 1000;
       if (ms > -50 && ms < 10000) stats.latency = ewma(stats.latency, Math.max(ms, 0.1));
     }
   }

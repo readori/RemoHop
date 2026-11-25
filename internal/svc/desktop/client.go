@@ -152,9 +152,9 @@ func (s *Session) Ack(seq uint32) error {
 // RequestKeyframe asks for a key frame soon (decoder error, joining late).
 func (s *Session) RequestKeyframe() error { return s.send(Control{Type: ctlKeyframe}) }
 
-// reportBehind tells the host the consumer is skipping to the next key
-// frame, so it sends one and slows down.
-func (s *Session) reportBehind() error { return s.send(Control{Type: ctlBehind}) }
+// ReportBehind tells the host the consumer (a decoder that cannot keep up)
+// is skipping to the next key frame, so it sends one and slows down.
+func (s *Session) ReportBehind() error { return s.send(Control{Type: ctlBehind}) }
 
 // Configure changes encoding parameters; zero fields keep their value, a
 // negative Bitrate returns to automatic bitrate and a negative MaxHeight
@@ -577,7 +577,7 @@ func (s *Session) onVideo(h frameHeader, data []byte) {
 		}
 		s.mu.Unlock()
 		if ask {
-			go s.reportBehind()
+			go s.ReportBehind()
 		}
 	}
 }
