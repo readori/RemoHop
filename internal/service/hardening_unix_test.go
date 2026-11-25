@@ -35,8 +35,9 @@ func TestCheckSystemExeMessage(t *testing.T) {
 	exe := filepath.Join(t.TempDir(), "remohop")
 	os.WriteFile(exe, []byte("x"), 0o755)
 	err := newSystemd().checkExe(exe, Options{})
+	// /usr/local/bin where it is root's alone; CI images loosen it.
 	if err == nil || !strings.Contains(err.Error(), "as root") || !strings.Contains(err.Error(), "sudo install -m 755 ") ||
-		!strings.Contains(err.Error(), "/usr/local/bin/remohop service install --system") {
+		!strings.Contains(err.Error(), "/remohop service install --system") {
 		t.Errorf("systemd: %v", err)
 	}
 	err = newLaunchd().checkExe(exe, Options{})
@@ -255,5 +256,15 @@ func TestStatusReportsMissingBinary(t *testing.T) {
 	printStatus(&out, st, false)
 	if !strings.Contains(out.String(), "does not exist") {
 		t.Errorf("status text:\n%s", out.String())
+	}
+}
+
+func TestRootOnlyDir(t *testing.T) {
+	loose := t.TempDir() // /tmp is world-writable
+	if d, mk := rootOnlyDir(filepath.Join(loose, "bin"), "/usr/libexec/remohop-test-none"); d != "/usr/libexec/remohop-test-none" || !strings.Contains(mk, "install -d") {
+		t.Errorf("got %q %q", d, mk)
+	}
+	if d, mk := rootOnlyDir("/bin"); d != "/bin" || mk != "" {
+		t.Errorf("/bin: %q %q", d, mk)
 	}
 }
