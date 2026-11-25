@@ -336,6 +336,12 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 		return nil, &apiError{Status: http.StatusUnauthorized, Code: "password_required",
 			Message: "this gateway does not use saved pairings: enter the host's password"}
 	}
+	if s.cfg.NoSaved && req.Pair {
+		// A shared gateway must not collect durable credentials for
+		// its users' hosts, nor leave a pairing on each host.
+		return nil, &apiError{Status: http.StatusForbidden, Code: "pairing_disabled",
+			Message: "this gateway does not pair (it was started with --no-saved)"}
+	}
 	release, aerr := s.reserve()
 	if aerr != nil {
 		return nil, aerr
