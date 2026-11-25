@@ -3,6 +3,7 @@ package com.remohop.app
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
@@ -34,20 +35,27 @@ import java.util.concurrent.TimeUnit
  * `remohop host` (see the SCREENSHOTS request key of sodesk-android.yml).
  * Skipped unless the instrumentation argument remohop_shots is "1".
  *
+ * The phone is set up as a user's would be: a device name of their own
+ * ([DEVICE_NAME]), the host saved with "Remember this computer" and then
+ * named ([ALIAS_EN] / [ALIAS_ZH]), and a rendezvous server ([SIGNAL]) in
+ * Settings. All of it goes back to empty afterwards.
+ *
  * Instrumentation arguments:
  *   remohop_shots       "1" to run
  *   remohop_shots_lang  "en" (default) or "zh": the app's language, set through
  *                       the app's own setting (Lang.setChoice), so the native
  *                       screens and the web console both show it
- *   remohop_host        host address as the emulator sees it, e.g. 10.0.2.2:21119
+ *   remohop_host        host address as the emulator sees it, e.g. studio-pc:21119
  *   remohop_password    the host's password
  *   remohop_dir         a directory on the host: listed in the terminal and the Files tab
  *   remohop_file        optional: a file name in remohop_dir, awaited in both listings
  *
  * Output: PNG files (opaque, no alpha) of the whole screen, status bar
  * included, in getExternalFilesDir(null)/store-shots/<lang>/:
- * 1-connect, 2-terminal, 3-files, 4-desktop (only when the host streams a
- * picture), 5-settings, plus shots.txt (one "name WxH" line per picture).
+ * 1-connect (the open session and the saved host), 2-terminal, 3-files,
+ * 4-desktop and 8-desktopwide (landscape, full screen; both only when the
+ * host streams a picture), 5-settings, 6-clipboard (only when the host's
+ * clipboard has text), 7-info, plus shots.txt (one "name WxH" line per picture).
  *
  * As in HostSessionTest, nothing here logs the gateway URL (it carries the
  * access token) or the password. Progress goes to logcat under [TAG].
@@ -249,11 +257,56 @@ class StoreScreenshotsTest {
         save(name, bmp)
     }
 
+    /** Runs an async function body in the page and returns what it resolved to (or "error: ..."). */
+    private fun pageAsync(s: ActivityScenario<MainActivity>, body: String, label: String, seconds: Int = 30): String {
+        val start = "(function(){window.__rhShot=undefined;(async()=>{$body})()" +
+            ".then(v=>{window.__rhShot=String(v)},e=>{window.__rhShot='error: '+(e&&e.message||e)});return true})()"
+        if (!ok(s, start)) return "error: not started"
+        if (!poll(s, "window.__rhShot!==undefined", label, seconds)) return "error: no answer"
+        return text(s, "window.__rhShot")
+    }
+
+    /** The first-connection notice ("identity key pinned") and any focus go before a picture. */
+    private fun tidy(s: ActivityScenario<MainActivity>) {
+        eval(s, "(function(){var b=document.getElementById('banner');if(b)b.hidden=true;var e=document.activeElement;if(e&&e.blur)e.blur();return true})()")
+    }
+
+    /** Whether the desktop canvas shows a real picture (not one flat colour): checked on a fresh capture. */
+    private fun desktopShot(name: String, s: ActivityScenario<MainActivity>) {
+        foreground(s, name)
+        hideKeyboard(s)
+        Thread.sleep(3000)
+        val rect = text(
+            s,
+            "(function(){var r=document.getElementById('d-canvas').getBoundingClientRect();" +
+                "return [r.left,r.top,r.right,r.bottom,devicePixelRatio].join(',')})()"
+        ).split(',').mapNotNull { it.toDoubleOrNull() }
+        val loc = IntArray(2)
+        s.onActivity { a -> findWebView(a.window.decorView)?.getLocationOnScreen(loc) }
+        val bmp = grab()
+        val c = if (rect.size == 5) {
+            val d = rect[4]
+            colours(bmp, loc[0] + (rect[0] * d).toInt(), loc[1] + (rect[1] * d).toInt(), loc[0] + (rect[2] * d).toInt(), loc[1] + (rect[3] * d).toInt())
+        } else 0
+        if (c >= 12) save(name, bmp)
+        else { Log.i(TAG, "$name: the desktop picture is blank or uniform ($c colours); skipped"); bmp.recycle() }
+    }
+
+    private fun setting(key: String, value: String) {
+        val err = runCatching { Remohopcore.setSetting(key, value) }.exceptionOrNull()
+        if (err != null) Log.w(TAG, "setting $key: ${err.message}")
+    }
+
     @After
     fun cleanUp() {
-        // A fresh gateway for whatever runs next in this process, and the language back to the system's.
+        // A fresh gateway for whatever runs next in this process; the language, the device name
+        // and the rendezvous server back to what the other tests expect.
         Remohopcore.stopGateway()
-        if (arg("remohop_shots") == "1") Lang.setChoice(inst.targetContext, Lang.SYSTEM)
+        if (arg("remohop_shots") == "1") {
+            Lang.setChoice(inst.targetContext, Lang.SYSTEM)
+            setting("signal", "")
+            setting("name", "")
+        }
     }
 
     @Test
@@ -275,6 +328,11 @@ class StoreScreenshotsTest {
         // The app's own language setting (what Settings -> Language does).
         Lang.setChoice(inst.targetContext, lang)
         assertEquals("the app's effective language", lang, Lang.effective(inst.targetContext))
+        // This phone as a user would have set it up: a device name of their choosing (Settings ->
+        // Device name); the rendezvous server comes just before the Settings picture.
+        Core.init(inst.targetContext)
+        setting("name", DEVICE_NAME)
+        setting("signal", "")
         Remohopcore.stopGateway() // a fresh page session
 
         ActivityScenario.launch(MainActivity::class.java).use { s ->
@@ -288,17 +346,24 @@ class StoreScreenshotsTest {
             val cjk = Regex("[\\u4e00-\\u9fff]").containsMatchIn(heading)
             assertTrue("connect heading in $lang: '$heading'", if (zh) cjk else !cjk)
             Log.i(TAG, "language $lang: page lang=${text(s, "document.documentElement.lang")}, tab label '$tab', heading '$heading'")
-            Thread.sleep(500) // web fonts
-            shot("1-connect", s)
 
-            // Connect with the host's password, as a user does in the form.
+            // A clean start: no saved hosts left from an earlier pass or test.
+            val forgot = pageAsync(
+                s,
+                "const r=await SD.json('GET','peers');let n=0;for(const p of (r&&r.peers)||[]){await SD.json('POST','peers/forget',{target:p.target});n++}" +
+                    "if(SD.reloadPeers)await SD.reloadPeers();return 'forgot '+n",
+                "forget saved hosts"
+            )
+            Log.i(TAG, "saved hosts: $forgot")
+
+            // Connect with the host's password and "Remember this computer" on, as a user does the first time.
             assertTrue(
                 "filled the connect form",
                 ok(
                     s,
                     "(function(){document.getElementById('target').value=${JSONObject.quote(host)};" +
                         "document.getElementById('hostpass').value=${JSONObject.quote(password)};" +
-                        "document.getElementById('pair').checked=false;" +
+                        "var p=document.getElementById('pair');if(p)p.checked=true;" +
                         "document.getElementById('connectbtn').click();return true})()"
                 )
             )
@@ -327,6 +392,7 @@ class StoreScreenshotsTest {
             }
             assertTrue("the terminal shows the listing of the host directory", ran)
             Thread.sleep(800)
+            tidy(s)
             shot("2-terminal", s)
 
             // Files: the same directory.
@@ -339,70 +405,119 @@ class StoreScreenshotsTest {
             val listed = if (file != null) "document.getElementById('f-body').textContent.indexOf(${JSONObject.quote(file)})>=0"
             else "document.querySelectorAll('#f-body tr').length>1"
             waitFor(s, listed, "files tab lists the host directory", 30, "document.getElementById('f-err').textContent")
+            tidy(s)
             shot("3-files", s)
+
+            // Clipboard: what the host copied (fetched), and a note typed on the phone, not sent yet.
+            openTab(s, "clipboard")
+            ok(s, "(function(){document.getElementById('c-local').value=${JSONObject.quote(if (zh) CLIP_NOTE_ZH else CLIP_NOTE_EN)};document.getElementById('c-fetch').click();return true})()")
+            if (poll(s, "document.getElementById('c-remote').value.trim()!==''", "remote clipboard", 15)) {
+                tidy(s)
+                shot("6-clipboard", s)
+            } else {
+                Log.i(TAG, "clipboard: the host's clipboard is empty (${text(s, "document.getElementById('c-status').textContent").take(80)}); 6-clipboard skipped")
+            }
+
+            // Info: the host at a glance.
+            openTab(s, "info")
+            waitFor(s, "document.querySelectorAll('#i-list dt').length>=8", "host info", 30, "document.getElementById('i-err').textContent")
+            Thread.sleep(500)
+            tidy(s)
+            shot("7-info", s)
 
             // Desktop: only when the host streams a picture (a CI host may have no display).
             openTab(s, "desktop")
             val settled = "(window.remohopMobile&&remohopMobile._desk&&remohopMobile._desk.hello)?true:" +
                 "(function(){var m=document.getElementById('d-msg').textContent;return m!==''&&m.indexOf('Connecting')!==0&&m.indexOf('正在')!==0})()"
+            val picture = "document.getElementById('d-canvas').width>16&&document.getElementById('d-msg').textContent.trim()===''"
             poll(s, settled, "desktop settles", 30)
-            val streaming = ok(s, "!!(window.remohopMobile&&remohopMobile._desk&&remohopMobile._desk.hello)")
+            var streaming = ok(s, "!!(window.remohopMobile&&remohopMobile._desk&&remohopMobile._desk.hello)")
+            if (streaming && !poll(s, picture, "desktop picture", 30)) {
+                // As a user would: Reconnect, when the desktop ended without a picture.
+                ok(s, "(function(){var r=document.getElementById('d-reconnect');if(r&&!r.hidden)r.click();return true})()")
+                streaming = poll(s, picture, "desktop picture after reconnecting", 30)
+            }
             if (!streaming) {
                 Log.i(TAG, "desktop: no picture (${text(s, "document.getElementById('d-msg').textContent").take(120)}); 4-desktop skipped")
             } else {
-                // The first frames: the canvas takes the remote size and the overlay message clears.
-                poll(s, "document.getElementById('d-canvas').width>16&&document.getElementById('d-msg').textContent.trim()===''", "desktop picture", 20)
-                foreground(s, "desktop")
-                hideKeyboard(s)
-                Thread.sleep(3000)
-                val rect = text(
-                    s,
-                    "(function(){var r=document.getElementById('d-canvas').getBoundingClientRect();" +
-                        "return [r.left,r.top,r.right,r.bottom,devicePixelRatio].join(',')})()"
-                ).split(',').mapNotNull { it.toDoubleOrNull() }
-                val loc = IntArray(2)
-                s.onActivity { a -> findWebView(a.window.decorView)?.getLocationOnScreen(loc) }
-                val bmp = grab()
-                val c = if (rect.size == 5) {
-                    val d = rect[4]
-                    colours(bmp, loc[0] + (rect[0] * d).toInt(), loc[1] + (rect[1] * d).toInt(), loc[0] + (rect[2] * d).toInt(), loc[1] + (rect[3] * d).toInt())
-                } else 0
-                if (c >= 12) save("4-desktop", bmp)
-                else { Log.i(TAG, "desktop: the picture is blank or uniform ($c colours); 4-desktop skipped"); bmp.recycle() }
+                tidy(s)
+                desktopShot("4-desktop", s)
+                // The same desktop full screen with the phone turned sideways (the app's full-screen button).
+                s.onActivity { a -> a.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+                if (poll(s, "innerWidth>innerHeight", "landscape", 20)) {
+                    ok(s, "(function(){remohopMobile._setFullscreen(true);return true})()")
+                    poll(s, picture, "desktop picture in landscape", 20)
+                    tidy(s)
+                    desktopShot("8-desktopwide", s)
+                    ok(s, "(function(){remohopMobile._setFullscreen(false);return true})()")
+                } else Log.i(TAG, "desktop: the page did not turn to landscape; 8-desktopwide skipped")
+                s.onActivity { a -> a.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+                waitFor(s, "innerHeight>innerWidth", "portrait again", 20)
             }
+
+            // The connect screen: the open session and the saved host, which the user has named.
+            val named = pageAsync(
+                s,
+                "let ps=[];for(let i=0;i<40&&!ps.length;i++){ps=((await SD.json('GET','peers'))||{}).peers||[];if(!ps.length)await new Promise(r=>setTimeout(r,250))}" +
+                    "if(!ps.length)return 'not saved';" +
+                    "await SD.json('POST','peers/alias',{target:ps[0].target,alias:${JSONObject.quote(if (zh) ALIAS_ZH else ALIAS_EN)}});" +
+                    "await SD.reloadPeers();return 'ok'",
+                "name the saved host"
+            )
+            assertEquals("the saved host was named", "ok", named)
+            var left = false
+            for (i in 0 until 4) {
+                text(s, "remohopMobile.back()")
+                left = poll(s, "!document.getElementById('connect').hidden", "connect screen", 3)
+                if (left) break
+            }
+            assertTrue("back returned to the connect screen", left)
+            // An empty form under the open session and the saved host (the page fills in the last host).
+            ok(s, "(function(){document.getElementById('target').value='';document.getElementById('hostpass').value='';return true})()")
+            Thread.sleep(500) // web fonts
+            tidy(s)
+            shot("1-connect", s)
         }
 
-        // Native settings in the same language.
+        // Native settings in the same language, with the rendezvous server the user set up.
+        setting("signal", SIGNAL)
         ActivityScenario.launch(SettingsActivity::class.java).use { s ->
             var title = ""
             var fingerprint = ""
             var checked = false
             var focused = false
-            // The settings list: the Language row shows the choice, the
-            // Identity key row the start of the fingerprint once it loaded.
+            var checking = true
+            // The settings list: the Language row shows the choice, the Identity key row the
+            // start of the fingerprint once it loaded, the status card the server's state.
             val langName = if (zh) "简体中文" else "English"
             val fp = Regex("^[0-9a-f]{4}:[0-9a-f]{4}…$")
             fun texts(v: android.view.View, out: MutableList<String>) {
                 if (v is TextView) out += v.text.toString()
                 if (v is android.view.ViewGroup) for (i in 0 until v.childCount) texts(v.getChildAt(i), out)
             }
-            val end = System.currentTimeMillis() + 20_000
+            var all = listOf<String>()
+            val end = System.currentTimeMillis() + 30_000
             while (System.currentTimeMillis() < end) {
                 s.onActivity { a ->
                     title = a.title?.toString() ?: ""
-                    val all = mutableListOf<String>()
-                    texts(a.window.decorView, all)
-                    fingerprint = all.firstOrNull { fp.matches(it) } ?: ""
-                    checked = all.contains(langName)
+                    val found = mutableListOf<String>()
+                    texts(a.window.decorView, found)
+                    all = found
+                    fingerprint = found.firstOrNull { fp.matches(it) } ?: ""
+                    checked = found.contains(langName)
+                    checking = found.contains(a.getString(R.string.checking))
                     focused = a.hasWindowFocus()
                 }
-                if (fingerprint.isNotEmpty() && checked && focused) break
+                if (fingerprint.isNotEmpty() && checked && focused && !checking) break
                 Thread.sleep(250)
             }
             assertTrue("settings: the language choice shows $lang", checked)
             val cjk = Regex("[\\u4e00-\\u9fff]").containsMatchIn(title)
             assertTrue("settings title in $lang: '$title'", if (zh) cjk else !cjk)
             assertTrue("settings has the window focus", focused)
+            assertTrue("settings shows the rendezvous server", all.contains(SIGNAL))
+            assertTrue("settings shows the device name", all.contains(DEVICE_NAME))
+            Log.i(TAG, "settings: rendezvous server ${if (checking) "still checking" else "checked"}; texts: ${all.take(8).joinToString(" | ").take(200)}")
             Thread.sleep(SETTLE_MS)
             val bmp = grab()
             assertTrue("5-settings: the picture is blank", colours(bmp) >= 4)
@@ -416,5 +531,13 @@ class StoreScreenshotsTest {
     companion object {
         const val TAG = "RemoHopShots"
         const val SETTLE_MS = 1500L
+
+        // What a real user's phone would show (made-up, nothing sensitive).
+        const val DEVICE_NAME = "Pixel 9"
+        const val SIGNAL = "signal.remohop.com"
+        const val ALIAS_EN = "Studio PC"
+        const val ALIAS_ZH = "工作室电脑"
+        const val CLIP_NOTE_EN = "Pick up the prints at 5 pm"
+        const val CLIP_NOTE_ZH = "下午 5 点去取打印的海报"
     }
 }
