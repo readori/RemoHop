@@ -20,12 +20,20 @@ func fakeBin(t *testing.T, cmds ...string) (logPath string) {
 	dir := t.TempDir()
 	logPath = filepath.Join(dir, "calls.log")
 	for _, c := range cmds {
+		// launchctl: a job is unloaded from bootout until the next
+		// bootstrap, and print of it fails meanwhile.
 		script := fmt.Sprintf(`#!/bin/sh
 echo "%s $*" >> "$FAKE_LOG"
 case "$*" in
+bootout*) : > "$FAKE_LOG.unloaded" ;;
+bootstrap*) rm -f "$FAKE_LOG.unloaded" ;;
+esac
+case "$*" in
 *" show "*|"show "*) cat "$FAKE_SHOW" ;;
 *"show-user"*) echo "Linger=${FAKE_LINGER:-no}" ;;
-*" print "*|"print "*) [ -n "$FAKE_PRINT" ] && cat "$FAKE_PRINT" || exit 113 ;;
+*" print "*|"print "*)
+	case "$*" in *com.remohop*) [ -f "$FAKE_LOG.unloaded" ] && exit 113 ;; esac
+	[ -n "$FAKE_PRINT" ] && cat "$FAKE_PRINT" || exit 113 ;;
 esac
 case "%s" in journalctl) printf 'line one\n\033]0;pwn\007line two\n' ;; esac
 exit 0

@@ -23,6 +23,13 @@ type systemd struct {
 	systemDir string      // where system units live
 	euid      int         // effective uid
 	booted    func() bool // is systemd the running init?
+	// vendorDirs are where packages put units (the .deb/.rpm ship
+	// remohop.service in both scopes, disabled); such a unit counts as
+	// installed once it is enabled or running.
+	vendorDirs map[Scope][]string
+	// checkExe vets the binary of a system service (nil: no check, for
+	// tests that use paths which do not exist).
+	checkExe func(exe string, o Options) error
 }
 
 func newSystemd() *systemd {
@@ -35,6 +42,18 @@ func newSystemd() *systemd {
 			// The same test as sd_booted(3).
 			fi, err := os.Stat("/run/systemd/system")
 			return err == nil && fi.IsDir()
+		},
+		vendorDirs: map[Scope][]string{
+			ScopeSystem: {"/usr/lib/systemd/system", "/lib/systemd/system"},
+			ScopeUser:   {"/usr/lib/systemd/user"},
+		},
+		checkExe: func(exe string, o Options) error {
+			real, err := filepath.EvalSymlinks(exe)
+			if err != nil {
+				real = exe
+			}
+			return checkSystemExe(exe, o, fmt.Sprintf("    sudo install -m 755 %s /usr/local/bin/remohop\n"+
+				"    sudo /usr/local/bin/remohop service install --system ...   (the same flags as before)", shellQuote(real)))
 		},
 	}
 }
@@ -90,19 +109,85 @@ func (b *systemd) resolveInstall(o Options) (Scope, error) {
 }
 
 // detect finds which scope the service is installed in, for the commands
-// that act on an existing one.
+// that act on an existing one: a unit `remohop service install` wrote, or
+// else a packaged unit that has been enabled or started.
 func (b *systemd) detect(o Options) (Scope, bool) {
-	switch o.Scope {
-	case ScopeUser, ScopeSystem:
-		_, err := os.Stat(b.unitPath(o.Scope, o))
-		return o.Scope, err == nil
+	scopes := []Scope{ScopeUser, ScopeSystem}
+	if o.Scope == ScopeUser || o.Scope == ScopeSystem {
+		scopes = []Scope{o.Scope}
 	}
-	for _, s := range []Scope{ScopeUser, ScopeSystem} {
+	for _, s := range scopes {
 		if _, err := os.Stat(b.unitPath(s, o)); err == nil {
 			return s, true
 		}
 	}
+	for _, s := range scopes {
+		if b.packagedUnit(s, o) != "" {
+			return s, true
+		}
+	}
+	if len(scopes) == 1 {
+		return scopes[0], false
+	}
 	return ScopeAuto, false
+}
+
+// packagedUnit returns the path of a package's unit for o in scope s if it
+// is enabled or active, else "".
+func (b *systemd) packagedUnit(s Scope, o Options) string {
+	if o.Role == RoleSignal || (s == ScopeUser && b.euid == 0) {
+		return ""
+	}
+	for _, d := range b.vendorDirs[s] {
+		p := path.Join(d, b.unit(o))
+		if _, err := os.Stat(p); err != nil {
+			continue
+		}
+		if !b.booted() {
+			return ""
+		}
+		args := []string{"show", b.unit(o), "-p", "UnitFileState", "-p", "ActiveState", "-p", "FragmentPath"}
+		if s == ScopeUser {
+			args = append([]string{"--user"}, args...)
+		}
+		out, err := exec.Command("systemctl", args...).Output()
+		if err != nil {
+			return ""
+		}
+		props := parseProps(out)
+		if props["FragmentPath"] != "" && props["FragmentPath"] != p {
+			continue // another unit file of that name is the one in use
+		}
+		if props["UnitFileState"] == "enabled" || props["ActiveState"] == "active" || props["ActiveState"] == "activating" {
+			return p
+		}
+		return ""
+	}
+	return ""
+}
+
+func parseProps(out []byte) map[string]string {
+	props := map[string]string{}
+	sc := bufio.NewScanner(bytes.NewReader(out))
+	for sc.Scan() {
+		if k, v, ok := strings.Cut(sc.Text(), "="); ok {
+			props[k] = v
+		}
+	}
+	return props
+}
+
+// unitFile is the unit file in use for scope s: the one install writes, or
+// the package's.
+func (b *systemd) unitFile(s Scope, o Options) (p string, packaged bool) {
+	own := b.unitPath(s, o)
+	if _, err := os.Stat(own); err == nil {
+		return own, false
+	}
+	if v := b.packagedUnit(s, o); v != "" {
+		return v, true
+	}
+	return own, false
 }
 
 // quote renders one ExecStart= word per systemd.syntax(7): double quotes keep
@@ -223,6 +308,11 @@ func (b *systemd) Install(ctx context.Context, o Options) (*Installed, error) {
 			return nil, errors.New(why)
 		}
 	}
+	if s == ScopeSystem && b.checkExe != nil {
+		if err := b.checkExe(exe, o); err != nil {
+			return nil, err
+		}
+	}
 	unitPath := b.unitPath(s, o)
 	if err := os.MkdirAll(filepath.Dir(unitPath), 0o755); err != nil {
 		return nil, err
@@ -242,6 +332,13 @@ func (b *systemd) Install(ctx context.Context, o Options) (*Installed, error) {
 	}
 
 	inst := &Installed{Backend: "systemd", Name: o.name(), Scope: s, Path: unitPath, RunAs: o.RunAs, ConfigDir: o.ConfigDir}
+	for _, d := range b.vendorDirs[s] {
+		if _, err := os.Stat(path.Join(d, b.unit(o))); err == nil {
+			inst.Notes = append(inst.Notes, "this unit takes the place of the remohop package's "+path.Join(d, b.unit(o))+
+				" (the package's own unit stays unused; `remohop service uninstall` returns to it, disabled)")
+			break
+		}
+	}
 	if s == ScopeSystem {
 		inst.ConfigDir = stateDir(o)
 		return inst, nil
@@ -276,14 +373,23 @@ func (b *systemd) Uninstall(ctx context.Context, o Options) (bool, error) {
 	if s == ScopeSystem && b.euid != 0 {
 		return false, errors.New("the service is installed system-wide: run `sudo remohop service uninstall`")
 	}
+	file, packaged := b.unitFile(s, o)
 	// A unit that is already stopped or not enabled is not an error here.
 	b.ctl(ctx, s, "disable", "--now", b.unit(o))
-	if err := os.Remove(b.unitPath(s, o)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if packaged {
+		// The file belongs to the package manager.
+		return true, errPackagedUnit
+	}
+	if err := os.Remove(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return true, err
 	}
 	_, err := b.ctl(ctx, s, "daemon-reload")
 	return true, err
 }
+
+// errPackagedUnit reports an uninstall that stopped and disabled a unit file
+// owned by the package manager instead of deleting it.
+var errPackagedUnit = errors.New("its unit file belongs to the remohop package and stays in place")
 
 func (b *systemd) Control(ctx context.Context, o Options, action string) error {
 	s, found := b.detect(o)
@@ -311,7 +417,8 @@ func (b *systemd) Status(ctx context.Context, o Options) (*Status, error) {
 	if err := b.check(); err != nil {
 		return nil, err
 	}
-	st.Installed, st.Scope, st.Path = true, s.String(), b.unitPath(s, o)
+	st.Path, _ = b.unitFile(s, o)
+	st.Installed, st.Scope = true, s.String()
 	if s == ScopeSystem {
 		st.ConfigDir = stateDir(o)
 	}
@@ -320,13 +427,7 @@ func (b *systemd) Status(ctx context.Context, o Options) (*Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	props := map[string]string{}
-	sc := bufio.NewScanner(bytes.NewReader(out))
-	for sc.Scan() {
-		if k, v, ok := strings.Cut(sc.Text(), "="); ok {
-			props[k] = v
-		}
-	}
+	props := parseProps(out)
 	st.State = props["ActiveState"]
 	if sub := props["SubState"]; sub != "" && sub != st.State {
 		st.State += " (" + sub + ")"
