@@ -48,9 +48,11 @@ cross:
 			-o $(DIST)/remohop-$$os-$$arch$$ext ./cmd/remohop || exit 1; \
 	done
 
-# The double-click builds of `remohop quick`: RemoHop.exe (Windows GUI program with
-# icon and manifest), RemoHop.app (macOS, universal, unsigned) and a Linux
-# binary, in dist/quick. See packaging/quick/README.md.
+# The double-click builds of the desktop app and quick support (one program,
+# two names): RemoHop.exe and RemoHop-QuickSupport.exe (Windows GUI program with
+# icon and manifest), RemoHop.app and "RemoHop Quick Support.app" (macOS,
+# universal, unsigned), remohop-app and remohop-quick (Linux), in dist/quick.
+# See packaging/quick/README.md.
 quick:
 	VERSION="$(VERSION)" GO="$(GO)" sh packaging/quick/build.sh
 

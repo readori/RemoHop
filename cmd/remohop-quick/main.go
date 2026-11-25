@@ -1,9 +1,10 @@
 // Command remohop-quick is the double-click build of RemoHop: RemoHop.exe on Windows
 // and the program inside RemoHop.app on macOS (see packaging/quick). Started
 // without arguments it runs `remohop app`, the desktop app, in a native window
-// (internal/webview); `--quick` runs `remohop quick`, the one-shot
-// quick-support window; with other arguments it is the same program as
-// remohop (the Linux build is remohop-quick).
+// (internal/webview), or `remohop quick`, the one-shot quick-support window,
+// when its file name says "quick" (RemoHop-QuickSupport.exe, RemoHop Quick
+// Support.app, remohop-quick; see launch.go). With arguments it is the same
+// program as remohop.
 //
 // On Windows it is linked with -H windowsgui so that no console window
 // appears. That is also why it is a separate build from remohop: a console
@@ -14,7 +15,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/readori/RemoHop/internal/cli"
@@ -46,28 +46,9 @@ import (
 	_ "github.com/readori/RemoHop/internal/web"
 )
 
-// quickArgs turns the arguments of a double-click into `app`, and a lone
-// --quick into `quick`. Finder on older macOS versions passes a process
-// serial number (-psn_0_12345).
-func quickArgs(args []string) []string {
-	var out []string
-	for _, a := range args {
-		if !strings.HasPrefix(a, "-psn_") {
-			out = append(out, a)
-		}
-	}
-	switch {
-	case len(out) == 0:
-		return []string{"app"}
-	case out[0] == "--quick":
-		return append([]string{"quick"}, out[1:]...)
-	}
-	return out
-}
-
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	code := cli.Main(ctx, quickArgs(os.Args[1:]), os.Stdin, os.Stdout, os.Stderr)
+	code := cli.Main(ctx, launchArgs(os.Args[0], os.Args[1:]), os.Stdin, os.Stdout, os.Stderr)
 	stop()
 	os.Exit(code)
 }

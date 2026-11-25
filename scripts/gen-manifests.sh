@@ -5,7 +5,7 @@
 # Usage: scripts/gen-manifests.sh vX.Y.Z ASSETS_DIR OUT_DIR
 #   ASSETS_DIR holds SHA256SUMS (as uploaded to the release); OUT_DIR gets:
 #     homebrew-tap/Formula/remohop.rb                       -> the Homebrew tap repo (readori/homebrew-tap)
-#     homebrew-tap/Casks/remohop-quick.rb                   -> the same tap: RemoHop.app (quick support)
+#     homebrew-tap/Casks/remohop-quick.rb                   -> the same tap: RemoHop.app (the desktop app)
 #     scoop-bucket/bucket/remohop.json                      -> the Scoop bucket repo (readori/scoop-bucket)
 #     winget/manifests/<letter>/<Publisher>/RemoHop/<ver>/*.yaml -> microsoft/winget-pkgs PR
 #     aur/remohop-bin/{PKGBUILD,.SRCINFO}                   -> the AUR git repo

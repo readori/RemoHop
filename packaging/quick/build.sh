@@ -1,11 +1,16 @@
 #!/bin/sh
-# Builds the double-click ("quick support") packages from any system with Go:
+# Builds the double-click packages from any system with Go: the desktop app
+# and quick support, which are one program (cmd/remohop-quick) under two
+# names (it picks its mode by its file name, see cmd/remohop-quick/launch.go):
 #
-#   dist/quick/windows-amd64/RemoHop.exe   GUI program (no console), icon + manifest
-#   dist/quick/windows-arm64/RemoHop.exe
-#   dist/quick/macos/RemoHop.app           universal (arm64 + x86_64), UNSIGNED
-#   dist/quick/linux-amd64/remohop-quick
-#   dist/quick/linux-arm64/remohop-quick
+#   dist/quick/windows-amd64/RemoHop.exe               GUI program (no console), icon + manifest
+#   dist/quick/windows-amd64/RemoHop-QuickSupport.exe  the same file, quick support by its name
+#   dist/quick/windows-arm64/...                       likewise
+#   dist/quick/macos/RemoHop.app                       universal (arm64 + x86_64), UNSIGNED
+#   dist/quick/macos/RemoHop Quick Support.app         the same program as RemoHop-QuickSupport
+#   dist/quick/linux-amd64/remohop-app                 the desktop app
+#   dist/quick/linux-amd64/remohop-quick               the same file, quick support by its name
+#   dist/quick/linux-arm64/...                         likewise
 #   dist/quick/RemoHop.ico, RemoHop.icns, RemoHop.png
 #
 # RemoHop.app carries LICENSE, NOTICE and THIRD_PARTY_LICENSES.txt in
@@ -49,13 +54,15 @@ if want windows; then
 		echo "building windows/$arch"
 		GOOS=windows GOARCH=$arch "$GO" build -trimpath -ldflags "$LDFLAGS -H windowsgui" -o "$OUT/windows-$arch/RemoHop.exe" $PKG
 		"$GO" run ./packaging/quick/gen -verify "$OUT/windows-$arch/RemoHop.exe"
+		cp "$OUT/windows-$arch/RemoHop.exe" "$OUT/windows-$arch/RemoHop-QuickSupport.exe"
 	done
 fi
 
 if want linux; then
 	for arch in amd64 arm64; do
 		echo "building linux/$arch"
-		GOOS=linux GOARCH=$arch "$GO" build -trimpath -ldflags "$LDFLAGS" -o "$OUT/linux-$arch/remohop-quick" $PKG
+		GOOS=linux GOARCH=$arch "$GO" build -trimpath -ldflags "$LDFLAGS" -o "$OUT/linux-$arch/remohop-app" $PKG
+		cp "$OUT/linux-$arch/remohop-app" "$OUT/linux-$arch/remohop-quick"
 	done
 fi
 
@@ -66,13 +73,16 @@ if want macos; then
 		echo "building darwin/$arch"
 		GOOS=darwin GOARCH=$arch "$GO" build -trimpath -ldflags "$LDFLAGS" -o "$tmp/remohop-quick-$arch" $PKG
 	done
-	app="$OUT/macos/RemoHop.app"
-	"$GO" run ./packaging/quick/gen -app "$app" -version "$VERSION" \
-		-binary "arm64=$tmp/remohop-quick-arm64,amd64=$tmp/remohop-quick-amd64"
-	# The licenses go inside the bundle, before it is signed (the signature
-	# seals Contents/Resources), so a downloaded app carries them.
-	bash packaging/third_party_licenses.sh >"$app/Contents/Resources/THIRD_PARTY_LICENSES.txt"
-	cp LICENSE NOTICE "$app/Contents/Resources/"
+	bash packaging/third_party_licenses.sh >"$tmp/THIRD_PARTY_LICENSES.txt"
+	for kind in app quick; do
+		app="$OUT/macos/RemoHop.app" flag=
+		if [ "$kind" = quick ]; then app="$OUT/macos/RemoHop Quick Support.app" flag=-quick-support; fi
+		"$GO" run ./packaging/quick/gen -app "$app" $flag -version "$VERSION" \
+			-binary "arm64=$tmp/remohop-quick-arm64,amd64=$tmp/remohop-quick-amd64"
+		# The licenses go inside the bundle, before it is signed (the signature
+		# seals Contents/Resources), so a downloaded app carries them.
+		cp "$tmp/THIRD_PARTY_LICENSES.txt" LICENSE NOTICE "$app/Contents/Resources/"
+	done
 fi
 
 if want icons; then

@@ -34,6 +34,7 @@ func main() {
 	verify := flag.String("verify", "", "check that this Windows program carries the icon and the manifest")
 	msix := flag.String("msix-assets", "", "write the MSIX package's logos (Store, tiles, app list) into this directory")
 	tray := flag.String("tray", "", "write the desktop app's tray icons (tray.png, tray-template.png) into this directory")
+	quickSupport := flag.Bool("quick-support", false, "with -app: assemble \"RemoHop Quick Support.app\" (executable RemoHop-QuickSupport, which starts quick support) instead of RemoHop.app")
 	flag.Parse()
 	if *tray != "" {
 		if err := os.WriteFile(filepath.Join(*tray, "tray.png"), pngBytes(render(64, 0)), 0o644); err != nil {
@@ -46,13 +47,31 @@ func main() {
 		}
 		return
 	}
-	if err := run(*syso, *ico, *icns, *pngOut, *app, *binary, *version, *verify, *msix); err != nil {
+	kind := appKinds["app"]
+	if *quickSupport {
+		kind = appKinds["quick"]
+	}
+	if err := run(*syso, *ico, *icns, *pngOut, *app, *binary, *version, *verify, *msix, kind); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(syso, ico, icns, pngOut, app, binary, version, verify, msix string) error {
+// appKind is one of the two macOS bundles of the same program: the desktop
+// app and quick support, told apart by the executable's name (see
+// cmd/remohop-quick/launch.go).
+type appKind struct {
+	Name, Exe, ID string
+}
+
+var appKinds = map[string]appKind{
+	"app": {Name: "RemoHop", Exe: "RemoHop", ID: "com.remohop.quick"},
+	// Its own identifier, so that macOS keeps its permissions (Screen
+	// Recording, Accessibility) apart from the desktop app's.
+	"quick": {Name: "RemoHop Quick Support", Exe: "RemoHop-QuickSupport", ID: "com.remohop.quicksupport"},
+}
+
+func run(syso, ico, icns, pngOut, app, binary, version, verify, msix string, kind appKind) error {
 	did := false
 	write := func(path string, data []byte, mode os.FileMode) error {
 		did = true
@@ -89,7 +108,7 @@ func run(syso, ico, icns, pngOut, app, binary, version, verify, msix string) err
 	}
 	if app != "" {
 		did = true
-		if err := writeApp(app, binary, version); err != nil {
+		if err := writeApp(app, binary, version, kind); err != nil {
 			return err
 		}
 	}
@@ -133,7 +152,7 @@ func bundleVersion(v string) string {
 // uses have none (quick support's window is a browser page), and a Dock icon
 // for a program that never opens one would bounce and then read as "not
 // responding".
-func infoPlist(version string) string {
+func infoPlist(version string, kind appKind) string {
 	return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -146,17 +165,17 @@ func infoPlist(version string) string {
 		<string>zh_CN</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-	<string>RemoHop</string>
+	<string>` + kind.Name + `</string>
 	<key>CFBundleExecutable</key>
-	<string>RemoHop</string>
+	<string>` + kind.Exe + `</string>
 	<key>CFBundleIconFile</key>
 	<string>RemoHop</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.remohop.quick</string>
+	<string>` + kind.ID + `</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>RemoHop</string>
+	<string>` + kind.Name + `</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -176,13 +195,14 @@ func infoPlist(version string) string {
 `
 }
 
-// writeApp assembles RemoHop.app:
+// writeApp assembles RemoHop.app (or, for quick support, "RemoHop Quick
+// Support.app" with Contents/MacOS/RemoHop-QuickSupport):
 //
 //	Contents/Info.plist
 //	Contents/PkgInfo
 //	Contents/MacOS/RemoHop       the program (cmd/remohop-quick built for darwin)
 //	Contents/Resources/RemoHop.icns
-func writeApp(app, binary, version string) error {
+func writeApp(app, binary, version string, kind appKind) error {
 	if !strings.HasSuffix(app, ".app") {
 		return errors.New("-app must name a directory ending in .app")
 	}
@@ -201,9 +221,9 @@ func writeApp(app, binary, version string) error {
 		data []byte
 		mode os.FileMode
 	}{
-		{"Contents/Info.plist", []byte(infoPlist(bundleVersion(version))), 0o644},
+		{"Contents/Info.plist", []byte(infoPlist(bundleVersion(version), kind)), 0o644},
 		{"Contents/PkgInfo", []byte("APPL????"), 0o644},
-		{"Contents/MacOS/RemoHop", program, 0o755},
+		{"Contents/MacOS/" + kind.Exe, program, 0o755},
 		{"Contents/Resources/RemoHop.icns", icnsFile(), 0o644},
 	}
 	for _, f := range files {

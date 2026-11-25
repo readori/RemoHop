@@ -1,6 +1,8 @@
-# Quick support packages
+# Desktop app and quick support packages
 
-The double-click builds of `remohop quick` (the program is `cmd/remohop-quick`; the feature is `internal/quick`).
+The double-click builds of `remohop app` (the desktop app, `internal/desktop`) and `remohop quick` (quick support,
+`internal/quick`). Both are one program, `cmd/remohop-quick`, which picks its mode by its file name
+(`cmd/remohop-quick/launch.go`): a name with "quick" in it starts quick support, any other name the app.
 
 ```bash
 make quick                       # everything below, into dist/quick
@@ -10,13 +12,16 @@ EXTRA_LDFLAGS="-X github.com/readori/RemoHop/internal/dial.DefaultSignal=HOST:21
 | Output | What it is |
 |---|---|
 | `dist/quick/windows-amd64/RemoHop.exe`, `windows-arm64/RemoHop.exe` | Windows GUI program (`-H windowsgui`: no console window), with the icon and an application manifest linked in |
+| `dist/quick/windows-*/RemoHop-QuickSupport.exe` | the same file under the quick-support name |
 | `dist/quick/macos/RemoHop.app` | macOS bundle with a universal (arm64 + x86_64) program, `Info.plist`, `RemoHop.icns` and the license files. **Unsigned** (the release's `RemoHop-macos.zip` is signed, see below). |
-| `dist/quick/linux-amd64/remohop-quick`, `linux-arm64/remohop-quick` | the same program for Linux |
+| `dist/quick/macos/RemoHop Quick Support.app` | the same program as `Contents/MacOS/RemoHop-QuickSupport`, bundle id `com.remohop.quicksupport` |
+| `dist/quick/linux-amd64/remohop-app`, `remohop-quick` (and `linux-arm64`) | the same program for Linux under both names (dynamically linked against glibc: it loads GTK for its window) |
 | `dist/quick/RemoHop.ico`, `RemoHop.icns`, `RemoHop.png` | the icon by itself, for installers and the website |
 
 Everything is made with Go alone (`CGO_ENABLED=0`), from any system; `packaging/quick/build.sh` is the whole recipe
 (`TARGETS="windows linux macos icons"` picks parts of it). Releases carry the results as `RemoHop-windows-*.zip`,
-`RemoHop-macos.zip` and `remohop-quick_linux_*.tar.gz` (see [packaging/README.md](../README.md)); the Microsoft
+`RemoHop-QuickSupport-windows-*.zip`, `RemoHop-macos.zip`, `RemoHop-macos.dmg`, `RemoHop-QuickSupport-macos.zip`,
+`remohop-app_linux_*.tar.gz` and `remohop-quick_linux_*.tar.gz` (see [packaging/README.md](../README.md)); the Microsoft
 Store package is made from the Windows program by [packaging/windows/msix](../windows/msix/README.md).
 
 ## How the pieces are made

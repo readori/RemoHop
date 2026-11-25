@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Builds the release assets that do not need a macOS machine: linux and windows
-# archives of remohop and of the quick-support program, .deb/.rpm/.apk packages and
-# the SBOM. The macOS universal archive is made from the signed binary by
-# `build-release.sh darwin PATH`, and the signed RemoHop.app zip is checked and
-# copied by `build-release.sh darwin-app ZIP`. SHA256SUMS and the signature are
+# archives of remohop, of the desktop app and of quick support (the same
+# program under two names, see cmd/remohop-quick/launch.go), .deb/.rpm/.apk
+# packages and the SBOM. The macOS universal archive is made from the signed
+# binary by `build-release.sh darwin PATH`, and the signed app zips are checked
+# and copied by `build-release.sh darwin-app ZIP` (RemoHop-macos.zip or
+# RemoHop-QuickSupport-macos.zip). SHA256SUMS and the signature are
 # made later (scripts/finalize-release.sh, then cosign in the release workflow).
 #
 # Usage:
@@ -11,6 +13,7 @@
 #   VERSION=v1.2.3 scripts/build-release.sh package    # archives + packages into $OUT
 #   VERSION=v1.2.3 scripts/build-release.sh darwin /path/to/signed/universal/remohop
 #   VERSION=v1.2.3 scripts/build-release.sh darwin-app /path/to/RemoHop-macos.zip
+#   VERSION=v1.2.3 scripts/build-release.sh darwin-app /path/to/RemoHop-QuickSupport-macos.zip
 #   VERSION=v1.2.3 scripts/build-release.sh all        # build + package
 #
 # Environment:
@@ -115,24 +118,31 @@ step_package() {
 		rm -rf "$stage"
 	done
 
-	# Quick support: the double-click program with the same license files.
+	# The double-click programs with the same license files: the desktop app
+	# and quick support. Quick support is the signed RemoHop.exe under the name
+	# that makes it start in quick mode (a rename keeps the signature).
 	for a in $WINDOWS_ARCHES; do
 		[[ -f "dist/quick/windows-$a/RemoHop.exe" ]] || { echo "missing dist/quick/windows-$a/RemoHop.exe (run the build step)" >&2; exit 1; }
 		stage="$(mktemp -d)"
 		cp "dist/quick/windows-$a/RemoHop.exe" "$stage/RemoHop.exe"
 		stage_common "$stage"
 		make_zip "$OUT/RemoHop-windows-$a.zip" "$stage" RemoHop.exe LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		mv "$stage/RemoHop.exe" "$stage/RemoHop-QuickSupport.exe"
+		make_zip "$OUT/RemoHop-QuickSupport-windows-$a.zip" "$stage" RemoHop-QuickSupport.exe LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 		rm -rf "$stage"
 	done
 	for a in $LINUX_ARCHES; do
-		[[ -f "dist/quick/linux-$a/remohop-quick" ]] || { echo "missing dist/quick/linux-$a/remohop-quick (run the build step)" >&2; exit 1; }
+		[[ -f "dist/quick/linux-$a/remohop-app" ]] || { echo "missing dist/quick/linux-$a/remohop-app (run the build step)" >&2; exit 1; }
 		stage="$(mktemp -d)"
-		cp "dist/quick/linux-$a/remohop-quick" "$stage/remohop-quick"; chmod 755 "$stage/remohop-quick"
+		cp "dist/quick/linux-$a/remohop-app" "$stage/remohop-app"; chmod 755 "$stage/remohop-app"
 		# The desktop app's menu entry and icon (see packaging/linux).
 		cp packaging/linux/remohop.desktop "$stage/remohop.desktop"
 		cp dist/quick/RemoHop.png "$stage/remohop.png"
 		stage_common "$stage"
-		make_tar "$OUT/remohop-quick_linux_$a.tar.gz" "$stage" remohop-quick remohop.desktop remohop.png LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		make_tar "$OUT/remohop-app_linux_$a.tar.gz" "$stage" remohop-app remohop.desktop remohop.png LICENSE NOTICE THIRD_PARTY_LICENSES.txt
+		# Quick support: the same program, named so that it starts in quick mode.
+		mv "$stage/remohop-app" "$stage/remohop-quick"
+		make_tar "$OUT/remohop-quick_linux_$a.tar.gz" "$stage" remohop-quick LICENSE NOTICE THIRD_PARTY_LICENSES.txt
 		rm -rf "$stage"
 	done
 
@@ -188,24 +198,32 @@ step_darwin() {
 # the zip is released as it is, because unpacking and packing it again here could
 # lose what the signature covers. This checks what Linux can check and copies it.
 step_darwin_app() {
-	local zip="${1:?path to RemoHop-macos.zip}"
+	local zip="${1:?path to RemoHop-macos.zip or RemoHop-QuickSupport-macos.zip}"
+	# The desktop app or quick support: the bundle's name, executable and identifier
+	# (packaging/quick/gen).
+	local name="RemoHop.app" exe="RemoHop" id="com.remohop.quick" asset="RemoHop-macos.zip"
+	case "$(basename "$zip")" in
+	RemoHop-QuickSupport-macos.zip) name="RemoHop Quick Support.app" exe="RemoHop-QuickSupport" id="com.remohop.quicksupport" asset="RemoHop-QuickSupport-macos.zip" ;;
+	RemoHop-macos.zip) ;;
+	*) echo "$zip: expected RemoHop-macos.zip or RemoHop-QuickSupport-macos.zip" >&2; exit 1 ;;
+	esac
 	[[ -f "$zip" ]] || { echo "no such file: $zip" >&2; exit 1; }
 	local x; x="$(mktemp -d)"
 	unzip -q "$zip" -d "$x"
-	local app="$x/RemoHop.app/Contents" f
-	for f in Info.plist MacOS/RemoHop _CodeSignature/CodeResources Resources/RemoHop.icns \
+	local app="$x/$name/Contents" f
+	for f in Info.plist "MacOS/$exe" _CodeSignature/CodeResources Resources/RemoHop.icns \
 		Resources/LICENSE Resources/NOTICE Resources/THIRD_PARTY_LICENSES.txt; do
-		[[ -f "$app/$f" ]] || { echo "$zip: RemoHop.app/Contents/$f is missing" >&2; rm -rf "$x"; exit 1; }
+		[[ -f "$app/$f" ]] || { echo "$zip: $name/Contents/$f is missing" >&2; rm -rf "$x"; exit 1; }
 	done
 	# The stapled notarization ticket (stapler writes Contents/CodeResources).
 	[[ -f "$app/CodeResources" ]] || { echo "$zip: no stapled notarization ticket" >&2; rm -rf "$x"; exit 1; }
-	[[ "$(head -c 4 "$app/MacOS/RemoHop" | od -An -tx1 | tr -d ' \n')" == cafebabe ]] ||
-		{ echo "$zip: RemoHop is not a universal Mach-O" >&2; rm -rf "$x"; exit 1; }
-	grep -aqF -- "$VERSION" "$app/MacOS/RemoHop" || { echo "$zip: RemoHop does not carry $VERSION" >&2; rm -rf "$x"; exit 1; }
-	grep -qF '<string>com.remohop.quick</string>' "$app/Info.plist" || { echo "$zip: unexpected bundle identifier" >&2; rm -rf "$x"; exit 1; }
+	[[ "$(head -c 4 "$app/MacOS/$exe" | od -An -tx1 | tr -d ' \n')" == cafebabe ]] ||
+		{ echo "$zip: $exe is not a universal Mach-O" >&2; rm -rf "$x"; exit 1; }
+	grep -aqF -- "$VERSION" "$app/MacOS/$exe" || { echo "$zip: $exe does not carry $VERSION" >&2; rm -rf "$x"; exit 1; }
+	grep -qF "<string>$id</string>" "$app/Info.plist" || { echo "$zip: unexpected bundle identifier" >&2; rm -rf "$x"; exit 1; }
 	rm -rf "$x"
 	mkdir -p "$OUT"
-	cp "$zip" "$OUT/RemoHop-macos.zip"
+	cp "$zip" "$OUT/$asset"
 }
 
 case "${1:-}" in

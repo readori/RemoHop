@@ -4,7 +4,8 @@
 #
 # Usage: VERSION=v1.2.3 TEAM_ID=XXXXXXXXXX scripts/verify-macos-release.sh DIR
 #   DIR holds remohop (universal, signed), RemoHop-macos.zip (the signed and
-#   stapled RemoHop.app) and RemoHop-macos.dmg.
+#   stapled RemoHop.app), RemoHop-macos.dmg and RemoHop-QuickSupport-macos.zip
+#   (the signed and stapled "RemoHop Quick Support.app").
 #
 # The macOS binaries are built and signed in another repository, because the
 # Apple credentials live there. That repository's word is not taken for what
@@ -17,6 +18,9 @@
 #   - RemoHop.app (in the zip): the rebuilt bundle (packaging/quick/build.sh),
 #     every file identical, the executable compared as above (com.remohop.quick),
 #     plus only the signature and the stapled ticket;
+#   - "RemoHop Quick Support.app" (in RemoHop-QuickSupport-macos.zip): likewise,
+#     identifier com.remohop.quicksupport (the same program under the name that
+#     starts quick support);
 #   - RemoHop-macos.dmg: holds exactly that RemoHop.app, byte for byte, and
 #     the /Applications link (read with 7-Zip, which understands HFS+ images).
 # Whether Apple's certificate chain and notarization are valid is checked by
@@ -34,7 +38,7 @@ VERSION="${VERSION:?set VERSION to the release tag}"
 TEAM_ID="${TEAM_ID:?set TEAM_ID to the Apple team ID}"
 GO="${GO:-go}"
 [[ "$TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || { echo "verify-macos-release.sh: TEAM_ID must be a 10-character Apple team ID" >&2; exit 2; }
-for f in remohop RemoHop-macos.zip RemoHop-macos.dmg; do
+for f in remohop RemoHop-macos.zip RemoHop-macos.dmg RemoHop-QuickSupport-macos.zip; do
 	[[ -f "$dir/$f" ]] || { echo "verify-macos-release.sh: $dir/$f is missing" >&2; exit 1; }
 done
 command -v 7z >/dev/null 2>&1 || { echo "verify-macos-release.sh: needs 7z (apt-get install 7zip, or p7zip-full)" >&2; exit 1; }
@@ -61,6 +65,13 @@ unzip -q "$dir/RemoHop-macos.zip" -d "$tmp/zip"
 [[ "$(ls -A "$tmp/zip")" == RemoHop.app ]] || fail "RemoHop-macos.zip holds more than RemoHop.app: $(ls -A "$tmp/zip" | tr '\n' ' ')"
 "${cmp[@]}" -id com.remohop.quick -app "$tmp/zip/RemoHop.app" "$tmp/quick/macos/RemoHop.app" ||
 	fail "RemoHop.app in RemoHop-macos.zip is not the rebuilt bundle with a Developer ID signature of team $TEAM_ID"
+
+# 3b. "RemoHop Quick Support.app" from its zip.
+mkdir "$tmp/qzip"
+unzip -q "$dir/RemoHop-QuickSupport-macos.zip" -d "$tmp/qzip"
+[[ "$(ls -A "$tmp/qzip")" == "RemoHop Quick Support.app" ]] || fail "RemoHop-QuickSupport-macos.zip holds more than RemoHop Quick Support.app: $(ls -A "$tmp/qzip" | tr '\n' ' ')"
+"${cmp[@]}" -id com.remohop.quicksupport -app "$tmp/qzip/RemoHop Quick Support.app" "$tmp/quick/macos/RemoHop Quick Support.app" ||
+	fail "RemoHop Quick Support.app in RemoHop-QuickSupport-macos.zip is not the rebuilt bundle with a Developer ID signature of team $TEAM_ID"
 
 # 4. The disk image: list it, allow only the app, the /Applications link and
 # the (empty) HFS+ metadata folders, then compare its app with the zip's.
