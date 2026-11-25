@@ -224,7 +224,7 @@ func (s *Socket) Candidates() []netip.AddrPort {
 		return nil
 	}
 	if !bound.Addr().IsUnspecified() {
-		if !usableLocal(bound.Addr()) || s.Excluded(bound.Addr()) {
+		if !usableLocal(bound.Addr()) || s.excludes(bound.Addr()) {
 			return nil
 		}
 		return []netip.AddrPort{bound}
@@ -234,7 +234,7 @@ func (s *Socket) Candidates() []netip.AddrPort {
 		if len(out) == MaxCandidates {
 			break
 		}
-		if s.Excluded(ip) {
+		if s.excludes(ip) {
 			continue // see exclude.go
 		}
 		out = append(out, netip.AddrPortFrom(ip, bound.Port()))
@@ -358,3 +358,6 @@ func (s *Socket) NATType() Type {
 	defer s.mu.Unlock()
 	return s.natType
 }
+
+// excludes reports whether no punched path may use ip (see Excluded).
+func (s *Socket) excludes(ip netip.Addr) bool { return s.Excluded != nil && s.Excluded(ip) }
