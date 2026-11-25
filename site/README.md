@@ -21,12 +21,22 @@ Pages, each in Chinese (`/…`) and English (`/en/…`): home, `features/`, `how
 `support/`, plus `404.html`. The documentation is generated from the Markdown
 in the repository's `docs/` (see below).
 
-The home page is short: what RemoHop is, a screenshot, the current status,
-the two ways to use it (quick support, or host plus client) and how to get it.
+The home page: a dark hero (moving aurora and grid, the browser client with
+the desktop app's connection request floating over it, a platform marquee),
+a row of numbers, an animated picture of how a connection is made, the
+feature cards, the two ways to use it, the downloads and the current status.
 Everything else lives on `features/` (commands, the browser client, how a
 connection is made, platforms, install, limits) and the other pages. The home
 fragment lays out its own full-width bands, so `build.py` does not wrap it in
 the prose column the other pages use.
+
+Motion is CSS only (plus SMIL inside the home page's inline SVG): keyframes,
+`@property` for the rotating rims and the counting numbers, and scroll-driven
+animations (`animation-timeline: view()`) for the sections that slide in and
+the terminal that types. Browsers without scroll-driven animations show
+everything in place, and `prefers-reduced-motion: reduce` stops all of it.
+Home-page classes that could clash with the How it works page carry an `h-`
+prefix.
 
 Colours are shared with the web client and the quick-support window: cobalt
 `#2546d8`, ink `#141c30`, paper `#f6f7fb`, line `#dce1ec`; green, amber and

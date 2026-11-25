@@ -14,7 +14,7 @@
 | macOS 12 及以上 | `RemoHop Quick Support.app` | `dist/quick/macos/RemoHop Quick Support.app`（通用二进制） |
 | Linux，或任何终端 | `remohop-quick`，或 `remohop quick` | `dist/quick/linux-*/remohop-quick` |
 
-每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.dmg`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；双击时打开什么由文件名决定：名字里有“quick”（`RemoHop-QuickSupport.exe`、`RemoHop Quick Support.app`、`remohop-quick`）就运行 `remohop quick`，否则打开[桌面应用](desktop-app.md)。任何名字下 `RemoHop.exe --quick` 都等同于前者。
+每个发布版本都提供下载（`RemoHop-QuickSupport-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-QuickSupport-macos.zip`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；双击时打开什么由文件名决定：名字里有“quick”（`RemoHop-QuickSupport.exe`、`RemoHop Quick Support.app`、`remohop-quick`）就运行 `remohop quick`，否则打开[桌面应用](desktop-app.md)。任何名字下 `RemoHop.exe --quick` 都等同于前者。
 
 坐在电脑前的人会看到：
 
