@@ -89,6 +89,12 @@ password out of shell history; the running host picks it up without a
 restart). The password is deliberately never put in the service definition.
 
 Platforms
+  A system service (--system on Linux and macOS, every Windows service)
+  runs its binary with root or LocalSystem rights, so whoever can change
+  that file gets them. On Linux and macOS install refuses a binary that
+  another account can change (e.g. ~/.local/bin/remohop or a Homebrew
+  prefix) and shows how to copy it where only root can write.
+
   Linux (systemd)   --user: ~/.config/systemd/user/remohop.service.
                     --system: /etc/systemd/system/remohop.service with state in
                     /var/lib/remohop. That is a different instance from
@@ -102,17 +108,26 @@ Platforms
   macOS (launchd)   --user: LaunchAgent ~/Library/LaunchAgents/com.remohop.host.plist,
                     started at login. --system: LaunchDaemon in
                     /Library/LaunchDaemons, started at boot, state in
-                    /Library/Application Support/remohop. Logs are files; stop
-                    unloads the job until the next login/boot or start.
+                    /Library/Application Support/remohop. Logs are files
+                    (private; moved to .log.1 past 10 MiB when started with
+                    this command); stop unloads the job until the next
+                    login/boot or start.
   Windows           a service named RemoHop (automatic start, restarted on
                     failure); install from an elevated prompt. It runs as
                     LocalSystem in session 0, which cannot see the interactive
                     desktop: shell, files and forwards work, screenshots and
-                    remote desktop of the logged-in screen do not. The
-                    instance's credentials (identity key, password, pairings)
-                    live in %ProgramData%\RemoHop, which the service restricts
-                    to SYSTEM and Administrators; its log is service.log
-                    there. Read them from an elevated prompt:
+                    remote desktop of the logged-in screen do not. A binary
+                    outside Program Files is copied to
+                    %ProgramFiles%\RemoHop\remohop.exe, which only
+                    administrators can change, and the service runs that copy;
+                    run ` + "`remohop service install`" + ` again after an upgrade to
+                    update and restart the service. The instance's
+                    credentials (identity key, password, pairings) live in
+                    %ProgramData%\RemoHop, owned by the Administrators and
+                    open to SYSTEM and Administrators only (install refuses a
+                    directory there that someone else made); its log is
+                    service.log there, rotated at 10 MiB. Read them from an
+                    elevated prompt:
                         set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop status
 
 Unattended access (Windows, --unattended)

@@ -24,7 +24,6 @@ func TestWindowsRunArgsUnattended(t *testing.T) {
 	if !adminOnlyLocation(`C:\Program Files\RemoHop\remohop.exe`) || adminOnlyLocation(`C:\Users\me\Downloads\remohop.exe`) {
 		t.Error("adminOnlyLocation")
 	}
-	if notes := unattendedNotes(`C:\Users\me\remohop.exe`); !strings.Contains(strings.Join(notes, "\n"), "only administrators") {
-		t.Errorf("no warning about a user-writable binary: %q", notes)
-	}
+	// A binary outside Program Files is no longer only warned about: install
+	// copies it there (TestInstallBinaryCopies).
 }
