@@ -80,7 +80,7 @@ func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
 			"-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=1", idx, fps),
 		},
 		filter:    "hwdownload,format=bgra",
-		gpu:       func(e *encoder) (string, bool) { return ddagrabGPUChain(idx, e) },
+		gpu:       func(e *encoder, w, h int) (string, bool) { return ddagrabGPUChain(idx, e, w, h) },
 		gpuFailed: func(e *encoder) { forgetGPUChain(idx, e) },
 	}
 	if idx == 0 {
@@ -212,11 +212,15 @@ var (
 )
 
 // ddagrabGPUChain returns the filter chain that feeds e from ddagrab's GPU
-// frames, and whether that works here. REMOHOP_WIN_GPU_CHAIN=0 turns it
-// off.
-func ddagrabGPUChain(idx int, e *encoder) (string, bool) {
+// frames, scaled to w x h if w is not 0, and whether that works here.
+// REMOHOP_WIN_GPU_CHAIN=0 turns it off.
+func ddagrabGPUChain(idx int, e *encoder, w, h int) (string, bool) {
 	chain, known := ddagrabGPU[e.name]
 	if !known || os.Getenv("REMOHOP_WIN_GPU_CHAIN") == "0" {
+		return "", false
+	}
+	scaled, ok := scaleGPUChain(chain, w, h)
+	if !ok {
 		return "", false
 	}
 	ffmpeg, err := ffmpegPath()
@@ -227,7 +231,7 @@ func ddagrabGPUChain(idx int, e *encoder) (string, bool) {
 	defer gpuMu.Unlock()
 	k := gpuKey{ffmpeg, e.name, idx}
 	if p, ok := gpuCache[k]; ok && (p.problem == "" || time.Since(p.at) < failedProbeLife) {
-		return chain, p.problem == ""
+		return scaled, p.problem == ""
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -245,7 +249,7 @@ func ddagrabGPUChain(idx int, e *encoder) (string, bool) {
 		p.problem = lastLine(string(out), err.Error())
 	}
 	gpuCache[k] = p
-	return chain, p.problem == ""
+	return scaled, p.problem == ""
 }
 
 // forgetGPUChain records that a session's encoder failed on the GPU chain,

@@ -1,7 +1,9 @@
 package desktop
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/readori/RemoHop/internal/x11disp"
 )
@@ -41,9 +43,10 @@ type captureSpec struct {
 	// gpu, when set, returns a filter chain that feeds enc straight from
 	// the capture device's GPU frames, replacing filter, the scaling and
 	// the encoder's pixel format conversion, and whether that works on
-	// this machine (Windows Desktop Duplication into a GPU encoder). It is
-	// only asked when the picture is not scaled.
-	gpu func(enc *encoder) (chain string, ok bool)
+	// this machine (Windows Desktop Duplication into a GPU encoder). w and
+	// h are the output size when the picture is scaled (0 otherwise); a
+	// chain that cannot scale says no.
+	gpu func(enc *encoder, w, h int) (chain string, ok bool)
 	// gpuFailed records that an encoder fed by the gpu chain failed in a
 	// session, so that the next start uses the default chain.
 	gpuFailed func(enc *encoder)
@@ -85,4 +88,17 @@ func (w *wheelAcc) steps(dx, dy float64) (sx, sy int) {
 	w.x -= float64(sx)
 	w.y -= float64(sy)
 	return sx, sy
+}
+
+// scaleGPUChain makes a GPU chain (captureSpec.gpu) scale to w x h (w 0:
+// not scaled), if it can: only Quick Sync's video processor scales there;
+// NVENC and AMF take the captured textures as they are.
+func scaleGPUChain(chain string, w, h int) (string, bool) {
+	if w <= 0 {
+		return chain, true
+	}
+	if !strings.Contains(chain, "vpp_qsv=") {
+		return "", false
+	}
+	return strings.Replace(chain, "vpp_qsv=", fmt.Sprintf("vpp_qsv=w=%d:h=%d:", w, h), 1), true
 }
