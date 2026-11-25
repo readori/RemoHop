@@ -7,15 +7,21 @@ on:
 permissions:
   contents: read
 
-# A newer push to the same ref supersedes the run still in progress.
+# A newer push to the same branch supersedes the run still in progress, except on main:
+# every merged commit gets a complete run.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.ref }}${{ github.ref == 'refs/heads/main' && format('-{0}', github.sha) || '' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # The required check. Besides the Linux tests it vets every release OS, cross-builds the
+  # one target the release builds that no other step compiles, and tests the mobile module,
+  # so that Windows or macOS breakage blocks a merge instead of surfacing at release time.
   test:
     name: fmt, vet and race tests
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: the AV1 tests depend on the distribution's encoders;
+    # move it deliberately.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -41,18 +47,25 @@ jobs:
       - name: gofmt
         run: make fmt-check
 
-      - name: go vet
+      - name: go vet (linux, darwin, windows)
         run: make vet
+
+      - name: Cross-compile windows/arm64
+        run: make cross CROSS_TARGETS="windows/arm64"
 
       - name: go test -race
         run: make race
+
+      # A separate Go module (gomobile bindings), outside ./... above.
+      - name: Mobile module (vet and tests)
+        run: make mobile-test
 
   # Known vulnerabilities reachable from our code, in dependencies and in the Go
   # toolchain itself (go.mod's `go` line selects it). A failure here usually means
   # a new Go patch release: raise the `go` line in go.mod and mobile/go.mod.
   govulncheck:
     name: govulncheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -60,10 +73,17 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: govulncheck (main module and the mobile module)
+      # Per OS: build tags decide which code (and which vulnerable symbols) is reachable.
+      - name: govulncheck (main module and the mobile module; linux, windows, darwin)
         run: |
-          go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
-          cd mobile && go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
+          set -eu
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
+          vc="$(go env GOPATH)/bin/govulncheck"
+          for os in linux windows darwin; do
+            echo "== GOOS=$os"
+            GOOS=$os "$vc" ./...
+            (cd mobile && GOOS=$os "$vc" ./...)
+          done
 
   # The real binary across two Linux-kernel NATs in network namespaces: a
   # session only works if hole punching does. The lab checks after every
@@ -72,7 +92,7 @@ jobs:
   # the runner fails in minutes instead of losing it for an hour.
   natlab:
     name: NAT traversal end to end
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -92,7 +112,7 @@ jobs:
 
   cross:
     name: build ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -102,6 +122,7 @@ jobs:
           - darwin/amd64
           - darwin/arm64
           - windows/amd64
+          - windows/arm64
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
@@ -111,3 +132,19 @@ jobs:
 
       - name: Cross-compile ${{ matrix.target }}
         run: make cross CROSS_TARGETS="${{ matrix.target }}"
+
+  # The committed website (site/public) must be what site/build.py makes of its sources.
+  site:
+    name: website is up to date
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Rebuild and compare
+        run: |
+          python3 site/build.py
+          git status --porcelain site/public
+          git diff --exit-code --stat site/public ||
+            { echo "::error::site/public is out of date: run python3 site/build.py and commit the result"; exit 1; }
+          test -z "$(git status --porcelain site/public)" ||
+            { echo "::error::site/build.py makes files that are not committed"; exit 1; }

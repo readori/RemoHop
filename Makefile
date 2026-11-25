@@ -6,9 +6,9 @@ BIN            := bin/remohop
 DIST           := dist
 VERSION        ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS        := -s -w -X github.com/readori/RemoHop/internal/cli.Version=$(VERSION)
-CROSS_TARGETS  ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
+CROSS_TARGETS  ?= linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64
 
-.PHONY: all build test race vet fmt-check cross quick clean
+.PHONY: all build test race vet fmt-check cross quick clean mobile-test
 
 all: fmt-check vet build test
 
@@ -22,8 +22,15 @@ test:
 race:
 	CGO_ENABLED=1 $(GO) test -race ./...
 
+# Every OS the release ships: build tags make each one compile different files.
 vet:
 	$(GO) vet ./...
+	CGO_ENABLED=0 GOOS=darwin $(GO) vet ./...
+	CGO_ENABLED=0 GOOS=windows $(GO) vet ./...
+
+# The mobile library is a separate module (mobile/go.mod).
+mobile-test:
+	cd mobile && $(GO) vet ./... && $(GO) test ./...
 
 # gofmt -l prints files whose formatting differs; any output fails the target.
 fmt-check:
