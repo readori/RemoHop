@@ -62,6 +62,7 @@ type Session struct {
 	droppedHigh uint32 // highest sequence number dropped locally
 	localDrops  uint64
 	lastKeyReq  time.Time
+	behindLater *time.Timer // a deferred "behind" (see onVideo)
 	viewOnly    bool
 	// hostNoInput: the latest Hello says the host takes no input (the
 	// host's owner can withdraw it, and give it back, mid-session).
@@ -570,16 +571,38 @@ func (s *Session) onVideo(h frameHeader, data []byte) {
 		}
 	default:
 		s.noteDrop(f.Seq)
+		s.behind()
+	}
+}
+
+// behind tells the host the application is behind, at most once a second.
+// A report due sooner is sent when the second is up, if the session is
+// still dropping then: dropping it left the stream frozen until the host's
+// scheduled key frame when the application fell behind twice in a row.
+func (s *Session) behind() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	wait := time.Second - time.Since(s.lastKeyReq)
+	if wait <= 0 {
+		s.lastKeyReq = time.Now()
+		go s.ReportBehind()
+		return
+	}
+	if s.behindLater != nil {
+		return
+	}
+	s.behindLater = time.AfterFunc(wait, func() {
 		s.mu.Lock()
-		ask := time.Since(s.lastKeyReq) > time.Second
-		if ask {
+		s.behindLater = nil
+		still := s.dropping
+		if still {
 			s.lastKeyReq = time.Now()
 		}
 		s.mu.Unlock()
-		if ask {
-			go s.ReportBehind()
+		if still {
+			s.ReportBehind()
 		}
-	}
+	})
 }
 
 // Probe asks the host what a desktop session would offer (screen size,

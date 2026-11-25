@@ -303,10 +303,13 @@ type hostSession struct {
 	// Input. The host's owner can take it away and give it back while
 	// the session runs (setHostInput): injMu serialises every injection
 	// with that and with teardown, and guards the fields below it.
-	injMu   sync.Mutex
-	inj     injector // nil while the session has no input
-	inErr   string   // why inj is nil
-	hostOff bool     // the owner switched input off
+	injMu sync.Mutex
+	inj   injector // nil while the session has no input
+	// ctlSpec is spec for readControl's goroutine (Lock needs the
+	// captured display): run owns spec and copies it here (setSpec).
+	ctlSpec captureSpec
+	inErr   string // why inj is nil
+	hostOff bool   // the owner switched input off
 	// viewOnly is what the client asked for when it opened the session.
 	viewOnly bool
 	// inputOff mirrors hostOff without the lock, so that text being
@@ -405,7 +408,7 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, f
 	}
 	h := &hostSession{
 		s: s, opts: opts,
-		ffmpeg: ffmpeg, spec: spec, start: time.Now(),
+		ffmpeg: ffmpeg, spec: spec, ctlSpec: spec, start: time.Now(),
 		frames: make(chan encFrame, 4),
 		exits:  make(chan encExit, 4),
 		ctl:    make(chan Control, 256),
@@ -644,12 +647,7 @@ func (h *hostSession) startEncoder() error {
 		// The screen changed under the session (another resolution; on a
 		// Windows service, another user's session on the console): aim
 		// input at what is captured now.
-		h.spec = spec
-		h.injMu.Lock()
-		if h.inj != nil {
-			h.inj.retarget(spec)
-		}
-		h.injMu.Unlock()
+		h.setSpec(spec)
 	}
 	h.lastGen++
 	gen := h.lastGen
@@ -688,6 +686,18 @@ func (h *hostSession) startEncoder() error {
 	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast, "overlap", overlap)
 	go h.readEncoder(p, stdout)
 	return nil
+}
+
+// setSpec makes spec the captured area: input aims at it, and Lock finds
+// its display.
+func (h *hostSession) setSpec(spec captureSpec) {
+	h.spec = spec
+	h.injMu.Lock()
+	h.ctlSpec = spec
+	if h.inj != nil {
+		h.inj.retarget(spec)
+	}
+	h.injMu.Unlock()
 }
 
 // adopt makes p the session's encoder.
@@ -1450,12 +1460,7 @@ func (h *hostSession) onControl(c Control) {
 				h.reply(c, err)
 				return
 			}
-			h.spec = spec
-			h.injMu.Lock()
-			if h.inj != nil {
-				h.inj.retarget(spec)
-			}
-			h.injMu.Unlock()
+			h.setSpec(spec)
 		}
 		h.reply(c, nil)
 		h.opts = next
@@ -1696,7 +1701,10 @@ func (h *hostSession) hostControl(c Control) error {
 	case ctlLock:
 		ctx, cancel := context.WithTimeout(h.ctx, 15*time.Second)
 		defer cancel()
-		return lockScreen(ctx, h.spec)
+		h.injMu.Lock()
+		spec := h.ctlSpec
+		h.injMu.Unlock()
+		return lockScreen(ctx, spec)
 	}
 	return fmt.Errorf("unknown control %q", c.Type)
 }

@@ -241,3 +241,40 @@ func TestSetDisplayXvfb(t *testing.T) {
 		t.Fatalf("bad monitor: %v", err)
 	}
 }
+
+// Lock reads the captured display on the control goroutine while a monitor
+// switch replaces it on the session's own: run under -race, this caught a
+// data race on the session's capture spec.
+func TestLockDuringMonitorSwitchXvfb(t *testing.T) {
+	twoMonitors(t)
+	client, _ := peertest.Pair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	sess, err := Open(ctx, client, Options{FPS: 15})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	go func() {
+		for ctx.Err() == nil {
+			if _, err := sess.Next(ctx); err != nil {
+				return
+			}
+		}
+	}()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 20; i++ {
+			lctx, lcancel := context.WithTimeout(ctx, 10*time.Second)
+			sess.Lock(lctx) // fails here (no session manager); what matters is the read
+			lcancel()
+		}
+	}()
+	for i := 0; i < 20; i++ {
+		if err := sess.SetDisplay(ctx, 1+i%2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-done
+}
