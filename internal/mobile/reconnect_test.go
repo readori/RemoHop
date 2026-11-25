@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -96,6 +97,19 @@ func (c *freshClient) dropAndWait(key string, timeout time.Duration) {
 		}
 	}
 	c.t.Fatalf("%s was not re-established: %+v", key, last)
+}
+
+// termLine is the terminal input that runs a POSIX shell command line. On
+// Windows the host's shell is PowerShell, which writes $(...) for $((...))
+// and takes Enter as a carriage return.
+func termLine(cmd string) string {
+	end := "\n"
+	if runtime.GOOS == "windows" {
+		cmd = strings.ReplaceAll(strings.ReplaceAll(cmd, "$((", "$("), "))", ")")
+		end = "\r"
+	}
+	b, _ := json.Marshal(map[string]string{"type": "in", "data": cmd + end})
+	return string(b)
 }
 
 func pageOn(t *testing.T) *freshClient {
@@ -195,7 +209,7 @@ func TestReconnectTerminalReattaches(t *testing.T) {
 	if first.Session == "" || !first.Created {
 		t.Fatalf("first attach: %+v", first)
 	}
-	websocket.Message.Send(ws, `{"type":"in","data":"echo remohop-$((6*7))\n"}`)
+	websocket.Message.Send(ws, termLine("echo remohop-$((6*7))"))
 	readUntil(t, ws, "remohop-42")
 
 	c.dropAndWait(key, 20*time.Second)
@@ -205,7 +219,7 @@ func TestReconnectTerminalReattaches(t *testing.T) {
 	if again.Session != first.Session || again.Created {
 		t.Fatalf("after reconnecting: %+v, want the same session %q re-attached", again, first.Session)
 	}
-	websocket.Message.Send(ws2, `{"type":"in","data":"echo remohop-$((7*8))\n"}`)
+	websocket.Message.Send(ws2, termLine("echo remohop-$((7*8))"))
 	readUntil(t, ws2, "remohop-56")
 }
 

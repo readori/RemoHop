@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -74,7 +75,7 @@ func TestDiagnosticsRecordExportClear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 { // Windows reports no Unix permissions
 		t.Errorf("log mode %v", fi.Mode().Perm())
 	}
 	if DiagnosticsSize() == 0 {
