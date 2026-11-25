@@ -52,8 +52,14 @@ func newSystemd() *systemd {
 			if err != nil {
 				real = exe
 			}
-			return checkSystemExe(exe, o, fmt.Sprintf("    sudo install -m 755 %s /usr/local/bin/remohop\n"+
-				"    sudo /usr/local/bin/remohop service install --system ...   (the same flags as before)", shellQuote(real)))
+			// /usr/local/bin, unless it is not root's alone either (some
+			// images make it world-writable).
+			dir, mk := "/usr/local/bin", ""
+			if untrustedExe(dir, map[uint32]bool{0: true}) != "" {
+				dir, mk = "/opt/remohop/bin", "sudo install -d -m 755 /opt/remohop/bin && "
+			}
+			return checkSystemExe(exe, o, fmt.Sprintf("    %ssudo install -m 755 %s %s/remohop\n"+
+				"    sudo %s/remohop service install --system ...   (the same flags as before)", mk, shellQuote(real), dir, dir))
 		},
 	}
 }
