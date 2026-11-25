@@ -88,7 +88,7 @@
         <button type="button" id="d-key" title="Ask the host for a fresh key frame" data-i18n-title="d.refresh.title" data-i18n="d.refresh">Refresh</button>
         <button type="button" id="d-cad" title="Send Ctrl+Alt+Del" data-i18n-title="d.cad.title">Ctrl+Alt+Del</button>
         <label class="vh" for="d-quality" data-i18n="d.quality">Quality</label>
-        <select id="d-quality"><option value="0" data-i18n="d.q.native">Native size</option><option value="1080" data-i18n="d.q.max" data-i18n-vars='{"p":1080}'>Max 1080p</option><option value="720" data-i18n="d.q.max" data-i18n-vars='{"p":720}'>Max 720p</option><option value="480" data-i18n="d.q.max" data-i18n-vars='{"p":480}'>Max 480p</option></select>
+        <select id="d-quality"><option value="0" data-i18n="d.q.native">Native size</option><option value="2160" data-i18n="d.q.max" data-i18n-vars='{"p":2160}'>Max 2160p</option><option value="1440" data-i18n="d.q.max" data-i18n-vars='{"p":1440}'>Max 1440p</option><option value="1080" data-i18n="d.q.max" data-i18n-vars='{"p":1080}'>Max 1080p</option><option value="720" data-i18n="d.q.max" data-i18n-vars='{"p":720}'>Max 720p</option><option value="480" data-i18n="d.q.max" data-i18n-vars='{"p":480}'>Max 480p</option></select>
         <label class="vh" for="d-display" data-i18n="d.monitor">Monitor</label>
         <select id="d-display" hidden></select>
         <button type="button" id="d-stats" aria-pressed="false" data-i18n="d.stats">Stats</button>
@@ -98,6 +98,7 @@
         <canvas id="d-canvas" tabindex="0" width="16" height="9" aria-label="Remote desktop. Keyboard and mouse go to the remote machine while this has focus." data-i18n-aria-label="d.canvas"></canvas>
         <pre id="d-hud" class="hud" hidden></pre>
         <div id="d-msg" class="overlay" role="status" aria-live="polite"></div>
+        <div id="d-paused" class="paused" role="status" aria-live="polite" hidden></div>
         <button type="button" id="d-exitfs" class="exitfs" aria-label="Exit full screen" data-i18n-aria-label="d.exitfs" title="Exit full screen" data-i18n-title="d.exitfs"></button>
       </div>
     </div>

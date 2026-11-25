@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jezek/xgb"
@@ -31,8 +32,34 @@ func findDisplay() (*x11disp.Display, error) {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		return nil, errors.New("this host runs a Wayland session without X11; desktop capture needs an X11 session (choose \"GNOME on Xorg\"/\"Plasma (X11)\" at login)")
 	}
-	return nil, fmt.Errorf("%w; desktop capture needs a running X11 session", err)
+	return nil, noDisplayError(err)
 }
+
+// noDisplayError says in one sentence that there is no desktop to show,
+// which is what a headless server is, with what was tried after
+// "Details: " (the web console shows that part on request). It used to be
+// every probe, one per stale socket in /tmp/.X11-unix, as the message.
+func noDisplayError(err error) error {
+	details := err.Error()
+	if xe, ok := errors.AsType[*x11disp.Error](err); ok {
+		notes := xe.Notes
+		if len(notes) > 4 {
+			notes = append(notes[:4:4], fmt.Sprintf("and %d more", len(xe.Notes)-4))
+		}
+		details = strings.Join(notes, "; ")
+	}
+	return fmt.Errorf("this computer has no graphical desktop session to show (no running X11 display); Terminal and Files still work. Details: %w",
+		detailErr{details, err})
+}
+
+// detailErr carries the shortened details while unwrapping to the cause.
+type detailErr struct {
+	text string
+	err  error
+}
+
+func (e detailErr) Error() string { return e.text }
+func (e detailErr) Unwrap() error { return e.err }
 
 func discoverCapture(display, fps int) (captureSpec, error) {
 	d, err := findDisplay()
