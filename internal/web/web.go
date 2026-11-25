@@ -153,7 +153,7 @@ type Config struct {
 	MaxBrowserSessions int           // default 64
 	DialTimeout        time.Duration // default 4m (hosts may wait for approval)
 	ConnIdle           time.Duration // pooled session unused for this long is closed, default 30m
-	PageIdle           time.Duration // loopback: no page heartbeat for this long closes the session, default 2m
+	PageIdle           time.Duration // loopback: no page heartbeat for this long closes the session, default 15m (a laptop's nap or a paused background tab survives)
 	SessionIdle        time.Duration // password mode: idle logout, default 30m
 	SessionTTL         time.Duration // password mode: absolute lifetime, default 12h
 
@@ -261,7 +261,7 @@ func New(cfg Config) (*Server, error) {
 	}
 	def(&s.cfg.DialTimeout, 4*time.Minute)
 	def(&s.cfg.ConnIdle, 30*time.Minute)
-	def(&s.cfg.PageIdle, 2*time.Minute)
+	def(&s.cfg.PageIdle, 15*time.Minute)
 	def(&s.cfg.SessionIdle, 30*time.Minute)
 	def(&s.cfg.SessionTTL, 12*time.Hour)
 	if s.cfg.Dial == nil {

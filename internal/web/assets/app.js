@@ -235,7 +235,17 @@
 
   function sessionLost() {
     if (st.mode === 'password') { st.csrf = null; teardownAll(); showLogin(); banner('gw.ended.login', null, true); }
-    else { banner('gw.ended.reload', null, true); }
+    else {
+      // Loopback: the gateway closes a page's connections after 15 minutes
+      // without its heartbeat (the computer slept, the tab was paused or
+      // discarded). Say so, with a button.
+      banner('gw.ended.reload', null, true);
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'secondary'; b.id = 'reloadbtn';
+      I.say(b, 'gw.reload');
+      b.addEventListener('click', () => location.reload());
+      $('banner').append(' ', b);
+    }
   }
 
   $('loginform').addEventListener('submit', async ev => {
@@ -267,10 +277,15 @@
     $('peerrow').hidden = !(st.peers && st.peers.length);
     $('pairrow').hidden = !st.savedPeers;
     $('passhint').hidden = !st.savedPeers;
+    // Remembering the host is what a desktop user wants on their own
+    // gateway (loopback); on a shared one (password mode) it stays a choice.
+    if (st.mode !== 'password' && !pairDefaulted) { pairDefaulted = true; $('pair').checked = true; }
     refreshConns(st.conns);
     if (st.conns.length) selectConn(st.conns[0].key); else showConnect();
-    setInterval(heartbeat, 15000);
+    // One heartbeat, however often the user logs in again or retries.
+    if (!heartbeatTimer) heartbeatTimer = setInterval(heartbeat, 15000);
   }
+  let heartbeatTimer = 0, pairDefaulted = false;
 
   async function loadPeers() {
     st.peers = [];
@@ -430,7 +445,7 @@
       if (state === 'reconnecting') { callTabs('hide'); banner('sess.reconnecting', {target: c.target}, false); }
       else if (state === 'waiting_approval') { callTabs('hide'); banner('sess.reapproval', {target: c.target}, false); }
       else if (state === 'failed') { callTabs('hide'); banner('sess.lost', {target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
-      else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'files'); }
+      else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'desktop'); }
     }
     if (state !== 'connected' && state !== 'failed' && !fastPoll) fastPoll = setTimeout(() => { fastPoll = null; heartbeat(); }, 2000);
   }
@@ -588,7 +603,17 @@
     pb.classList.toggle('relayed', !!c.relayed);
     if (c.relayed) I.sayAttr(pb, 'title', 'path.relayed.title'); else I.sayAttr(pb, 'title', 'path.via', {path});
     if (c.new_host) banner('sess.firstkey', {fp: c.host_fingerprint || ''}, false);
-    showTab(load('sd.tab') || 'files');
+    const savedTab = load('sd.tab');
+    if (savedTab) { showTab(savedTab); return; }
+    // First tab: the desktop, where the host has one (Desktop leads the tab
+    // bar); a headless server opens on its terminal.
+    firstTab(key).then(t => { if (st.cur === key && !active) showTab(t); });
+  }
+  async function firstTab(key) {
+    try {
+      const j = await SD.json('GET', 'info', undefined, {c: key});
+      return j.info && j.info.display === false ? 'terminal' : 'desktop';
+    } catch (e) { return 'desktop'; }
   }
   $('hostsel').addEventListener('change', () => selectConn($('hostsel').value));
   $('disconnect').addEventListener('click', async e => {
