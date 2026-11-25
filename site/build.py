@@ -60,10 +60,14 @@ def pick(public, prelaunch):
 # README.md and docs/ say the same as the site), then run this script and commit.
 RELEASED = True
 
-# The mobile apps in the App Store and on Google Play. Same mechanism, with
-# <!--store-->...<!--/store--> and <!--nostore-->...<!--/nostore--> blocks. With
-# False the store addresses below appear nowhere (the build checks it).
-STORES_LIVE = False
+# The mobile apps in the App Store and on Google Play, one switch per store.
+# Same mechanism, with <!--ios-->...<!--/ios-->, <!--play-->...<!--/play--> and
+# their <!--noios-->/<!--noplay--> opposites; <!--store--> blocks need both
+# stores live and <!--nostore--> blocks show while either is not. While a switch
+# is False its store address appears nowhere (the build checks it).
+IOS_LIVE = True     # RemoHop 1.0.0 approved and released on the App Store
+PLAY_LIVE = False   # in Google Play review
+STORES_LIVE = IOS_LIVE and PLAY_LIVE
 APP_STORE = "https://apps.apple.com/app/id6838609056"
 GOOGLE_PLAY = "https://play.google.com/store/apps/details?id=com.remohop.app"
 
@@ -419,7 +423,7 @@ See [skills/README.md](../../skills/README.md) for other agents and the setup st
 
 # Statements in the repository's Markdown that change at release time:
 # (switch, file, text now, text after). switch is "rel" (RELEASED) or "store"
-# (STORES_LIVE). When the switch is on, the site renders docs/ with the new
+# (STORES_LIVE), "ios" (IOS_LIVE) or "play" (PLAY_LIVE). When the switch is on, the site renders docs/ with the new
 # text, and `python3 site/build.py --release-docs` writes it into the files
 # (README.md and README.zh-CN.md are not on the site, so only that command
 # changes them). Each old text must occur exactly once, unless the new text is
@@ -430,10 +434,14 @@ RELEASE_DOC_EDITS = [
      "- Releases are on [GitHub Releases](https://github.com/readori/RemoHop/releases), with every download listed at [remohop.com/en/download](https://remohop.com/en/download/); see [Install](docs/en/install.md). Windows binaries are not code-signed yet."),
     ("rel", "README.zh-CN.md", "- 目前还没有发布版本，请从源码编译。Windows 二进制尚未做代码签名。",
      "- 发布版本在 [GitHub Releases](https://github.com/readori/RemoHop/releases)，全部下载见 [remohop.com/download](https://remohop.com/download/)；安装方法见[安装](docs/zh/install.md)。Windows 二进制尚未做代码签名。"),
-    ("store", "README.md", "| Mobile | Android and iOS controller apps (no releases yet) |",
-     "| Mobile | Android and iOS controller apps (App Store, Google Play) |"),
-    ("store", "README.zh-CN.md", "| 移动端 | Android 和 iOS 控制端应用（尚无发布版本） |",
-     "| 移动端 | Android 和 iOS 控制端应用（App Store、Google Play） |"),
+    ("ios", "README.md", "| Mobile | Android and iOS controller apps (no releases yet) |",
+     "| Mobile | Android and iOS controller apps ([App Store](https://apps.apple.com/app/id6838609056); Google Play coming soon) |"),
+    ("play", "README.md", "([App Store](https://apps.apple.com/app/id6838609056); Google Play coming soon)",
+     "([App Store](https://apps.apple.com/app/id6838609056), [Google Play](https://play.google.com/store/apps/details?id=com.remohop.app))"),
+    ("ios", "README.zh-CN.md", "| 移动端 | Android 和 iOS 控制端应用（尚无发布版本） |",
+     "| 移动端 | Android 和 iOS 控制端应用（[App Store](https://apps.apple.com/app/id6838609056)；Google Play 即将上架） |"),
+    ("play", "README.zh-CN.md", "（[App Store](https://apps.apple.com/app/id6838609056)；Google Play 即将上架）",
+     "（[App Store](https://apps.apple.com/app/id6838609056)、[Google Play](https://play.google.com/store/apps/details?id=com.remohop.app)）"),
     ("rel", "docs/en/install.md",
      "Releases are built by the release workflow on every `v*` tag. No release has been published yet, so the download commands below work only from the first release; until then, [build from source](#from-source).",
      "Releases are built by the release workflow on every `v*` tag and published on [GitHub Releases](https://github.com/readori/RemoHop/releases); the commands below always fetch the latest one. You can also [build from source](#from-source)."),
@@ -454,11 +462,25 @@ RELEASE_DOC_EDITS = [
      "The `RemoHop-macos.dmg` download is signed with a Developer ID, notarized and stapled; a `RemoHop.app` you build yourself is unsigned;"),
     ("rel", "docs/zh/quick-support.md", "这里构建出的 `RemoHop.app` 没有签名；",
      "下载的 `RemoHop-macos.dmg` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；"),
-    ("store", "docs/en/mobile-apps.md", "- There are no store releases yet. Build them yourself.",
+    ("ios", "docs/en/mobile-apps.md", "- Both apps have been submitted for review and are coming to the App Store and Google Play; until they are approved, build them yourself.",
+     "- Get the iOS app from the [App Store](https://apps.apple.com/app/id6838609056). The Android app has been submitted to Google Play for review; until it is approved, build it yourself."),
+    ("play", "docs/en/mobile-apps.md", "- Get the iOS app from the [App Store](https://apps.apple.com/app/id6838609056). The Android app has been submitted to Google Play for review; until it is approved, build it yourself.",
      "- Get them from the [App Store](https://apps.apple.com/app/id6838609056) and [Google Play](https://play.google.com/store/apps/details?id=com.remohop.app), or build them yourself."),
-    ("store", "docs/zh/mobile-apps.md", "- 目前没有商店发布版本，需要自己构建。",
+    ("ios", "docs/zh/mobile-apps.md", "- 两个应用都已提交审核，即将上架 App Store 和 Google Play；审核通过之前，需要自己构建。",
+     "- iOS 应用可以从 [App Store](https://apps.apple.com/app/id6838609056) 安装。Android 应用已提交 Google Play 审核，审核通过之前需要自己构建。"),
+    ("play", "docs/zh/mobile-apps.md", "- iOS 应用可以从 [App Store](https://apps.apple.com/app/id6838609056) 安装。Android 应用已提交 Google Play 审核，审核通过之前需要自己构建。",
      "- 可以从 [App Store](https://apps.apple.com/app/id6838609056) 和 [Google Play](https://play.google.com/store/apps/details?id=com.remohop.app) 安装，也可以自己构建。"),
 ]
+
+
+def superseded(k, text, only_on=True):
+    """Whether rule k's result was rewritten by a later rule of the same file
+    (a chain such as App Store first, then Google Play) that is applied."""
+    _, f, _, new = RELEASE_DOC_EDITS[k]
+    for switch, f2, old2, new2 in RELEASE_DOC_EDITS[k + 1:]:
+        if f2 == f and old2 in new and (not only_on or gates()[switch]):
+            return new2 in text or superseded(RELEASE_DOC_EDITS.index((switch, f2, old2, new2)), text, only_on)
+    return False
 
 
 def release_edit(text, path, only_on=True):
@@ -468,6 +490,8 @@ def release_edit(text, path, only_on=True):
             continue
         if new in text:  # already applied (the new text may contain the old one)
             continue
+        if old not in text and superseded(k, text, only_on):
+            continue  # a later step (e.g. "play" after "ios") already rewrote this one's text
         n = text.count(old)
         if n == 1:
             text = text.replace(old, new)
@@ -502,7 +526,7 @@ def url(lang, slug):
 
 def gates():
     """Marker name -> whether its blocks are shown (the "no" name gets the opposite)."""
-    return {"src": SOURCE_PUBLIC, "rel": RELEASED, "store": STORES_LIVE}
+    return {"src": SOURCE_PUBLIC, "rel": RELEASED, "store": STORES_LIVE, "ios": IOS_LIVE, "play": PLAY_LIVE}
 
 
 def gate(text):
@@ -869,14 +893,16 @@ def main():
         name = str(p.relative_to(OUT))
         if not RELEASED and re.search(r'href="' + re.escape(REPO) + r'/releases', text):
             bad.append(f"{name}: links to the releases but RELEASED is False")
-        if not STORES_LIVE and (APP_STORE in text or GOOGLE_PLAY in text):
-            bad.append(f"{name}: names a store address but STORES_LIVE is False")
-        if re.search(r"<!--/?(no)?(src|rel|store)-->", text):
+        if not IOS_LIVE and APP_STORE in text:
+            bad.append(f"{name}: names the App Store address but IOS_LIVE is False")
+        if not PLAY_LIVE and GOOGLE_PLAY in text:
+            bad.append(f"{name}: names the Google Play address but PLAY_LIVE is False")
+        if re.search(r"<!--/?(no)?(src|rel|store|ios|play)-->", text):
             bad.append(f"{name}: a gate marker is left over")
     if bad:
         raise SystemExit("\n".join(bad))
     pages = sum(len(e) for e in sitemap) + 2
-    print(f"wrote {pages} pages to {OUT} (SOURCE_PUBLIC = {SOURCE_PUBLIC}, RELEASED = {RELEASED}, STORES_LIVE = {STORES_LIVE})")
+    print(f"wrote {pages} pages to {OUT} (SOURCE_PUBLIC = {SOURCE_PUBLIC}, RELEASED = {RELEASED}, IOS_LIVE = {IOS_LIVE}, PLAY_LIVE = {PLAY_LIVE})")
 
 
 if __name__ == "__main__":

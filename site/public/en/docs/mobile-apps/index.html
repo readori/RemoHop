@@ -54,7 +54,7 @@
 <p>The repository has two mobile apps: <code>mobile/android</code> and <code>mobile/ios</code>. Both are <strong>controllers</strong>: a native shell plus a WebView that shows an in-process <code>remohop web</code> gateway (the Go core is bound with gomobile).</p>
 <ul>
 <li>Controller only. Running an Android or iOS device as a controlled host is not implemented.</li>
-<li>Both apps have been submitted for review and are coming to the App Store and Google Play; until they are approved, build them yourself.</li>
+<li>Get the iOS app from the <a href="https://apps.apple.com/app/id6838609056">App Store</a>. The Android app has been submitted to Google Play for review; until it is approved, build it yourself.</li>
 <li>Android: run <code>mobile/android/build.sh</code> (needs Go, JDK 17+, the Android SDK and an NDK, with <code>ANDROID_HOME</code> set). By default it builds a debug APK and runs the JVM unit tests.</li>
 <li>iOS: on macOS, run <code>mobile/ios/build-xcframework.sh</code> to produce <code>Remohopcore.xcframework</code>, then build <code>mobile/ios/RemoHop.xcodeproj</code> in Xcode.</li>
 <li>Tested in CI on every change: the iOS app in the iOS Simulator, where a test inside the app connects to a <code>remohop host</code> by address and password, runs a command in the terminal and lists a directory in Files; the Android app on an emulator, where instrumented tests pair with a real host and use the terminal, files, downloads, the clipboard and the desktop tab, and check that Settings survives rotation, recreation and being reopened from the launcher. Please report problems you see on your device.</li>

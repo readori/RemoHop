@@ -22,7 +22,7 @@ RemoHop 是一个点对点远程控制工具。一个静态链接的 Go 程序 `
 | 被控端访问控制 | 功能开关、连接审批、一次性密码、密钥登录、审计日志 | [被控端访问控制](docs/zh/host-access-control.md) |
 | 账号（可选） | 把自己的设备归为一组并查看在线状态；不授予访问权 | [账号](docs/zh/accounts.md) |
 | 自建服务器 | 自己运行汇合服务器，可选中继和 websocket 桥 | [自建汇合服务器](docs/zh/self-hosting.md) |
-| 移动端 | Android 和 iOS 控制端应用（尚无发布版本） | [移动端应用](docs/zh/mobile-apps.md) |
+| 移动端 | Android 和 iOS 控制端应用（[App Store](https://apps.apple.com/app/id6838609056)；Google Play 即将上架） | [移动端应用](docs/zh/mobile-apps.md) |
 
 安全机制：QUIC 内部是 TLS 1.3，登录时用密码做带认证的密钥交换（CPace）并与连接绑定，主机密钥在首次登录时固定。中继只有在汇合服务器运营者主动开启时才存在，只在无法直连时使用，承载的仍是同一条加密会话。账号是可选的，不授予访问权。没有内置的默认汇合服务器。RemoHop 尚未经过独立的安全审计。详见 [docs/security.md](docs/security.md)（英文）。
 
