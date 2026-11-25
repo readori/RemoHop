@@ -56,6 +56,15 @@ const checks = {
     return {chord, cancel};
   },
 
+  // A decoder that accepts its configuration and then fails on every frame
+  // in hardware (FAIL=hw) or always (FAIL=all).
+  async decodefail(page) {
+    await sleep(+process.env.WAIT || 4000);
+    return page.evaluate(() => ({stats: window.remohop.stats(), toast: document.getElementById('toast').textContent,
+                                 msg: document.getElementById('msg').classList.contains('hidden') ? '' : document.getElementById('msgtext').textContent,
+                                 sent: window.__sent.filter(m => m.type === 'keyframe' || m.type === 'config')}));
+  },
+
   // A key held down: Playwright marks a second keydown of a held key as a
   // repeat, as browsers do for the keyboard's autorepeat.
   async repeat(page) {
@@ -86,6 +95,22 @@ const checks = {
       return orig.call(this, d);
     };
   });
+  if (process.env.FAIL) {
+    await page.addInitScript(mode => {
+      const Real = window.VideoDecoder;
+      window.VideoDecoder = class extends Real {
+        constructor(init) { super(init); this.fakeError = init.error; }
+        configure(c) { this.hw = c.hardwareAcceleration; return super.configure(c); }
+        decode(chunk) {
+          if (mode === 'all' || this.hw !== 'prefer-software') {
+            setTimeout(() => this.fakeError(new DOMException('fake decoder failure')), 0);
+            return;
+          }
+          return super.decode(chunk);
+        }
+      };
+    }, process.env.FAIL);
+  }
   let out;
   try {
     await page.goto(process.env.VIEWER_URL);

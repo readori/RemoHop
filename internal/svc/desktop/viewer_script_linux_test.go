@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jezek/xgb/xproto"
+
 	"github.com/readori/RemoHop/internal/peer/peertest"
 )
 
@@ -139,4 +141,107 @@ func abs(v int) int {
 		return -v
 	}
 	return v
+}
+
+type sentMsg struct {
+	Type   string `json:"type"`
+	Button int    `json:"button"`
+	Down   bool   `json:"down"`
+	Code   string `json:"code"`
+}
+
+func buttonsText(ms []sentMsg) string {
+	var out []string
+	for _, m := range ms {
+		switch m.Type {
+		case "button":
+			out = append(out, fmt.Sprintf("%d %s", m.Button, map[bool]string{true: "down", false: "up"}[m.Down]))
+		case "key":
+			out = append(out, fmt.Sprintf("%s %s", m.Code, map[bool]string{true: "down", false: "up"}[m.Down]))
+		default:
+			out = append(out, m.Type)
+		}
+	}
+	return strings.Join(out, ", ")
+}
+
+// Overlapping mouse buttons each reach the host (Pointer Events report the
+// second button of a chord as a pointermove; the page used to send only
+// "move" for it, losing the right press and leaving the left button stuck
+// down), and a cancelled pointer lets go of its button.
+func TestViewerChordXvfb(t *testing.T) {
+	x := startXvfb(t, 640, 480)
+	var res struct{ Chord, Cancel []sentMsg }
+	runViewerCheck(t, Options{FPS: 15}, "chord", &res)
+	if got, want := buttonsText(res.Chord), "0 down, 2 down, 0 up, 2 up"; got != want {
+		t.Errorf("chord sent %q, want %q", got, want)
+	}
+	if got, want := buttonsText(res.Cancel), "0 down, 0 up"; got != want {
+		t.Errorf("cancelled pointer sent %q, want %q", got, want)
+	}
+	root := xproto.Setup(x).DefaultScreen(x).Root
+	p, err := xproto.QueryPointer(x, root).Reply()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Mask&(xproto.KeyButMaskButton1|xproto.KeyButMaskButton2|xproto.KeyButMaskButton3) != 0 {
+		t.Errorf("a button is still held on the host: mask %#x", p.Mask)
+	}
+}
+
+// Held keys repeat on every host: the page forwards the browser's
+// repeated keydowns (except for modifiers), which Windows and macOS hosts
+// need because their injected keys never repeat by themselves.
+func TestViewerKeyRepeatXvfb(t *testing.T) {
+	startXvfb(t, 640, 480)
+	var res []sentMsg
+	runViewerCheck(t, Options{FPS: 15}, "repeat", &res)
+	if got, want := buttonsText(res), "ArrowLeft down, ArrowLeft down, ArrowLeft down, ArrowLeft up, ShiftLeft down, ShiftLeft up"; got != want {
+		t.Errorf("sent %q, want %q", got, want)
+	}
+}
+
+// A decoder that fails on every frame after accepting its configuration
+// (hardware decoders do) is moved to software, then the host is asked for
+// a smaller size, and with none left the page says so; it used to retry
+// forever with a black picture. Key frame requests made less than a second
+// apart are both sent.
+func TestViewerDecodeFailureXvfb(t *testing.T) {
+	x := startXvfb(t, 640, 480)
+	animate(t, x, 640, 480)
+	type result struct {
+		Stats struct {
+			Decoded, Errors int
+		}
+		Toast, Msg string
+		Sent       []struct {
+			Type      string `json:"type"`
+			MaxHeight int    `json:"max_height"`
+		}
+	}
+	t.Run("hardware", func(t *testing.T) {
+		var res result
+		runViewerCheck(t, Options{FPS: 15}, "decodefail", &res, "FAIL=hw")
+		t.Logf("%+v", res)
+		if res.Stats.Decoded < 10 || !strings.Contains(res.Toast, "software") {
+			t.Errorf("not recovered in software: %+v", res)
+		}
+	})
+	t.Run("all", func(t *testing.T) {
+		var res result
+		runViewerCheck(t, Options{FPS: 15}, "decodefail", &res, "FAIL=all", "WAIT=10000")
+		t.Logf("%+v", res)
+		keys := 0
+		for _, m := range res.Sent {
+			if m.Type == "keyframe" {
+				keys++
+			}
+		}
+		if res.Msg == "" || !strings.Contains(res.Msg, "cannot decode") {
+			t.Errorf("the page does not say it cannot decode: %+v", res)
+		}
+		if keys < 2 {
+			t.Errorf("%d key frame requests sent", keys)
+		}
+	})
 }

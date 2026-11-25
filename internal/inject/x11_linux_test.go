@@ -219,3 +219,30 @@ func TestEvdevAndRelease(t *testing.T) {
 		t.Fatalf("still held after Close: mask %#x keys %v", p.Mask, km.Keys)
 	}
 }
+
+// A repeated press of a held key (a viewer forwarding the keyboard's
+// autorepeat) is not sent again: the X server repeats a held key itself.
+// One press and one release type one character.
+func TestRepeatedPressIgnored(t *testing.T) {
+	display := startXvfb(t)
+	typed := typedRunes(t, display)
+	c, err := xgb.NewConnDisplay(display)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, err := NewX11(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	xproto.ChangeKeyboardControlChecked(c, xproto.KbAutoRepeatMode, []uint32{xproto.AutoRepeatModeOff}).Check()
+	for _, down := range []bool{true, true, true, false} {
+		if err := x.KeyEvdev(30, down); err != nil { // KEY_A
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(300 * time.Millisecond)
+	if got := typed(); got != "a" {
+		t.Fatalf("typed %q, want one a", got)
+	}
+}
