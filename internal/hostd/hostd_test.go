@@ -473,24 +473,14 @@ func TestHostCommand(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	m := regexp.MustCompile(`Password:\s+(\S+)\s+\(temporary`).FindStringSubmatch(out.String())
-	if m == nil {
-		t.Fatalf("no temporary password in output:\n%s", out.String())
-	}
-	password := m[1]
-	if !regexp.MustCompile(`^[a-z2-9]{4}-[a-z2-9]{4}$`).MatchString(password) {
-		t.Fatalf("password %q is not in the xxxx-xxxx form", password)
+	// stdout is not a terminal (as for a service, whose stdout is its
+	// log): the banner must not carry the password.
+	if !strings.Contains(out.String(), "Password:  (not shown: output is not a terminal; `remohop status --show-password` prints it)") {
+		t.Fatalf("banner to a non-terminal does not say where the password is:\n%s", out.String())
 	}
 
 	// status, human and JSON, from "another process".
-	if _, hidden, _ := run("status"); strings.Contains(hidden, password) {
-		t.Fatalf("status prints the password without being asked:\n%s", hidden)
-	}
-	code, statusOut, _ := run("status", "--show-password")
-	if code != cli.ExitOK || !strings.Contains(statusOut, password) || !strings.Contains(statusOut, "127.0.0.1:") {
-		t.Fatalf("status: %d\n%s", code, statusOut)
-	}
-	code, statusOut, _ = run("status", "--json", "--show-password")
+	code, statusOut, _ := run("status", "--json", "--show-password")
 	var st struct {
 		Running  bool   `json:"running"`
 		PID      int    `json:"pid"`
@@ -500,8 +490,22 @@ func TestHostCommand(t *testing.T) {
 	if err := json.Unmarshal([]byte(statusOut), &st); err != nil || code != cli.ExitOK {
 		t.Fatalf("status --json: %d %q %v", code, statusOut, err)
 	}
-	if !st.Running || st.PID != os.Getpid() || st.Password != password {
+	password := st.Password
+	if !regexp.MustCompile(`^[a-z2-9]{4}-[a-z2-9]{4}$`).MatchString(password) {
+		t.Fatalf("password %q is not in the xxxx-xxxx form", password)
+	}
+	if !st.Running || st.PID != os.Getpid() {
 		t.Fatalf("status --json = %+v", st)
+	}
+	if strings.Contains(out.String(), password) {
+		t.Fatalf("the banner to a non-terminal holds the password:\n%s", out.String())
+	}
+	if _, hidden, _ := run("status"); strings.Contains(hidden, password) {
+		t.Fatalf("status prints the password without being asked:\n%s", hidden)
+	}
+	code, statusOut, _ = run("status", "--show-password")
+	if code != cli.ExitOK || !strings.Contains(statusOut, password) || !strings.Contains(statusOut, "127.0.0.1:") {
+		t.Fatalf("status: %d\n%s", code, statusOut)
 	}
 	names := []string{"host.json", "identity.key"}
 	if runtime.GOOS == "windows" {

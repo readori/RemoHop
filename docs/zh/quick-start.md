@@ -38,7 +38,7 @@ RemoHop host ready
 Connect with `remohop 276941009 <command>`.
 ```
 
-ID 属于主机的身份密钥，重启后保持不变。临时密码每次启动都会重新生成。需要固定密码时执行 `remohop passwd`：它以不回显的方式询问密码，之后也不会再把它打印出来。
+只有输出是终端时才显示密码；输出到文件或日志时，横幅显示 `(not shown: ...)`，可用 `remohop status --show-password` 查看密码。ID 属于主机的身份密钥，重启后保持不变。临时密码每次启动都会重新生成。需要固定密码时执行 `remohop passwd`：它以不回显的方式询问密码，之后也不会再把它打印出来。
 
 ## 4. 或者把被控端安装为系统服务
 
