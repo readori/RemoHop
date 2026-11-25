@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Points packaging/snap/snapcraft.yaml at another release: downloads the
 # release's SHA256SUMS and its cosign bundle, verifies the signature (the
-# release workflow's keyless identity, as install.sh does), checks that both
+# release workflow's keyless identity for exactly that tag, as install.sh
+# does, so another release's files cannot be pinned), checks that both
 # Linux archives are listed, and rewrites VERSION and SUMS_SHA256 in the pull
 # step. The snap build then trusts nothing but that pinned hash.
 #
@@ -38,10 +39,10 @@ fetch SHA256SUMS.sigstore.json
 
 if [ "$verify" != skip ] && command -v "$COSIGN" >/dev/null 2>&1; then
 	"$COSIGN" verify-blob --bundle "$tmp/SHA256SUMS.sigstore.json" \
-		--certificate-identity-regexp "^https://github\\.com/$(printf '%s' "$REPO" | sed 's/[.]/\\./g')/\\.github/workflows/release\\.yml@refs/tags/v.+\$" \
+		--certificate-identity "https://github.com/$REPO/.github/workflows/release.yml@refs/tags/$version" \
 		--certificate-oidc-issuer https://token.actions.githubusercontent.com \
 		"$tmp/SHA256SUMS" >&2
-	echo "bump.sh: signature of SHA256SUMS OK ($REPO release workflow)" >&2
+	echo "bump.sh: signature of SHA256SUMS OK ($REPO release workflow, $version)" >&2
 elif [ "$verify" = require ]; then
 	echo "bump.sh: --verify require, but $COSIGN is not installed (scripts/install-cosign.sh)" >&2
 	exit 1

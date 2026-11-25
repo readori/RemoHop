@@ -25,7 +25,13 @@
 
   Trust: the checksum alone only detects a damaged download, since SHA256SUMS comes from
   the same place as the zip. The signature ties SHA256SUMS to this repository's release
-  workflow (cosign keyless); install cosign and use -Verify require for that guarantee.
+  workflow run for the requested tag (cosign keyless; "latest" is resolved to its tag
+  first), so an older signed release cannot pass for a newer one; install cosign and use
+  -Verify require for that guarantee. With -BaseUrl, give -Version too.
+
+  Upgrading: run it again. A running remohop keeps the old version until restarted; the
+  RemoHop service runs its own copy in Program Files, updated by running
+  `remohop service install` again from an elevated prompt (the script reminds you).
 #>
 [CmdletBinding()]
 param(
@@ -53,19 +59,36 @@ switch ($procArch) {
 }
 $asset = "remohop_windows_$arch.zip"
 
-if ($BaseUrl) {
-  $base = $BaseUrl.TrimEnd('/')
-} elseif ($Version) {
+$tagPattern = '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$'
+if ($Version) {
   if ($Version -match '^\d') { $Version = "v$Version" }
-  if ($Version -notmatch '^v\d') { Fail 'Version must look like v1.2.3' }
-  $base = "https://github.com/$Repo/releases/download/$Version"
-} else {
-  $base = "https://github.com/$Repo/releases/latest/download"
+  if ($Version -notmatch $tagPattern) { Fail 'Version must look like v1.2.3' }
 }
 if (-not $BinDir) { $BinDir = Join-Path $env:LOCALAPPDATA 'Programs\RemoHop' }
 
 # Older Windows PowerShell defaults to TLS 1.0/1.1, which GitHub refuses.
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
+if ($BaseUrl) {
+  $base = $BaseUrl.TrimEnd('/')
+} else {
+  if (-not $Version) {
+    # Resolve "latest" to its tag, so that the signature can be required to come from that
+    # tag's release run (and the download cannot change half-way).
+    $loc = $null
+    try {
+      $req = [Net.HttpWebRequest]::Create("https://github.com/$Repo/releases/latest")
+      $req.Method = 'HEAD'
+      $req.AllowAutoRedirect = $false
+      $resp = $req.GetResponse()
+      $loc = $resp.Headers['Location']
+      $resp.Close()
+    } catch { }
+    if ($loc) { $Version = ($loc -split '/')[-1] }
+    if (-not $Version -or $Version -notmatch $tagPattern) { Fail "cannot find the latest release of $Repo (got '$loc'); use -Version" }
+  }
+  $base = "https://github.com/$Repo/releases/download/$Version"
+}
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("remohop-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -84,13 +107,32 @@ try {
       $bundle = Join-Path $tmp 'SHA256SUMS.sigstore.json'
       try { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS.sigstore.json" -OutFile $bundle }
       catch { Fail "download failed: $base/SHA256SUMS.sigstore.json (use -Verify off to skip the signature check)" }
-      $repoRe = [Regex]::Escape($Repo)
-      $identity = "^https://github\.com/$repoRe/\.github/workflows/release\.yml@refs/tags/v.+`$"
-      $out = & $cosign.Source verify-blob --bundle $bundle --certificate-identity-regexp $identity `
-        --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' (Join-Path $tmp 'SHA256SUMS') 2>&1
-      if ($LASTEXITCODE -ne 0) { $out | ForEach-Object { Write-Host $_ }; Fail 'the signature of SHA256SUMS is not valid; nothing was installed' }
+      # The certificate must name this repository's release workflow, run for the tag that
+      # was asked for: a mirror cannot answer with an older signed release.
+      if ($Version) {
+        $idArgs = @('--certificate-identity', "https://github.com/$Repo/.github/workflows/release.yml@refs/tags/$Version")
+      } elseif ($Verify -eq 'require') {
+        Fail '-Verify require with -BaseUrl needs -Version: the signature is checked against that release''s tag'
+      } else {
+        Write-Warning "no -Version given with -BaseUrl: a signature from any release of $Repo is accepted"
+        $repoRe = [Regex]::Escape($Repo)
+        $idArgs = @('--certificate-identity-regexp', "^https://github\.com/$repoRe/\.github/workflows/release\.yml@refs/tags/v.+`$")
+      }
+      # cosign reports success on stderr. Windows PowerShell 5.1 turns redirected stderr lines
+      # of a native command into error records, which 'Stop' would make fatal: decide by the
+      # exit code alone.
+      $prevEap = $ErrorActionPreference
+      $ErrorActionPreference = 'Continue'
+      try {
+        $out = & $cosign.Source verify-blob --bundle $bundle @idArgs `
+          --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' (Join-Path $tmp 'SHA256SUMS') 2>&1 |
+          ForEach-Object { "$_" }
+        $code = $LASTEXITCODE
+      } finally { $ErrorActionPreference = $prevEap }
+      if ($code -ne 0) { $out | ForEach-Object { Write-Host $_ }; Fail 'the signature of SHA256SUMS is not valid; nothing was installed' }
       $sigOk = $true
-      Write-Host "Signature OK (cosign: $Repo release workflow)"
+      $what = if ($Version) { $Version } else { 'any tag' }
+      Write-Host "Signature OK (cosign: $Repo release workflow, $what)"
     } elseif ($Verify -eq 'require') {
       Fail '-Verify require, but cosign is not installed'
     } else {
@@ -112,14 +154,24 @@ try {
   Expand-Archive -Path (Join-Path $tmp $asset) -DestinationPath (Join-Path $tmp 'x') -Force
   $exe = Join-Path $tmp 'x\remohop.exe'
   if (-not (Test-Path $exe)) { Fail 'the zip has no remohop.exe' }
+  if ($Version) {
+    $got = "$(& $exe version)".Trim()
+    if ($got -ne "remohop $Version") { Fail "the zip holds '$got', not remohop $Version; nothing was installed" }
+  }
 
   New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
   $target = Join-Path $BinDir 'remohop.exe'
-  # A running remohop.exe cannot be overwritten; move it aside (deleted on the next install).
+  # Copies moved aside by earlier installs, deleted once nothing runs them any more.
+  Get-ChildItem -Path $BinDir -Filter 'remohop.exe.old*' -ErrorAction SilentlyContinue |
+    ForEach-Object { Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue }
+  # A running remohop.exe cannot be overwritten, but it can be renamed: move it aside under a
+  # name of its own, so that a host still running an older copy does not block the next upgrade.
+  $runningOld = $false
   if (Test-Path $target) {
-    $old = "$target.old"
-    Remove-Item $old -Force -ErrorAction SilentlyContinue
+    $old = "$target.old-" + [Guid]::NewGuid().ToString('N').Substring(0, 8)
     Move-Item $target $old -Force
+    Remove-Item $old -Force -ErrorAction SilentlyContinue
+    $runningOld = Test-Path $old
   }
   Copy-Item $exe $target -Force
   Write-Host "Installed $target"
@@ -134,7 +186,15 @@ try {
     }
   }
   if ($sigOk) { Write-Host 'Verified: checksum and signature.' } else { Write-Host 'Verified: checksum only.' }
-  Write-Host 'Next: remohop host   (or, from an elevated prompt: remohop service install). See README.txt in the zip for the Windows notes.'
+  # What still runs the previous version.
+  if ($runningOld) { Write-Host 'Note: a remohop started from the previous copy is still running; restart it to use the new version.' }
+  $svc = Get-Service -Name RemoHop -ErrorAction SilentlyContinue
+  if ($svc) {
+    Write-Host 'Note: the RemoHop service runs its own copy (under Program Files). To update and restart it,'
+    Write-Host "      from an elevated prompt: & '$target' service install"
+  }
+  Write-Host 'Next: remohop host   (or, from an elevated prompt: remohop service install, which copies remohop.exe'
+  Write-Host '      to Program Files and runs it as a service). See README.txt in the zip for the Windows notes.'
 }
 finally {
   Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
