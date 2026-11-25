@@ -45,7 +45,7 @@ On Linux `remohop-app` is linked against the GNU C library (it loads GTK for its
 
 ## Quick support
 
-To help someone just once without anything staying behind, they download **Quick Support** instead (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`): the same program, which starts in quick-support mode by its name, shares the screen at once and quits when its window closes. See [Quick support](quick-support.md).
+To help someone just once without anything staying behind, they download **Quick Support** instead (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`): the same program, which starts in quick-support mode by its name, shares the screen at once and quits when its window closes. See [Quick support](quick-support.md). On macOS the system treats RemoHop and RemoHop Quick Support as two apps, so Screen Recording and Accessibility are granted to each separately (System Settings > Privacy & Security).
 
 ## Security
 

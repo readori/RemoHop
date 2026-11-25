@@ -45,7 +45,7 @@
 
 ## 快速协助
 
-只想帮别人一次、不留下任何东西时，对方改为下载**快速协助**（`RemoHop-QuickSupport.exe`、`RemoHop Quick Support.app`、`remohop-quick`）：同一个程序，按名字以快速协助方式启动，立即共享屏幕，关闭窗口即退出。见[快速协助](quick-support.md)。
+只想帮别人一次、不留下任何东西时，对方改为下载**快速协助**（`RemoHop-QuickSupport.exe`、`RemoHop Quick Support.app`、`remohop-quick`）：同一个程序，按名字以快速协助方式启动，立即共享屏幕，关闭窗口即退出。见[快速协助](quick-support.md)。在 macOS 上，系统把 RemoHop 和 RemoHop Quick Support 当作两个应用，“屏幕录制”和“辅助功能”权限要分别授予（系统设置 > 隐私与安全性）。
 
 ## 安全
 
