@@ -370,6 +370,8 @@ func runUninstall(ctx context.Context, env *cli.Env, args []string) int {
 	}
 	removed, err := b.Uninstall(ctx, o)
 	switch {
+	case errors.Is(err, errPackagedUnit):
+		fmt.Fprintf(env.Stdout, "service stopped and disabled (%v)\n", err)
 	case err != nil:
 		env.Errorf("service: %v", err)
 		return cli.ExitError

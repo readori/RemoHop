@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // launchd manages a LaunchAgent (per user, in the GUI session) or a
@@ -21,11 +22,29 @@ type launchd struct {
 	home      string
 	euid      int
 	daemonDir string // where LaunchDaemons live
+	// checkExe vets the binary of a system daemon (nil: no check, for
+	// tests that use paths which do not exist).
+	checkExe func(exe string, o Options) error
+	// trustedDir reports whether a directory may be on the daemon's PATH
+	// (nil: all of them).
+	trustedDir func(dir string) bool
+	// logDir overrides the directory of the system daemon's log (tests).
+	logDir string
 }
 
 func newLaunchd() *launchd {
 	home, _ := os.UserHomeDir()
-	return &launchd{home: home, euid: os.Geteuid(), daemonDir: "/Library/LaunchDaemons"}
+	return &launchd{home: home, euid: os.Geteuid(), daemonDir: "/Library/LaunchDaemons",
+		checkExe: func(exe string, o Options) error {
+			real, err := filepath.EvalSymlinks(exe)
+			if err != nil {
+				real = exe
+			}
+			return checkSystemExe(exe, o, fmt.Sprintf("    sudo mkdir -p /Library/RemoHop && sudo install -m 755 %s /Library/RemoHop/remohop\n"+
+				"    sudo /Library/RemoHop/remohop service install --system ...   (the same flags as before; repeat both after each upgrade)", shellQuote(real)))
+		},
+		trustedDir: func(dir string) bool { return untrustedExe(dir, map[uint32]bool{0: true}) == "" },
+	}
 }
 
 func (b *launchd) label(o Options) string {
@@ -51,9 +70,58 @@ func (b *launchd) domain(s Scope) string {
 
 func (b *launchd) logPath(s Scope, o Options) string {
 	if s == ScopeSystem {
-		return "/var/log/" + o.name() + ".log"
+		dir := "/var/log"
+		if b.logDir != "" {
+			dir = b.logDir
+		}
+		return path.Join(dir, o.name()+".log")
 	}
 	return path.Join(b.home, "Library", "Logs", "remohop", o.name()+".log")
+}
+
+// maxLaunchdLog is the size above which the log is rotated when RemoHop
+// (re)starts the job; launchd itself never rotates StandardOutPath.
+const maxLaunchdLog = 10 << 20
+
+// prepareLog creates the job's log file before launchd opens it, so that it
+// is private (launchd would create it world-readable, and the host prints
+// its ID, addresses and, on a terminal-less start, how to reach it), and
+// moves a log that has grown past maxLaunchdLog to NAME.log.1.
+func prepareLog(p string) error {
+	if fi, err := os.Lstat(p); err == nil {
+		if !fi.Mode().IsRegular() {
+			return fmt.Errorf("%s is not a regular file", p)
+		}
+		if fi.Size() > maxLaunchdLog {
+			if err := os.Rename(p, p+".1"); err != nil {
+				return err
+			}
+			os.Chmod(p+".1", 0o600)
+		}
+	}
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Chmod(0o600)
+}
+
+// daemonPath is the PATH of the job. A system daemon runs as root, so a
+// directory that someone else can write (Homebrew's prefix belongs to the
+// user who installed it) would let them plant a program the host runs.
+func (b *launchd) daemonPath(s Scope) string {
+	dirs := []string{"/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"}
+	if s != ScopeSystem {
+		return strings.Join(dirs, ":")
+	}
+	sys := []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin"}
+	for _, d := range dirs[:2] {
+		if b.trustedDir == nil || b.trustedDir(d) {
+			sys = append(sys, d)
+		}
+	}
+	return strings.Join(sys, ":")
 }
 
 func supportDir(o Options) string {
@@ -131,7 +199,7 @@ func (b *launchd) text(s Scope, o Options, exe string) string {
 	key("\t", "EnvironmentVariables")
 	p.WriteString("\t<dict>\n")
 	key("\t\t", "PATH")
-	str("\t\t", "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin")
+	str("\t\t", b.daemonPath(s))
 	if s == ScopeSystem || o.ConfigDir != "" {
 		key("\t\t", "REMOHOP_CONFIG_DIR")
 		str("\t\t", supportDir(o))
@@ -172,6 +240,36 @@ func (b *launchd) loaded(ctx context.Context, s Scope, o Options) bool {
 	return err == nil
 }
 
+// unloadWait bounds how long unload waits for launchd to let go of a job.
+var unloadWait = 15 * time.Second
+
+// unload boots the job out if it is loaded and waits until launchd has
+// removed it: bootout returns while the host is still shutting down, and a
+// bootstrap of the same label before it is gone fails ("Bootstrap failed:
+// 5: Input/output error").
+func (b *launchd) unload(ctx context.Context, s Scope, o Options) error {
+	if !b.loaded(ctx, s, o) {
+		return nil
+	}
+	target := b.domain(s) + "/" + b.label(o)
+	_, bootErr := b.ctl(ctx, "bootout", target)
+	deadline := time.Now().Add(unloadWait)
+	for b.loaded(ctx, s, o) {
+		if time.Now().After(deadline) {
+			if bootErr != nil {
+				return bootErr
+			}
+			return fmt.Errorf("launchd still has %s loaded %v after bootout", target, unloadWait)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	return nil
+}
+
 func (b *launchd) Install(ctx context.Context, o Options) (*Installed, error) {
 	s, err := b.resolveInstall(o)
 	if err != nil {
@@ -184,11 +282,31 @@ func (b *launchd) Install(ctx context.Context, o Options) (*Installed, error) {
 	if err != nil {
 		return nil, err
 	}
-	plist := b.plistPath(s, o)
-	for _, d := range []string{filepath.Dir(plist), filepath.Dir(b.logPath(s, o))} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+	if s == ScopeSystem && b.checkExe != nil {
+		if err := b.checkExe(exe, o); err != nil {
 			return nil, err
 		}
+	}
+	if s == ScopeUser {
+		if _, err := b.ctl(ctx, "print", b.domain(s)); err != nil {
+			return nil, fmt.Errorf("there is no GUI session for this user (%s); a LaunchAgent needs one: log in at the Mac's screen, or use sudo with --system", b.domain(s))
+		}
+	}
+	plist := b.plistPath(s, o)
+	if err := os.MkdirAll(filepath.Dir(plist), 0o755); err != nil {
+		return nil, err
+	}
+	logDir := filepath.Dir(b.logPath(s, o))
+	if s == ScopeUser {
+		if err := os.MkdirAll(logDir, 0o700); err != nil {
+			return nil, err
+		}
+		os.Chmod(logDir, 0o700)
+	} else if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return nil, err
+	}
+	if err := prepareLog(b.logPath(s, o)); err != nil {
+		return nil, err
 	}
 	if s == ScopeSystem {
 		if err := os.MkdirAll(supportDir(o), 0o700); err != nil {
@@ -201,12 +319,13 @@ func (b *launchd) Install(ctx context.Context, o Options) (*Installed, error) {
 	}
 	target := b.domain(s) + "/" + b.label(o)
 	// Unload a previous version first so the new plist takes effect.
-	if b.loaded(ctx, s, o) {
-		b.ctl(ctx, "bootout", target)
+	if err := b.unload(ctx, s, o); err != nil {
+		return nil, err
 	}
 	for _, step := range [][]string{
-		{"bootstrap", b.domain(s), plist},
+		// enable first: a label that was ever disabled cannot be bootstrapped.
 		{"enable", target},
+		{"bootstrap", b.domain(s), plist},
 		{"kickstart", "-k", target},
 	} {
 		if _, err := b.ctl(ctx, step...); err != nil {
@@ -230,10 +349,8 @@ func (b *launchd) Uninstall(ctx context.Context, o Options) (bool, error) {
 	if s == ScopeSystem && b.euid != 0 {
 		return false, errors.New("the service is installed system-wide: run `sudo remohop service uninstall`")
 	}
-	if b.loaded(ctx, s, o) {
-		if _, err := b.ctl(ctx, "bootout", b.domain(s)+"/"+b.label(o)); err != nil {
-			return true, err
-		}
+	if err := b.unload(ctx, s, o); err != nil {
+		return true, err
 	}
 	return true, os.Remove(b.plistPath(s, o))
 }
@@ -252,11 +369,15 @@ func (b *launchd) Control(ctx context.Context, o Options, action string) error {
 	case "stop":
 		// bootout, not kill: KeepAlive would immediately respawn the host.
 		// It is loaded again at the next login or boot, or by `start`.
-		if b.loaded(ctx, s, o) {
-			_, err = b.ctl(ctx, "bootout", target)
-		}
+		err = b.unload(ctx, s, o)
 	case "start", "restart":
+		// Rotated here too; launchd keeps the file open while the job runs,
+		// so a rotation takes effect with the restart below.
+		if err := prepareLog(b.logPath(s, o)); err != nil {
+			return err
+		}
 		if !b.loaded(ctx, s, o) {
+			b.ctl(ctx, "enable", target)
 			if _, err = b.ctl(ctx, "bootstrap", b.domain(s), b.plistPath(s, o)); err != nil {
 				return err
 			}

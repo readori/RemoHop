@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -225,10 +226,13 @@ func (o Options) hostArgs() []string {
 	return a
 }
 
-// exePath is the binary the service runs. os.Executable already resolves
-// symlinks on Linux; on other systems the path is used as given so a package
-// manager's stable symlink survives upgrades. From the snap, the revision
-// directory is replaced by /snap/<name>/current, which follows refreshes.
+// exePath is the binary the service runs: the path this program was
+// started by, when it names this very file, so that a package manager's
+// stable symlink (Homebrew's bin/remohop, Nix profiles) is what the service
+// definition holds and survives upgrades, rather than the versioned file it
+// points at today (which os.Executable returns on Linux). From the snap,
+// the revision directory is replaced by /snap/<name>/current, which follows
+// refreshes.
 func (o Options) exePath() (string, error) {
 	if o.Exe != "" {
 		return o.Exe, nil
@@ -241,7 +245,40 @@ func (o Options) exePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if inv := invokedAs(exe, arg0()); inv != "" {
+		exe = inv
+	}
 	return snapenv.StableExe(exe), nil
+}
+
+// arg0 is os.Args[0]; tests replace it.
+var arg0 = func() string { return os.Args[0] }
+
+// invokedAs returns the absolute form of the path the program was started
+// by (looked up on PATH when it has no directory) if that path leads to the
+// same file as exe, else "".
+func invokedAs(exe, a0 string) string {
+	if a0 == "" {
+		return ""
+	}
+	p := a0
+	if !strings.ContainsRune(p, '/') && !strings.ContainsRune(p, filepath.Separator) {
+		lp, err := exec.LookPath(p)
+		if err != nil {
+			return ""
+		}
+		p = lp
+	}
+	p, err := filepath.Abs(p)
+	if err != nil {
+		return ""
+	}
+	a, err1 := os.Stat(p)
+	b, err2 := os.Stat(exe)
+	if err1 != nil || err2 != nil || !os.SameFile(a, b) {
+		return ""
+	}
+	return p
 }
 
 func isRoot() bool { return os.Geteuid() == 0 }
