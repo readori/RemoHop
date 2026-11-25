@@ -192,6 +192,15 @@ type Session struct {
 	// Path is how the client reaches the host: "lan", "direct", "punched"
 	// or "relayed".
 	Path string
+	// limit, if not nil, is the only features the session may use (on top
+	// of the host's policy): what its owner allowed this one client (see
+	// Host.DecideWith); guarded by host.mu.
+	limit map[perm.Feature]bool
+	// asking is set while the session's request for more access waits
+	// for the owner, and denied when the owner last refused one; guarded
+	// by host.mu.
+	asking bool
+	denied time.Time
 }
 
 // fields returns the audit fields naming the session, followed by more.
@@ -788,8 +797,8 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 // A login refused here never serves a stream and is not recorded as
 // accepted. On success the caller starts the connection once the client has
 // been welcomed, or drops the session if that fails.
-func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result) (*Session, error) {
-	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant,
+func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limit map[perm.Feature]bool) (*Session, error) {
+	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant, limit: limit,
 		used: map[perm.Feature]bool{}, Path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
 	label := "key " + auth.Fingerprint(res.ClientKey)
 	if res.TokenName != "" {
@@ -982,6 +991,7 @@ func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.Addr
 	defer cancel()
 	st.SetDeadline(time.Now().Add(loginTimeout))
 	var sess *Session
+	var limit map[perm.Feature]bool
 	approve := func(res *auth.Result, announce func() error) error {
 		if res.Grant != "" {
 			if err := h.grantLogin(res); err != nil {
@@ -999,12 +1009,16 @@ func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.Addr
 			if err := announce(); err != nil {
 				return err
 			}
-			if err := h.ask(ctx, q.Context().Done(), res, remote); err != nil {
+			d, err := h.ask(ctx, q.Context().Done(), res, remote)
+			if err != nil {
 				return err
+			}
+			if d.limited {
+				limit = featureSet(d.features)
 			}
 		}
 		var err error
-		sess, err = h.admit(q, remote, res)
+		sess, err = h.admit(q, remote, res, limit)
 		return err
 	}
 	res, err := h.auth.Complete(lctx, st, hello, binding, src, approve)

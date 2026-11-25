@@ -70,17 +70,17 @@ func (s *Session) limits() Limits {
 	var l Limits
 	pol := s.host.policy()
 	for _, f := range perm.Features() {
-		if pol.off[f] {
+		if pol.off[f] || s.limited(f) {
 			l.FeaturesOff = append(l.FeaturesOff, string(f))
 		}
 	}
 	if s.grant == "" {
 		l.Shell, l.ReadAll, l.WriteAll = "full", true, true
 		l.Allowed = []string{"everything the host's user can do, except the features switched off"}
-		if pol.off[perm.Shell] {
+		if pol.off[perm.Shell] || s.limited(perm.Shell) {
 			l.Shell = "none"
 		}
-		if pol.off[perm.File] {
+		if pol.off[perm.File] || s.limited(perm.File) {
 			l.ReadAll, l.WriteAll = false, false
 		}
 		return l

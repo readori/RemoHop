@@ -106,6 +106,9 @@ func (s *Session) authorize(service string) error {
 	if s.host.policy().off[f] {
 		return fmt.Errorf("the host does not allow %s (feature %q is switched off; its owner can allow it with `remohop config feature %s on`)", service, f, f)
 	}
+	if s.limited(f) {
+		return fmt.Errorf("the host's owner did not allow this session %s (feature %q); ask for it with the access request", service, f)
+	}
 	if s.grant != "" {
 		if err := s.authorizeGrant(service, f); err != nil {
 			return err
