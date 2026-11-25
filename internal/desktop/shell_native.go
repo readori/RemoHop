@@ -120,7 +120,7 @@ func (sh *nativeShell) setBanner(names []string) {
 		switch {
 		case len(names) > 0 && sh.banner == nil:
 			w, err := sh.ui.NewWindow(nativeui.Options{Title: st(sh.app, "banner"), URL: sh.srv.URL() + "overlay.html",
-				Width: 400, Height: 56, Overlay: true, OnClose: func() bool { return false }})
+				Width: 420, Height: 56, Overlay: true, OnClose: func() bool { return false }})
 			if err == nil {
 				sh.banner = w
 			}

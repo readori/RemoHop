@@ -27,13 +27,24 @@ function split(b){const a=[];let s=-1;for(let i=0;i+4<b.length;i++){if(b[i]===0&
   for(const hw of ['prefer-hardware','prefer-software']){try{out[k+'.'+hw]=(await VideoDecoder.isConfigSupported({codec:c,codedWidth:1920,codedHeight:1080,optimizeForLatency:true,hardwareAcceleration:hw})).supported}catch(e){out[k+'.'+hw]='error: '+e}}
  const r=await fetch('clip.h264');if(!r.ok){out.clip='none';report();return}
  const aus=split(new Uint8Array(await r.arrayBuffer()));out.frames=aus.length;
- const ctx=document.getElementById('c').getContext('2d');const sent=new Map(),lat=[];let errs=0;
- const dec=new VideoDecoder({output:f=>{const t=sent.get(f.timestamp);if(t!==undefined)lat.push(performance.now()-t);ctx.drawImage(f,0,0,480,270);f.close()},error:e=>{errs++;out.decodeError=String(e)}});
- dec.configure({codec:'avc1.42002a',codedWidth:1920,codedHeight:1080,optimizeForLatency:true});
- for(let i=0;i<aus.length&&dec.state==='configured';i++){const ts=i*33333;sent.set(ts,performance.now());dec.decode(new EncodedVideoChunk({type:i===0?'key':'delta',timestamp:ts,data:aus[i]}));await new Promise(r=>setTimeout(r,33))}
- if(dec.state==='configured')await dec.flush().catch(e=>out.flushError=String(e));
- lat.sort((a,b)=>a-b);out.decoded=lat.length;out.errors=errs;
- if(lat.length){out.latencyMs={p50:+lat[lat.length>>1].toFixed(1),p95:+lat[Math.floor(lat.length*.95)].toFixed(1),max:+lat[lat.length-1].toFixed(1)}}
+ const ctx=document.getElementById('c').getContext('2d');
+ // Each pass feeds the clip at 30 fps, as a host sends it, and records the
+ // time from decode() to the decoded frame.
+ async function pass(hw){
+  const sent=new Map(),lat=[];let errs=0,err='';
+  const dec=new VideoDecoder({output:f=>{const t=sent.get(f.timestamp);if(t!==undefined)lat.push(performance.now()-t);ctx.drawImage(f,0,0,480,270);f.close()},error:e=>{errs++;err=String(e)}});
+  dec.configure({codec:'avc1.42002a',codedWidth:1920,codedHeight:1080,optimizeForLatency:true,hardwareAcceleration:hw});
+  for(let i=0;i<aus.length&&dec.state==='configured';i++){const ts=i*33333;sent.set(ts,performance.now());dec.decode(new EncodedVideoChunk({type:i===0?'key':'delta',timestamp:ts,data:aus[i]}));await new Promise(r=>setTimeout(r,33))}
+  const beforeFlush=lat.length;
+  if(dec.state==='configured')await dec.flush().catch(e=>err=String(e));
+  lat.sort((a,b)=>a-b);
+  const o={decoded:lat.length,beforeFlush,errors:errs};
+  if(err)o.error=err;
+  if(lat.length)o.latencyMs={p50:+lat[lat.length>>1].toFixed(1),p95:+lat[Math.floor(lat.length*.95)].toFixed(1),max:+lat[lat.length-1].toFixed(1)};
+  try{dec.close()}catch(e){}
+  return o;
+ }
+ out.decode={'no-preference':await pass('no-preference'),'prefer-software':await pass('prefer-software'),'prefer-hardware':await pass('prefer-hardware')};
 }catch(e){out.exception=String(e)}report()})();
 </script></body></html>`
 

@@ -37,6 +37,7 @@ type gtkLib struct {
 	setSkipPager     func(w uintptr, on bool)
 	setResizable     func(w uintptr, on bool)
 	windowMove       func(w uintptr, x, y int32)
+	windowResize     func(w uintptr, width, height int32)
 	screenDefault    func() uintptr
 	screenWidth      func(s uintptr) int32
 	menuNew          func() uintptr
@@ -138,6 +139,7 @@ func loadGTK() (*gtkLib, error) {
 		reg(&l.setSkipPager, l.gtk, "gtk_window_set_skip_pager_hint")
 		reg(&l.setResizable, l.gtk, "gtk_window_set_resizable")
 		reg(&l.windowMove, l.gtk, "gtk_window_move")
+		reg(&l.windowResize, l.gtk, "gtk_window_resize")
 		reg(&l.screenDefault, l.gtk, "gdk_screen_get_default")
 		reg(&l.screenWidth, l.gtk, "gdk_screen_get_width")
 		reg(&l.menuNew, l.gtk, "gtk_menu_new")
@@ -325,11 +327,11 @@ func (a *gtkApp) NewWindow(o Options) (Window, error) {
 		l.setSizeRequest(w.win, int32(o.MinWidth), int32(o.MinHeight))
 	}
 	if o.Overlay {
+		// Exactly this size: the web view would ask for more.
 		l.setDecorated(w.win, false)
 		l.setKeepAbove(w.win, true)
 		l.setSkipTaskbar(w.win, true)
 		l.setSkipPager(w.win, true)
-		l.setResizable(w.win, false)
 		if s := l.screenDefault(); s != 0 {
 			l.windowMove(w.win, (l.screenWidth(s)-int32(width))/2, 8)
 		}
@@ -345,6 +347,9 @@ func (a *gtkApp) NewWindow(o Options) (Window, error) {
 	if !o.Hidden {
 		l.showAll(w.win)
 		l.present(w.win)
+	}
+	if o.Overlay {
+		l.windowResize(w.win, int32(width), int32(height))
 	}
 	return w, nil
 }
