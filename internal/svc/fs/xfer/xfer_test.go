@@ -1081,7 +1081,7 @@ func waitStablePartial(t *testing.T, dir, base string) []string {
 		if len(ps) == 1 {
 			fi, err := os.Stat(filepath.Join(dir, ps[0]))
 			if err == nil && fi.Size() == last && last > 0 {
-				time.Sleep(100 * time.Millisecond) // let the host close (unlock) it
+				waitUnlocked(filepath.Join(dir, ps[0])) // let the host close (unlock) it
 				return ps
 			}
 			if err == nil {
