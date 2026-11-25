@@ -315,13 +315,28 @@ func revokeGrantRef(env *cli.Env, dir, ref string) (handled bool, code int) {
 	if _, ok, _ := OpenGrantStore(dir).Get(ref); !ok {
 		return false, 0
 	}
+	// The grant's live sessions, counted before it goes: the running host's
+	// own periodic check may end them before the "grants" request below
+	// does, and then that reply counts none.
+	live := 0
+	if rep, err := controlCall(dir, controlRequest{Op: "status"}); err == nil && rep.Status != nil {
+		for _, c := range rep.Status.Clients {
+			if c.Grant == ref {
+				live++
+			}
+		}
+	}
 	if _, err := RevokeGrant(dir, ref); err != nil {
 		env.Errorf("host: %v", err)
 		return true, cli.ExitError
 	}
 	msg := fmt.Sprintf("revoked grant %s", ref)
-	if rep, err := controlCall(dir, controlRequest{Op: "grants"}); err == nil && rep.Closed > 0 {
-		msg += fmt.Sprintf("; ended %d live session(s)", rep.Closed)
+	closed := 0
+	if rep, err := controlCall(dir, controlRequest{Op: "grants"}); err == nil {
+		closed = rep.Closed
+	}
+	if closed = max(closed, live); closed > 0 {
+		msg += fmt.Sprintf("; ended %d live session(s)", closed)
 	}
 	fmt.Fprintln(env.Stdout, msg)
 	return true, cli.ExitOK
