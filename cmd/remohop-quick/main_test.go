@@ -38,17 +38,26 @@ func TestSameFeaturesAsRemoHop(t *testing.T) {
 	}
 }
 
-func TestQuickArgs(t *testing.T) {
-	for _, c := range []struct{ in, want []string }{
-		{nil, []string{"app"}},
-		{[]string{"-psn_0_12345"}, []string{"app"}},
-		{[]string{"--quick"}, []string{"quick"}},
-		{[]string{"--quick", "--lang", "zh"}, []string{"quick", "--lang", "zh"}},
-		{[]string{"status"}, []string{"status"}},
-		{[]string{"quick", "--no-open"}, []string{"quick", "--no-open"}},
+func TestLaunchArgs(t *testing.T) {
+	for _, c := range []struct {
+		argv0    string
+		in, want []string
+	}{
+		{"RemoHop.exe", nil, []string{"app"}},
+		{`C:\Users\a\Downloads\RemoHop-QuickSupport.exe`, nil, []string{"quick"}},
+		{`C:\Users\a\Downloads\RemoHop-QuickSupport (1).exe`, nil, []string{"quick"}},
+		{"/Applications/RemoHop.app/Contents/MacOS/RemoHop", []string{"-psn_0_12345"}, []string{"app"}},
+		{"/Users/a/Downloads/RemoHop Quick Support.app/Contents/MacOS/RemoHop-QuickSupport", []string{"-psn_0_1"}, []string{"quick"}},
+		{"./remohop-quick", nil, []string{"quick"}},
+		{"/usr/local/bin/remohop-app", nil, []string{"app"}},
+		{"./remohop-quick", []string{"app", "--smoke", "x"}, []string{"app", "--smoke", "x"}},
+		{"RemoHop.exe", []string{"--quick"}, []string{"quick"}},
+		{"RemoHop.exe", []string{"--quick", "--lang", "zh"}, []string{"quick", "--lang", "zh"}},
+		{"remohop-quick", []string{"--app"}, []string{"app"}},
+		{"RemoHop.exe", []string{"status"}, []string{"status"}},
 	} {
-		if got := quickArgs(c.in); !reflect.DeepEqual(got, c.want) {
-			t.Errorf("quickArgs(%v) = %v, want %v", c.in, got, c.want)
+		if got := launchArgs(c.argv0, c.in); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("launchArgs(%q, %v) = %v, want %v", c.argv0, c.in, got, c.want)
 		}
 	}
 }

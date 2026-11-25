@@ -13,10 +13,13 @@ For a tag `vX.Y.Z` the release has these assets (names carry no version, so
 | `remohop_linux_{amd64,arm64}.tar.gz` | `scripts/build-release.sh package` |
 | `remohop_darwin_universal.tar.gz` (arm64 + x86_64, Developer ID signed, notarized) | built and signed in the CI repo, wrapped by `build-release.sh darwin` |
 | `remohop_windows_{amd64,arm64}.zip` (unsigned for now) | `build-release.sh package` |
-| `RemoHop-windows-{amd64,arm64}.zip`: quick support, `RemoHop.exe` (unsigned for now) | `build-release.sh build` (via `packaging/quick/build.sh`) + `package` |
-| `RemoHop-macos.dmg`: quick support, the usual Mac download: disk image with `RemoHop.app` and an Applications link; the image and the app are Developer ID signed, notarized and stapled |
+| `RemoHop-windows-{amd64,arm64}.zip`: the desktop app, `RemoHop.exe` (unsigned for now) | `build-release.sh build` (via `packaging/quick/build.sh`) + `package` |
+| `RemoHop-QuickSupport-windows-{amd64,arm64}.zip`: quick support, the same `RemoHop.exe` renamed `RemoHop-QuickSupport.exe` (the name makes it start in quick mode, see `cmd/remohop-quick/launch.go`; a rename keeps a signature) | `build-release.sh package` |
+| `RemoHop-macos.dmg`: the desktop app, the usual Mac download: disk image with `RemoHop.app` and an Applications link; the image and the app are Developer ID signed, notarized and stapled |
 | `RemoHop-macos.zip`: the same `RemoHop.app` as a `ditto` zip (signed, notarized, stapled), for scripts and tools that want a zip | built, signed, notarized and stapled in the CI repo, checked and copied by `build-release.sh darwin-app` |
-| `remohop-quick_linux_{amd64,arm64}.tar.gz`: quick support for Linux | `build-release.sh build` + `package` |
+| `RemoHop-QuickSupport-macos.zip`: quick support, `RemoHop Quick Support.app` (the same program as `Contents/MacOS/RemoHop-QuickSupport`, bundle id `com.remohop.quicksupport`) as a `ditto` zip, signed, notarized, stapled: unzip and open, nothing to install | likewise |
+| `remohop-app_linux_{amd64,arm64}.tar.gz`: the desktop app for Linux (`remohop-app`, `remohop.desktop`, icon; needs glibc, and WebKitGTK for its own window) | `build-release.sh build` + `package` |
+| `remohop-quick_linux_{amd64,arm64}.tar.gz`: quick support for Linux (the same program as `remohop-quick`) | `build-release.sh build` + `package` |
 | `remohop_<ver>_{amd64,arm64}.deb`, `remohop-<ver>-1.{x86_64,aarch64}.rpm`, `remohop_<ver>_{x86_64,aarch64}.apk` | nfpm, from `packaging/nfpm.yaml` (prerelease names get `.` for nfpm's `~`, which GitHub would rename) |
 | `remohop_sbom.cdx.json` | `scripts/sbom.sh` (CycloneDX, from `go version -m` of the linux, windows and darwin builds) |
 | `install.sh`, `install.ps1` | copied from `packaging/` by `scripts/finalize-release.sh` |
@@ -80,7 +83,7 @@ is stored anywhere.
   (`ref=<commit>`, `version=<tag>`, `upload=true`, `correlation=<id>`) and follows the run whose ID the
   dispatch API returns (falling back to the correlation string), after checking that it is that workflow on the CI
   repository's `main`, dispatched by the token's account, for this commit. With `upload=true` it also uploads the
-  signed binary, `RemoHop-macos.zip` and `RemoHop-macos.dmg` as the artifact `remohop-macos-universal` (3 days).
+  signed binary, `RemoHop-macos.zip`, `RemoHop-macos.dmg` and `RemoHop-QuickSupport-macos.zip` as the artifact `remohop-macos-universal` (3 days).
   The release job does not take those files on the CI repository's word:
   `scripts/verify-macos-release.sh` rebuilds the darwin binaries and `RemoHop.app` from the tagged commit (Go builds
   are reproducible: same source, Go and flags give the same bytes on any host) and `scripts/machocmp` requires each
@@ -164,7 +167,7 @@ them): today only the AUR maintainer. The winget publisher defaults to `RemoHop`
 | Output | Goes to | Notes |
 |---|---|---|
 | `homebrew-tap/Formula/remohop.rb` | `readori/homebrew-tap` | `brew install readori/tap/remohop`; tests `remohop version`. Add `brew test-bot` in the tap's CI. |
-| `homebrew-tap/Casks/remohop-quick.rb` | `readori/homebrew-tap` | `brew install --cask readori/tap/remohop-quick`: RemoHop.app. Not called `remohop`, so it is not confused with the formula. `zap` removes only the `quick.*` files, never the CLI's identity. |
+| `homebrew-tap/Casks/remohop-quick.rb` | `readori/homebrew-tap` | `brew install --cask readori/tap/remohop-quick`: RemoHop.app, the desktop app (the token is from when it was quick support, kept so that installs upgrade). Not called `remohop`, so it is not confused with the formula. `zap` removes only the app's own files (`desktop.*`, `webview`, `quick.*`, the login item), never the CLI's identity. |
 | `scoop-bucket/bucket/remohop.json` | `readori/scoop-bucket` | `scoop bucket add readori https://github.com/readori/scoop-bucket`; has `checkver`/`autoupdate`, so the bucket's Excavator bot can follow releases. |
 | `winget/manifests/r/RemoHop/RemoHop/<ver>/*.yaml` | PR to `microsoft/winget-pkgs` | `RemoHop.RemoHop`, portable zip installer; validate with `winget validate --manifest DIR`; `wingetcreate update` can automate later PRs. |
 | `aur/remohop-bin/{PKGBUILD,.SRCINFO}` | `ssh://aur@aur.archlinux.org/remohop-bin.git` | prebuilt binaries; regenerate `.SRCINFO` with `makepkg --printsrcinfo` on Arch before pushing. |

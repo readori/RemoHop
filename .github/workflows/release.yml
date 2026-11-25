@@ -4,7 +4,7 @@ name: Release
 #
 #   build    linux + windows archives (remohop and quick support), .deb/.rpm/.apk, SBOM
 #            (scripts/build-release.sh)
-#   macos    signed + notarized universal binary and RemoHop.app (stapled), made in the public CI repository
+#   macos    signed + notarized universal binary, RemoHop.app and RemoHop Quick Support.app (stapled), made in the public CI repository
 #            (readori/test-env-setup, sodesk-macos-release.yml: CI file names keep the pre-rename prefix) where the Apple secrets live,
 #            then rebuilt here and compared byte for byte (scripts/verify-macos-release.sh)
 #   publish  adds installers, SHA256SUMS, a keyless cosign signature, then the GitHub release
@@ -215,6 +215,7 @@ jobs:
           sha256sum -c SHA256SUMS-macos
           grep -q ' RemoHop-macos.zip$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.zip (is the CI repo's workflow up to date?)"; exit 1; }
           grep -q ' RemoHop-macos.dmg$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.dmg (is the CI repo's workflow up to date?)"; exit 1; }
+          grep -q ' RemoHop-QuickSupport-macos.zip$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-QuickSupport-macos.zip (is the CI repo's workflow up to date?)"; exit 1; }
 
       # The files crossed repositories. Go builds are reproducible, so build the same binaries
       # and RemoHop.app here from the tagged commit and accept the signed ones only if they are
@@ -244,6 +245,7 @@ jobs:
             macos/remohop
             macos/RemoHop-macos.zip
             macos/RemoHop-macos.dmg
+            macos/RemoHop-QuickSupport-macos.zip
           if-no-files-found: error
 
   publish:
@@ -278,12 +280,13 @@ jobs:
       - name: Add the macOS archive and app, installers and SHA256SUMS
         env:
           # Only a deliberate SKIP_MACOS run may lack the macOS files.
-          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz RemoHop-macos.zip RemoHop-macos.dmg' || '' }}
+          ALLOW_MISSING: ${{ vars.SKIP_MACOS == 'true' && 'remohop_darwin_universal.tar.gz RemoHop-macos.zip RemoHop-macos.dmg RemoHop-QuickSupport-macos.zip' || '' }}
         run: |
           set -eu
           if [ -f macos/remohop ]; then
             VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin macos/remohop
             VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin-app macos/RemoHop-macos.zip
+            VERSION="$TAG" OUT="$PWD/assets" scripts/build-release.sh darwin-app macos/RemoHop-QuickSupport-macos.zip
             cp macos/RemoHop-macos.dmg assets/RemoHop-macos.dmg
           fi
           scripts/finalize-release.sh assets

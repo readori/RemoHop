@@ -158,7 +158,7 @@ func TestBundle(t *testing.T) {
 	}
 	arm, amd := thin(cpuARM64, 1), thin(cpuAMD64, 2)
 	app := filepath.Join(dir, "RemoHop.app")
-	if err := writeApp(app, "arm64="+arm+",amd64="+amd, "v1.2.3-4-gabcdef-dirty"); err != nil {
+	if err := writeApp(app, "arm64="+arm+",amd64="+amd, "v1.2.3-4-gabcdef-dirty", appKinds["app"]); err != nil {
 		t.Fatal(err)
 	}
 	plist, err := os.ReadFile(filepath.Join(app, "Contents", "Info.plist"))
@@ -195,8 +195,23 @@ func TestBundle(t *testing.T) {
 		}
 	}
 	// One architecture given under the other's name is refused.
-	if err := writeApp(app, "arm64="+amd, "1"); err == nil {
+	if err := writeApp(app, "arm64="+amd, "1", appKinds["app"]); err == nil {
 		t.Error("an x86-64 program was accepted as the arm64 slice")
+	}
+	// Quick support: its own name, executable and identifier.
+	qs := filepath.Join(dir, "RemoHop Quick Support.app")
+	if err := writeApp(qs, "arm64="+arm+",amd64="+amd, "1.2.3", appKinds["quick"]); err != nil {
+		t.Fatal(err)
+	}
+	plist, _ = os.ReadFile(filepath.Join(qs, "Contents", "Info.plist"))
+	for _, want := range []string{"<string>com.remohop.quicksupport</string>", "<key>CFBundleExecutable</key>\n\t<string>RemoHop-QuickSupport</string>",
+		"<key>CFBundleName</key>\n\t<string>RemoHop Quick Support</string>"} {
+		if !strings.Contains(string(plist), want) {
+			t.Errorf("quick support Info.plist lacks %q", want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(qs, "Contents", "MacOS", "RemoHop-QuickSupport")); err != nil {
+		t.Error(err)
 	}
 	for in, want := range map[string]string{"v1.2.3": "1.2.3", "1.2": "1.2", "dev": "0.0.0", "v0.9.0-rc.1": "0.9.0", "": "0.0.0", "1.2.3.4": "0.0.0"} {
 		if got := bundleVersion(in); got != want {
@@ -207,7 +222,7 @@ func TestBundle(t *testing.T) {
 
 func TestMsixAssets(t *testing.T) {
 	dir := t.TempDir()
-	if err := run("", "", "", "", "", "", "", "", dir); err != nil {
+	if err := run("", "", "", "", "", "", "", "", dir, appKinds["app"]); err != nil {
 		t.Fatal(err)
 	}
 	// The sizes the manifest's logos need at 100% (Partner Center checks these),
