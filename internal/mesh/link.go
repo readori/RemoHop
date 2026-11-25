@@ -1,6 +1,7 @@
 package mesh
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/json"
@@ -49,6 +50,12 @@ const (
 	maxHello     = 64 << 10
 	// queueLen bounds the packets held for a peer while its link comes up.
 	queueLen = 64
+	// sendQueueLen bounds the packets waiting to go out on a link. The
+	// interface is read by one loop for all peers: it hands each packet to
+	// the link's queue and moves on, so a peer that stops draining (lid
+	// closed mid-transfer) loses its own packets instead of freezing
+	// everyone else's.
+	sendQueueLen = 256
 )
 
 // Timing, variables for tests.
@@ -102,6 +109,7 @@ type link struct {
 
 	heard    atomic.Int64 // unix nanos of the last frame from the peer
 	active   atomic.Int64 // unix nanos of the last IP packet either way
+	out      chan []byte  // packets to send; see sendQueueLen
 	wmu      sync.Mutex
 	done     chan struct{}
 	once     sync.Once
@@ -143,7 +151,7 @@ func remoteOf(c *peer.Conn) netip.AddrPort {
 
 func newLink(n *Node, key []byte, label string, c *peer.Conn, s peer.Stream, dialer bool, own, theirs int, h *hello) *link {
 	l := &link{n: n, key: string(key), label: label, conn: c, s: s, dialer: dialer, mss: pickMSS(own, theirs),
-		remote: remoteOf(c), since: time.Now(), done: make(chan struct{})}
+		remote: remoteOf(c), since: time.Now(), done: make(chan struct{}), out: make(chan []byte, sendQueueLen)}
 	l.d, _ = datagrams(c)
 	l.dgram = l.d != nil && own > 0 && theirs > 0
 	l.exit = h.Exit
@@ -158,8 +166,43 @@ func newLink(n *Node, key []byte, label string, c *peer.Conn, s peer.Stream, dia
 	return l
 }
 
-// send transmits one IP packet.
+// errQueueFull is a packet dropped because the link's queue is full.
+var errQueueFull = errors.New("the link's send queue is full")
+
+// send queues one IP packet for the link's sender (sendLoop) and returns at
+// once; pkt may be reused when it returns. A full queue drops the packet,
+// as a congested network would.
 func (l *link) send(pkt []byte) error {
+	if l.closed() {
+		return net.ErrClosed
+	}
+	select {
+	case l.out <- bytes.Clone(pkt):
+		return nil
+	default:
+		return errQueueFull
+	}
+}
+
+// sendLoop sends the queued packets until the link ends. It runs apart from
+// run's other goroutines: a send blocked on a peer that stopped draining
+// must not hold up the link's end (it returns when the session closes).
+func (l *link) sendLoop() {
+	for {
+		select {
+		case <-l.done:
+			return
+		case pkt := <-l.out:
+			if err := l.transmit(pkt); err != nil {
+				l.dropped.Add(1)
+			}
+		}
+	}
+}
+
+// transmit sends one IP packet now: in a datagram if it fits, else as a
+// frame on the stream.
+func (l *link) transmit(pkt []byte) error {
 	if l.dgram {
 		err := l.d.Send(pkt)
 		if err == nil {
@@ -232,6 +275,7 @@ func (l *link) closed() bool {
 func (l *link) run(ctx context.Context) error {
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(nil)
+	go l.sendLoop()
 	var wg sync.WaitGroup
 	// stream frames
 	wg.Go(func() {
