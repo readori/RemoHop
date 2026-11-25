@@ -10,3 +10,6 @@ zz_review_*
 site/review/
 # Staging directory of scripts/build-release.sh for nfpm (removed after packaging).
 /packaging/stage/
+
+# Tools that scripts/install-cosign.sh downloads
+/.tools/
