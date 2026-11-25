@@ -2,6 +2,9 @@ package desktop
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -93,5 +96,118 @@ func TestQueueLowersRateXvfb(t *testing.T) {
 	}
 	if st.InFlight > 30*int(maxWindow/time.Second) {
 		t.Errorf("%d frames in flight", st.InFlight)
+	}
+}
+
+// A key frame on demand costs no gap: the replacement encoder starts while
+// the running one keeps streaming (make before break). Stopping first left
+// the viewer 110-200 ms without a frame on every request.
+func TestKeyframeWithoutGapXvfb(t *testing.T) {
+	const w, h = 640, 360
+	x := startXvfb(t, w, h)
+	animate(t, x, w, h)
+	client, _ := peertest.Pair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	sess, err := Open(ctx, client, Options{FPS: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	start := time.Now()
+	var last, requested time.Time
+	var gaps []time.Duration
+	var maxGap time.Duration
+	nextReq := start.Add(4 * time.Second)
+	for time.Since(start) < 16*time.Second {
+		ev, err := sess.Next(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := ev.Frame
+		if f == nil {
+			continue
+		}
+		if !requested.IsZero() && !last.IsZero() {
+			maxGap = max(maxGap, f.Received.Sub(last))
+			if f.Key {
+				gaps = append(gaps, maxGap)
+				requested = time.Time{}
+				nextReq = f.Received.Add(2500 * time.Millisecond)
+			}
+		}
+		if requested.IsZero() && f.Received.After(nextReq) {
+			requested, maxGap = f.Received, 0
+			sess.RequestKeyframe()
+		}
+		last = f.Received
+	}
+	t.Logf("longest gap around each requested key frame: %v", gaps)
+	if len(gaps) < 3 {
+		t.Fatalf("only %d of the requested key frames came", len(gaps))
+	}
+	worst := 0
+	for _, g := range gaps {
+		if g > 100*time.Millisecond {
+			worst++
+		}
+	}
+	if worst > 1 {
+		t.Errorf("key frames on demand left gaps %v", gaps)
+	}
+}
+
+// Where a second capture or encoder cannot start while the first runs (an
+// ffmpeg here that refuses to run twice at once, as a GPU at its encoder
+// session limit would), a key frame request still gets its key frame: the
+// replacement fails, and the session restarts stopping the old encoder
+// first.
+func TestReplacementFailsFallsBackXvfb(t *testing.T) {
+	if _, err := exec.LookPath("flock"); err != nil {
+		t.Skip("flock not installed")
+	}
+	real, err := ffmpegPath()
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	const w, h = 320, 240
+	x := startXvfb(t, w, h)
+	animate(t, x, w, h)
+	dir := t.TempDir()
+	wrapper := filepath.Join(dir, "ffmpeg")
+	script := "#!/bin/sh\nexec flock -n '" + dir + "/lock' '" + real + "' \"$@\"\n"
+	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("REMOHOP_FFMPEG", wrapper)
+	client, _ := peertest.Pair(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
+	defer cancel()
+	sess, err := Open(ctx, client, Options{FPS: 30})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	start := time.Now()
+	keys, frames, asked := 0, 0, false
+	for time.Since(start) < 8*time.Second {
+		ev, err := sess.Next(ctx)
+		if err != nil {
+			t.Fatalf("session ended: %v", err)
+		}
+		if f := ev.Frame; f != nil {
+			frames++
+			if asked && f.Key {
+				keys++
+			}
+			if !asked && time.Since(start) > 2*time.Second {
+				asked = true
+				sess.RequestKeyframe()
+			}
+		}
+	}
+	t.Logf("%d frames, %d key frames after the request", frames, keys)
+	if keys == 0 || frames < 150 {
+		t.Errorf("after a failed replacement: %d frames, %d key frames", frames, keys)
 	}
 }

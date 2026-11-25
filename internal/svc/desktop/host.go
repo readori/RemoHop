@@ -58,8 +58,9 @@ const (
 	congestionSpan = 10 * time.Second
 	minAdaptFPS    = 10
 	// keyRestartGap spaces out encoder restarts made only to get a key
-	// frame.
-	keyRestartGap = 4 * time.Second
+	// frame; a request inside it is served when it ends (or by a key frame
+	// that comes first), not dropped.
+	keyRestartGap = 2 * time.Second
 	// startupGrace is how long after the session starts congestion does
 	// not lower the bitrate or frame rate.
 	startupGrace = 3 * time.Second
@@ -241,6 +242,7 @@ type encProc struct {
 	cmd     *exec.Cmd
 	stderr  *tailBuffer
 	bitrate int64
+	fps     int
 	h264    bool
 
 	// release gives back what the process was started with (its place
@@ -251,6 +253,7 @@ type encProc struct {
 
 	mu     sync.Mutex
 	reaped bool
+	done   chan struct{} // closed once reaped
 }
 
 // kill takes down the encoder's process group, unless it has already been
@@ -273,6 +276,15 @@ func (p *encProc) reap() {
 	p.cmd.Wait()
 	p.reaped = true
 	p.release()
+	close(p.done)
+}
+
+// wait waits up to d for the process to be gone.
+func (p *encProc) wait(d time.Duration) {
+	select {
+	case <-p.done:
+	case <-time.After(d):
+	}
 }
 
 type hostSession struct {
@@ -312,7 +324,17 @@ type hostSession struct {
 	werr   error
 
 	// Everything below is owned by run's goroutine.
-	proc        *encProc
+	proc *encProc
+	// next is an encoder started to replace proc (make before break, see
+	// startEncoder): proc keeps streaming until next delivers its first
+	// frame, a key frame. nextCfg is its avcC record, held until then.
+	next      *encProc
+	nextCfg   *encFrame
+	noOverlap bool // replacing while proc runs failed once: stop it first
+	lastGen   int  // last generation handed out
+	// keyOnly: the pending restart (restartAt) is only for a key frame,
+	// so a key frame the encoder sends first makes it unnecessary.
+	keyOnly     bool
 	gen         int
 	helloGen    int      // generation whose hello was sent
 	seqHdr      []byte   // AV1: the sequence header OBU
@@ -496,7 +518,21 @@ func (h *hostSession) windowFrames() int {
 
 func (h *hostSession) framePeriod() time.Duration { return time.Second / time.Duration(max(h.fps, 1)) }
 
-func (h *hostSession) gopFrames() int { return 2 * h.fps }
+// gopFrames is the interval of the encoder's own key frames. They are only
+// a fallback: a viewer that needs one asks, and gets it from a replacement
+// encoder without a gap (startEncoder). Hardware encoders get a long one,
+// because with the small rate-control buffer they run with off a fast path
+// every key frame softens a still screen for a quarter of a second
+// (measured with x264 standing in, 1080p60 text at 7.5 Mbit/s and a tenth
+// of a second of buffer: SSIM 0.9994 dropping to 0.960, 21 of every 120
+// frames visibly softer); libx264, with a quarter of a second of buffer,
+// shows no such pulse and keeps two seconds.
+func (h *hostSession) gopFrames() int {
+	if h.enc != nil && h.enc.hw {
+		return 10 * h.fps
+	}
+	return 2 * h.fps
+}
 
 // scaleFilter keeps the aspect ratio and even dimensions (4:2:0 needs
 // them). Expressions are single-quoted so their commas are not taken as
@@ -562,9 +598,30 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	return args
 }
 
-// startEncoder launches a new ffmpeg generation, replacing any running one.
+// startEncoder launches a new ffmpeg generation, replacing the running one.
+//
+// A restart (for a key frame, another bitrate or frame rate, another
+// monitor) is made before break: the new encoder starts while the old one
+// keeps streaming, and takes over when it delivers its first frame, a key
+// frame (onNextFrame). The viewer sees no gap: stopping first left it
+// without a frame for the new encoder's start-up, measured at 110-200 ms
+// with libx264 on Linux and longer for a GPU encoder behind Desktop
+// Duplication. Where the old capture or encoder cannot share the screen or
+// the GPU with the new one (the new one fails), the session falls back to
+// stopping first (noOverlap).
 func (h *hostSession) startEncoder() error {
-	h.stopEncoder()
+	overlap := h.proc != nil && !h.noOverlap
+	if h.next != nil {
+		h.next.kill()
+		h.next, h.nextCfg = nil, nil
+	}
+	if !overlap && h.proc != nil {
+		// The old capture may hold the screen or the GPU until it is
+		// gone (one that cannot share them is why there is no overlap).
+		old := h.proc
+		h.stopEncoder()
+		old.wait(time.Second)
+	}
 	args, spec, err := h.ffmpegArgs()
 	if err != nil {
 		return err
@@ -580,7 +637,8 @@ func (h *hostSession) startEncoder() error {
 		}
 		h.injMu.Unlock()
 	}
-	h.gen++
+	h.lastGen++
+	gen := h.lastGen
 	cmd := nowindow.Set(exec.Command(h.ffmpeg, args...))
 	cmd.Env = h.spec.env
 	release := func() {}
@@ -605,17 +663,61 @@ func (h *hostSession) startEncoder() error {
 		release()
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
-	p := &encProc{gen: h.gen, cmd: cmd, stderr: tail, bitrate: h.bitrate, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain}
-	h.proc = p
+	p := &encProc{gen: gen, cmd: cmd, done: make(chan struct{}), stderr: tail, bitrate: h.bitrate, fps: h.fps, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain}
 	h.lastRestart = time.Now()
-	h.restartAt = time.Time{}
-	h.encWinStart, h.encWinFrames, h.encWinPipe, h.encWinPipeN, h.slowSince = h.lastRestart, 0, 0, 0, time.Time{}
-	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast)
+	h.restartAt, h.keyOnly = time.Time{}, false
+	if overlap {
+		h.next = p
+	} else {
+		h.adopt(p)
+	}
+	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast, "overlap", overlap)
 	go h.readEncoder(p, stdout)
 	return nil
 }
 
+// adopt makes p the session's encoder.
+func (h *hostSession) adopt(p *encProc) {
+	h.proc, h.gen = p, p.gen
+	h.encWinStart, h.encWinFrames, h.encWinPipe, h.encWinPipeN, h.slowSince = time.Now(), 0, 0, 0, time.Time{}
+}
+
+// onNextFrame handles a frame from the encoder that is to replace the
+// running one: its avcC record is kept, its first frame hands the session
+// over to it.
+func (h *hostSession) onNextFrame(f encFrame) {
+	if f.config {
+		h.nextCfg = &f
+		return
+	}
+	old := h.proc
+	h.adopt(h.next)
+	h.next = nil
+	if old != nil {
+		old.kill()
+	}
+	if c := h.nextCfg; c != nil {
+		h.nextCfg = nil
+		h.classify(c)
+	}
+	h.onFrame(f)
+}
+
+// onNextExit handles the replacement encoder ending before it took over.
+// The running one goes on; the replacement is tried again with the old one
+// stopped first, in case the two could not run side by side.
+func (h *hostSession) onNextExit(e encExit) {
+	slog.Debug("desktop: replacement encoder failed while the old one ran; restarting without overlap", "err", e.err)
+	h.next, h.nextCfg = nil, nil
+	h.noOverlap = true
+	h.scheduleRestart(time.Now())
+}
+
 func (h *hostSession) stopEncoder() {
+	if h.next != nil {
+		h.next.kill()
+		h.next, h.nextCfg = nil, nil
+	}
 	if h.proc != nil {
 		h.proc.kill()
 		h.proc = nil
@@ -742,11 +844,18 @@ func (h *hostSession) run() error {
 		case <-h.inputChanged:
 			h.onInputChanged(time.Now())
 		case f := <-h.frames:
-			if f.gen == h.gen {
+			switch {
+			case h.next != nil && f.gen == h.next.gen:
+				h.onNextFrame(f)
+			case f.gen == h.gen && h.proc != nil:
 				h.onFrame(f)
 			}
 		case e := <-h.exits:
-			if e.gen != h.gen {
+			if h.next != nil && e.gen == h.next.gen {
+				h.onNextExit(e)
+				continue
+			}
+			if e.gen != h.gen || h.proc == nil || h.proc.gen != e.gen {
 				continue
 			}
 			if err := h.onEncoderExit(e); err != nil {
@@ -759,7 +868,9 @@ func (h *hostSession) run() error {
 			}
 			h.onControl(c)
 		case now := <-tick.C:
-			if !h.restartAt.IsZero() && !now.Before(h.restartAt) {
+			// One replacement at a time: a restart asked for while one
+			// is starting waits for it to take over.
+			if !h.restartAt.IsZero() && !now.Before(h.restartAt) && h.next == nil {
 				if err := h.startEncoder(); err != nil {
 					h.fatal(err)
 					return err
@@ -907,6 +1018,11 @@ func (h *hostSession) onFrame(f encFrame) {
 		return
 	}
 	h.acks.onSend(h.seq, sentAt)
+	if key && h.keyOnly {
+		// The encoder's own schedule beat the restart that was waiting
+		// for keyRestartGap to pass.
+		h.restartAt, h.keyOnly = time.Time{}, false
+	}
 	h.sentFrames++
 	h.sentBytes += int64(len(f.data))
 }
@@ -1081,34 +1197,47 @@ func (h *hostSession) sizeText() string {
 }
 
 // requestKeyframe gets a key frame out soon: from the encoder's own schedule
-// if one is due anyway, otherwise by restarting the encoder (ffmpeg cannot
-// be told to emit one on demand). Restarts for key frames are spaced out
-// (keyRestartGap): each one costs an encoder start and a large key frame,
-// which on an overloaded machine would feed the very backlog that caused
-// the request, so a second request soon after waits for the scheduled key
-// frame (at most one GOP) instead. Restarting also applies any pending
-// bitrate change.
+// if one is due anyway, otherwise by starting a replacement encoder (ffmpeg
+// cannot be told to emit one on demand; the replacement starts with one and
+// the old encoder streams until it does, see startEncoder). Restarts for
+// key frames are spaced out (keyRestartGap): each one costs an encoder
+// start and a large key frame, which on an overloaded machine would feed
+// the very backlog that caused the request. A second request soon after is
+// served once the gap has passed, unless a key frame comes first; it is
+// never dropped, which left the viewer frozen until the scheduled key
+// frame. Restarting also applies any pending bitrate change.
 func (h *hostSession) requestKeyframe(now time.Time) {
 	gop := time.Duration(h.gopFrames()) * time.Second / time.Duration(h.fps)
-	if h.helloGen != h.gen || !h.restartAt.IsZero() {
+	if h.helloGen != h.gen || !h.restartAt.IsZero() || h.next != nil {
 		return // a key frame is already on its way
 	}
 	sameRate := h.proc != nil && h.proc.bitrate == h.bitrate
 	if sameRate && !h.lastKey.IsZero() && now.Sub(h.lastKey) > gop-keyframeSlack {
 		return
 	}
-	if !h.lastKeyRestart.IsZero() && now.Sub(h.lastKeyRestart) < keyRestartGap {
-		return
+	at := now
+	if !h.lastKeyRestart.IsZero() {
+		at = later(at, h.lastKeyRestart.Add(keyRestartGap))
 	}
-	h.lastKeyRestart = now
-	h.scheduleRestart(now)
+	h.lastKeyRestart = at
+	h.scheduleRestartAt(now, at)
+	h.keyOnly = sameRate
 }
 
-func (h *hostSession) scheduleRestart(now time.Time) {
-	at := h.lastRestart.Add(minRestartGap)
-	if at.Before(now) {
-		at = now
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
 	}
+	return a
+}
+
+func (h *hostSession) scheduleRestart(now time.Time) { h.scheduleRestartAt(now, now) }
+
+// scheduleRestartAt asks for a restart at at or as soon after as restarts
+// may be made (minRestartGap).
+func (h *hostSession) scheduleRestartAt(now, at time.Time) {
+	at = later(later(at, now), h.lastRestart.Add(minRestartGap))
+	h.keyOnly = false
 	if h.restartAt.IsZero() || at.Before(h.restartAt) {
 		h.restartAt = at
 	}
@@ -1117,6 +1246,12 @@ func (h *hostSession) scheduleRestart(now time.Time) {
 // onEncoderExit decides whether an encoder that died can be restarted.
 func (h *hostSession) onEncoderExit(e encExit) error {
 	h.proc = nil
+	if h.next != nil {
+		// Its replacement is starting already and takes over when it
+		// delivers (or fails, and is started again: onNextExit).
+		slog.Debug("desktop: encoder exited while its replacement starts", "err", e.err)
+		return nil
+	}
 	if e.gpu && e.frames == 0 {
 		// The GPU chain passed its test run but not a session: fall back
 		// to the default chain, now and for later sessions.
