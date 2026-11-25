@@ -63,7 +63,11 @@ The server never sees session content. Sessions are end-to-end encrypted and aut
 - **Websocket bridge:** the client's address (from Cloudflare's header), when it connected and how many bytes it carried.
 - **Accounts:** the hash of each email address, the devices' identity keys and names, and the signed membership log. Login codes are mailed and never stored.
 
-What the server writes to its log by default: hosts going online and offline (ID and address), relay sessions starting and ending (both addresses, tier, rate, duration, bytes), websocket connections opening and closing (address, duration, bytes), account logins, and the hourly summary. With `-v` it also logs each introduction. The logs go to the systemd journal. Set a retention period you can defend, for example `MaxRetentionSec=14day` in `/etc/systemd/journald.conf`, and say what it is in your notice.
+Memory: what the server keeps per introduction (for a relay request that may follow) is a few dozen bytes and is dropped after a minute, so a 1 GB VM is ample. Keep UDP 21117 open next to 21116: peers measure their NAT against it.
+
+Two machines registering with the same identity key (a cloned VM image, a copied configuration directory) would replace each other once a second. The server notices the ping-pong, keeps one online, refuses the other for ten minutes with a message that says why, and logs a warning naming both addresses.
+
+What the server writes to its log by default: hosts going online and offline (ID and address), hosts that moved to another address (asked to register again), relay sessions starting and ending (both addresses, tier, rate, duration, bytes), websocket connections opening and closing (address, duration, bytes), account logins, and the hourly summary. With `-v` it also logs each introduction. The logs go to the systemd journal. Set a retention period you can defend, for example `MaxRetentionSec=14day` in `/etc/systemd/journald.conf`, and say what it is in your notice.
 
 ## Privacy notice template
 
