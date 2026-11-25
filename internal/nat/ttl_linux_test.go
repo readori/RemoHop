@@ -80,6 +80,22 @@ func TestUDPTTLWriter(t *testing.T) {
 		})
 	}
 
+	// Listen's socket is wrapped (softsend.go); priming must still work.
+	sock, err := Listen("127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sock.Close()
+	if sock.ttl == nil {
+		t.Fatal("no TTL writer on a socket from Listen")
+	}
+	if err := sock.ttl([]byte("probe"), to, 2); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTTL(); got != 2 {
+		t.Fatalf("packet from Listen's socket arrived with TTL %d, want 2", got)
+	}
+
 	if udpTTLWriter(plainOnly{recv}) != nil {
 		t.Error("a TTL writer was returned for something that is not a UDP socket")
 	}

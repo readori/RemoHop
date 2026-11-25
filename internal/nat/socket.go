@@ -76,6 +76,8 @@ func Listen(addr string) (*Socket, error) {
 	if NAT64Wanted() && (ua.IP == nil || ua.IP.IsUnspecified()) {
 		pc = WrapNAT64(uc) // IPv4 literals on IPv6-only networks (nat64.go)
 	}
+	// Outermost: the NAT64 wrapper acts on "network is unreachable" itself.
+	pc = softErrors(pc) // a second without a route is packet loss (softsend.go)
 	// quic-go prints a one-time notice through the log package when the
 	// kernel refuses large UDP buffers (common in containers). It is
 	// tuning advice for server operators, not something a `remohop` user can
