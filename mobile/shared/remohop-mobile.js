@@ -202,12 +202,25 @@
       'm.help.sec': 'The session runs directly between this device and the host and is end-to-end encrypted; a relay, if one is used, cannot read it. RemoHop collects no data.',
       'm.help.privacy': 'Privacy and about',
       // The page's connection errors, in the app's words (they name Settings).
-      'reason.no_rendezvous': 'No rendezvous server is set, so a host can only be reached by its address (host:port). Set your server in Settings to connect by ID.',
+      'reason.no_rendezvous': 'A 9-digit ID is looked up on a rendezvous server, a meeting point that introduces this device to your computers, and none is set up yet. Set one up, or connect by the computer\'s address (host:port), for example 192.168.1.20:21118 on the same network.',
       'reason.rendezvous_unreachable': 'The rendezvous server set in Settings cannot be reached. Check its address and the network, or connect by address (host:port).',
       'reason.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a RemoHop rendezvous server. Fix it there, or connect to the host by its address (host:port).',
       'reason.signal_is_host': 'The address in Settings → Rendezvous server is a RemoHop host, not a rendezvous server. Connect to that host by its address (host:port), and fix the setting.',
       'err.signal_wrong_protocol': 'The address in Settings → Rendezvous server is not a RemoHop rendezvous server.',
       'err.signal_is_host': 'The address in Settings → Rendezvous server is a RemoHop host, not a rendezvous server. Connect to it by its address (host:port).',
+      'm.setup': 'Set up',
+      'm.setup.aria': 'Set up the rendezvous server in Settings',
+      // The page says "gateway" (remohop web); in the app that is this device.
+      'reason.host_locked_out': 'The host has locked this device out after too many wrong passwords. Wait a while, then try again.',
+      'reason.pairing_rejected': 'The host no longer accepts this device\'s pairing. Connect with the password.',
+      'reason.key_rejected': 'The host does not accept this device\'s key. Connect with the password.',
+      'reason.rendezvous_rate_limited': 'The rendezvous server is limiting requests from this device. Try again in a moment.',
+      'reason.too_many_sessions': 'This device has too many open sessions. Disconnect one, then try again.',
+      'err.too_many_sessions': 'This device has too many open sessions. Disconnect one, then try again.',
+      'connect.passhint': 'Leave it empty for a computer this device remembers.',
+      'connect.pair.hint': 'Next time this device connects without the password.',
+      'd.disconnected': 'Disconnected.',
+      'gw.lost': 'The app is not answering. Close it and open it again.',
     },
     zh: {
       'm.kbd.input': '远程桌面的键盘输入',
@@ -262,12 +275,24 @@
       'm.help.sec.h': '安全',
       'm.help.sec': '会话直接在本设备与被控端之间建立，并且端到端加密；即使经过中继，中继也无法读取内容。RemoHop 不收集任何数据。',
       'm.help.privacy': '隐私与关于',
-      'reason.no_rendezvous': '尚未设置汇合服务器，只能通过地址（host:port）连接被控端。要用 ID 连接，请在设置中填写你的汇合服务器。',
+      'reason.no_rendezvous': '9 位 ID 要通过汇合服务器查找（它是把本设备介绍给你的电脑的“碰头点”），而目前还没有设置。请先设置，或用电脑的地址（host:port）连接，例如同一网络中的 192.168.1.20:21118。',
       'reason.rendezvous_unreachable': '无法连接设置中的汇合服务器。请检查它的地址和网络，或直接用地址（host:port）连接。',
       'reason.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是 RemoHop 汇合服务器。请在那里修改，或直接用地址（host:port）连接被控端。',
       'reason.signal_is_host': '“设置 → 汇合服务器”中填写的是一台 RemoHop 被控端，不是汇合服务器。请直接用该地址（host:port）连接它，并修改该设置。',
       'err.signal_wrong_protocol': '“设置 → 汇合服务器”中填写的不是 RemoHop 汇合服务器。',
       'err.signal_is_host': '“设置 → 汇合服务器”中填写的是一台 RemoHop 被控端，不是汇合服务器。请直接用该地址（host:port）连接它。',
+      'm.setup': '去设置',
+      'm.setup.aria': '在设置中设置汇合服务器',
+      'reason.host_locked_out': '密码错误次数过多，被控端已暂时拒绝本设备。请稍后再试。',
+      'reason.pairing_rejected': '被控端已不再接受本设备的配对，请用密码连接。',
+      'reason.key_rejected': '被控端不接受本设备的密钥，请用密码连接。',
+      'reason.rendezvous_rate_limited': '汇合服务器正在限制本设备的请求，请稍后再试。',
+      'reason.too_many_sessions': '本设备打开的会话太多。请先断开一个再试。',
+      'err.too_many_sessions': '本设备打开的会话太多。请先断开一个再试。',
+      'connect.passhint': '本设备已记住的电脑可以留空。',
+      'connect.pair.hint': '下次本设备连接时无需密码。',
+      'd.disconnected': '连接已断开。',
+      'gw.lost': '应用没有响应。请关闭后重新打开。',
     },
   };
   let I18N = null;
@@ -420,6 +445,10 @@
     }
     updateBar();
     native.post('ready', {});
+    // A page loaded again (the web view's process was replaced) says its
+    // state at once: the app may still hold the old page's full screen and
+    // keep-screen-on.
+    lastState = ''; state();
   });
 
   // ---- zoom ----
@@ -445,7 +474,7 @@
   }
 
   // ---- gestures ----
-  const SLOP = 10, LONG_MS = 550, TAP2_MS = 350, WHEEL_PX = 40;
+  const SLOP = 10, LONG_MS = 550, TAP2_MS = 350, WHEEL_PX = 40, DOUBLE_MS = 500, DOUBLE_PX = 24;
   function setupGestures() {
     const touches = new Map();
     let mode = 'idle', longTimer = 0, start = null, last = null, two = null, wheelAcc = {x: 0, y: 0};
@@ -457,8 +486,16 @@
     const pts = () => [...touches.values()];
     const centroid = () => { const p = pts(); return {x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2}; };
     const dist = () => { const p = pts(); return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y); };
+    // A second tap soon after and near the first lands exactly where the
+    // first did: on a fitted desktop one CSS pixel is several host pixels,
+    // and a finger's drift would put the two clicks outside the host's
+    // double-click rectangle.
+    let lastTap = null;
     const click = (p, button) => {
-      const n = norm(p.x, p.y);
+      const now = performance.now();
+      let n = norm(p.x, p.y);
+      if (button === 0 && lastTap && now - lastTap.t < DOUBLE_MS && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < DOUBLE_PX) n = lastTap.n;
+      lastTap = button === 0 ? {x: p.x, y: p.y, t: now, n} : null;
       send({type: 'move', ...n});
       send({type: 'button', button, down: true, ...n});
       send({type: 'button', button, down: false, ...n});
@@ -967,13 +1004,26 @@
     const fb = $('f-body');
     if (fb) { new MutationObserver(() => decorateFiles(fb)).observe(fb, {childList: true}); decorateFiles(fb); }
 
-    // Connection errors go to the diagnostic log too.
+    // Connection errors go to the diagnostic log too; one the rendezvous
+    // server setting fixes gets a "Set up" button that opens it.
     const ce = $('connerr');
     if (ce) {
+      const fixedInSettings = ['reason.no_rendezvous', 'reason.rendezvous_unreachable', 'reason.signal_wrong_protocol', 'reason.signal_is_host',
+        'err.signal_wrong_protocol', 'err.signal_is_host'];
       new MutationObserver(() => {
         const d = ce.querySelector('.errdetail code');
         const t = (ce.textContent || '').trim();
         if (t) diagLog('connect error: ' + (d ? (ce.querySelector('.errmain') || ce).textContent + ' | ' + d.textContent : t));
+        const main = ce.querySelector('.errmain');
+        if (main && native.available() && fixedInSettings.includes(main.getAttribute('data-i18n')) && !ce.querySelector('#sdm-setup')) {
+          const b = document.createElement('button');
+          b.type = 'button'; b.id = 'sdm-setup'; b.className = 'secondary';
+          b.style.margin = '10px 0 4px';
+          i18n().say(b, 'm.setup');
+          i18n().sayAttr(b, 'aria-label', 'm.setup.aria');
+          b.addEventListener('click', () => native.post('openSettings', {page: 'rendezvous'}));
+          main.after(b);
+        }
       }).observe(ce, {childList: true});
     }
     trackViewport();

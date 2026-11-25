@@ -354,7 +354,7 @@ class SettingsUi(private val a: Activity) {
      * Errors go to the field's own supporting text ([TextInputLayout.setError]).
      */
     fun field(box: LinearLayout, label: String, value: String, hint: String = "", type: Int = InputType.TYPE_CLASS_TEXT,
-              onCommit: (String) -> Unit): TextInputLayout {
+              id: Int = View.NO_ID, onCommit: (String) -> Unit): TextInputLayout {
         val layout = TextInputLayout(a).apply {
             this.hint = label
             placeholderText = hint.ifEmpty { null }
@@ -370,10 +370,17 @@ class SettingsUi(private val a: Activity) {
             imeOptions = EditorInfo.IME_ACTION_DONE
             maxLines = 1
             importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
-            setOnEditorActionListener { v, id, _ ->
-                if (id == EditorInfo.IME_ACTION_DONE) { v.clearFocus(); onCommit(text.toString()); false } else false
+            // Done commits once: leaving the field commits (the focus
+            // listener), so clearing the focus is enough when it has it.
+            setOnEditorActionListener { v, action, _ ->
+                if (action == EditorInfo.IME_ACTION_DONE) { if (v.hasFocus()) v.clearFocus() else onCommit(text.toString()); false } else false
             }
             setOnFocusChangeListener { _, has -> if (!has) onCommit(text.toString()) }
+            // A stable ID lets the text survive the activity being recreated;
+            // never a password, which must not go into the saved state.
+            if (id != View.NO_ID) this.id = id
+            setTag(R.id.field_initial, value)
+            if (type and InputType.TYPE_MASK_VARIATION == InputType.TYPE_TEXT_VARIATION_PASSWORD) isSaveEnabled = false
         }
         layout.addView(e, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         // In a group, consecutive fields share one item (a form).

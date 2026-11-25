@@ -30,12 +30,15 @@
         <meta-data android:name="android.webkit.WebView.EnableSafeBrowsing" android:value="false" />
 
         <!-- Rotation, keyboard and theme changes resize the WebView instead of
-             recreating it, so the page and its sessions stay. -->
+             recreating it, so the page and its sessions stay. singleTop, not
+             singleTask: starting the app again (its icon, the session
+             notification) must bring the task back as it was, with Settings
+             still open on top, rather than clear everything above this. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|uiMode|density|fontScale|layoutDirection|locale"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -43,8 +46,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Rotation, resizing and keyboards relayout the pages; a theme or
+             font change recreates the activity, which then restores the
+             fields (stable IDs) and the pairing in progress (PairJob). -->
         <activity
             android:name=".SettingsActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
             android:exported="false"
             android:label="@string/settings"
             android:parentActivityName=".MainActivity"

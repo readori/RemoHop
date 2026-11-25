@@ -44,8 +44,9 @@ class SessionService : Service() {
         override fun run() {
             bg.execute {
                 val sessions = SessionWatch.sessions()
+                val pending = SessionWatch.pending()
                 main.post {
-                    if (sessions.isEmpty()) stopSelf() else update(sessions)
+                    if (sessions.isEmpty() && pending == 0) stopSelf() else update(sessions)
                     if (running) main.postDelayed(this, POLL_MS)
                 }
             }
@@ -81,7 +82,11 @@ class SessionService : Service() {
         try {
             ServiceCompat.startForeground(this, NOTIFICATION_ID, n, type)
         } catch (e: Exception) {
-            // Not allowed now (started from the background): nothing to keep.
+            // Not allowed now. SessionWatch starts this service only while
+            // the activity is in front (onResume, the poll while resumed,
+            // onPause), which is what allows startForeground here, so this
+            // is not expected; it is logged for support.
+            Diag.log("session service could not enter the foreground: ${e.javaClass.simpleName}")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -102,12 +107,14 @@ class SessionService : Service() {
     private fun str(id: Int, vararg args: Any): String = Lang.localized(this).getString(id, *args)
 
     private fun update(sessions: List<Pair<String, String>>) {
-        val (target, state) = sessions.first()
-        val text = when {
-            sessions.size > 1 -> str(R.string.session_connected_many, sessions.size)
-            state == "connected" -> str(R.string.session_connected, target)
-            state == "failed" -> str(R.string.session_lost, target)
-            else -> str(R.string.session_reconnecting, target)
+        val text = if (sessions.isEmpty()) str(R.string.session_connecting) else {
+            val (target, state) = sessions.first()
+            when {
+                sessions.size > 1 -> str(R.string.session_connected_many, sessions.size)
+                state == "connected" -> str(R.string.session_connected, target)
+                state == "failed" -> str(R.string.session_lost, target)
+                else -> str(R.string.session_reconnecting, target)
+            }
         }
         if (text == lastText) return
         lastText = text
@@ -118,10 +125,12 @@ class SessionService : Service() {
     }
 
     private fun notification(text: String): Notification {
-        val open = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
+        // The launcher's own intent: it brings the task back as it was
+        // (Settings stays open if it was), like tapping the app's icon.
+        val launch = packageManager.getLaunchIntentForPackage(packageName)
+            ?: Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+        val open = PendingIntent.getActivity(this, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val disconnect = PendingIntent.getService(
             this, 1, Intent(this, SessionService::class.java).setAction(ACTION_DISCONNECT),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -154,7 +163,7 @@ class SessionService : Service() {
 
 /**
  * Starts [SessionService] while the activity is in front and a host session
- * exists; MainActivity calls [check] when it resumes and every few seconds
+ * (or a connection attempt) exists; MainActivity calls [check] when it resumes and every few seconds
  * while it is resumed (a session is made in the page, which tells the app
  * nothing).
  */
@@ -167,9 +176,19 @@ object SessionWatch {
         emptyList()
     }
 
-    /** Off the UI thread: starts the service if a session exists and it is not running. */
+    /**
+     * Connection attempts still dialing or waiting for the host's owner to
+     * approve: the process is kept for them too (the user switches to a
+     * chat to ask for approval exactly then).
+     */
+    fun pending(): Int = try { Remohopcore.pendingConnections().toInt() } catch (e: Throwable) { 0 }
+
+    /** Whether there is anything to keep the process for. */
+    fun busy(): Boolean = sessions().isNotEmpty() || pending() > 0
+
+    /** Off the UI thread: starts the service if a session or an attempt exists and it is not running. */
     fun check(context: Context) {
-        if (SessionService.running || sessions().isEmpty()) return
+        if (SessionService.running || !busy()) return
         val app = context.applicationContext
         try {
             app.startForegroundService(Intent(app, SessionService::class.java))

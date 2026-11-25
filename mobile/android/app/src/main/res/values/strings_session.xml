@@ -8,4 +8,5 @@
     <string name="session_reconnecting">Reconnecting to %1$s…</string>
     <string name="session_lost">The connection to %1$s was lost</string>
     <string name="session_disconnect">Disconnect</string>
+    <string name="session_connecting">Connecting to a host…</string>
 </resources>

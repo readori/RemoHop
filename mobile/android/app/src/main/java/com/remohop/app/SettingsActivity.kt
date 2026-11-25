@@ -51,7 +51,10 @@ import com.google.android.material.R as M
  * The pages live in this one activity, with their own back stack.
  */
 class SettingsActivity : AppCompatActivity() {
+    /** Reads and writes of the core's settings and saved hosts: quick. */
     private val bg = Executors.newSingleThreadExecutor()
+    /** Network checks (rendezvous server, which hosts are online): up to 10 s, so never ahead of a save. */
+    private val net = Executors.newSingleThreadExecutor()
     private lateinit var ui: SettingsUi
     private lateinit var root: CoordinatorLayout
     private lateinit var bar: AppBarLayout
@@ -68,6 +71,11 @@ class SettingsActivity : AppCompatActivity() {
     private var name = ""
     private var fingerprint = ""
     private var hosts = JSONArray()
+    /** The settings and saved hosts have been read once. */
+    private var loaded = false
+    /** Values being saved now, per key: Done and leaving the field must not save twice. */
+    private val inflight = HashMap<String, String>()
+    private val pairListener: () -> Unit = { if (stack.lastOrNull() == PAGE_PAIR) show() }
     private var rendezvousStatus: RendezvousStatus? = null
     /** The key the saved server presented in the last check (offered when none is saved). */
     private var rendezvousKey = ""
@@ -136,6 +144,7 @@ class SettingsActivity : AppCompatActivity() {
         })
         savedInstanceState?.getStringArrayList(STATE_STACK)?.let { stack.addAll(it) }
         if (stack.isEmpty()) intent.getStringExtra(EXTRA_PAGE)?.takeIf { it in DIRECT_PAGES }?.let { stack.add(it) }
+        PairJob.listen(pairListener)
         show()
         load { show() }
     }
@@ -146,7 +155,9 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        PairJob.unlisten(pairListener)
         bg.shutdownNow()
+        net.shutdownNow()
         super.onDestroy()
     }
 
@@ -165,6 +176,7 @@ class SettingsActivity : AppCompatActivity() {
             }
             fingerprint = fp
             hosts = list
+            loaded = true
             then()
         }
     }
@@ -178,9 +190,14 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun back() {
-        currentFocus?.clearFocus()
+        currentFocus?.clearFocus() // commits a field being edited; the page it changes is built again when saved
+        if (stack.lastOrNull() == PAGE_PAIR) PairJob.clear()
         if (stack.isEmpty()) finish() else { stack.removeAt(stack.size - 1); show() }
     }
+
+    /** Opens a page (for the instrumented tests). */
+    @androidx.annotation.VisibleForTesting
+    internal fun openForTest(page: String) = open(page)
 
     private fun showInfo() {
         val (title, items) = info ?: return
@@ -222,8 +239,15 @@ class SettingsActivity : AppCompatActivity() {
         return tv.resourceId
     }
 
+    private var shownPage: String? = "\u0000"
+
     private fun show() {
         info = null
+        // What the user typed into the page being built again (the settings
+        // were read, a save finished, the activity was recreated) stays.
+        val page = stack.lastOrNull()
+        val typed = if (page == shownPage) editedFields() else emptyMap()
+        shownPage = page
         val (scroll, col) = ui.page()
         when (stack.lastOrNull()) {
             null -> main(col)
@@ -237,6 +261,7 @@ class SettingsActivity : AppCompatActivity() {
             PAGE_ABOUT -> about(col)
             else -> stack.last().takeIf { it.startsWith(PAGE_HOST) }?.let { hostDetail(col, it.removePrefix(PAGE_HOST)) } ?: main(col)
         }
+        for ((id, text) in typed) (scroll.findViewById<View>(id) as? android.widget.EditText)?.let { if (it.text.toString() != text) it.setText(text) }
         content?.let { root.removeView(it) }
         content = scroll
         root.addView(scroll, CoordinatorLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
@@ -270,6 +295,20 @@ class SettingsActivity : AppCompatActivity() {
         for (i in 0 until menu.size()) menu.getItem(i).icon?.setTint(tint)
     }
 
+    /** The text of the page's fields that the user changed since they were built, by view ID. */
+    private fun editedFields(): Map<Int, String> {
+        val out = HashMap<Int, String>()
+        fun walk(v: View) {
+            if (v is android.widget.EditText && v.id != View.NO_ID && v.isSaveEnabled) {
+                val t = v.text.toString()
+                if (t != v.getTag(R.id.field_initial)) out[v.id] = t
+            }
+            if (v is ViewGroup) for (i in 0 until v.childCount) walk(v.getChildAt(i))
+        }
+        content?.let { walk(it) }
+        return out
+    }
+
     private fun pageTitle(id: Int) = pageTitle(getString(id))
     private fun pageTitle(s: CharSequence) { collapsing.title = s; title = s }
 
@@ -291,7 +330,7 @@ class SettingsActivity : AppCompatActivity() {
             if (set) "" else getString(R.string.rv_card_unset)).filter { it.isNotEmpty() }.joinToString(", ")
         if (set && rendezvousStatus == null && RendezvousCheck.AVAILABLE && !checkingMain) {
             checkingMain = true
-            bg.execute {
+            net.execute {
                 val r = RendezvousCheck.check()
                 ui {
                     checkingMain = false
@@ -353,17 +392,34 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
-    /** Saves one setting if it changed; the core validates it, and an error stays on the field. */
-    private fun commit(key: String, value: String, field: TextInputLayout?, after: () -> Unit = {}) {
+    /**
+     * Saves one setting if it changed; the core validates it, and an error
+     * stays on the field (in the app's words; the core's text goes to the
+     * diagnostic log). [after] runs once it is saved, or at once when
+     * nothing changed and [afterIfUnchanged]. A page left before the save
+     * finished, and showing that setting, is built again with it.
+     */
+    private fun commit(key: String, value: String, field: TextInputLayout?, afterIfUnchanged: Boolean = false, after: () -> Unit = {}) {
         val v = value.trim()
         val old = when (key) { "signal" -> signal; "signal-pin" -> pin; "relay" -> if (relay) "on" else "off"; else -> name }
-        if (v == old) { field?.error = null; return }
+        if (v == old) { field?.error = null; if (afterIfUnchanged) after(); return }
+        if (inflight[key] == v) return
+        inflight[key] = v
         bg.execute {
-            val err = runCatching { Remohopcore.setSetting(key, v) }.exceptionOrNull()?.message
+            val out = runCatching { JSONObject(Remohopcore.setSettingJSON(key, v)) }
             val s = runCatching { JSONObject(Remohopcore.settingsJSON()) }.getOrNull()
             ui {
-                if (err != null) {
-                    if (field != null) field.error = err else snack(err)
+                if (inflight[key] == v) inflight.remove(key)
+                val r = out.getOrNull()
+                if (r == null || !r.optBoolean("ok")) {
+                    Diag.log("setting $key not saved: ${r?.optString("code")} ${r?.optString("error") ?: out.exceptionOrNull()?.message}")
+                    val err = getString(when (r?.optString("code")) {
+                        "bad_address" -> R.string.set_err_bad_address
+                        "bad_key" -> R.string.set_err_bad_key
+                        "bad_name", "bad_value" -> R.string.set_err_bad_name
+                        else -> R.string.set_err_failed
+                    })
+                    if (field != null && field.isAttachedToWindow) field.error = err else snack(err)
                     return@ui
                 }
                 field?.error = null
@@ -375,6 +431,12 @@ class SettingsActivity : AppCompatActivity() {
                 Diag.log("setting $key changed")
                 snack(R.string.saved_short)
                 after()
+                // Saved after its page was left (back, or another page):
+                // the page now shown may display the old value.
+                if (field != null && !field.isAttachedToWindow) {
+                    val top = stack.lastOrNull()
+                    if (top == null || top == PAGE_RENDEZVOUS) show()
+                }
             }
         }
     }
@@ -391,9 +453,10 @@ class SettingsActivity : AppCompatActivity() {
         var testRow: SettingsUi.Row? = null
         val check = {
             val row = testRow
+            if (RendezvousCheck.AVAILABLE && row != null && signal.isEmpty()) row.summary(getString(R.string.rv_enter_address))
             if (RendezvousCheck.AVAILABLE && row != null && signal.isNotEmpty()) {
                 row.summary(getString(R.string.checking))
-                bg.execute {
+                net.execute {
                     val r = RendezvousCheck.check()
                     ui {
                         rendezvousStatus = r?.status
@@ -408,14 +471,21 @@ class SettingsActivity : AppCompatActivity() {
         lateinit var addr: TextInputLayout
         lateinit var key: TextInputLayout
         // A new server address clears the key of the old one (the core does that).
-        addr = ui.field(c, getString(R.string.server_address), signal, getString(R.string.rendezvous_example), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI) {
+        addr = ui.field(c, getString(R.string.server_address), signal, getString(R.string.rendezvous_example), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI, R.id.field_signal) {
             commit("signal", it, addr) { key.editText?.setText(pin); check() }
         }
-        key = ui.field(c, getString(R.string.rendezvous_key), pin, getString(R.string.optional), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {
+        key = ui.field(c, getString(R.string.rendezvous_key), pin, getString(R.string.optional), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, R.id.field_signal_pin) {
             commit("signal-pin", it, key) { check() }
         }
         if (RendezvousCheck.AVAILABLE) {
-            testRow = ui.row(c, getString(R.string.test_connection), summary = rendezvousStatus?.let { statusText(it) } ?: "", icon = R.drawable.ic_s_network) { check() }
+            // Tests what is typed, not what was saved before: a tap on a row
+            // does not take the focus, so the fields are saved first.
+            testRow = ui.row(c, getString(R.string.test_connection), summary = rendezvousStatus?.let { statusText(it) } ?: "", icon = R.drawable.ic_s_network) {
+                val a = addr.editText?.text.toString()
+                val k = key.editText?.text.toString()
+                if (a.trim() != signal) commit("signal", a, addr) { key.editText?.setText(pin); check() }
+                else commit("signal-pin", k, key, afterIfUnchanged = true) { check() }
+            }
         }
         // No key: the first connection trusts whichever server answers (trust
         // on first use). Say so, and offer the key the server presented.
@@ -459,7 +529,7 @@ class SettingsActivity : AppCompatActivity() {
         info = getString(R.string.device_name) to listOf("" to getString(R.string.info_device_name))
         val c = ui.section(col, null)
         lateinit var f: TextInputLayout
-        f = ui.field(c, getString(R.string.device_name), name, Diag.device()) { commit("name", it, f) }
+        f = ui.field(c, getString(R.string.device_name), name, Diag.device(), id = R.id.field_name) { commit("name", it, f) }
         f.counterMaxLength = 64
         f.isCounterEnabled = true
         f.editText?.filters = arrayOf(android.text.InputFilter.LengthFilter(64))
@@ -566,10 +636,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun refreshHosts(online: Boolean) {
         if (online) snack(R.string.checking)
-        bg.execute {
+        (if (online) net else bg).execute {
             val list = runCatching { JSONArray(Remohopcore.devicesJSON(online)) }
             ui {
-                list.onSuccess { hosts = it }.onFailure { snack(it.message ?: "") }
+                list.onSuccess { hosts = it }.onFailure { Diag.log("saved hosts: ${it.message}"); snack(R.string.rv_failed) }
                 val top = stack.lastOrNull()
                 if (top == PAGE_HOSTS || top == null || top.startsWith(PAGE_HOST)) show()
             }
@@ -579,6 +649,11 @@ class SettingsActivity : AppCompatActivity() {
     /** One saved host: its name (saved when the field is left), ID or address, status, Connect and Forget. */
     private fun hostDetail(col: LinearLayout, target: String) {
         val h = hostList().firstOrNull { it.target == target }
+        if (h == null && !loaded) {
+            // Recreated: the saved hosts are still being read (load() builds the page again).
+            pageTitle("")
+            return
+        }
         if (h == null) {
             // Forgotten meanwhile: back to the list.
             stack.removeAt(stack.size - 1)
@@ -602,7 +677,7 @@ class SettingsActivity : AppCompatActivity() {
         })
         val c = ui.section(col, null)
         lateinit var f: TextInputLayout
-        f = ui.field(c, getString(R.string.pair_alias), h.alias, h.target, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) { v ->
+        f = ui.field(c, getString(R.string.pair_alias), h.alias, h.target, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, R.id.field_host_alias) { v ->
             val name = v.trim()
             if (name == h.alias) { f.error = null; return@field }
             bg.execute {
@@ -617,7 +692,9 @@ class SettingsActivity : AppCompatActivity() {
                         val list = runCatching { JSONArray(Remohopcore.devicesJSON(false)) }.getOrNull()
                         ui {
                             if (list != null) hosts = list
-                            if (stack.lastOrNull() == PAGE_HOST + target) pageTitle(name.ifEmpty { target })
+                            val top = stack.lastOrNull()
+                            if (top == PAGE_HOST + target) pageTitle(name.ifEmpty { target })
+                            else if (top == PAGE_HOSTS || top == null) show() // left meanwhile: the list shows the new name
                         }
                     }
                 }
@@ -669,26 +746,46 @@ class SettingsActivity : AppCompatActivity() {
         d.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(ui.color(M.attr.colorError))
     }
 
-    /** A pairing failure in the app's words where its code is known (Chinese); else the core's message. */
-    private fun pairError(r: JSONObject): String {
-        val raw = r.optString("error")
-        if (Lang.effective(this) != Lang.ZH) return raw
-        val id = when (r.optString("code")) {
-            "bad_password" -> R.string.pair_err_bad_password
-            "unknown_id" -> R.string.pair_err_unknown_id
-            "host_offline" -> R.string.pair_err_host_offline
-            "no_path" -> R.string.pair_err_no_path
-            "no_rendezvous" -> R.string.pair_err_no_rendezvous
-            "host_key_changed" -> R.string.pair_err_host_key_changed
-            "denied" -> R.string.pair_err_denied
-            "locked_out" -> R.string.pair_err_locked_out
-            "password_required" -> R.string.pair_err_password_required
-            "timeout" -> R.string.pair_err_timeout
-            "canceled" -> R.string.pair_err_canceled
-            else -> return raw
-        }
-        return getString(id)
-    }
+    /** The pairing failure's code: the reason of a request turned down, else the code. */
+    private fun pairCode(r: JSONObject) = r.optString("reason").ifEmpty { r.optString("code") }
+
+    /**
+     * A pairing failure in the app's words, in either language. The core's
+     * own text is English and may name CLI commands: it goes to the
+     * diagnostic log only.
+     */
+    private fun pairError(r: JSONObject): String = getString(when (pairCode(r)) {
+        "bad_password" -> R.string.pair_err_bad_password
+        "unknown_id" -> R.string.pair_err_unknown_id
+        "host_offline" -> R.string.pair_err_host_offline
+        "no_path" -> R.string.pair_err_no_path
+        "no_rendezvous" -> R.string.pair_err_no_rendezvous
+        "host_key_changed" -> R.string.pair_err_host_key_changed
+        "denied" -> R.string.pair_err_denied
+        "locked_out" -> R.string.pair_err_locked_out
+        "password_required" -> R.string.pair_err_password_required
+        "timeout" -> R.string.pair_err_timeout
+        "canceled" -> R.string.pair_err_canceled
+        "target_required" -> R.string.pair_err_target_required
+        "bad_target" -> R.string.pair_err_bad_target
+        "bad_alias" -> R.string.host_name_invalid
+        "already_pairing" -> R.string.pair_err_already_pairing
+        "host_unreachable" -> R.string.pair_err_host_unreachable
+        "cannot_resolve" -> R.string.pair_err_cannot_resolve
+        "rendezvous_unreachable" -> R.string.pair_err_rendezvous_unreachable
+        "rendezvous_rate_limited" -> R.string.pair_err_rendezvous_rate_limited
+        "signal_is_host" -> R.string.pair_err_signal_is_host
+        "signal_wrong_protocol" -> R.string.pair_err_signal_wrong_protocol
+        "host_busy" -> R.string.pair_err_host_busy
+        "key_rejected" -> R.string.pair_err_key_rejected
+        "pairing_rejected" -> R.string.pair_err_pairing_rejected
+        "password_login_disabled" -> R.string.pair_err_password_login_disabled
+        else -> R.string.pair_err_failed
+    })
+
+    /** Failures fixed in Settings → Rendezvous server: the pair page offers "Set up". */
+    private fun rendezvousProblem(code: String) =
+        code in setOf("no_rendezvous", "rendezvous_unreachable", "signal_is_host", "signal_wrong_protocol")
 
     private fun pair(col: LinearLayout) {
         pageTitle(R.string.pair_heading)
@@ -697,10 +794,10 @@ class SettingsActivity : AppCompatActivity() {
             getString(R.string.pair_target) to getString(R.string.info_pair_target),
         )
         val c = ui.section(col, null)
-        val target = ui.field(c, getString(R.string.pair_target), "", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI) {}
-        val password = ui.field(c, getString(R.string.pair_password), "", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD) {}
+        val target = ui.field(c, getString(R.string.pair_target), "", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI, R.id.field_pair_target) {}
+        val password = ui.field(c, getString(R.string.pair_password), "", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, R.id.field_pair_password) {}
         password.endIconMode = TextInputLayout.END_ICON_PASSWORD_TOGGLE
-        val alias = ui.field(c, getString(R.string.pair_alias), "", getString(R.string.optional), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {}
+        val alias = ui.field(c, getString(R.string.pair_alias), "", getString(R.string.optional), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, R.id.field_pair_alias) {}
         alias.helperText = getString(R.string.optional)
         val actions = ui.buttons(c)
         val pairBtn = ui.button(getString(R.string.pair), SettingsUi.ButtonStyle.FILLED, R.drawable.ic_s_link)
@@ -709,41 +806,45 @@ class SettingsActivity : AppCompatActivity() {
         actions.addView(pairBtn)
         actions.addView(cancelBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = ui.dp(8) })
         actions.addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = ui.dp(16) })
+        // "Set up" where the rendezvous server is what is missing or wrong.
+        val setUp = ui.button(getString(R.string.set_up), SettingsUi.ButtonStyle.TONAL, R.drawable.ic_s_network).apply {
+            visibility = View.GONE
+            setOnClickListener { open(PAGE_RENDEZVOUS) }
+        }
+        actions.addView(setUp, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = ui.dp(8) })
         val status = ui.text(c, "")
         status.visibility = View.GONE
-        cancelBtn.setOnClickListener { Thread { Remohopcore.cancelPair() }.start() }
-        pairBtn.setOnClickListener {
-            val t = target.editText?.text.toString().trim()
-            if (t.isEmpty()) { target.error = getString(R.string.pair_target_required); target.editText?.requestFocus(); return@setOnClickListener }
-            target.error = null
-            val pw = password.editText?.text.toString()
-            password.editText?.text?.clear()
+        cancelBtn.setOnClickListener { PairJob.cancel() }
+        // The pairing lives in PairJob: this page shows it running, or its outcome.
+        if (PairJob.running) {
             status.visibility = View.VISIBLE
             status.setTextColor(ui.color(M.attr.colorOnSurfaceVariant))
             status.text = getString(R.string.pairing)
             pairBtn.isEnabled = false
             cancelBtn.visibility = View.VISIBLE
             progress.visibility = View.VISIBLE
-            // Not on bg: a pairing may wait minutes for approval.
-            Thread {
-                val out = runCatching { JSONObject(Remohopcore.pairWithPassword(t, pw, alias.editText?.text.toString())) }
-                ui {
-                    pairBtn.isEnabled = true
-                    cancelBtn.visibility = View.GONE
-                    progress.visibility = View.GONE
-                    out.onSuccess { r ->
-                        val ok = r.optBoolean("ok")
-                        // Words first; the colour only repeats them.
-                        status.setTextColor(ui.color(if (ok) M.attr.colorPrimary else M.attr.colorError))
-                        status.text = if (ok) getString(R.string.paired_short, r.optString("target")) else pairError(r)
-                        Diag.log(if (ok) "paired with a host" else "pairing failed: ${r.optString("code")} ${r.optString("error")}")
-                        if (ok) bg.execute {
-                            val list = runCatching { JSONArray(Remohopcore.devicesJSON(false)) }.getOrNull()
-                            ui { if (list != null) hosts = list }
-                        }
-                    }.onFailure { status.setTextColor(ui.color(M.attr.colorError)); status.text = it.message }
+        } else PairJob.result?.let { out ->
+            status.visibility = View.VISIBLE
+            out.onSuccess { r ->
+                val ok = r.optBoolean("ok")
+                // Words first; the colour only repeats them.
+                status.setTextColor(ui.color(if (ok) M.attr.colorPrimary else M.attr.colorError))
+                status.text = if (ok) getString(R.string.paired_short, r.optString("target")) else pairError(r)
+                if (!ok && rendezvousProblem(pairCode(r))) setUp.visibility = View.VISIBLE
+                if (!ok && pairCode(r) == "target_required") target.error = getString(R.string.pair_target_required)
+                if (ok) bg.execute {
+                    val list = runCatching { JSONArray(Remohopcore.devicesJSON(false)) }.getOrNull()
+                    ui { if (list != null) hosts = list }
                 }
-            }.start()
+            }.onFailure { status.setTextColor(ui.color(M.attr.colorError)); status.text = getString(R.string.pair_err_failed) }
+        }
+        pairBtn.setOnClickListener {
+            val t = target.editText?.text.toString().trim()
+            if (t.isEmpty()) { target.error = getString(R.string.pair_target_required); target.editText?.requestFocus(); return@setOnClickListener }
+            target.error = null
+            val pw = password.editText?.text.toString()
+            password.editText?.text?.clear()
+            if (PairJob.start(t, pw, alias.editText?.text.toString())) show()
         }
     }
 
