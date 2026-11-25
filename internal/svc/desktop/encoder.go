@@ -58,13 +58,14 @@ type encoder struct {
 // its share of the bitrate, and so both what a burst costs in latency on a
 // link that runs at the bitrate and how sharp a key frame or a frame with a
 // lot of change (scrolling text) can be. With the two frames this used to
-// be, every hardware encoder starved its key frames: measured with x264 on
-// a 1080p60 text clip at 7.5 Mbit/s (host_quality_linux_test.go has the
-// method), the first frame came out at SSIM 0.78 (smeared text) against
-// 0.92 with eight frames, and a scroll at 0.970 against 0.994. A tenth of
-// a second (six frames at 60 fps) is the default; a fast path gets a
-// quarter of a second, where a 1.5 Mbit key frame takes a few
-// milliseconds on the wire.
+// be, every hardware encoder starved its key frames. Measured with x264
+// standing in, on a scrolling 1080p60 text clip at 7.5 Mbit/s
+// (TestEncoderQuality has the method): the key frame came out at SSIM
+// 0.78 (smeared text), 0.87 with a tenth of a second of buffer; a scroll
+// at 0.972, 0.991 with it. A tenth of a second (six frames at 60 fps) is
+// the default. A fast path gets a quarter of a second, where a 2 Mbit key
+// frame takes a few milliseconds on the wire; with the fast path's
+// bitrate the key frame reaches 0.979 and a scroll 0.9996.
 func vbv(p encParams) string {
 	div := int64(10)
 	if p.fast {
@@ -235,8 +236,11 @@ var encoders = []*encoder{
 			// measured on a 4-core x86 box, veryfast encodes 1080p at
 			// ~130-160 fps and 4K at ~33, superfast 4K at ~45, ultrafast
 			// 4K at ~70.
+			// The rate counts at least 50 fps: when the host lowers the
+			// frame rate because the encoder falls behind (fitRate), a
+			// slower preset would only fall behind again.
 			preset := "veryfast"
-			switch rate := p.pixels * p.fps; {
+			switch rate := p.pixels * max(p.fps, 50); {
 			case rate >= 3840*2160*50:
 				preset = "ultrafast"
 			case rate > 1920*1080*60:
@@ -374,7 +378,7 @@ func vaapiDevice() string {
 // per frame (≈7.5 Mbit/s for 1080p60, ≈30 Mbit/s for 4K60), twice that
 // on a fast path (≈15 Mbit/s for 1080p60, ≈27 for 1440p60, ≈60 for
 // 4K60). Doubling the bitrate took the 1080p60 text clip of
-// host_quality_linux_test.go from 48 to 56 dB PSNR; the fast path can
+// TestEncoderQuality from 45 to 56 dB PSNR; the fast path can
 // carry it without queueing, and an encoder spends less than its target
 // whenever the screen is still.
 func autoBitrate(pixels, fps int, fast bool) int64 {
