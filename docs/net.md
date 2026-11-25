@@ -56,7 +56,8 @@ macOS (`/etc/resolver/remohop`) and Windows (NRPT rules) would be the equivalent
 
 - A link between two devices is an ordinary RemoHop session from one device's host daemon to the other's, opened when the first packet needs it: rendezvous, hole punching, then the relay or the websocket bridge if that is all that works, and a tailnet path when both are on one. It is end-to-end encrypted and authenticated like every session.
 - The login uses the device's identity key, and the other host checks it against the account's signed device log. Such a login is **limited to the mesh**: the session can carry the mesh service (and ping), nothing else. A mesh device gets no shell or files on another unless that host's owner grants that separately (a password, a pairing, `remohop authorize`, or `remohop config account-trust on`).
-- Packets travel in QUIC datagrams when they fit, otherwise on the link's stream; TCP is clamped to datagram size (as the VPN does). Interface MTU 1400.
+- Packets travel in QUIC datagrams when they fit, otherwise on the link's stream; TCP is clamped to datagram size (as the VPN does). Interface MTU 1400. Sessions start at QUIC's smallest packets (1200 bytes) and grow by path MTU discovery, so links work across tunnels at MTU 1280; the TCP clamp is set from the datagram size at link setup, so on such paths it is a little lower.
+- Each link has its own send queue (256 packets). A device that stops taking packets (lid closed mid-transfer) loses its own packets once its queue is full; traffic to every other device goes on.
 - Keep-alives every 4 seconds; a link that hears nothing for 15 seconds is closed and the next packet opens a new one (also after the other device was killed or changed networks). Idle links close after 3 minutes; the link to an exit node in use, and with `--accept-routes` links to all online devices, stay up.
 - When both devices open a link at the same moment, both keep the one opened by the device with the smaller identity key.
 - A device that is removed from the account loses its links within 30 seconds (the mesh re-reads the account's devices every 30 seconds) and can no longer log in for the mesh.
@@ -113,7 +114,7 @@ sudo remohop net up --no-exit-node --no-accept-routes # back to plain
 RemoHop and Tailscale can run side by side; neither depends on the other.
 
 - **Detection.** RemoHop looks for Tailscale through its local API socket (`/var/run/tailscale/tailscaled.sock` on Linux), its CLI (`tailscale status --json`), and as a fallback its network interface (`tailscale0`, `Tailscale` on Windows, a macOS `utun` with an address in `100.64.0.0/10` or `fd7a:115c:a1e0::/48`). Nothing is linked from Tailscale. `REMOHOP_TAILSCALE=off` makes RemoHop ignore it.
-- **Tailnet addresses as candidates.** A host lists its tailnet address among its candidate addresses, first, so it survives the limit of six. When the client is on the same tailnet (the address belongs to a peer in its own `tailscale status`), it prefers that path: a punched path that answers first waits up to a second for the tailnet path, the punch gets at least 3 seconds even between NATs that cannot be punched, and the "go straight to the relay" shortcut after an earlier failed punch is skipped. `remohop <ID> ping` shows `tailnet path`, `remohop status` on the host `tailnet`.
+- **Tailnet addresses as candidates.** A host lists its tailnet address among its candidate addresses, first, so it survives the limit of six. When the client is on the same tailnet (the address belongs to a peer in its own `tailscale status`), it prefers that path: a punched path that answers first waits up to a second for the tailnet path, and up to 2.5 seconds more while a handshake over the tailnet is under way; the punch gets at least 3 seconds even between NATs that cannot be punched (the relay is set up alongside only after those 3 seconds), and the "go straight to the relay" shortcut after an earlier failed punch is skipped. The client asks Tailscale for its status while the rendezvous request is on its way, so a slow `tailscale status` does not delay the first probe. `remohop <ID> ping` shows `tailnet path`, `remohop status` on the host `tailnet`.
 - **Security is unchanged.** The tailnet is only a path. The RemoHop session over it is the same QUIC session with the same login (password, pairing or key) and host key pinning as over any other path; Tailscale's own encryption is an additional layer, and what Tailscale says about a peer is never taken as proof of who it is.
 - **Exit nodes.** If Tailscale sends this machine's traffic through an exit node, RemoHop sessions to machines outside the tailnet go that way too, and hole punching sees the exit node's NAT. `remohop doctor` points this out.
 - **MagicDNS and `.remohop`.** The mesh answers only `.remohop`; MagicDNS keeps its own suffix. With systemd-resolved both are per-interface routing domains and do not collide.
@@ -121,7 +122,7 @@ RemoHop and Tailscale can run side by side; neither depends on the other.
 - **Userspace networking.** A Tailscale in userspace-networking mode (no `tailscale0` interface, as in some containers) gives the machine no tailnet address that RemoHop's sockets can use; RemoHop then ignores it for paths.
 - **Not implemented:** a client that reaches the rendezvous server only through its websocket bridge (UDP blocked) does not try the tailnet path, although Tailscale itself might get through; such sessions use the relay.
 
-Tested in the NAT lab (`test/natlab/natlab.sh tailnet`) with a fake Tailscale: an interface named `tailscale0` with 100.x addresses joining host and client over a deliberately slow link, and stub status files. The session takes the tailnet although the punched path is faster, takes the punched path when the preference is switched off, and connects over the tailnet between two symmetric NATs. Not tested against a real tailscaled.
+Tested in the NAT lab (`test/natlab/natlab.sh tailnet`) with a fake Tailscale: an interface named `tailscale0` with 100.x addresses joining host and client over a deliberately slow link, and stub status files. The fake interface has MTU 1500, Tailscale's real one 1280; the `mtu` mode covers paths that small. The session takes the tailnet although the punched path is faster, takes the punched path when the preference is switched off, and connects over the tailnet between two symmetric NATs. Not tested against a real tailscaled.
 
 ## What remohop net is not
 
@@ -151,6 +152,22 @@ Team features are postponed on purpose, until the single-account mesh has seen r
 - A mesh login is limited to the mesh service. It is not a `remohop authorize` and does not need `account-trust`.
 - The policy is enforced where packets arrive; a compromised member device can do what any member can (set a policy, remove devices), as for accounts.
 - Exit and subnet routing reuse the VPN's forwarding rules: forward from the mesh interface, masquerade, only replies back, and while forwarding is on, a guard keeps the machine's other interfaces from forwarding anything not headed into a tunnel.
+
+## Connection behaviour worth knowing
+
+These apply to every session, not only mesh links.
+
+- **No direct path.** The last punch attempt runs alone for 1.5 seconds (3 with a tailnet candidate); if no path has answered by then and the server offers a relay that neither side refuses, the relay is set up alongside. A direct path still wins if its handshake finishes first, and a relay that is ready while a direct handshake is under way waits up to 3 seconds for it. Two machines behind the same public address are not punched twice. A punch that a second attempt follows runs at most 4 seconds. A session that ends up relayed stays relayed; it does not move to a direct path found later.
+- **UDP blocked.** When UDP to the rendezvous server gets no answer and its websocket bridge works, that is remembered for 5 minutes per network (`ws-hints.json` in the config directory), and the next dials go to the bridge at once instead of waiting 4 seconds.
+- **Brief loss of the route.** "Network is unreachable", "no route to host" or "no buffer space" on send (Wi-Fi roaming, a DHCP renewal, a VPN starting) count as packet loss while the socket has sent successfully within the last minute; the session rides it out.
+- **A vanished peer** is noticed about 20 to 28 seconds after its last packet (idle timeout 20 s, keep-alive after 8 s of silence).
+- **Hosts that move or sleep.** The rendezvous server introduces a host at the address its packets come from now, and asks a host whose address changed to register again. A host registers again by itself after the machine slept or its addresses changed, and a server that no longer knows a host's connection tells it at once (QUIC stateless reset).
+- **IPv6.** A peer that reaches the server over IPv4 may advertise one global IPv6 address, the one it sends from; both peers and the server need version 1.0.1 or later for it to be tried. The lab cannot test IPv6.
+- **ECN.** On the rare path that drops ECN-marked UDP, each connection stalls about 1.7 seconds until QUIC gives ECN up. `QUIC_GO_DISABLE_ECN=1` in the environment turns ECN off.
+- **NAT-probe port.** A rendezvous server must be reachable on UDP 21117 (the port after its main one) too; otherwise every dial waits 300 ms for it and NAT types read `unknown` (`-v` says so).
+- **Wake-on-LAN** sends the magic packet three times, 100 ms apart.
+
+Lab modes for these: `samelan` (client isolation: relayed within 5 s), `mtu`, `rebind` (the host's router changes address) and `routeloss` (`sudo test/natlab/natlab.sh MODE`).
 
 ## Limits and what was tested
 
