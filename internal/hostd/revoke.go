@@ -68,7 +68,7 @@ func (s *Session) allows(p policy, f perm.Feature) bool {
 	if s.grant != "" && !s.grantAllowsFeature(f) {
 		return false
 	}
-	return !p.off[f]
+	return !p.off[f] && !s.limited(f)
 }
 
 // allowsService is whether s may still use service, of feature f, under
@@ -76,7 +76,7 @@ func (s *Session) allows(p policy, f perm.Feature) bool {
 // Grants allow single services of a feature (shell:run-only is exec but
 // not shell), so a granted session is checked by service.
 func (s *Session) allowsService(p policy, service string, f perm.Feature) bool {
-	if p.off[f] {
+	if p.off[f] || s.limited(f) {
 		return false
 	}
 	if s.grant == "" {
