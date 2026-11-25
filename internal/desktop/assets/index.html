@@ -105,9 +105,16 @@
 
       <h3><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
       <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
-      <div class="card filled row">
-        <div class="grow"><div id="un-state"></div><div class="muted small" id="un-sub"></div></div>
-        <button class="btn tonal sm" id="un-btn"></button>
+      <div class="card filled">
+        <div class="row">
+          <div class="grow"><div id="un-state"></div><div class="muted small" id="un-sub"></div></div>
+          <button class="btn tonal sm" id="un-btn"></button>
+        </div>
+        <div class="row wrap mt8" id="un-manage" hidden>
+          <button class="btn text sm" id="un-sess" data-t="un.sessions">Connections</button>
+          <button class="btn text sm" id="un-pw" data-t="un.change">Change password</button>
+          <span class="muted small" id="un-admin2" hidden data-t="un.admin">Windows will ask for an administrator.</span>
+        </div>
       </div>
 
       <div id="trusted-box" hidden>
@@ -177,6 +184,17 @@
     <p class="muted small" id="un-admin" hidden data-t="un.admin">Windows will ask for an administrator.</p>
     <p class="err" id="un-err"></p>
     <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="un-ok" data-t="un.enable">Turn on</button></div>
+  </form>
+</dialog>
+
+<!-- the unattended-access service's connections -->
+<dialog id="dlg-svc" aria-labelledby="svc-title">
+  <form method="dialog" class="dlg">
+    <h2 id="svc-title" data-t="un.sessions">Connections</h2>
+    <div id="svc-list"></div>
+    <p class="err" id="svc-err"></p>
+    <div class="acts"><button type="button" class="btn danger sm" id="svc-all" data-t="in.discall">Disconnect everyone</button>
+      <button class="btn" value="close" data-t="done">Done</button></div>
   </form>
 </dialog>
 

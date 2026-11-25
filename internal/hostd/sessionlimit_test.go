@@ -115,3 +115,32 @@ func TestSessionAccessAllowed(t *testing.T) {
 		t.Fatalf("shell after an allowed request: %v", err)
 	}
 }
+
+// The control channel lists the host's sessions and ends them (the desktop
+// app manages the RemoHop service's sessions this way, elevated).
+func TestControlSessions(t *testing.T) {
+	h, dir := ownedHost(t, hostd.Config{})
+	conn, err := dialHost(t, h, h.Password())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	ss, err := hostd.ControlSessions(dir)
+	if err != nil || len(ss) != 1 || ss[0].ID == 0 || ss[0].Identity == "" || ss[0].Since.IsZero() {
+		t.Fatalf("ControlSessions: %+v %v", ss, err)
+	}
+	if _, err := hostd.ControlDisconnect(dir, ss[0].ID+100); err == nil {
+		t.Fatal("disconnecting a session that does not exist")
+	}
+	if n, err := hostd.ControlDisconnect(dir, ss[0].ID); err != nil || n != 1 {
+		t.Fatalf("ControlDisconnect: %d %v", n, err)
+	}
+	select {
+	case <-conn.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("the session did not end")
+	}
+	if ss, _ := hostd.ControlSessions(dir); len(ss) != 0 {
+		t.Fatalf("sessions after disconnect: %+v", ss)
+	}
+}

@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -86,6 +87,11 @@ func (a *App) UnattendedState() UnattendedState {
 		u.st = UnattendedState{Available: unattendedAvailable(), Installed: installed, Running: running, Admin: runtime.GOOS == "windows"}
 		if installed {
 			if runtime.GOOS == "windows" {
+				if u.winID == "" {
+					a.mu.Lock()
+					u.winID = signal.FormatID(a.settings.ServiceID)
+					a.mu.Unlock()
+				}
 				u.st.ID = u.winID
 			} else if hs, _ := hostd.ReadStatus(a.dir); hs != nil {
 				u.st.ID = signal.FormatID(hs.ID)
@@ -164,10 +170,8 @@ func (a *App) EnableUnattended(ctx context.Context, password string) error {
 	if runtime.GOOS == "windows" {
 		var id string
 		id, err = a.elevated(ctx, "enable", password)
-		if err == nil {
-			unattended.mu.Lock()
-			unattended.winID = signal.FormatID(id)
-			unattended.mu.Unlock()
+		if err == nil && id != "" {
+			a.setServiceID(id)
 		}
 	} else {
 		err = a.installUserService(ctx, password)
@@ -235,57 +239,67 @@ func (a *App) installUserService(ctx context.Context, password string) error {
 
 // elevatedResult is what the elevated helper reports.
 type elevatedResult struct {
-	ID    string `json:"id,omitempty"`
-	Error string `json:"error,omitempty"`
+	ID       string                 `json:"id,omitempty"`
+	Sessions []hostd.ControlSession `json:"sessions,omitempty"`
+	Closed   int                    `json:"closed,omitempty"`
+	Error    string                 `json:"error,omitempty"`
 }
 
 // elevated runs `<this program> desktop-unattended <op>` as administrator
-// (Windows asks the user) and waits for it.
-func (a *App) elevated(ctx context.Context, op, password string) (string, error) {
+// (Windows asks the user) and waits for it. extra are more arguments.
+func (a *App) elevated(ctx context.Context, op, password string, extra ...string) (string, error) {
+	r, err := a.elevatedResult(ctx, op, password, extra...)
+	return r.ID, err
+}
+
+func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...string) (elevatedResult, error) {
 	run, err := config.SubDir("run")
 	if err != nil {
-		return "", err
+		return elevatedResult{}, err
 	}
 	tmp, err := os.MkdirTemp(run, "unattended-")
 	if err != nil {
-		return "", err
+		return elevatedResult{}, err
 	}
 	defer os.RemoveAll(tmp)
 	result := filepath.Join(tmp, "result.json")
-	args := []string{"desktop-unattended", op, "--result", result}
+	args := append([]string{"desktop-unattended", op, "--result", result}, extra...)
 	if password != "" {
 		pwFile := filepath.Join(tmp, "password")
 		if err := os.WriteFile(pwFile, []byte(auth.NormalizePassword(password)), 0o600); err != nil {
-			return "", err
+			return elevatedResult{}, err
 		}
 		args = append(args, "--password-file", pwFile)
 	}
 	exe, err := os.Executable()
 	if err != nil {
-		return "", err
+		return elevatedResult{}, err
 	}
 	if err := runElevated(ctx, exe, args); err != nil {
-		return "", err
+		return elevatedResult{}, err
 	}
 	b, err := os.ReadFile(result)
 	if err != nil {
-		return "", Errorf("elevation", "the administrator step did not finish")
+		return elevatedResult{}, Errorf("elevation", "the administrator step did not finish")
 	}
 	var r elevatedResult
 	if err := json.Unmarshal(b, &r); err != nil {
-		return "", err
+		return elevatedResult{}, err
 	}
 	if r.Error != "" {
-		return "", errors.New(r.Error)
+		return r, errors.New(r.Error)
 	}
-	return r.ID, nil
+	return r, nil
 }
 
-const unattendedUsage = `Usage: desktop-unattended enable|disable --result FILE [--password-file FILE]
+const unattendedUsage = `Usage: desktop-unattended enable|disable|status|disconnect|password --result FILE
+                          [--password-file FILE] [--id N]
 
-The administrator step of the desktop app's "Unattended access" (Windows):
-install the RemoHop service with --unattended and set its password, or
-remove it. The app starts this elevated; it is not meant to be typed.
+The administrator steps of the desktop app's "Unattended access" (Windows),
+which the app starts elevated, one at a time, when the user asks: install
+the RemoHop service with --unattended and set its password (enable), remove
+it (disable), report its ID and sessions (status), end a session (disconnect,
+--id 0 for all) or change its password (password). Not meant to be typed.
 `
 
 func init() {
@@ -303,8 +317,16 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 	fs.SetOutput(io.Discard)
 	result := fs.String("result", "", "")
 	pwFile := fs.String("password-file", "", "")
-	if err := fs.Parse(args[1:]); err != nil || *result == "" || (op != "enable" && op != "disable") {
+	id := fs.Int("id", 0, "")
+	known := map[string]bool{"enable": true, "disable": true, "status": true, "disconnect": true, "password": true}
+	if err := fs.Parse(args[1:]); err != nil || *result == "" || !known[op] {
 		env.Errorf("%s", unattendedUsage)
+		return cli.ExitUsage
+	}
+	// It runs as administrator: it writes and reads only files in this user's
+	// private run directory, where the app put them.
+	if run, err := config.SubDir("run"); err != nil || !inDir(run, *result) || (*pwFile != "" && !inDir(run, *pwFile)) {
+		env.Errorf("desktop-unattended: the files must be in the RemoHop run directory")
 		return cli.ExitUsage
 	}
 	var r elevatedResult
@@ -313,12 +335,33 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		if err != nil {
 			return err
 		}
-		if op == "disable" {
+		switch op {
+		case "disable":
 			return runService(ctx, "uninstall")
+		case "status":
+			if st, _ := hostd.ReadStatus(dir); st != nil {
+				r.ID = st.ID
+			}
+			ss, err := hostd.ControlSessions(dir)
+			r.Sessions = ss
+			return err
+		case "disconnect":
+			n, err := hostd.ControlDisconnect(dir, *id)
+			r.Closed = n
+			return err
 		}
 		pw, err := os.ReadFile(*pwFile)
 		if err != nil {
 			return err
+		}
+		if op == "password" {
+			if err := CheckStrongPassword(string(pw)); err != nil {
+				return err
+			}
+			if err := os.Setenv("REMOHOP_CONFIG_DIR", dir); err != nil {
+				return err
+			}
+			return config.Set(hostd.SettingPassword, strings.TrimSpace(string(pw)))
 		}
 		if err := runService(ctx, "install", "--unattended"); err != nil {
 			return err
@@ -362,4 +405,64 @@ func serviceConfigDir() (string, error) {
 		base = `C:\ProgramData`
 	}
 	return filepath.Join(base, "RemoHop"), nil
+}
+
+// ServiceSessions lists the sessions of the unattended-access service. On
+// Windows the service's state is the administrators' only, so this asks for
+// an administrator (UAC) and also refreshes the service's ID.
+func (a *App) ServiceSessions(ctx context.Context) ([]hostd.ControlSession, error) {
+	if runtime.GOOS == "windows" {
+		r, err := a.elevatedResult(ctx, "status", "")
+		if r.ID != "" {
+			a.setServiceID(r.ID)
+		}
+		if r.Sessions == nil {
+			r.Sessions = []hostd.ControlSession{}
+		}
+		return r.Sessions, err
+	}
+	ss, err := hostd.ControlSessions(a.dir)
+	if ss == nil {
+		ss = []hostd.ControlSession{}
+	}
+	return ss, err
+}
+
+// ServiceDisconnect ends a session of the service (0: all of them),
+// elevated on Windows.
+func (a *App) ServiceDisconnect(ctx context.Context, id int) error {
+	if runtime.GOOS == "windows" {
+		_, err := a.elevatedResult(ctx, "disconnect", "", "--id", strconv.Itoa(id))
+		return err
+	}
+	_, err := hostd.ControlDisconnect(a.dir, id)
+	return err
+}
+
+// ServicePassword changes the unattended password, elevated on Windows.
+func (a *App) ServicePassword(ctx context.Context, password string) error {
+	if err := CheckStrongPassword(password); err != nil {
+		return err
+	}
+	if runtime.GOOS == "windows" {
+		_, err := a.elevatedResult(ctx, "password", password)
+		return err
+	}
+	return config.Set(hostd.SettingPassword, auth.NormalizePassword(password))
+}
+
+// setServiceID remembers the Windows service's ID (its state is not readable
+// without an administrator, so the app keeps what the elevated steps found).
+func (a *App) setServiceID(id string) {
+	unattended.mu.Lock()
+	unattended.winID = signal.FormatID(id)
+	unattended.at = time.Time{}
+	unattended.mu.Unlock()
+	a.update(func(s *Settings) { s.ServiceID = id })
+}
+
+// inDir reports whether path is inside dir (both cleaned and absolute).
+func inDir(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	return err == nil && filepath.IsAbs(path) && rel != "." && !strings.HasPrefix(rel, "..")
 }
