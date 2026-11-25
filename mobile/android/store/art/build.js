@@ -62,10 +62,10 @@ function poster(lang, scene, shot, wide) {
     </div>`;
   let body;
   if (wide) {
-    // The portrait capture behind, the landscape one (full screen) in front across the poster.
-    const pw = 760, ph = frameH(pw, 16 / 9), lw = 1130, lh = frameH(lw, 9 / 16);
-    body = pixel(shot, (W - pw) / 2, H - ph + 300, pw, 16 / 9) +
-      `<div style="position:absolute;left:0;right:0;top:${H - lh - 300}px;height:${lh}px">${pixel(wide, (W - lw) / 2, 0, lw, 9 / 16, true)}</div>`;
+    // Both ways round: the desktop tab upright behind, full screen sideways in front.
+    const pw = 820, lw = 1150, lh = frameH(lw, 9 / 16);
+    body = pixel(shot, (W - pw) / 2, 1010, pw, 16 / 9) +
+      `<div style="position:absolute;left:0;right:0;top:650px;height:${lh}px;transform:rotate(-4deg)">${pixel(wide, (W - lw) / 2, 0, lw, 9 / 16, true)}</div>`;
   } else {
     const pw = 880, ph = frameH(pw, 16 / 9);
     body = pixel(shot, (W - pw) / 2, H - ph - 80, pw, 16 / 9);
