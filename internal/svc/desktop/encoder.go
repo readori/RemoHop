@@ -653,7 +653,7 @@ func testEncode(ctx context.Context, ffmpeg string, e *encoder) (string, error) 
 		args = append(args, e.preInput()...)
 	}
 	p := encParams{fps: 30, bitrate: 1_000_000, gop: 60, pixels: 320 * 240}
-	color := e.cpuColor()
+	color := e.cpuColor(p.pixels, p.fps)
 	args = append(args, "-f", "lavfi", "-i", "color=c=gray:s=320x240:r=30,format=bgr0", "-frames:v", "3",
 		"-vf", "scale=flags=bilinear"+color.scaleOpts()+","+e.pixFmt)
 	args = append(args, e.args(p)...)

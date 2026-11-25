@@ -101,11 +101,19 @@ func TestViewerColorsXvfb(t *testing.T) {
 	paint(t, x, rs...)
 	pts, _ := json.Marshal(points)
 	ffmpeg, _ := ffmpegPath()
-	cases := []struct{ name, enc string }{{"h264", "libx264"}, {"av1", "libsvtav1"}, {"av1-aom", "libaom-av1"}}
+	// "limited": the conversion used above fullRangeRate.
+	cases := []struct{ name, enc string }{{"h264", "libx264"}, {"h264-limited", "libx264"}, {"av1", "libsvtav1"}, {"av1-aom", "libaom-av1"}}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			if !hasEncoder(t, ffmpeg, c.enc) {
 				t.Skip(c.enc + " not available")
+			}
+			limit := 4
+			if strings.HasSuffix(c.name, "-limited") {
+				old := fullRangeRate
+				fullRangeRate = 0
+				t.Cleanup(func() { fullRangeRate = old })
+				limit = 13 // Chromium's limited-range decode of saturated primaries
 			}
 			var res struct {
 				Width, Height int
@@ -129,7 +137,7 @@ func TestViewerColorsXvfb(t *testing.T) {
 				report = append(report, fmt.Sprintf("%v->%v", want, got))
 			}
 			t.Logf("%s (%s): worst error %d levels: %s", c.enc, res.Codec, worst, strings.Join(report, " "))
-			if worst > 4 {
+			if worst > limit {
 				t.Errorf("colours in the browser are off by up to %d levels", worst)
 			}
 		})
