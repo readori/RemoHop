@@ -155,6 +155,7 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 		KeepAlivePeriod:       10 * time.Second,
 		MaxIncomingStreams:    16,
 		MaxIncomingUniStreams: -1,
+		InitialPacketSize:     nat.InitialPacketSize,
 	})
 	if err != nil {
 		stopProbe()

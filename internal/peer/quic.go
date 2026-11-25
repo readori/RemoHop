@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/readori/RemoHop/internal/nat"
 )
 
 // ALPN is the application protocol negotiated on every RemoHop P2P session.
@@ -33,6 +35,7 @@ func QUICConfig() *quic.Config {
 		InitialConnectionReceiveWindow: 4 << 20,
 		MaxConnectionReceiveWindow:     128 << 20,
 		EnableDatagrams:                true,
+		InitialPacketSize:              nat.InitialPacketSize, // see there: tunnels at MTU 1280
 	}
 }
 

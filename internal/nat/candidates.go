@@ -7,6 +7,16 @@ import (
 	"github.com/readori/RemoHop/internal/tailnet"
 )
 
+// InitialPacketSize is the UDP payload size every QUIC connection on a
+// RemoHop socket starts with: the smallest QUIC allows. quic-go's default
+// (1280 bytes, 1308 on the wire over IPv4) is more than paths through a
+// WireGuard, Tailscale or other tunnel at MTU 1280, many corporate VPNs and
+// some IPv6 tunnels carry, and the DF bit it sets turns such a path into a
+// black hole: the handshake never completes while the small punch probes
+// pass. Path MTU discovery raises the size within a few round trips where
+// the path allows. Every quic.Config RemoHop uses sets it.
+const InitialPacketSize = 1200
+
 // MaxCandidates bounds how many local addresses a peer advertises. The
 // rendezvous server enforces the same bound; it also caps how many
 // addresses a stranger can make us send probes to.
