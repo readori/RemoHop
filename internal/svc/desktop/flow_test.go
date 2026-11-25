@@ -67,3 +67,42 @@ func TestAckClock(t *testing.T) {
 		t.Errorf("floor kept samples older than %v: %v", rttMinSpan, f)
 	}
 }
+
+// On a link narrower than the target (it carries 80% of it), automatic
+// bitrate settles just below what it carries instead of probing past it
+// every 15-30 s: each probe was a restart, a key frame and a dropped burst.
+func TestBitrateProbeHoldsBelowCeiling(t *testing.T) {
+	t0 := time.Unix(10000, 0)
+	h := &hostSession{opts: Options{FPS: 30, Scale: 1}, fps: 30, start: t0.Add(-time.Hour),
+		spec: captureSpec{width: 1920, height: 1080}}
+	target := h.targetBitrate()
+	h.bitrate = target
+	capacity := target * 8 / 10
+	congestions, restarts := 0, 0
+	var below time.Duration
+	for now := t0; now.Before(t0.Add(10 * time.Minute)); now = now.Add(100 * time.Millisecond) {
+		if h.bitrate > capacity && now.Sub(h.lastRestart) > 3*time.Second {
+			congestions++
+			h.onCongestion(now, true)
+			h.scheduleRestart(now)
+		}
+		h.adapt(now)
+		if !h.restartAt.IsZero() && !now.Before(h.restartAt) {
+			restarts++
+			h.lastRestart, h.restartAt = now, time.Time{}
+		}
+		if h.bitrate < capacity*7/10 {
+			below += 100 * time.Millisecond
+		}
+	}
+	t.Logf("10 minutes on a link carrying 80%% of the target: %d congestions, %d restarts, %v well below capacity, final bitrate %.0f%% of the target",
+		congestions, restarts, below, 100*float64(h.bitrate)/float64(target))
+	// Stepping by 1.25 every 15 s regardless: 23 congestions and 58
+	// restarts in this simulation.
+	if congestions > 6 {
+		t.Errorf("%d congestions in 10 minutes", congestions)
+	}
+	if below > time.Minute {
+		t.Errorf("spent %v below 70%% of what the link carries", below)
+	}
+}

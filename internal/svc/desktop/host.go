@@ -53,6 +53,11 @@ const (
 	recoverFactor  = 1.25
 	recoverAfter   = 15 * time.Second
 	minAutoBitrate = 500_000
+	// ceilHold is how long the bitrate stays just below the rate that last
+	// caused congestion before probing past it; that rate is remembered for
+	// ceilLife (see probeBitrate).
+	ceilHold = time.Minute
+	ceilLife = 10 * time.Minute
 	// Two congestion events within congestionSpan lower the frame rate,
 	// not below minAdaptFPS.
 	congestionSpan = 10 * time.Second
@@ -356,6 +361,12 @@ type hostSession struct {
 	bitrate     int64 // current target
 	fps         int
 	failures    []encFailure
+	// ceilBitrate is the bitrate that last caused link congestion, at
+	// ceilAt (see probeBitrate); ceilFails counts probes past it that
+	// failed in a row, each doubling the wait before the next.
+	ceilBitrate int64
+	ceilAt      time.Time
+	ceilFails   int
 	congestion  []time.Time
 	// delivered: an encoder of this session has delivered a frame (the
 	// screen can be captured here). While it cannot be for now (paused,
@@ -1027,8 +1038,8 @@ func (h *hostSession) onFrame(f encFrame) {
 		// A full window is congestion when acks have been coming back
 		// late (a queue building up); after a stall on a path that was
 		// keeping up it only costs the skip to the next key frame.
-		if !h.waitKey && h.acks.queueing(time.Now(), h.framePeriod()) {
-			h.onCongestion(true)
+		if now := time.Now(); !h.waitKey && h.acks.queueing(now, h.framePeriod()) {
+			h.onCongestion(now, true)
 		}
 		h.waitKey = true
 		h.dropped++
@@ -1127,8 +1138,7 @@ func (h *hostSession) sendHello() bool {
 // reports it is behind (its decoder is short of CPU). Automatic bitrate
 // backs off for the former, never below a quarter of its target; repeated
 // congestion of either kind lowers the frame rate.
-func (h *hostSession) onCongestion(link bool) {
-	now := time.Now()
+func (h *hostSession) onCongestion(now time.Time, link bool) {
 	h.lastDrop = now
 	if now.Sub(h.start) < startupGrace {
 		// A viewer that is still setting up its decoder (and decoding
@@ -1137,6 +1147,14 @@ func (h *hostSession) onCongestion(link bool) {
 		return
 	}
 	if link && h.opts.Bitrate == 0 {
+		// Remember what the link could not carry: probing back up slows
+		// down near it (adapt).
+		if h.ceilBitrate > 0 && now.Sub(h.ceilAt) < ceilLife && h.bitrate <= h.ceilBitrate*115/100 {
+			h.ceilFails++ // a probe past the remembered ceiling failed again
+		} else {
+			h.ceilFails = 0
+		}
+		h.ceilBitrate, h.ceilAt = h.bitrate, now
 		h.bitrate = max(minAutoBitrate, h.targetBitrate()/4, int64(float64(h.bitrate)*backoffFactor))
 	}
 	recent := h.congestion[:0]
@@ -1168,7 +1186,7 @@ func (h *hostSession) adapt(now time.Time) {
 	if !h.waitKey && h.acks.sustainedQueue(now, h.framePeriod()) && now.Sub(h.lastDrop) > 2*time.Second {
 		h.acks.highFrom = time.Time{}
 		before, fps := h.bitrate, h.fps
-		h.onCongestion(true)
+		h.onCongestion(now, true)
 		if h.bitrate != before && h.fps == fps {
 			h.scheduleRestart(now)
 		}
@@ -1191,12 +1209,39 @@ func (h *hostSession) adapt(now time.Time) {
 		}
 	}
 	if target := h.targetBitrate(); h.opts.Bitrate == 0 && h.bitrate < target {
-		h.bitrate = min(target, int64(float64(h.bitrate)*recoverFactor))
-		changed = true
+		if next, ok := h.probeBitrate(now, target); ok {
+			h.bitrate = next
+			changed = true
+		}
 	}
 	if changed {
 		h.scheduleRestart(now)
 	}
+}
+
+// probeBitrate is the next step of automatic bitrate back up towards
+// target after congestion, and whether to take it now. Every step is an
+// encoder restart and a key frame, and on a link that really is narrower
+// than the target each probe past what it carries ends in congestion
+// again: stepping by 1.25 every 15 s regardless gave a constrained link a
+// hitch every 15-30 s indefinitely. So the rate climbs by 1.25 up to just
+// below the rate that last caused congestion (ceilBitrate, remembered for
+// ceilLife), and probes past it only after ceilHold without congestion
+// (doubled for every probe in a row that failed, up to eight times) and by
+// 1.1 at a time.
+func (h *hostSession) probeBitrate(now time.Time, target int64) (int64, bool) {
+	next := min(target, int64(float64(h.bitrate)*recoverFactor))
+	if h.ceilBitrate == 0 || now.Sub(h.ceilAt) > ceilLife {
+		return next, true
+	}
+	near := h.ceilBitrate * 9 / 10
+	if h.bitrate < near {
+		return min(next, near), true
+	}
+	if now.Sub(h.lastDrop) < ceilHold<<min(h.ceilFails, 3) {
+		return 0, false
+	}
+	return min(target, int64(float64(h.bitrate)*1.1)), true
 }
 
 // fitRate runs periodically: once a second it looks at how many frames the
@@ -1432,7 +1477,7 @@ func (h *hostSession) onControl(c Control) {
 		// Deltas would only be skipped on the other side: stop sending
 		// them until a key frame, and slow down.
 		if !h.waitKey {
-			h.onCongestion(false)
+			h.onCongestion(now, false)
 		}
 		h.waitKey = true
 	case ctlConfig:
