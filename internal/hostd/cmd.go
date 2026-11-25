@@ -38,7 +38,7 @@ const hostUsage = `Usage: remohop host [--signal ADDR] [--password PW] [--listen
        remohop host passwd [--clear]
        remohop host authorize "KEY-LINE" [--name NAME]
        remohop host paired [--json]
-       remohop host revoke NAME|ID...
+       remohop host revoke NAME|ID|IDENTITY...
        remohop host grant NAME --allow LIST [--for DUR] ...   (see remohop host grant --help)
        remohop host grants | panic | resume | audit
 
@@ -84,8 +84,10 @@ Subcommands (they talk to the running host; same user only):
   authorize  let a client log in with its identity key alone, no password:
              pass the line that ` + "`remohop key export`" + ` printed on the client
   paired     list paired clients and authorised keys
-  revoke     remove pairings, authorised keys or grants by name or ID; open
-             sessions that used them are closed (grants: at once)
+  revoke     remove pairings, authorised keys or grants by name or ID, or every
+             pairing and key of one identity by its fingerprint; removing an
+             authorised key also removes the pairings its sessions minted.
+             Open sessions that used them are closed (grants: at once)
   grant      give an AI agent (or anyone) limited, expiring access: allowed
              services, file roots, commands, approval of each action,
              recording. ` + "`remohop host grant --help`" + ` explains; docs/agents.md too
@@ -481,6 +483,9 @@ func runPaired(env *cli.Env, args []string) int {
 			Name     string    `json:"name"`
 			Identity string    `json:"identity"`
 			Created  time.Time `json:"created"`
+			// MintedBy is the authorised key whose session minted
+			// this pairing; the pairing goes when that key goes.
+			MintedBy string `json:"minted_by,omitempty"`
 		}
 		rows := make([]row, 0, len(toks))
 		for _, t := range toks {
@@ -488,7 +493,7 @@ func runPaired(env *cli.Env, args []string) int {
 			if len(t.Secret) == 0 {
 				kind = "key"
 			}
-			rows = append(rows, row{t.ID, kind, t.Name, auth.Fingerprint(t.ClientKey), t.Created})
+			rows = append(rows, row{t.ID, kind, t.Name, auth.Fingerprint(t.ClientKey), t.Created, parentName(toks, t)})
 		}
 		b, _ := json.MarshalIndent(rows, "", "  ")
 		fmt.Fprintln(env.Stdout, string(b))
@@ -505,15 +510,34 @@ func runPaired(env *cli.Env, args []string) int {
 		if len(t.Secret) == 0 {
 			kind = "key"
 		}
+		if p := parentName(toks, t); p != "" {
+			kind += " (via " + cli.Sanitize(p) + ")"
+		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", cli.Sanitize(t.Name), cli.Sanitize(t.ID), kind, auth.Fingerprint(t.ClientKey), t.Created.Local().Format("2006-01-02 15:04"))
 	}
 	tw.Flush()
 	return cli.ExitOK
 }
 
+// parentName names the authorised key that minted pairing t, if any.
+func parentName(toks []auth.Token, t auth.Token) string {
+	if t.Parent == "" {
+		return ""
+	}
+	for _, p := range toks {
+		if p.ID == t.Parent {
+			if p.Name != "" {
+				return p.Name
+			}
+			return p.ID
+		}
+	}
+	return t.Parent
+}
+
 func runRevoke(env *cli.Env, args []string) int {
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" {
-		env.Errorf("usage: remohop host revoke NAME|TOKEN-ID...")
+		env.Errorf("usage: remohop host revoke NAME|TOKEN-ID|IDENTITY...")
 		return cli.ExitUsage
 	}
 	store, err := tokenStore()

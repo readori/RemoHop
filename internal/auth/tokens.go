@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"time"
 
 	"github.com/readori/RemoHop/internal/config"
@@ -38,6 +39,12 @@ type Token struct {
 	// without a ClientKey: the first client to log in with it is bound to
 	// it (see Bind).
 	Grant string `json:"grant,omitempty"`
+	// Parent is the ID of the authorised key a session logged in with
+	// when it minted this pairing; empty for a pairing a password login
+	// minted. A pairing is no more durable than the credential its
+	// session stood on: it is removed with that key, and is not accepted
+	// while the key is missing from the store (see valid).
+	Parent string `json:"parent,omitempty"`
 }
 
 // TokenStore is the host's set of pairing tokens, kept in a 0600 JSON file.
@@ -90,6 +97,7 @@ func (s *TokenStore) update(fn func([]Token) ([]Token, error)) error {
 	if toks, err = fn(toks); err != nil {
 		return err
 	}
+	toks = pruneOrphans(toks)
 	b, err := json.MarshalIndent(toks, "", "  ")
 	if err != nil {
 		return err
@@ -101,9 +109,54 @@ func (s *TokenStore) update(fn func([]Token) ([]Token, error)) error {
 // CleanText.
 func CleanTokenName(name string) string { return CleanText(name, MaxTokenName) }
 
+// isKey reports whether t is an authorised key (no secret, no grant).
+func (t Token) isKey() bool { return len(t.Secret) == 0 && t.Grant == "" }
+
+// valid reports whether t may be used: a pairing minted from an authorised
+// key's session is valid only while that key is still authorised for the
+// same client.
+func valid(toks []Token, t Token) bool {
+	if t.Parent == "" {
+		return true
+	}
+	for _, p := range toks {
+		if p.ID == t.Parent && p.isKey() && bytes.Equal(p.ClientKey, t.ClientKey) {
+			return true
+		}
+	}
+	return false
+}
+
+// pruneOrphans drops the pairings whose parent key is gone, so that every
+// way of removing an authorised key (revoke, re-authorisation, account
+// trust) removes what its sessions minted too.
+func pruneOrphans(toks []Token) []Token {
+	kept := make([]Token, 0, len(toks))
+	for _, t := range toks {
+		if valid(toks, t) {
+			kept = append(kept, t)
+		}
+	}
+	return kept
+}
+
+// ErrCredentialGone is returned by MintFrom when the credential the
+// requesting session logged in with has been removed.
+var ErrCredentialGone = errors.New("the credential this session logged in with has been revoked")
+
 // Mint creates a token for clientKey, replacing any token that key already
 // has: a client holds one pairing per host, and pairing again rotates it.
+// It is MintFrom for a session that logged in with a password.
 func (s *TokenStore) Mint(name string, clientKey ed25519.PublicKey) (Token, error) {
+	return s.MintFrom(name, clientKey, "")
+}
+
+// MintFrom is Mint for a session that logged in with the store entry via
+// ("" for a password login). A pairing minted from an authorised key's
+// session records that key as its parent and is removed with it; one minted
+// from a pairing's session inherits that pairing's parent. Grant tokens
+// cannot mint pairings.
+func (s *TokenStore) MintFrom(name string, clientKey ed25519.PublicKey, via string) (Token, error) {
 	var raw [8 + TokenSize]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		return Token{}, err
@@ -116,6 +169,19 @@ func (s *TokenStore) Mint(name string, clientKey ed25519.PublicKey) (Token, erro
 		Created:   time.Now().UTC().Truncate(time.Second),
 	}
 	err := s.update(func(toks []Token) ([]Token, error) {
+		if via != "" {
+			i := slices.IndexFunc(toks, func(t Token) bool { return t.ID == via })
+			switch {
+			case i < 0 || !valid(toks, toks[i]) || !bytes.Equal(toks[i].ClientKey, clientKey):
+				return nil, ErrCredentialGone
+			case toks[i].Grant != "":
+				return nil, errors.New("a grant cannot mint a pairing")
+			case toks[i].isKey():
+				tok.Parent = via
+			default:
+				tok.Parent = toks[i].Parent
+			}
+		}
 		return replaceFor(toks, tok, false)
 	})
 	if err != nil {
@@ -240,7 +306,7 @@ func (s *TokenStore) AuthorizedKey(clientKey ed25519.PublicKey) (Token, bool, er
 		return Token{}, false, err
 	}
 	for _, t := range toks {
-		if len(t.Secret) == 0 && t.Grant == "" && bytes.Equal(t.ClientKey, clientKey) {
+		if t.isKey() && bytes.Equal(t.ClientKey, clientKey) {
 			return t, true, nil
 		}
 	}
@@ -256,7 +322,7 @@ func (s *TokenStore) Exists(id string) (bool, error) {
 	}
 	for _, t := range toks {
 		if t.ID == id {
-			return true, nil
+			return valid(toks, t), nil
 		}
 	}
 	return false, nil
@@ -269,7 +335,7 @@ func (s *TokenStore) Lookup(id string) (Token, bool, error) {
 		return Token{}, false, err
 	}
 	for _, t := range toks {
-		if t.ID == id && len(t.Secret) == TokenSize {
+		if t.ID == id && len(t.Secret) == TokenSize && valid(toks, t) {
 			return t, true, nil
 		}
 	}
@@ -279,19 +345,24 @@ func (s *TokenStore) Lookup(id string) (Token, bool, error) {
 // List returns every token, oldest first.
 func (s *TokenStore) List() ([]Token, error) { return s.load() }
 
-// Revoke removes the tokens whose ID or name equals ref and reports how many
-// were removed.
+// Revoke removes the tokens whose ID or name equals ref, or, when ref is an
+// identity fingerprint, every pairing and authorised key of that identity
+// (not its grant tokens: those go with their grant). The pairings minted by
+// sessions of a removed authorised key go too. It reports how many entries
+// were removed in all.
 func (s *TokenStore) Revoke(ref string) (int, error) {
 	n := 0
 	err := s.update(func(toks []Token) ([]Token, error) {
+		before := len(toks)
 		kept := toks[:0]
 		for _, t := range toks {
-			if t.ID == ref || t.Name == ref {
-				n++
+			if t.ID == ref || t.Name == ref || t.Grant == "" && len(t.ClientKey) != 0 && Fingerprint(t.ClientKey) == ref {
 				continue
 			}
 			kept = append(kept, t)
 		}
+		kept = pruneOrphans(kept)
+		n = before - len(kept)
 		return kept, nil
 	})
 	return n, err

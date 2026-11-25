@@ -72,7 +72,16 @@ func servePair(_ context.Context, c *peer.Conn, s peer.Stream, req json.RawMessa
 	if auth.CleanTokenName(r.Name) == "" {
 		r.Name = "key " + auth.Fingerprint(sess.Auth.ClientKey)
 	}
-	tok, err := sess.host.tokens.Mint(r.Name, sess.Auth.ClientKey)
+	if sess.Auth.Scope != "" {
+		return refuse("pairing is not part of a login limited to " + sess.Auth.Scope)
+	}
+	// A pairing minted on an authorised key's login is recorded as that
+	// key's child and goes when the key is revoked (or leaves the account),
+	// so that it cannot be used to outlive the revocation.
+	tok, err := sess.host.tokens.MintFrom(r.Name, sess.Auth.ClientKey, sess.currentTokenID())
+	if errors.Is(err, auth.ErrCredentialGone) {
+		return refuse(err.Error())
+	}
 	if err != nil {
 		sess.host.log.Error("pairing failed", "err", err)
 		return refuse("the host could not store the pairing")

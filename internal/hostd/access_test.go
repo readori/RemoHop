@@ -627,3 +627,69 @@ func TestTermKeep(t *testing.T) {
 		t.Fatal("term-keep accepted a non-duration")
 	}
 }
+
+// A client let in by an authorised key (by hand, or by account trust) can
+// pair, but the pairing is the key's child: revoking the key removes it and
+// ends the sessions that stand on it, so pairing is no way to outlive a
+// revocation.
+func TestPairingFromKeyGoesWithKey(t *testing.T) {
+	h, _ := ownedHost(t, hostd.Config{})
+	clientDir := t.TempDir()
+	addr := h.Addr().String()
+	opts := dial.Options{Dir: clientDir, Locals: noLocals}
+	clientID, err := auth.LoadIdentity(clientDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, out, errOut := runCmd("host", "", "authorize", auth.FormatKeyLine(clientID.Public(), "laptop"), "--name", "account:laptop"); code != cli.ExitOK {
+		t.Fatalf("host authorize: %d\n%s%s", code, out, errOut)
+	}
+	store, _ := dial.OpenStore(clientDir)
+	if err := store.Update(addr, func(p *dial.Peer) error {
+		p.HostKey, p.KeyLogin = auth.EncodeKey(h.PublicKey()), true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := dial.Dial(testCtx(t), addr, opts)
+	if err != nil {
+		t.Fatalf("key login: %v", err)
+	}
+	p, err := hostd.Pair(testCtx(t), conn, hostd.PairRequest{Name: "vm"})
+	if err != nil {
+		t.Fatalf("pair from a key session: %v", err)
+	}
+	if err := dial.SavePairing(dial.InfoOf(conn), p, "", clientDir); err != nil {
+		t.Fatal(err)
+	}
+	if _, out, _ := runCmd("host", "", "paired"); !strings.Contains(out, "pairing (via account:laptop)") {
+		t.Fatalf("paired does not say which key minted the pairing:\n%s", out)
+	}
+	// The pairing works on its own while the key is authorised.
+	store.Update(addr, func(p *dial.Peer) error { p.KeyLogin = false; return nil })
+	tokConn, err := dial.Dial(testCtx(t), addr, opts)
+	if err != nil {
+		t.Fatalf("token login: %v", err)
+	}
+	if info := dial.InfoOf(tokConn); info.Auth != auth.KindToken {
+		t.Fatalf("auth kind %s", info.Auth)
+	}
+
+	code, out, _ := runCmd("host", "", "revoke", "account:laptop")
+	if code != cli.ExitOK || !strings.Contains(out, "(2 pairing(s))") {
+		t.Fatalf("revoke: %d %q", code, out)
+	}
+	for _, c := range []*peer.Conn{conn, tokConn} {
+		select {
+		case <-c.Done():
+		case <-time.After(10 * time.Second):
+			t.Fatal("a session survived the revocation of the key its pairing came from")
+		}
+	}
+	if _, err := dial.Dial(testCtx(t), addr, opts); err == nil {
+		t.Fatal("the key's pairing still logs in after the key was revoked")
+	}
+	if toks, _ := h.Tokens().List(); len(toks) != 0 {
+		t.Fatalf("entries left after revoking the key: %+v", toks)
+	}
+}
