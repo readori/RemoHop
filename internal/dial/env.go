@@ -9,7 +9,46 @@ import (
 	"golang.org/x/term"
 
 	"github.com/readori/RemoHop/internal/cli"
+	"github.com/readori/RemoHop/internal/signal"
 )
+
+func init() {
+	// `remohop lab` alone: cli asks whether "lab" is a saved host.
+	cli.KnownTarget = func(name string) bool {
+		st, err := OpenStore("")
+		if err != nil {
+			return false
+		}
+		_, ok, err := st.ByAlias(name)
+		return err == nil && ok
+	}
+}
+
+// rendezvousFirst reports a missing rendezvous server for a target that
+// needs one (a 9-digit ID, directly or through its alias) before anything
+// else happens: before the password prompt, and instead of "no credential"
+// when there is no terminal to prompt on.
+func rendezvousFirst(target string, opts Options) error {
+	t := cli.NormalizeTarget(target)
+	if !cli.IsID(t) {
+		st, err := OpenStore(opts.Dir)
+		if err != nil {
+			return nil
+		}
+		p, ok, err := st.ByAlias(t)
+		if err != nil || !ok || !cli.IsID(p.Target) {
+			return nil
+		}
+		t = p.Target
+	}
+	if _, _, err := signal.Resolve(opts.Signal); errors.Is(err, signal.ErrNotConfigured) {
+		return &explained{msg: fmt.Sprintf("%s is a RemoHop ID, and IDs are looked up on a rendezvous server, a meeting point "+
+			"that introduces this machine to its hosts; none is set up here. Set yours once with "+
+			"`remohop config set signal HOST[:PORT]` (or pass --signal HOST[:PORT]), or connect by the host's address "+
+			"instead: `remohop HOST:PORT <command>`", signal.FormatID(t)), err: err}
+	}
+	return nil
+}
 
 // OptionsFromEnv builds the Options a CLI command dials with: the global
 // --signal and --password flags (or REMOHOP_SIGNAL / REMOHOP_PASSWORD), and an

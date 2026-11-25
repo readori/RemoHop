@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"sort"
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"golang.org/x/term"
 
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/snapenv"
@@ -227,6 +230,11 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	// `remohop <command> ...` for local commands, `remohop <target> <command> ...`
 	// for remote ones. A local command name always wins, so a saved alias can
 	// never shadow one.
+	// `--help` (or -h) right after a command shows that command's help on
+	// stdout and succeeds, whichever way the command parses its flags.
+	if c := Lookup(args[0]); c != nil && wantsHelp(args[1:]) {
+		return printUsage(env.Stdout, c)
+	}
 	if c := Lookup(args[0]); c != nil && !c.Remote {
 		return c.Run(ctx, env, args[1:])
 	}
@@ -235,13 +243,15 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		return ExitUsage
 	}
 	if len(args) < 2 {
-		env.Errorf("unknown command %q (see `remohop help`)", args[0])
-		return ExitUsage
+		return targetOnly(ctx, env, args[0])
 	}
 	c := Lookup(args[1])
 	if c == nil {
 		env.Errorf("unknown command %q (see `remohop help`)", args[1])
 		return ExitUsage
+	}
+	if wantsHelp(args[2:]) {
+		return printUsage(env.Stdout, c)
 	}
 	run := c.Run
 	if !c.Remote {
@@ -254,6 +264,79 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	env.Target = NormalizeTarget(args[0])
 	defer env.Close()
 	return run(ctx, env, args[2:])
+}
+
+// wantsHelp reports whether the arguments ask for help before anything
+// else: -h, -help or --help among the leading flags. It stops at the first
+// argument that is not a flag and at "--", so `remohop <ID> shell -c 'ls
+// --help'` still runs ls.
+func wantsHelp(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "-h" || a == "-help" || a == "--help":
+			return true
+		case a == "--" || !strings.HasPrefix(a, "-"):
+			return false
+		}
+	}
+	return false
+}
+
+func printUsage(w io.Writer, c *Command) int {
+	if c.Usage != "" {
+		fmt.Fprintln(w, strings.TrimRight(c.Usage, "\n"))
+	} else if c.Remote {
+		fmt.Fprintf(w, "usage: remohop <ID> %s ...\n\n%s\n", c.Name, c.Summary)
+	} else {
+		fmt.Fprintf(w, "usage: remohop %s ...\n\n%s\n", c.Name, c.Summary)
+	}
+	return ExitOK
+}
+
+// KnownTarget reports whether name is a saved host's alias. internal/dial
+// sets it (this package cannot import the peer store).
+var KnownTarget func(name string) bool
+
+// LooksLikeTarget reports whether s names a host rather than a command: a
+// 9-digit ID, HOST:PORT, or a saved alias.
+func LooksLikeTarget(s string) bool {
+	n := NormalizeTarget(s)
+	if IsID(n) {
+		return true
+	}
+	if h, p, err := net.SplitHostPort(n); err == nil && h != "" && p != "" {
+		return true
+	}
+	return KnownTarget != nil && KnownTarget(n)
+}
+
+// targetOnly handles `remohop <ID>` with no command. On a terminal it opens
+// a shell there, as ssh does; otherwise (a script) it says what can be done
+// with a host instead of guessing.
+func targetOnly(ctx context.Context, env *Env, arg string) int {
+	if !LooksLikeTarget(arg) {
+		env.Errorf("unknown command %q (see `remohop help`; a host is named by its 9-digit ID, HOST:PORT or a saved name)", arg)
+		return ExitUsage
+	}
+	shell := Lookup("shell")
+	if shell != nil && shell.Remote && isTerminal(env.Stdin) && isTerminal(env.Stdout) {
+		env.Errorf("no command given: opening a shell on %s (`remohop help` lists what else you can do with a host)", arg)
+		env.Target = NormalizeTarget(arg)
+		defer env.Close()
+		return shell.Run(ctx, env, nil)
+	}
+	fmt.Fprintf(env.Stderr, "remohop: what should %s do? Usage: remohop %s <command> [args]\n\nRemote commands:\n", Sanitize(arg), Sanitize(arg))
+	for _, c := range Commands() {
+		if c.Remote && !c.Hidden {
+			fmt.Fprintf(env.Stderr, "  %-12s %s\n", c.Name, c.Summary)
+		}
+	}
+	return ExitUsage
+}
+
+func isTerminal(v any) bool {
+	f, ok := v.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
 }
 
 func parseGlobals(g *Globals, args []string) ([]string, error) {
@@ -329,12 +412,7 @@ func runHelp(env *Env, args []string) int {
 		env.Errorf("unknown command %q", args[0])
 		return ExitUsage
 	}
-	if c.Usage != "" {
-		fmt.Fprintln(env.Stdout, strings.TrimRight(c.Usage, "\n"))
-	} else {
-		fmt.Fprintf(env.Stdout, "%s: %s\n", c.Name, c.Summary)
-	}
-	return ExitOK
+	return printUsage(env.Stdout, c)
 }
 
 func printHelp(w io.Writer) {
