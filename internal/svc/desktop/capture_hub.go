@@ -64,6 +64,7 @@ type hubRun struct {
 }
 
 type captureHub struct {
+	key    string // in hubs.m
 	ffmpeg string
 	// input builds the capture arguments (ending with -i) for a rate.
 	input func(fps int) []string
@@ -83,7 +84,7 @@ type hubSub struct {
 	w      *os.File
 	latest chan *hubFrame
 	fps    int
-	last   time.Time
+	due    time.Time // when the reader's next frame is due (see take)
 	done   chan struct{}
 	once   sync.Once
 }
@@ -115,7 +116,7 @@ func attachCapture(key, ffmpeg string, input func(fps int) []string, env []strin
 	hubs.mu.Lock()
 	hub := hubs.m[key]
 	if hub == nil {
-		hub = &captureHub{ffmpeg: ffmpeg, input: input, env: env, w: w, h: h, size: w * h * 3 / 2, subs: map[*hubSub]struct{}{}}
+		hub = &captureHub{key: key, ffmpeg: ffmpeg, input: input, env: env, w: w, h: h, size: w * h * 3 / 2, subs: map[*hubSub]struct{}{}}
 		hub.pool.New = func() any { return &hubFrame{data: make([]byte, hub.size), pool: &hub.pool} }
 		hubs.m[key] = hub
 	}
@@ -234,10 +235,9 @@ func (h *captureHub) read(run *hubRun, stdout io.Reader) {
 		for s := range h.subs {
 			// A reader that asked for less than the capture's rate gets
 			// the frames that are due at its own.
-			if s.fps < run.fps && now.Sub(s.last) < time.Second/time.Duration(s.fps)*85/100 {
+			if s.fps < run.fps && !s.take(now, time.Second/time.Duration(run.fps)) {
 				continue
 			}
-			s.last = now
 			f.refs.Add(1)
 			// Newest frame wins: replace one the reader has not taken.
 			select {
@@ -276,6 +276,26 @@ func (h *captureHub) read(run *hubRun, stdout io.Reader) {
 	}
 }
 
+// take reports whether a reader slower than the capture gets the frame
+// that arrived at now, the capture delivering one every capPeriod. Each
+// frame given moves the next one due a period of the reader's rate later,
+// and a frame up to a quarter of a capture period early counts as on time,
+// so the reader gets its own rate on average whatever the capture's. It
+// used to get a frame when 85% of its period had passed since the last
+// one, which with the capture at 60 fps gave every reader asking for 26
+// to 50 fps 30 (every second frame), and 17 to 25 fps 20.
+func (s *hubSub) take(now time.Time, capPeriod time.Duration) bool {
+	period := time.Second / time.Duration(max(s.fps, 1))
+	if s.due.IsZero() || now.Sub(s.due) > period {
+		s.due = now // first frame, or after a pause: no catching up
+	}
+	if now.Before(s.due.Add(-capPeriod / 4)) {
+		return false
+	}
+	s.due = s.due.Add(period)
+	return true
+}
+
 // write copies frames into the session's pipe.
 func (s *hubSub) write() {
 	for {
@@ -302,12 +322,24 @@ func (s *hubSub) close() {
 		if len(h.subs) == 0 && h.run != nil && h.idle == nil {
 			h.idle = time.AfterFunc(hubLinger, func() {
 				h.mu.Lock()
-				defer h.mu.Unlock()
-				if len(h.subs) == 0 && h.run != nil {
+				unused := len(h.subs) == 0
+				if unused && h.run != nil {
 					killGroup(h.run.cmd)
 					h.run = nil
 				}
 				h.idle = nil
+				h.mu.Unlock()
+				if unused {
+					// One hub per size ever seen would otherwise pile
+					// up (every resolution change makes a new one).
+					hubs.mu.Lock()
+					h.mu.Lock()
+					if hubs.m[h.key] == h && len(h.subs) == 0 && h.run == nil {
+						delete(hubs.m, h.key)
+					}
+					h.mu.Unlock()
+					hubs.mu.Unlock()
+				}
 			})
 		}
 		h.mu.Unlock()

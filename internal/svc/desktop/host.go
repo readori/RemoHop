@@ -335,6 +335,7 @@ type hostSession struct {
 	nextCfg   *encFrame
 	noOverlap bool // replacing while proc runs failed once: stop it first
 	lastGen   int  // last generation handed out
+	lastScreenCheck time.Time
 	// keyOnly: the pending restart (restartAt) is only for a key frame,
 	// so a key frame the encoder sends first makes it unnecessary.
 	keyOnly     bool
@@ -903,6 +904,13 @@ func (h *hostSession) run() error {
 			}
 			h.fitRate(now)
 			h.adapt(now)
+			if screenChanged != nil && now.Sub(h.lastScreenCheck) >= screenCheckEvery {
+				h.lastScreenCheck = now
+				if h.restartAt.IsZero() && screenChanged(h.spec) {
+					slog.Debug("desktop: the screen's size changed; capturing it anew")
+					h.scheduleRestart(now)
+				}
+			}
 			if now.Sub(h.lastStatsAt) >= statsEvery {
 				h.sendStats(now)
 			}
