@@ -9,10 +9,11 @@ import (
 	"net/netip"
 	"os/exec"
 	"strconv"
-	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/readori/RemoHop/internal/nowindow"
 )
 
 // ifPrefix starts the name of every tunnel adapter (RemoHop-1a2b).
@@ -69,7 +70,7 @@ func processAlive(pid int) bool {
 // runPrivileged runs a system tool without flashing a console window. A
 // variable so tests can record commands instead of running them.
 var runPrivileged = func(cmd *exec.Cmd) ([]byte, error) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	nowindow.Set(cmd)
 	return cmd.CombinedOutput()
 }
 

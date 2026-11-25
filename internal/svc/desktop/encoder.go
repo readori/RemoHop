@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/readori/RemoHop/internal/nowindow"
 )
 
 // The host captures and encodes with an ffmpeg subprocess: it is the one way
@@ -464,7 +466,7 @@ func listEncoders(ctx context.Context, ffmpeg string) (map[string]bool, error) {
 	if l, ok := listCache[ffmpeg]; ok && time.Since(l.at) < listingLife {
 		return l.names, nil
 	}
-	out, err := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-encoders").Output()
+	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-encoders")).Output()
 	if err != nil {
 		return nil, fmt.Errorf("running %s -encoders: %v. %s", ffmpeg, err, installHint())
 	}
@@ -600,7 +602,7 @@ func testEncode(ctx context.Context, ffmpeg string, e *encoder) (string, error) 
 	args = append(args, "-f", "lavfi", "-i", "color=c=gray:s=320x240:r=30", "-frames:v", "3", "-vf", e.pixFmt)
 	args = append(args, e.args(p)...)
 	args = append(args, "-f", "null", "-")
-	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	cmd := nowindow.Set(exec.CommandContext(ctx, ffmpeg, args...))
 	// SVT-AV1 prints its version banner at its own "info" level; make sure
 	// an inherited SVT_LOG does not silence it.
 	cmd.Env = append(os.Environ(), "SVT_LOG=3")

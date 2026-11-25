@@ -11,6 +11,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/readori/RemoHop/internal/nowindow"
 )
 
 // A capture hub lets several sessions show one screen where the operating
@@ -194,7 +196,7 @@ func (h *captureHub) start(fps int) error {
 	// expect, whatever the device delivers.
 	args = append(args, "-an", "-vf", fmt.Sprintf("scale=%d:%d:flags=fast_bilinear,format=nv12", h.w, h.h),
 		"-fps_mode", "passthrough", "-f", "rawvideo", "pipe:1")
-	cmd := exec.Command(h.ffmpeg, args...)
+	cmd := nowindow.Set(exec.Command(h.ffmpeg, args...))
 	cmd.Env = h.env
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

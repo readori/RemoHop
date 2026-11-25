@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/readori/RemoHop/internal/nowindow"
 )
 
 // Device listing helpers for the audio sources, kept free of build tags so
@@ -30,7 +32,7 @@ func ffmpegOutput(ffmpeg string, args ...string) string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	out, _ := exec.CommandContext(ctx, ffmpeg, args...).CombinedOutput()
+	out, _ := nowindow.Set(exec.CommandContext(ctx, ffmpeg, args...)).CombinedOutput()
 	devCache[k] = string(out)
 	return string(out)
 }

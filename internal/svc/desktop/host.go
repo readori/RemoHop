@@ -15,6 +15,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/readori/RemoHop/internal/nowindow"
+
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/inject"
 	"github.com/readori/RemoHop/internal/peer"
@@ -494,7 +496,7 @@ func (h *hostSession) startEncoder() error {
 		h.injMu.Unlock()
 	}
 	h.gen++
-	cmd := exec.Command(h.ffmpeg, args...)
+	cmd := nowindow.Set(exec.Command(h.ffmpeg, args...))
 	cmd.Env = h.spec.env
 	release := func() {}
 	if spec.attach != nil {

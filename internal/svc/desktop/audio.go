@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/readori/RemoHop/internal/nowindow"
+
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/wire"
@@ -245,7 +247,7 @@ func startAudioCapture(ctx context.Context, o AudioOptions) (*audioCapture, erro
 }
 
 func launchAudio(ctx context.Context, ffmpeg string, src audioSource, o AudioOptions) (*audioCapture, error) {
-	cmd := exec.Command(ffmpeg, audioArgs(src, o)...)
+	cmd := nowindow.Set(exec.Command(ffmpeg, audioArgs(src, o)...))
 	cmd.Env = src.env
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -341,7 +343,7 @@ func ffmpegHasEncoder(ffmpeg, name string) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-h", "encoder="+name).CombinedOutput()
+	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-h", "encoder="+name)).CombinedOutput()
 	ok := err == nil && strings.Contains(string(out), "Encoder "+name)
 	encCache[k] = ok
 	return ok
