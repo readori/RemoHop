@@ -42,8 +42,9 @@ const (
 	minRestartGap = time.Second
 	// statsEvery is the host stats period.
 	statsEvery = time.Second
-	// window is how much video, in time, may be unacknowledged before the
-	// host starts dropping. It bounds end-to-end queueing latency.
+	// window is the least video, in time, that may be unacknowledged
+	// before the host starts dropping; a longer path gets more (flow.go).
+	// It bounds end-to-end queueing latency.
 	window = 300 * time.Millisecond
 	// minWindowFrames keeps very low frame rates workable on long RTTs.
 	minWindowFrames = 4
@@ -320,6 +321,7 @@ type hostSession struct {
 	avcC        []byte
 	seq         uint32 // last sequence number assigned
 	acked       uint32
+	acks        ackClock
 	waitKey     bool
 	lastKey     time.Time
 	lastRestart time.Time
@@ -489,8 +491,10 @@ func (h *hostSession) targetBitrate() int64 {
 }
 
 func (h *hostSession) windowFrames() int {
-	return max(minWindowFrames, int(float64(h.fps)*window.Seconds()+0.5))
+	return max(minWindowFrames, int(float64(h.fps)*h.acks.window(time.Now()).Seconds()+0.5))
 }
+
+func (h *hostSession) framePeriod() time.Duration { return time.Second / time.Duration(max(h.fps, 1)) }
 
 func (h *hostSession) gopFrames() int { return 2 * h.fps }
 
@@ -874,7 +878,10 @@ func (h *hostSession) onFrame(f encFrame) {
 	limit := h.windowFrames()
 	switch {
 	case h.waitKey && !key, inflight >= limit:
-		if !h.waitKey {
+		// A full window is congestion when acks have been coming back
+		// late (a queue building up); after a stall on a path that was
+		// keeping up it only costs the skip to the next key frame.
+		if !h.waitKey && h.acks.queueing(time.Now(), h.framePeriod()) {
 			h.onCongestion(true)
 		}
 		h.waitKey = true
@@ -887,7 +894,8 @@ func (h *hostSession) onFrame(f encFrame) {
 	if ts == 0 {
 		ts = f.readAt.UnixMicro()
 	}
-	hdr := frameHeader{key: key, seq: h.seq, pts: ts - h.start.UnixMicro(), capture: capture, sent: time.Now().UnixMicro()}
+	sentAt := time.Now()
+	hdr := frameHeader{key: key, seq: h.seq, pts: ts - h.start.UnixMicro(), capture: capture, sent: sentAt.UnixMicro()}
 	msg := make([]byte, 5+frameHeaderLen+len(f.data))
 	putFrameHead(msg, frameVideo, frameHeaderLen+len(f.data))
 	hdr.put(msg[5:])
@@ -898,6 +906,7 @@ func (h *hostSession) onFrame(f encFrame) {
 		h.waitKey = true
 		return
 	}
+	h.acks.onSend(h.seq, sentAt)
 	h.sentFrames++
 	h.sentBytes += int64(len(f.data))
 }
@@ -985,6 +994,16 @@ func (h *hostSession) onCongestion(link bool) {
 func (h *hostSession) adapt(now time.Time) {
 	if h.waitKey && int(h.seq-h.acked) <= h.windowFrames()/2 {
 		h.requestKeyframe(now)
+	}
+	// Acks coming back ever later: a queue is building. Lower the rate
+	// before the window fills and frames have to be dropped.
+	if !h.waitKey && h.acks.sustainedQueue(now, h.framePeriod()) && now.Sub(h.lastDrop) > 2*time.Second {
+		h.acks.highFrom = time.Time{}
+		before, fps := h.bitrate, h.fps
+		h.onCongestion(true)
+		if h.bitrate != before && h.fps == fps {
+			h.scheduleRestart(now)
+		}
 	}
 	if !h.restartAt.IsZero() || now.Sub(h.lastDrop) < recoverAfter || now.Sub(h.lastRestart) < recoverAfter {
 		return
@@ -1138,6 +1157,7 @@ func (h *hostSession) onControl(c Control) {
 		// Acks for frames not sent yet are ignored; old ones are no-ops.
 		if c.Seq-h.acked <= h.seq-h.acked {
 			h.acked = c.Seq
+			h.acks.onAck(c.Seq, now)
 		}
 	case ctlKeyframe:
 		h.requestKeyframe(now)
@@ -1207,6 +1227,8 @@ func (h *hostSession) sendStats(now time.Time) {
 		InFlight:   int(h.seq - h.acked),
 		PipelineMS: h.pipelineEW,
 		Restarts:   h.restarts,
+		AckMS:      float64(h.acks.srtt.Microseconds()) / 1000,
+		WindowMS:   float64(h.acks.window(now).Milliseconds()),
 	}
 	h.sentFrames, h.sentBytes, h.lastStatsAt = 0, 0, now
 	h.enqueueJSON(frameStats, st, true)

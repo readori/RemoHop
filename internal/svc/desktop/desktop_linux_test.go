@@ -164,16 +164,17 @@ func TestFlowControlXvfb(t *testing.T) {
 	defer cancel()
 
 	// With manual acks and none sent, the host must stop after one window
-	// of frames instead of queueing.
+	// of frames instead of queueing (before the first ack the path's
+	// length is unknown, and the window is startWindow).
 	sess, err := Open(ctx, client, Options{FPS: 30, ManualAck: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sess.Close()
-	limit := max(minWindowFrames, 30*int(window/time.Millisecond)/1000)
+	limit := max(minWindowFrames, 30*int(startWindow/time.Millisecond)/1000)
 	var last *Frame
 	n := 0
-	deadline := time.After(1500 * time.Millisecond)
+	deadline := time.After(startWindow + 1500*time.Millisecond)
 collect:
 	for {
 		select {
@@ -234,7 +235,7 @@ func TestSlowConsumerXvfb(t *testing.T) {
 	before := ms.HeapInuse
 
 	// A consumer that takes 150 ms per frame (~7 fps against 60).
-	slowUntil := time.Now().Add(3 * time.Second)
+	slowUntil := time.Now().Add(4 * time.Second)
 	var maxInFlight int
 	var stats *HostStats
 	for time.Now().Before(slowUntil) {
@@ -244,7 +245,11 @@ func TestSlowConsumerXvfb(t *testing.T) {
 		}
 		if ev.Stats != nil {
 			stats = ev.Stats
-			maxInFlight = max(maxInFlight, ev.Stats.InFlight)
+			// Until the first acks the window is startWindow; after that
+			// it follows the path's measured floor.
+			if time.Until(slowUntil) < 1500*time.Millisecond {
+				maxInFlight = max(maxInFlight, ev.Stats.InFlight)
+			}
 		}
 		if ev.Frame != nil {
 			time.Sleep(150 * time.Millisecond)
