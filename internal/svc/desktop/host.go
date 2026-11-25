@@ -502,7 +502,7 @@ func (h *hostSession) scaleFilter() string {
 	if h.opts.MaxHeight > 0 {
 		k = fmt.Sprintf("min(%g,%d/ih)", h.opts.Scale, h.opts.MaxHeight)
 	}
-	return fmt.Sprintf("scale=w='trunc(iw*min(1,%s)/2)*2':h='trunc(ih*min(1,%s)/2)*2':flags=bilinear", k, k)
+	return fmt.Sprintf("scale=w='trunc(iw*min(1,%s)/2)*2':h='trunc(ih*min(1,%s)/2)*2':flags=bilinear", k, k) + h.enc.cpuColor().scaleOpts()
 }
 
 func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
@@ -510,6 +510,11 @@ func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
 	if err != nil {
 		return nil, spec, err
 	}
+	return h.argsFor(spec), spec, nil
+}
+
+// argsFor builds the encoder's command line for a capture.
+func (h *hostSession) argsFor(spec captureSpec) []string {
 	// Capture devices describe their stream up front, so skip probing: it
 	// would otherwise wait for several frames (2 s at 10 fps) before the
 	// first one is encoded.
@@ -524,10 +529,11 @@ func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
 		chain = append(chain, spec.filter)
 	}
 	chain = append(chain, h.scaleFilter(), h.enc.pixFmt)
+	color := h.enc.cpuColor()
 	h.gpuChain = false
 	if spec.gpu != nil && !h.noGPU && h.scaleFactor() >= 1 {
 		if c, ok := spec.gpu(h.enc); ok {
-			h.gpuChain, chain = true, nil
+			h.gpuChain, chain, color = true, nil, gpuColor(h.enc)
 			if c != "" {
 				chain = []string{c}
 			}
@@ -542,13 +548,14 @@ func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
 	// when each frame was captured and the viewer can show true latency.
 	args = append(args, "-copyts", "-fps_mode", "passthrough", "-enc_time_base", "1:1000")
 	args = append(args, h.enc.args(encParams{fps: h.fps, bitrate: h.bitrate, gop: h.gopFrames(), pixels: h.outputPixels(), fast: h.fast})...)
+	args = append(args, color.encArgs()...)
 	args = append(args, "-flush_packets", "1")
 	if h.enc.codec == codecH264 {
 		args = append(args, "-flvflags", "no_duration_filesize", "-f", "flv", "pipe:1")
 	} else {
 		args = append(args, "-f", "ivf", "pipe:1")
 	}
-	return args, spec, nil
+	return args
 }
 
 // startEncoder launches a new ffmpeg generation, replacing any running one.

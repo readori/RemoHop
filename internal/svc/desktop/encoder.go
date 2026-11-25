@@ -52,6 +52,9 @@ type encoder struct {
 	// the client should show.
 	version string
 	warning string
+	// limitedRange: the encoder cannot label a full-range stream, so it
+	// is fed limited range (see colorMode).
+	limitedRange bool
 }
 
 // vbv sizes the rate-control buffer. It bounds how far a frame may exceed
@@ -220,6 +223,8 @@ var encoders = []*encoder{
 		codec:  codecH264,
 		hw:     true,
 		pixFmt: "format=nv12",
+		// ffmpeg's Media Foundation wrapper writes no colour description.
+		limitedRange: true,
 		args: func(p encParams) []string {
 			return []string{"-c:v", "h264_mf", "-hw_encoding", "1", "-rate_control", "cbr", "-scenario", "display_remoting",
 				"-b:v", br(p), "-g", strconv.Itoa(p.gop), "-bf", "0"}
@@ -646,8 +651,11 @@ func testEncode(ctx context.Context, ffmpeg string, e *encoder) (string, error) 
 		args = append(args, e.preInput()...)
 	}
 	p := encParams{fps: 30, bitrate: 1_000_000, gop: 60, pixels: 320 * 240}
-	args = append(args, "-f", "lavfi", "-i", "color=c=gray:s=320x240:r=30", "-frames:v", "3", "-vf", e.pixFmt)
+	color := e.cpuColor()
+	args = append(args, "-f", "lavfi", "-i", "color=c=gray:s=320x240:r=30,format=bgr0", "-frames:v", "3",
+		"-vf", "scale=flags=bilinear"+color.scaleOpts()+","+e.pixFmt)
 	args = append(args, e.args(p)...)
+	args = append(args, color.encArgs()...)
 	args = append(args, "-f", "null", "-")
 	cmd := nowindow.Set(exec.CommandContext(ctx, ffmpeg, args...))
 	// SVT-AV1 prints its version banner at its own "info" level; make sure

@@ -60,6 +60,7 @@ func discoverCapture(display, fps int) (captureSpec, error) {
 	// instead, as a way out should the shared one misbehave on some Mac.
 	if w, h := spec.width&^1, spec.height&^1; w > 0 && h > 0 && os.Getenv("REMOHOP_MAC_DIRECT_CAPTURE") != "1" {
 		spec.input = hubInput(w, h, fps)
+		spec.filter = yuvSource(hubColor)
 		spec.attach = func(fps int) (*os.File, func(), error) {
 			ffmpeg, err := ffmpegPath()
 			if err != nil {

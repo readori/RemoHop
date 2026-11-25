@@ -106,3 +106,55 @@ func TestCaptureHub(t *testing.T) {
 		t.Errorf("a failing capture: %v", err)
 	}
 }
+
+// The hub's NV12 frames keep their colours through a session's encoder: the
+// session labels them with what the hub converted them to, so scaling does
+// not convert them again and the stream says full-range BT.709.
+func TestCaptureHubColors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the shared capture is used on macOS hosts; its pipes are tested on Unix")
+	}
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	const w, h = 64, 48
+	input := func(fps int) []string {
+		return []string{"-re", "-f", "lavfi", "-i", fmt.Sprintf("color=c=0x1e90ff:s=%dx%d:r=%d,format=bgr0", w, h, fps)}
+	}
+	key := fmt.Sprintf("test:%s:%d", t.Name(), time.Now().UnixNano())
+	r, release, err := attachCapture(key, ffmpeg, input, nil, w, h, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	defer r.Close()
+	args := append([]string{"-hide_banner", "-loglevel", "error"}, hubInput(w, h, 10)...)
+	args = append(args, "-frames:v", "3", "-vf", yuvSource(hubColor)+",scale=w=32:h=24:flags=bilinear"+colorFull.scaleOpts()+",format=yuv420p",
+		"-c:v", "libx264", "-qp", "0")
+	args = append(args, colorFull.encArgs()...)
+	out := t.TempDir() + "/hub.h264"
+	args = append(args, "-f", "h264", out)
+	cmd := exec.Command(ffmpeg, args...)
+	cmd.Stdin = r
+	if b, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("session ffmpeg: %v\n%s", err, b)
+	}
+	// ffmpeg's decoder honours a labelled stream (it is the unlabelled one
+	// it guesses differently from browsers).
+	rgb, err := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-i", out, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-").Output()
+	if err != nil || len(rgb) < 3 {
+		t.Fatalf("decode: %v", err)
+	}
+	i := (12*32 + 16) * 3
+	got := [3]int{int(rgb[i]), int(rgb[i+1]), int(rgb[i+2])}
+	for k, want := range [3]int{0x1e, 0x90, 0xff} {
+		if d := got[k] - want; d > 3 || d < -3 {
+			t.Fatalf("colour through the hub %v, want 1e90ff", got)
+		}
+	}
+	probe, _ := exec.Command("ffprobe", "-v", "error", "-show_entries", "stream=color_range,color_space,color_primaries,color_transfer", "-of", "csv=p=0", out).Output()
+	if p := strings.TrimSpace(string(probe)); p != "pc,bt709,bt709,bt709" {
+		t.Errorf("stream colour description %q", p)
+	}
+}
