@@ -258,6 +258,11 @@ func (w winService) Status(ctx context.Context, o Options) (*Status, error) {
 	defer s.Close()
 	st.Installed, st.ConfigDir = true, installedDataDir(s)
 	st.Unattended = installedUnattended(s)
+	if cfg, err := s.Config(); err == nil {
+		if args, err := windows.DecomposeCommandLine(cfg.BinaryPathName); err == nil && len(args) > 0 {
+			st.setExe(args[0])
+		}
+	}
 	q, err := s.Query()
 	if err != nil {
 		return nil, err

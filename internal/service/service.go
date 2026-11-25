@@ -109,6 +109,22 @@ type Status struct {
 	ConfigDir string `json:"config_dir,omitempty"`
 	// Unattended: a Windows service installed with --unattended.
 	Unattended bool `json:"unattended,omitempty"`
+	// Exe is the binary the service definition starts, when it could be
+	// read; ExeMissing says that file does not exist (removed by an upgrade
+	// or uninstall), so the service cannot start.
+	Exe        string `json:"exe,omitempty"`
+	ExeMissing bool   `json:"exe_missing,omitempty"`
+}
+
+// setExe records the service's binary and whether it exists.
+func (st *Status) setExe(exe string) {
+	if exe == "" {
+		return
+	}
+	st.Exe = exe
+	if _, err := os.Stat(exe); err != nil {
+		st.ExeMissing = true
+	}
 }
 
 // backend is one platform's service manager.

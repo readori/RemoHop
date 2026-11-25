@@ -216,3 +216,44 @@ func TestSystemdPackagedUnit(t *testing.T) {
 		t.Errorf("install over a packaged unit: %+v %v", inst, err)
 	}
 }
+
+func TestStatusReportsMissingBinary(t *testing.T) {
+	for in, want := range map[string]string{
+		"[Service]\nExecStart=/usr/bin/remohop host\n":         "/usr/bin/remohop",
+		"ExecStart=\"/opt/a b/remohop\" host --signal x\n":     "/opt/a b/remohop",
+		"ExecStart=\"/x/100%%/$$HOME/re\\\"mo\\\\hop\" host\n": `/x/100%/$HOME/re"mo\hop`,
+		"ExecStart=-/usr/bin/remohop host\n":                   "/usr/bin/remohop",
+		"[Unit]\nDescription=no exec\n":                        "",
+	} {
+		if got := execStartBinary(in); got != want {
+			t.Errorf("execStartBinary(%q) = %q, want %q", in, got, want)
+		}
+	}
+	// Round trip with the unit writer.
+	exe := `/opt/odd "dir"/100%/$x/remohop`
+	if got := execStartBinary((&systemd{}).text(ScopeUser, Options{}, exe)); got != exe {
+		t.Errorf("round trip: %q", got)
+	}
+	if got := plistProgram((&launchd{home: "/Users/a"}).text(ScopeUser, Options{}, "/opt/a&b/remohop")); got != "/opt/a&b/remohop" {
+		t.Errorf("plistProgram: %q", got)
+	}
+
+	fakeBin(t, "systemctl")
+	show := filepath.Join(t.TempDir(), "show")
+	os.WriteFile(show, []byte("ActiveState=activating\nSubState=auto-restart\n"), 0o600)
+	t.Setenv("FAKE_SHOW", show)
+	b := newTestSystemd(t, 1000)
+	gone := filepath.Join(t.TempDir(), "remohop")
+	if _, err := b.Install(context.Background(), Options{Exe: gone}); err != nil {
+		t.Fatal(err)
+	}
+	st, err := b.Status(context.Background(), Options{})
+	if err != nil || st.Exe != gone || !st.ExeMissing {
+		t.Fatalf("status %+v %v", st, err)
+	}
+	var out strings.Builder
+	printStatus(&out, st, false)
+	if !strings.Contains(out.String(), "does not exist") {
+		t.Errorf("status text:\n%s", out.String())
+	}
+}
