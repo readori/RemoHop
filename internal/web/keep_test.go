@@ -3,6 +3,8 @@ package web
 import (
 	"context"
 	"errors"
+	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/signal"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -215,4 +217,38 @@ func TestNotPersistentDropEnds(t *testing.T) {
 
 func contains(s, sub string) bool {
 	return strings.Contains(s, sub)
+}
+
+// A lockout expires: it is waited out, not taken as the end. What the host
+// or the rendezvous server asks to wait is honoured, and every wait has
+// some jitter so that many sessions do not come back in the same instant.
+func TestReconnectPolicy(t *testing.T) {
+	locked := &auth.Error{Code: auth.CodeLockedOut, RetryAfter: 2 * time.Minute}
+	if permanent(locked, classify(locked)) {
+		t.Fatal("a lockout ends the reconnection attempts for good")
+	}
+	if w := retryWait(time.Second, locked); w < 2*time.Minute || w > 150*time.Second {
+		t.Fatalf("after a 2 min lockout the next attempt waits %s", w)
+	}
+	limited := &signal.Error{Code: signal.CodeRateLimited, RetryAfter: 40 * time.Second}
+	if w := retryWait(time.Second, limited); w < 40*time.Second || w > 50*time.Second {
+		t.Fatalf("rate limited for 40 s: waits %s", w)
+	}
+	seen := map[time.Duration]bool{}
+	for i := 0; i < 50; i++ {
+		w := retryWait(4*time.Second, errors.New("network down"))
+		if w < 4*time.Second || w > 5*time.Second {
+			t.Fatalf("backoff 4 s: waits %s", w)
+		}
+		seen[w] = true
+	}
+	if len(seen) < 10 {
+		t.Fatal("no jitter")
+	}
+	for _, code := range []auth.Code{auth.CodeWrongHost, auth.CodeBadVersion} {
+		err := &auth.Error{Code: code}
+		if !permanent(err, classify(err)) {
+			t.Errorf("%s is retried forever", code)
+		}
+	}
 }

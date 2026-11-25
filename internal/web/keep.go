@@ -3,13 +3,16 @@ package web
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/peer"
+	"github.com/readori/RemoHop/internal/signal"
 )
 
 // Persistent sessions (Config.Persistent, the phone apps).
@@ -31,7 +34,8 @@ import (
 //   - a failure that another attempt cannot fix (the credential is
 //     refused, the owner denied, the host's key changed) ends the attempts:
 //     state "failed" with the reason, until the user disconnects or
-//     connects again;
+//     connects again. A lockout is not such a failure: it expires, and
+//     the next attempt waits for the time the host named;
 //   - the page re-opens its tab when the state is "connected" again: the
 //     terminal re-attaches to the same shell session (the host keeps a
 //     detached terminal), the file list reloads, the desktop restarts.
@@ -83,15 +87,38 @@ func (s *Server) redialer(ctx context.Context, conn *peer.Conn, req DialRequest,
 
 // permanent reports whether a failed reconnection is not worth repeating:
 // the host refused the credential or the owner said no, rather than the
-// network being in the way.
+// network being in the way. A lockout (host_locked_out) is not: it ends by
+// itself, and a phone that shares its address with someone guessing
+// passwords must not end up disconnected for good.
 func permanent(err error, ae *apiError) bool {
 	switch ae.Code {
 	case "bad_password", "denied", "pairing_rejected", "key_rejected", "password_login_disabled",
 		"host_key_changed", "password_required", "host_refused", "feature_off", "unknown_id",
-		"signal_is_host", "signal_wrong_protocol", "host_locked_out":
+		"signal_is_host", "signal_wrong_protocol":
 		return true
 	}
+	switch auth.CodeOf(err) {
+	case auth.CodeWrongHost, auth.CodeBadVersion:
+		return true // the same answer every time, until someone changes something
+	}
 	return errors.Is(err, dial.ErrNoCredential)
+}
+
+// retryWait is how long to wait before the next reconnection attempt: the
+// backoff, or what the host (lockout) or the rendezvous server (rate
+// limit) asked for if that is longer (both are bounded where they are
+// parsed), plus up to a quarter more at random, so that the sessions of
+// many phones that lost the same host or network do not all come back in
+// the same instant.
+func retryWait(backoff time.Duration, err error) time.Duration {
+	wait := backoff
+	if e, ok := errors.AsType[*auth.Error](err); ok && e.RetryAfter > wait {
+		wait = e.RetryAfter
+	}
+	if e, ok := errors.AsType[*signal.Error](err); ok && e.RetryAfter > wait {
+		wait = e.RetryAfter
+	}
+	return wait + rand.N(wait/4+1)
 }
 
 // keep watches a session until it ends for good, reconnecting it in
@@ -191,7 +218,7 @@ func (s *Server) reconnect(p *pooled) bool {
 			return false
 		}
 		p.setState(stateReconnect, ae, try)
-		t := time.NewTimer(wait)
+		t := time.NewTimer(retryWait(wait, err))
 		select {
 		case <-t.C:
 		case <-p.kick:
