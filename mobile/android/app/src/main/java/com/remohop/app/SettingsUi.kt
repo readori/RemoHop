@@ -41,8 +41,8 @@ import com.google.android.material.R as M
  * - M3 switches, outlined text fields with supporting/error text, filled
  *   and tonal buttons, a status card in primaryContainer.
  *
- * Colours come from the theme's roles (dynamic colour on Android 12+, the
- * cobalt scheme otherwise); there are no literals here.
+ * Colours come from the theme's roles (the RemoHop cobalt scheme, light and
+ * dark, on every Android version); there are no literals here.
  */
 class SettingsUi(private val a: Activity) {
     private val res = a.resources

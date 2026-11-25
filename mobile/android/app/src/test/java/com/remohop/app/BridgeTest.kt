@@ -29,26 +29,6 @@ class BridgeTest {
         override fun showDialog(request: DialogRequest, done: (DialogAnswer) -> Unit) { dialogs += request; dialogDone = done }
     }
 
-    /** The page asks for the app's colour roles; the host's answer is the result (nothing from another origin). */
-    @Test fun theme() {
-        val h = object : BridgeHost by FakeHost() {
-            override fun theme(): JSONObject = JSONObject().put("light", JSONObject().put("primary", "#386a20")).put("dynamic", true)
-        }
-        var out: String? = null
-        val b = Bridge(h, origin)
-        b.handle("""{"id":3,"method":"theme"}""", "http://127.0.0.1:5001", true) { out = it }
-        assertNull(out)
-        b.handle("""{"id":3,"method":"theme"}""", origin, true) { out = it }
-        val r = JSONObject(out!!).getJSONObject("result")
-        assertEquals("#386a20", r.getJSONObject("light").getString("primary"))
-        assertTrue(r.getBoolean("dynamic"))
-        // A host without one answers an empty result: the page keeps its own colours.
-        b.handle("""{"id":4,"method":"theme"}""", origin, true) { out = it }
-        val plain = Bridge(FakeHost(), origin)
-        plain.handle("""{"id":4,"method":"theme"}""", origin, true) { out = it }
-        assertEquals(0, JSONObject(out!!).getJSONObject("result").length())
-    }
-
     /** The page's confirmations become native dialogs, answered with the user's choice. */
     @Test fun confirmDialog() {
         val h = FakeHost()

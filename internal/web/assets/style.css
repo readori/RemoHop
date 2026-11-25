@@ -278,10 +278,9 @@ dialog h2 { margin-top: 0; }
    keeps the site's cobalt design.
 
    One markup, two native idioms, from role tokens:
-   - Android: Material 3 (the app's roles: dynamic colour from the
-     wallpaper, or the cobalt-seeded scheme the native Settings use without
-     it): small top app bar, primary tabs, outlined text fields in a card,
-     filled/tonal buttons with icons, M3 switch, grouped list items like the
+   - Android: Material 3 (the cobalt-seeded scheme of the native Settings,
+     the brand blue on every Android version; no dynamic colour): small top
+     app bar, primary tabs, outlined text fields in a card, filled/tonal buttons with icons, M3 switch, grouped list items like the
      native Settings (see "Android: Material 3" at the end), dialogs and
      bottom sheets.
    - iOS: Apple HIG system colours with the cobalt tint: navigation bar,
@@ -668,9 +667,8 @@ html.app.platform-android #gwretry { text-decoration: none; font-size: 14px; fon
    The page sits on surfaceContainer (surface in the dark scheme) with its
    groups in brighter items: 24px outer corners, 4px between items, 2px
    apart; leading icons in tonal circles; the connect form in a card;
-   tonal toolbar buttons with icons; a one-line notice bar. The roles come
-   from the app (Material You, see remohop-mobile.js appTheme) or the
-   cobalt scheme above. iOS keeps its own rules. */
+   tonal toolbar buttons with icons; a one-line notice bar. The roles are
+   the cobalt scheme above (the brand blue; no dynamic colour). iOS keeps its own rules. */
 html.app.platform-android {
   --md-surface-bright: #fbf8ff; --md-tertiary-container: #ffd7f5; --md-on-tertiary-container: #2c1229;
   --md-inverse-surface: #2f3036; --md-inverse-on-surface: #f2f0f7;

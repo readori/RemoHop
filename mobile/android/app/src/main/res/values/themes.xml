@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Settings: Material 3 (Material Components). DynamicColors replaces
-         these roles with the wallpaper's on Android 12+. -->
+    <!-- Settings: Material 3 (Material Components) in the RemoHop cobalt
+         roles on every Android version (no dynamic colour). -->
     <style name="Theme.RemoHop.Settings" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/md_primary</item>
         <item name="colorOnPrimary">@color/md_on_primary</item>
