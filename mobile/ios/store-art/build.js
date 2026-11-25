@@ -5,7 +5,6 @@
 const fs = require("fs");
 const path = require("path");
 const PPTR = process.env.PPTR || "puppeteer-core";
-const puppeteer = require(PPTR);
 
 const ROOT = __dirname;
 const SRC = process.env.SRC || path.join(ROOT, "src");
@@ -176,7 +175,29 @@ function search(lang) {
     ${phone(SHOT.terminal[lang], x0 + 2 * (pw + gap), top + 80, pw)}`);
 }
 
-(async () => {
+// Renders [file, W, H, html] jobs to JPEG files with headless Chrome.
+async function render(jobs, out = OUT) {
+  const puppeteer = require(PPTR);
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--allow-file-access-from-files", "--hide-scrollbars"] });
+  const pg = await browser.newPage();
+  const tmp = path.join(out, "_page.html");
+  fs.mkdirSync(out, { recursive: true });
+  for (const [file, W, H, html] of jobs) {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(tmp, html);
+    await pg.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
+    await pg.goto("file:///" + tmp.replace(/\\/g, "/"), { waitUntil: "networkidle0", timeout: 60000 });
+    await pg.evaluate(() => document.fonts.ready);
+    await pg.screenshot({ path: file, type: "jpeg", quality: 92, clip: { x: 0, y: 0, width: W, height: H } });
+    console.log("wrote", path.relative(process.cwd(), file));
+  }
+  fs.unlinkSync(tmp);
+  await browser.close();
+}
+
+module.exports = { T, page, render };
+
+if (require.main === module) (async () => {
   const jobs = [];
   for (const lang of ["zh", "en"]) {
     const d = path.join(OUT, lang === "zh" ? "zh-Hans" : "en-US");
@@ -187,18 +208,5 @@ function search(lang) {
     }
     T[lang].pad.forEach((s, i) => jobs.push([path.join(d, `iPad_2064x2752_${i + 1}_${s[0]}.jpg`), 2064, 2752, ipad(lang, s)]));
   }
-  const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--allow-file-access-from-files", "--hide-scrollbars"] });
-  const pg = await browser.newPage();
-  for (const [file, W, H, html] of jobs) {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const tmp = path.join(OUT, "_page.html");
-    fs.writeFileSync(tmp, html);
-    await pg.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
-    await pg.goto("file:///" + tmp.replace(/\\/g, "/"), { waitUntil: "networkidle0", timeout: 60000 });
-    await pg.evaluate(() => document.fonts.ready);
-    await pg.screenshot({ path: file, type: "jpeg", quality: 92, clip: { x: 0, y: 0, width: W, height: H } });
-    console.log("wrote", path.relative(ROOT, file));
-  }
-  fs.unlinkSync(path.join(OUT, "_page.html"));
-  await browser.close();
+  await render(jobs);
 })();
