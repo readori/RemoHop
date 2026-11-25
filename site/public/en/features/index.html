@@ -312,7 +312,7 @@ remohop log</code></pre>
 </tbody>
 </table>
 </div>
-<p>There are controller apps for Android and iOS, neither with a store release yet. See <a href="/en/apps/">Apps</a>.</p>
+<p>There are controller apps for Android and iOS, coming to the App Store and Google Play (submitted for review). See <a href="/en/apps/">Apps</a>.</p>
 
 <h2 id="install">Install</h2>
 <p>Every download is on the <a href="/en/download/">download page</a>: install scripts, archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, all listed in a signed <code>SHA256SUMS</code>. On Linux and macOS:</p>
@@ -331,7 +331,7 @@ sh install.sh</code></pre>
 <li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
 <li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
 <li>Serial ports were verified with pseudo-terminals and picocom, not a real UART. USB/IP was verified with the real kernel on a hosted runner, not on physical USB hardware.</li>
-<li>The iOS app has only run in a CI simulator, and the Android app has had no real-device test.</li>
+<li>The phone apps are coming to the App Store and Google Play (submitted for review); until then they are built from source.</li>
 <li>Shell sessions do not survive a restart of the host.</li>
 <li>Using a mobile device as a host is not implemented.</li>
 </ul>
