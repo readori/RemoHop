@@ -266,3 +266,19 @@ func TestNoStreamBeforeStart(t *testing.T) {
 		t.Fatalf("first stream saw %q, want %q", g, "ready")
 	}
 }
+
+// A vanished peer must be noticed within about 20 s (it used to take 45-52 s:
+// a frozen picture, and a host encoding for nobody), and keep-alives must
+// fit in the idle timeout twice over, so one lost keep-alive is not fatal.
+func TestQUICLiveness(t *testing.T) {
+	c := peer.QUICConfig()
+	if c.MaxIdleTimeout > 20*time.Second {
+		t.Errorf("idle timeout %s", c.MaxIdleTimeout)
+	}
+	if c.KeepAlivePeriod <= 0 || 2*c.KeepAlivePeriod >= c.MaxIdleTimeout {
+		t.Errorf("keep-alive every %s with an idle timeout of %s", c.KeepAlivePeriod, c.MaxIdleTimeout)
+	}
+	if c.InitialPacketSize == 0 || c.InitialPacketSize > 1200 {
+		t.Errorf("initial packet size %d", c.InitialPacketSize)
+	}
+}
