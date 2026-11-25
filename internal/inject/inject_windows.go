@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"sync"
 	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 
 	"github.com/readori/RemoHop/internal/x11disp"
+
+	"github.com/readori/RemoHop/internal/dpiaware"
 )
 
 // Windows input goes through SendInput. Pointer positions are absolute on
@@ -21,14 +22,12 @@ import (
 // service can have them made on the interactive desktop.
 
 var (
-	user32                 = windows.NewLazySystemDLL("user32.dll")
-	procSendInput          = user32.NewProc("SendInput")
-	procGetSystemMetrics   = user32.NewProc("GetSystemMetrics")
-	procGetCursorPos       = user32.NewProc("GetCursorPos")
-	procVkKeyScanW         = user32.NewProc("VkKeyScanW")
-	procMapVirtualKeyW     = user32.NewProc("MapVirtualKeyW")
-	procSetProcessDPIAware = user32.NewProc("SetProcessDPIAware")
-	dpiOnce                sync.Once
+	user32               = windows.NewLazySystemDLL("user32.dll")
+	procSendInput        = user32.NewProc("SendInput")
+	procGetSystemMetrics = user32.NewProc("GetSystemMetrics")
+	procGetCursorPos     = user32.NewProc("GetCursorPos")
+	procVkKeyScanW       = user32.NewProc("VkKeyScanW")
+	procMapVirtualKeyW   = user32.NewProc("MapVirtualKeyW")
 )
 
 const (
@@ -148,7 +147,7 @@ func Open(ctx context.Context, _ *x11disp.Display) (*Injector, error) {
 		return nil, err
 	}
 	// Physical pixels, like the screenshot service, not DPI-scaled ones.
-	dpiOnce.Do(func() { procSetProcessDPIAware.Call() })
+	dpiaware.Enable()
 	return &Injector{keys: map[string]winInput{}, buttons: map[Button]bool{}}, nil
 }
 
