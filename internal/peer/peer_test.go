@@ -267,7 +267,7 @@ func TestNoStreamBeforeStart(t *testing.T) {
 	}
 }
 
-// A vanished peer must be noticed within about 20 s (it used to take 45-52 s:
+// A vanished peer must be noticed within about 20-28 s (it used to take 45-52 s:
 // a frozen picture, and a host encoding for nobody), and keep-alives must
 // fit in the idle timeout twice over, so one lost keep-alive is not fatal.
 func TestQUICLiveness(t *testing.T) {
