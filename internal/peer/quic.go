@@ -28,10 +28,12 @@ const IdleTimeout = 20 * time.Second
 // hold the NAT mappings open; the generous flow-control windows let file
 // transfer and video use the whole path.
 //
-// The idle timeout is how long a peer that vanished (killed, unplugged, lid
-// closed) goes unnoticed: a frozen picture for the viewer, capture and
-// encoding running on for nobody on the host. 20 s with a keep-alive after
-// 8 s of silence leaves room for two keep-alives, each retransmitted within
+// The idle timeout decides how long a peer that vanished (killed, unplugged,
+// lid closed) goes unnoticed: a frozen picture for the viewer, capture and
+// encoding running on for nobody on the host. It runs from the last packet
+// received or, after that, the first keep-alive sent, so a vanished peer is
+// noticed about 20 to 28 s later (25 s measured; it was 52 s with 45 s and
+// 10 s). 20 s with a keep-alive after 8 s of silence leaves room for two keep-alives, each retransmitted within
 // a round trip or two if lost, so a lossy but working path is not taken for
 // a dead one; and a phone's radio is woken little more often than with the
 // 10 s keep-alive before. Peers negotiate the smaller of their two idle
