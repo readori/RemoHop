@@ -515,7 +515,13 @@ final class GatewayE2ETests: XCTestCase {
 
         // 1. Remote desktop: wait for the first frames.
         _ = try await js("document.getElementById('tab-desktop').click(); return 'ok';")
-        let frames = await eventually("document.getElementById('d-canvas').width > 16 && !(document.getElementById('d-msg').textContent || '').trim()", timeout: 60)
+        let picture = "document.getElementById('d-canvas').width > 16 && !(document.getElementById('d-msg').textContent || '').trim()"
+        var frames = await eventually(picture, timeout: 60)
+        for _ in 0..<2 where !frames {
+            // As a user would: Reconnect, when the desktop ended without a picture.
+            _ = try? await js("const r = document.getElementById('d-reconnect'); if (r && !r.hidden) r.click(); return 'ok';")
+            frames = await eventually(picture, timeout: 45)
+        }
         if !frames {
             let m = (try? await js("return document.getElementById('d-msg').textContent")) ?? ""
             print("store screens: no desktop frame: " + redact(String(m.prefix(200))))
