@@ -215,11 +215,17 @@ func sameOrigin(r *http.Request, tls bool) bool {
 // source is locked out for exponentially longer, and a global bucket caps
 // failures across all sources. A source that is locked out is refused
 // without its password being looked at, so a lockout is not an oracle.
+//
+// The global bucket would let anyone who keeps it empty lock everyone out,
+// so a source that logged in successfully within knownFor is exempt from it
+// (not from its own lockout): strangers spending the global budget cannot
+// keep the gateway's users out, only other strangers.
 type limiter struct {
 	mu     sync.Mutex
 	now    func() time.Time
 	per    map[string]*srcState
-	tokens float64 // global failure budget
+	known  map[string]time.Time // source → last successful login
+	tokens float64              // global failure budget
 	last   time.Time
 }
 
@@ -236,10 +242,12 @@ const (
 	globalBurst    = 30
 	globalRefill   = 2 * time.Second
 	maxTrackedSrcs = 10000
+	knownFor       = 30 * 24 * time.Hour
+	maxKnownSrcs   = 1000
 )
 
 func newLimiter(now func() time.Time) *limiter {
-	return &limiter{now: now, per: map[string]*srcState{}, tokens: globalBurst, last: now()}
+	return &limiter{now: now, per: map[string]*srcState{}, known: map[string]time.Time{}, tokens: globalBurst, last: now()}
 }
 
 func srcKey(remote string) string {
@@ -271,13 +279,18 @@ func (l *limiter) allow(src string) (bool, time.Duration) {
 	defer l.mu.Unlock()
 	now := l.now()
 	l.refill(now)
-	if l.tokens < 1 {
-		return false, time.Duration((1 - l.tokens) * float64(globalRefill))
-	}
 	if s := l.per[src]; s != nil && now.Before(s.locked) {
 		return false, s.locked.Sub(now)
 	}
+	if l.tokens < 1 && !l.isKnown(src, now) {
+		return false, time.Duration((1 - l.tokens) * float64(globalRefill))
+	}
 	return true, 0
+}
+
+func (l *limiter) isKnown(src string, now time.Time) bool {
+	t, ok := l.known[src]
+	return ok && now.Sub(t) < knownFor
 }
 
 func (l *limiter) fail(src string) {
@@ -285,7 +298,9 @@ func (l *limiter) fail(src string) {
 	defer l.mu.Unlock()
 	now := l.now()
 	l.refill(now)
-	l.tokens--
+	if !l.isKnown(src, now) {
+		l.tokens--
+	}
 	if len(l.per) >= maxTrackedSrcs {
 		for k, s := range l.per {
 			if now.Sub(s.seen) > time.Hour {
@@ -310,6 +325,45 @@ func (l *limiter) success(src string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.per, src)
+	now := l.now()
+	if _, ok := l.known[src]; !ok && len(l.known) >= maxKnownSrcs {
+		oldest, first := "", now
+		for k, t := range l.known {
+			if !t.After(first) {
+				oldest, first = k, t
+			}
+		}
+		delete(l.known, oldest)
+	}
+	l.known[src] = now
+}
+
+// realIP takes the visitor's address from the values of the real-IP header:
+// the last address of the last value, which is the one the nearest proxy
+// added (X-Forwarded-For grows to the right; CF-Connecting-IP has one).
+func realIP(values []string) (netip.Addr, bool) {
+	if len(values) == 0 {
+		return netip.Addr{}, false
+	}
+	v := values[len(values)-1]
+	if i := strings.LastIndexByte(v, ','); i >= 0 {
+		v = v[i+1:]
+	}
+	ip, err := netip.ParseAddr(strings.TrimSpace(v))
+	return ip, err == nil
+}
+
+// checkHeaderName validates a --real-ip-header value.
+func checkHeaderName(name string) error {
+	if name == "" {
+		return nil
+	}
+	for _, r := range name {
+		if r > 0x7e || r <= ' ' || strings.ContainsRune("\"(),/:;<=>?@[\\]{}", r) {
+			return fmt.Errorf("--real-ip-header %q is not a header name", name)
+		}
+	}
+	return nil
 }
 
 var errNoTLSPassword = errors.New("refusing to listen on a non-loopback address without --tls-cert/--tls-key and --password-file: " +

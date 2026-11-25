@@ -75,7 +75,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -119,6 +118,13 @@ type Config struct {
 	// loopback gateway. Its host is accepted in the Host and Origin headers, as
 	// https. Requires a loopback Listen and PasswordFile.
 	PublicURL string
+	// RealIPHeader names the request header in which the proxy or tunnel
+	// in front of PublicURL puts the visitor's address (CF-Connecting-IP
+	// for Cloudflare; for X-Forwarded-For the last address is taken). The
+	// login rate limiter keys on it for requests through PublicURL. Empty:
+	// such requests all count as one source, the proxy. Only name a header
+	// the proxy always sets or overwrites: a client can send any header.
+	RealIPHeader string
 
 	// Persistent is app mode, for the phone apps' in-process gateway (see
 	// keep.go): one user, whose host sessions last until they disconnect.
@@ -228,6 +234,11 @@ func New(cfg Config) (*Server, error) {
 		if pub, err = parsePublicURL(cfg.PublicURL); err != nil {
 			return nil, err
 		}
+	}
+	if err := checkHeaderName(cfg.RealIPHeader); err != nil {
+		return nil, err
+	} else if cfg.RealIPHeader != "" && cfg.PublicURL == "" {
+		return nil, errors.New("--real-ip-header needs --public-url: it is read only from requests through the public address")
 	}
 	s := &Server{cfg: cfg, sessions: map[string]*webSession{}, tickets: map[string]ticket{}}
 	if s.cfg.Now == nil {
@@ -873,12 +884,11 @@ func (s *Server) secure(r *http.Request) bool {
 
 // clientKey is the login rate limiter's key for r. Behind --public-url every
 // request comes from the local tunnel, so the visitor's address is taken
-// from CF-Connecting-IP (set by Cloudflare, which overwrites any value a
-// client sends) when present. The limiter's global bucket caps guessing
-// whatever this header says.
+// from the header named by --real-ip-header, and only then: a header the
+// proxy does not set is the client's to choose.
 func (s *Server) clientKey(r *http.Request) string {
-	if s.viaPublic(r) {
-		if ip, err := netip.ParseAddr(strings.TrimSpace(r.Header.Get("CF-Connecting-IP"))); err == nil {
+	if s.cfg.RealIPHeader != "" && s.viaPublic(r) {
+		if ip, ok := realIP(r.Header.Values(s.cfg.RealIPHeader)); ok {
 			return srcKey(ip.String())
 		}
 	}

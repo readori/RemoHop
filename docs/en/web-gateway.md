@@ -19,11 +19,12 @@ To use `remohop web` from outside your network, keep it on a fixed loopback port
 
 ```bash
 remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
-        --public-url https://remohop.example.com --no-open --no-saved
+        --public-url https://remohop.example.com --real-ip-header CF-Connecting-IP \
+        --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 <tunnel-name>
 ```
 
-`--public-url` requires a loopback listen address and `--password-file`. For requests through the public address, the login rate limiter tells visitors apart by the `CF-Connecting-IP` header Cloudflare sets.
+`--public-url` requires a loopback listen address and `--password-file`. For requests through the public address, the login rate limiter tells visitors apart by the header named with `--real-ip-header` (`CF-Connecting-IP`, which Cloudflare sets and overwrites). Name only a header your proxy always sets: anyone can send any header. Without the flag, every visitor through the proxy shares one rate limit, and the gateway says so when it starts. A visitor that logged in from the same address within 30 days is not held back by the global failure budget that strangers' wrong passwords use up, only by its own lockout.
 
 - In Cloudflare Zero Trust, create an Access application for the hostname and allow only your own identity or domain.
 - Keep `remohop web`'s own login on (`--password-file`). Access sits in front, but the gateway still sees everything in the page.

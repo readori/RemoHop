@@ -33,7 +33,7 @@ func TestPublicURLValidation(t *testing.T) {
 func TestPublicURLThroughTunnel(t *testing.T) {
 	testEnv(t)
 	s := startServer(t, Config{Listen: "127.0.0.1:0", PasswordFile: writePasswordFile(t, "correct horse"),
-		PublicURL: "https://desk.example.com/"})
+		PublicURL: "https://desk.example.com/", RealIPHeader: "CF-Connecting-IP"})
 	if s.URL() != "https://desk.example.com/" {
 		t.Fatalf("URL = %q", s.URL())
 	}
