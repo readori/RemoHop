@@ -16,7 +16,7 @@ description: |
   Lightweight peer-to-peer remote control: shell, files, mounts, port
   forwarding, clipboard, screenshots and desktop over an end-to-end encrypted
   session. Installs the remohop command and systemd unit files; nothing is
-  enabled automatically.
+  enabled automatically, and an upgrade restarts a running system service.
 vendor: RemoHop
 license: AGPL-3.0-only
 homepage: https://github.com/readori/RemoHop
@@ -53,3 +53,4 @@ contents:
 scripts:
   postinstall: packaging/scripts/postinstall.sh
   preremove: packaging/scripts/preremove.sh
+  postremove: packaging/scripts/postremove.sh
