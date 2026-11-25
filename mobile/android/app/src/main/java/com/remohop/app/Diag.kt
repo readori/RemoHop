@@ -31,7 +31,10 @@ object Diag {
 
     fun setEnabled(on: Boolean) {
         Remohopcore.setDiagnosticsEnabled(on)
-        if (on) log("app ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}), Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), ${device()}")
+        if (on) {
+            log("app ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}), Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), ${device()}")
+            CrashLog.flush() // a crash from before the log was turned on
+        }
     }
 
     val size: Long get() = runCatching { Remohopcore.diagnosticsSize() }.getOrDefault(0L)
