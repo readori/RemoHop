@@ -143,8 +143,11 @@ scoop install remohop</code></pre>
 
 <h2 id="mobile">手机应用</h2>
 <p>Android 和 iOS / iPadOS 上的控制端：在手机或平板上连接并操作你的电脑。手机本身不能被控。</p>
-<p><span class="chip wait">即将上架</span></p>
-<p>两个应用都已提交审核，即将上架 App Store 和 Google Play。上架后，这里会链接到商店。应用能做什么，见<a href="/apps/">移动应用</a>。</p>
+<div class="actions">
+<a class="btn primary" href="https://apps.apple.com/app/id6838609056">App Store（iPhone、iPad）</a>
+</div>
+<p><span class="chip wait">Google Play 即将上架</span></p>
+<p>Android 应用已提交 Google Play 审核，上架后这里会链接到商店。应用能做什么，见<a href="/apps/">移动应用</a>。</p>
 
 <h2 id="verify">校验下载</h2>
 <p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>

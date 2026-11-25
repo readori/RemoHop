@@ -34,16 +34,16 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 
 <h2 id="mobile">手机应用</h2>
 <p>Android 和 iOS / iPadOS 上的控制端：在手机或平板上连接并操作你的电脑。手机本身不能被控。</p>
-<!--store-->
+<!--ios-->
 <div class="actions">
 <a class="btn primary" href="{{APP_STORE}}">App Store（iPhone、iPad）</a>
-<a class="btn" href="{{GOOGLE_PLAY}}">Google Play（Android）</a>
+<!--play--><a class="btn" href="{{GOOGLE_PLAY}}">Google Play（Android）</a><!--/play-->
 </div>
-<!--/store-->
-<!--nostore-->
-<p><span class="chip wait">即将上架</span></p>
-<p>两个应用都已提交审核，即将上架 App Store 和 Google Play。上架后，这里会链接到商店。应用能做什么，见<a href="{{L:apps}}">移动应用</a>。</p>
-<!--/nostore-->
+<!--/ios-->
+<!--noplay-->
+<p><span class="chip wait">Google Play 即将上架</span></p>
+<p><!--ios-->Android 应用已提交 Google Play 审核，上架后这里会链接到商店。<!--/ios--><!--noios-->两个应用都已提交审核，即将上架 App Store 和 Google Play。上架后，这里会链接到商店。<!--/noios-->应用能做什么，见<a href="{{L:apps}}">移动应用</a>。</p>
+<!--/noplay-->
 
 <h2 id="verify">校验下载</h2>
 <p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>

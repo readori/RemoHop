@@ -5,7 +5,7 @@
 仓库里有两个移动端应用：`mobile/android`（Android）和 `mobile/ios`（iOS）。它们都是**控制端**：一个原生外壳加一个 WebView，WebView 显示进程内运行的 `remohop web` 网关（Go 核心通过 gomobile 绑定）。
 
 - 只是控制端。把 Android 或 iOS 设备作为被控机没有实现。
-- 两个应用都已提交审核，即将上架 App Store 和 Google Play；审核通过之前，需要自己构建。
+- iOS 应用可以从 [App Store](https://apps.apple.com/app/id6838609056) 安装。Android 应用已提交 Google Play 审核，审核通过之前需要自己构建。
 - Android：运行 `mobile/android/build.sh`（需要 Go、JDK 17+、Android SDK 和 NDK，`ANDROID_HOME` 要设置），默认生成 debug APK 并运行 JVM 单元测试。
 - iOS：在 macOS 上先运行 `mobile/ios/build-xcframework.sh` 生成 `Remohopcore.xcframework`，再用 Xcode 构建 `mobile/ios/RemoHop.xcodeproj`。
 - 每次改动都在 CI 中测试：iOS 应用在 iOS 模拟器中运行，应用内的测试用地址和密码连接一台 `remohop host`，在终端里执行一条命令，并在“文件”里列出一个目录；Android 应用在模拟器上运行，插桩测试与一台真实的被控端配对，使用终端、文件、下载、剪贴板和桌面标签页，并检查设置页在旋转、重建以及从桌面图标重新打开后保持不变。如果你在自己的设备上遇到问题，请告诉我们。

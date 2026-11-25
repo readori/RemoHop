@@ -22,7 +22,7 @@ RemoHop is a peer-to-peer remote control tool. One static Go binary, `remohop`, 
 | Host access control | feature switches, approval, one-time passwords, key logins, audit log | [Host access control](docs/en/host-access-control.md) |
 | Accounts (optional) | group your own devices and see which are online; grants no access | [Accounts](docs/en/accounts.md) |
 | Your own server | run the rendezvous server yourself, optionally with a relay and a websocket bridge | [Self-hosting](docs/en/self-hosting.md) |
-| Mobile | Android and iOS controller apps (no releases yet) | [Mobile apps](docs/en/mobile-apps.md) |
+| Mobile | Android and iOS controller apps ([App Store](https://apps.apple.com/app/id6838609056); Google Play coming soon) | [Mobile apps](docs/en/mobile-apps.md) |
 
 Security: QUIC with TLS 1.3 inside, a password-authenticated key exchange (CPace) bound to the connection, host keys pinned on first use. A relay exists only if the rendezvous operator turns it on, is used only when no direct path can be made, and carries the same encrypted session. Accounts are optional and grant no access. There is no built-in default rendezvous server. RemoHop has not had an independent security audit. See [docs/security.md](docs/security.md).
 
