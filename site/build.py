@@ -224,18 +224,21 @@ LOGO = (
 # release contains"), so .../releases/latest/download/NAME always is the newest.
 DOWNLOAD = REPO + "/releases/latest/download/"
 
-# (platform, CPU, file, note): zh and en texts as pairs.
-QUICK_ASSETS = [
-    (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip",
-     ("解压后双击 RemoHop.exe。尚未代码签名，SmartScreen 会提示：点“更多信息”，再点“仍要运行”。",
-      "Unzip, then double-click RemoHop.exe. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.")),
-    (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", ("同上。", "As above.")),
-    (("macOS 12 及以上", "macOS 12 or later"), ("Apple 芯片和 Intel", "Apple silicon and Intel"), "RemoHop-macos.dmg",
-     ("打开后把 RemoHop 拖到“应用程序”文件夹，再从那里打开。已用 Developer ID 签名并经 Apple 公证。",
-      "Open it, drag RemoHop to the Applications folder, then open it from there. Signed with a Developer ID and notarized by Apple.")),
-    (("Linux", "Linux"), "x86-64", "remohop-quick_linux_amd64.tar.gz",
-     ("解压后运行 ./remohop-quick，窗口在默认浏览器里打开。", "Unpack, then run ./remohop-quick; the window opens in the default browser.")),
-    (("Linux", "Linux"), "ARM64", "remohop-quick_linux_arm64.tar.gz", ("同上。", "As above.")),
+# The double-click programs, one row per system: (platform, CPU, the desktop
+# app's file, quick support's file, note). Both are the same signed program
+# under two names (cmd/remohop-quick/launch.go); zh and en texts as pairs.
+APP_ASSETS = [
+    (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip", "RemoHop-QuickSupport-windows-amd64.zip",
+     ("解压后双击。尚未代码签名，SmartScreen 会提示：点“更多信息”，再点“仍要运行”。",
+      "Unzip, then double-click. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.")),
+    (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", "RemoHop-QuickSupport-windows-arm64.zip", ("同上。", "As above.")),
+    (("macOS 12 及以上", "macOS 12 or later"), ("Apple 芯片和 Intel", "Apple silicon and Intel"), "RemoHop-macos.dmg", "RemoHop-QuickSupport-macos.zip",
+     ("RemoHop：打开后拖到“应用程序”文件夹。快速协助：解压后直接打开。均已用 Developer ID 签名并经 Apple 公证。",
+      "RemoHop: open it and drag it to Applications. Quick support: unzip and open it. Both signed with a Developer ID and notarized by Apple.")),
+    (("Linux", "Linux"), "x86-64", "remohop-app_linux_amd64.tar.gz", "remohop-quick_linux_amd64.tar.gz",
+     ("解压后运行 ./remohop-app 或 ./remohop-quick。应用窗口需要 WebKitGTK（否则在浏览器中打开）和 glibc。",
+      "Unpack, then run ./remohop-app or ./remohop-quick. The app's window needs WebKitGTK (else it opens in a browser) and glibc.")),
+    (("Linux", "Linux"), "ARM64", "remohop-app_linux_arm64.tar.gz", "remohop-quick_linux_arm64.tar.gz", ("同上。", "As above.")),
 ]
 CLI_ASSETS = [
     (("Linux", "Linux"), "x86-64", "remohop_linux_amd64.tar.gz", ("静态链接", "statically linked")),
@@ -253,7 +256,7 @@ CLI_ASSETS = [
 CHANNELS = [
     {"name": "Homebrew", "live": True, "os": "macOS · Linux", "what": ("命令行程序", "command line"),
      "cmd": "brew install readori/tap/remohop"},
-    {"name": "Homebrew Cask", "live": True, "os": "macOS", "what": ("快速协助", "quick support"),
+    {"name": "Homebrew Cask", "live": True, "os": "macOS", "what": ("RemoHop 应用", "the RemoHop app"),
      "cmd": "brew install --cask readori/tap/remohop-quick"},
     {"name": "Scoop", "live": True, "os": "Windows", "what": ("命令行程序", "command line"),
      "cmd": "scoop bucket add readori https://github.com/readori/scoop-bucket\nscoop install remohop"},
@@ -270,9 +273,9 @@ CHANNELS = [
 ]
 
 DL_TEXT = {
-    "zh": {"platform": "系统", "file": "文件", "soon": "即将推出", "live": "可用",
+    "zh": {"platform": "系统", "file": "文件", "app": "桌面应用", "quick": "快速协助（免安装）", "soon": "即将推出", "live": "可用",
            "unreleased": "发布后可下载", "store_soon": "即将上架", "open": "打开"},
-    "en": {"platform": "System", "file": "File", "soon": "Coming soon", "live": "Available",
+    "en": {"platform": "System", "file": "File", "app": "Desktop app", "quick": "Quick Support (no install)", "soon": "Coming soon", "live": "Available",
            "unreleased": "available after the release", "store_soon": "Coming soon", "open": "Open"},
 }
 
@@ -286,6 +289,26 @@ def asset_table(lang, rows, label):
         cpu = cpu[i] if isinstance(cpu, tuple) else cpu
         f = f'<a href="{DOWNLOAD}{name}"><code>{name}</code></a>' if RELEASED else f"<code>{name}</code>"
         out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span></td><td class="file">{f}<br><span class="small">{note[i]}</span></td></tr>')
+    out += ["</tbody>", "</table>", "</div>"]
+    return "\n".join(out)
+
+
+def app_table(lang):
+    """The two double-click downloads per system, as buttons."""
+    t = DL_TEXT[lang]
+    i = 0 if lang == "zh" else 1
+    label = "RemoHop 下载" if i == 0 else "RemoHop downloads"
+    out = [f'<div class="table-wrap dl" tabindex="0" role="region" aria-label="{label}">', "<table>",
+           f'<thead><tr><th scope="col">{t["platform"]}</th><th scope="col">{t["app"]}</th><th scope="col">{t["quick"]}</th></tr></thead>', "<tbody>"]
+
+    def cell(name, text, primary):
+        cls = "btn primary" if primary else "btn"
+        b = f'<a class="{cls}" href="{DOWNLOAD}{name}">{text}</a>' if RELEASED else f'<span class="{cls}">{text}</span>'
+        return f'<td class="file">{b}<br><code class="small">{name}</code></td>'
+    for plat, cpu, app, quick, note in APP_ASSETS:
+        cpu = cpu[i] if isinstance(cpu, tuple) else cpu
+        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span><br><span class="small">{note[i]}</span></td>'
+                   + cell(app, "RemoHop", True) + cell(quick, t["quick"], False) + "</tr>")
     out += ["</tbody>", "</table>", "</div>"]
     return "\n".join(out)
 
@@ -313,7 +336,7 @@ def channel_cards(lang):
 def download_parts(lang):
     zh = lang == "zh"
     return {
-        "quick": asset_table(lang, QUICK_ASSETS, "快速协助下载" if zh else "Quick support downloads"),
+        "quick": app_table(lang),
         "cli": asset_table(lang, CLI_ASSETS, "命令行程序下载" if zh else "Command-line downloads"),
         "channels": channel_cards(lang),
     }
@@ -462,9 +485,9 @@ RELEASE_DOC_EDITS = [
     ("rel", "docs/security.md", "- There are no published releases yet. Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary.",
      "- Windows binaries are not code-signed; the release workflow signs and notarizes the macOS binary and `RemoHop.app`."),
     ("rel", "docs/en/quick-support.md", "`RemoHop.exe` and `RemoHop.app` are the same program as `remohop`;",
-     "Every release has them as downloads (`RemoHop-windows-amd64.zip` and `-arm64.zip`, `RemoHop-macos.dmg`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`;"),
+     "Every release has them as downloads (`RemoHop-QuickSupport-windows-amd64.zip` and `-arm64.zip`, `RemoHop-QuickSupport-macos.zip`, `remohop-quick_linux_*.tar.gz`; see [Install](install.md#quick-support)). `RemoHop.exe` and `RemoHop.app` are the same program as `remohop`;"),
     ("rel", "docs/zh/quick-support.md", "`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；",
-     "每个发布版本都提供下载（`RemoHop-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-macos.dmg`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；"),
+     "每个发布版本都提供下载（`RemoHop-QuickSupport-windows-amd64.zip` 和 `-arm64.zip`、`RemoHop-QuickSupport-macos.zip`、`remohop-quick_linux_*.tar.gz`，见[安装](install.md#快速协助)）。`RemoHop.exe` 和 `RemoHop.app` 与 `remohop` 是同一个程序；"),
     ("rel", "docs/en/quick-support.md", "`RemoHop.app` built here is unsigned;",
      "The `RemoHop-macos.dmg` download is signed with a Developer ID, notarized and stapled; a `RemoHop.app` you build yourself is unsigned;"),
     ("rel", "docs/zh/quick-support.md", "这里构建出的 `RemoHop.app` 没有签名；",

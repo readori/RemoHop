@@ -7,11 +7,10 @@
 <!--rel-->
 <p>所有文件都在 <a href="{{REPO}}/releases/latest">GitHub Releases</a> 上，下面的链接总是指向最新版本。每个文件都列在发布页的 <code>SHA256SUMS</code> 里，这个文件带有签名（见<a href="#verify">校验下载</a>）。</p>
 <!--/rel-->
-<p>两种下载，对应两种人：被协助的人只需要<a href="#quick">快速协助</a>，一个双击就能打开的窗口；协助别人或者连接自己机器的人，用<a href="#cli">命令行程序 <code>remohop</code></a>、它提供的浏览器客户端，或者<a href="#mobile">手机应用</a>。</p>
+<p>大多数人需要 <a href="#quick">RemoHop</a> 桌面应用：一个窗口，连接你的电脑，也让别人连接这台电脑。只需要被帮一次的人，用<a href="#quick">快速协助</a>，无需安装。服务器和脚本用<a href="#cli">命令行程序 <code>remohop</code></a>；手机用<a href="#mobile">手机应用</a>。</p>
 
-<h2 id="quick">快速协助：给被协助的人</h2>
-<p>一个双击打开的程序。它显示 9 位 ID 和临时密码，让对方念给协助者听，每次有人连接都会先问一下。不需要安装。详见<a href="{{L:docs/quick-support}}">快速协助说明</a>。</p>
-<p>下一个版本起，同一个下载会变成 <a href="{{L:docs/desktop-app}}">RemoHop 桌面应用</a>：一个窗口，连接你的电脑，也让别人连接这台电脑；快速协助仍可用 <code>RemoHop.exe --quick</code> 打开。</p>
+<h2 id="quick">RemoHop 与快速协助</h2>
+<p><strong>RemoHop</strong> 是<a href="{{L:docs/desktop-app}}">桌面应用</a>：在标签页里连接其他电脑，让别人连接这台电脑（每次连接都先问你），无人值守访问，托盘图标。<strong>快速协助</strong>给被协助的人：双击，把 9 位 ID 和临时密码念给协助者，点“允许”；关闭窗口即结束，不留任何安装。详见<a href="{{L:docs/quick-support}}">快速协助说明</a>。</p>
 {{DL:quick}}
 <p>在 macOS 上，第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限。双方要用同一台汇合服务器。</p>
 

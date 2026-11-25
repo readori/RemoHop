@@ -2,7 +2,7 @@
 
 [中文](../zh/desktop-app.md)
 
-One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is what RemoHop.exe, RemoHop.app and `remohop-quick` open on a double-click (`remohop app` from a terminal).
+One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is `RemoHop.exe`, `RemoHop.app` and `remohop-app` in the downloads ([Install](install.md#desktop-app)), and `remohop app` from a terminal.
 
 | This computer | Someone asks to connect |
 |---|---|
@@ -28,8 +28,8 @@ Each computer opens in a **tab of its own** next to Connect and This computer, w
 
 - **Allow incoming connections.** Off at first. On, the tab shows this computer's **ID** and a **temporary password** (new on every start; "New" replaces it at once) with Copy buttons.
 - **Every connection asks.** A dialog comes to the front over any tab: who asks (the name it gave itself, its key, its address), whether it is a **new device**, and for new devices a warning: *someone who calls saying they are from support, your bank or the police and asks you to install remote software is a scammer.* An allowed device **only sees the screen** unless you tick *Control the mouse and keyboard* or *Transfer files and use the clipboard*. A request nobody answers is refused after a minute. *Remember this device* lets it in next time with the same access, without asking, while incoming connections are on; remembered devices are listed with a Forget button.
-- **Connected now** lists each device with switches for Control and Files, which apply at once (a withdrawn permission ends what was open with it), and Disconnect. A device that only watches can ask for more from its side; that is a new question here. The tab shows a red dot, and a small **banner stays on top of all windows** while anyone is connected, with a Disconnect button.
-- **Unattended access** makes this computer reachable without anyone at it, from start-up, with a strong password you choose (at least 12 characters, three kinds). It installs RemoHop as a service ([`remohop service install`](quick-start.md)): on Windows the RemoHop service, which can also show the sign-in screen and UAC prompts (Windows asks for an administrator once); on macOS and Linux a service of your user account. Turn it off in the same place.
+- **Connected now** lists each device with switches for Control and Files, which apply at once (a withdrawn permission ends what was open with it), and Disconnect. A device that only watches can ask for more from its side; that is a new question here. The tab shows a red dot, and a small **banner stays on top of all windows** in the bottom-right corner of the screen while anyone is connected, with a Disconnect button.
+- **Unattended access** makes this computer reachable without anyone at it, from start-up, with a strong password you choose (at least 12 characters, three kinds). It installs RemoHop as a service ([`remohop service install`](quick-start.md)): on Windows the RemoHop service, which can also show the sign-in screen and UAC prompts; on macOS and Linux a service of your user account. Once it is on, **Connections** lists who is connected through it (with Disconnect) and **Change password** replaces the password. The app itself never runs as administrator: on Windows, where the service's state belongs to the administrators, each of these steps (turning it on or off, looking at its connections, disconnecting, a new password) asks Windows for an administrator at that moment.
 
 ## Settings
 
@@ -41,9 +41,11 @@ Closing the window keeps RemoHop running in the tray (the menu bar on macOS), so
 
 The window uses the system's web engine: WebView2 on Windows (part of Windows 10 and 11), WKWebView on macOS, WebKitGTK on Linux (the remote desktop there needs GStreamer's H.264 decoder, `gstreamer1.0-libav` on Debian and Ubuntu). Without one the app opens in a browser window instead, as does `remohop app` from the command-line binary.
 
+On Linux `remohop-app` is linked against the GNU C library (it loads GTK for its window); on musl systems such as Alpine, run `remohop app` from the static `remohop` binary, which opens the app in a browser.
+
 ## Quick support
 
-To help someone just once without anything staying behind, they can run quick support instead: `RemoHop.exe --quick` (or `remohop quick`), which shares the screen at once and quits when its window closes. See [Quick support](quick-support.md).
+To help someone just once without anything staying behind, they download **Quick Support** instead (`RemoHop-QuickSupport.exe`, `RemoHop Quick Support.app`, `remohop-quick`): the same program, which starts in quick-support mode by its name, shares the screen at once and quits when its window closes. See [Quick support](quick-support.md).
 
 ## Security
 

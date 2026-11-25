@@ -73,7 +73,7 @@
 <thead><tr><th scope="col">包管理器</th><th scope="col">命令</th></tr></thead>
 <tbody>
 <tr><td>Homebrew（macOS、Linux）</td><td><code>brew install readori/tap/remohop</code></td></tr>
-<tr><td>Homebrew cask（macOS，快速协助）</td><td><code>brew install --cask readori/tap/remohop-quick</code></td></tr>
+<tr><td>Homebrew cask（macOS，桌面应用）</td><td><code>brew install --cask readori/tap/remohop-quick</code></td></tr>
 <tr><td>Scoop（Windows）</td><td><code>scoop bucket add readori https://github.com/readori/scoop-bucket</code>，然后 <code>scoop install remohop</code></td></tr>
 <tr><td>winget（Windows；<strong>尚未发布</strong>）</td><td><code>winget install RemoHop.RemoHop</code></td></tr>
 <tr><td>AUR（Arch；<strong>尚未发布</strong>）</td><td><code>yay -S remohop-bin</code></td></tr>
@@ -116,14 +116,26 @@
 <h2 id="卸载">卸载</h2>
 <p>先删除服务，再删除二进制，否则服务会不停尝试启动一个已经不存在的程序：<code>remohop service uninstall</code>（系统服务加 <code>sudo</code>；Windows 上在管理员命令提示符中执行，同时会删除 Program Files 里的副本）。然后再卸载软件包或删除二进制。卸载 <code>.deb</code>/<code>.rpm</code> 会停止并禁用系统单元；<code>apt purge remohop</code> 还会删除 <code>/var/lib/remohop</code>。</p>
 <p>留下的是被控端的状态（身份密钥、密码、配对）：<code>~/.config/remohop</code>（macOS：<code>~/Library/Application Support/remohop</code>），系统服务则是 <code>/var/lib/remohop</code>、<code>/Library/Application Support/remohop</code> 或 <code>%ProgramData%\RemoHop</code>。删除这些目录即可让这台机器的身份作废。</p>
-<h2 id="快速协助">快速协助</h2>
-<p>给被协助的人双击打开的程序（见<a href="/docs/quick-support/">快速协助</a>）在每个发布版本里单独提供：</p>
+<h2 id="桌面应用">桌面应用</h2>
+<p><a href="/docs/desktop-app/">桌面应用</a>（连接你的电脑，也让别人连接这台电脑）在每个发布版本里单独提供：</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="系统 / 文件 / 然后">
 <table>
 <thead><tr><th scope="col">系统</th><th scope="col">文件</th><th scope="col">然后</th></tr></thead>
 <tbody>
-<tr><td>Windows 10/11</td><td><code>RemoHop-windows-amd64.zip</code>（ARM64：<code>RemoHop-windows-arm64.zip</code>）</td><td>解压，双击 <code>RemoHop.exe</code>；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”）</td></tr>
+<tr><td>Windows 10/11</td><td><code>RemoHop-windows-amd64.zip</code>（ARM64：<code>RemoHop-windows-arm64.zip</code>）</td><td>解压，双击 <code>RemoHop.exe</code>；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”）。<code>install.ps1 -App</code> 会安装它并添加开始菜单项</td></tr>
 <tr><td>macOS 12+</td><td><code>RemoHop-macos.dmg</code>（Apple 芯片和 Intel）</td><td>打开后把 <code>RemoHop.app</code> 拖到“应用程序”文件夹，再从那里打开；已用 Developer ID 签名、经 Apple 公证并附带公证票据</td></tr>
+<tr><td>Linux</td><td><code>remohop-app_linux_amd64.tar.gz</code>（ARM64：<code>..._arm64.tar.gz</code>）</td><td>解压，运行 <code>./remohop-app</code>（<code>remohop.desktop</code> 和 <code>remohop.png</code> 是菜单项及其图标）。它需要 glibc，自己的窗口还需要 WebKitGTK（否则在浏览器中打开）；在 Alpine 等 musl 系统上，请改用静态链接的 <code>remohop</code> 运行 <code>remohop app</code>，它会在浏览器中打开</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="快速协助">快速协助</h2>
+<p>给被协助的人双击打开的程序（见<a href="/docs/quick-support/">快速协助</a>）：无需安装，关闭窗口即结束。它与桌面应用是同一个程序，只是换了一个让它以快速协助方式启动的名字：</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="系统 / 文件 / 然后">
+<table>
+<thead><tr><th scope="col">系统</th><th scope="col">文件</th><th scope="col">然后</th></tr></thead>
+<tbody>
+<tr><td>Windows 10/11</td><td><code>RemoHop-QuickSupport-windows-amd64.zip</code>（ARM64：<code>RemoHop-QuickSupport-windows-arm64.zip</code>）</td><td>解压，双击 <code>RemoHop-QuickSupport.exe</code>（SmartScreen 提示同上）</td></tr>
+<tr><td>macOS 12+</td><td><code>RemoHop-QuickSupport-macos.zip</code>（Apple 芯片和 Intel）</td><td>解压（Safari 会自动解压），打开 <code>RemoHop Quick Support.app</code>；已签名、经公证并附带公证票据</td></tr>
 <tr><td>Linux</td><td><code>remohop-quick_linux_amd64.tar.gz</code>（ARM64：<code>..._arm64.tar.gz</code>）</td><td>解压，运行 <code>./remohop-quick</code></td></tr>
 </tbody>
 </table>

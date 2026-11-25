@@ -20,7 +20,7 @@
 | 包管理器 | 命令 |
 |---|---|
 | Homebrew（macOS、Linux） | `brew install readori/tap/remohop` |
-| Homebrew cask（macOS，快速协助） | `brew install --cask readori/tap/remohop-quick` |
+| Homebrew cask（macOS，桌面应用） | `brew install --cask readori/tap/remohop-quick` |
 | Scoop（Windows） | `scoop bucket add readori https://github.com/readori/scoop-bucket`，然后 `scoop install remohop` |
 | winget（Windows；**尚未发布**） | `winget install RemoHop.RemoHop` |
 | AUR（Arch；**尚未发布**） | `yay -S remohop-bin` |
@@ -62,14 +62,24 @@ tap 和 bucket 在每次发布后手动更新，所以可能会比最新发布�
 
 留下的是被控端的状态（身份密钥、密码、配对）：`~/.config/remohop`（macOS：`~/Library/Application Support/remohop`），系统服务则是 `/var/lib/remohop`、`/Library/Application Support/remohop` 或 `%ProgramData%\RemoHop`。删除这些目录即可让这台机器的身份作废。
 
-## 快速协助
+## 桌面应用
 
-给被协助的人双击打开的程序（见[快速协助](quick-support.md)）在每个发布版本里单独提供：
+[桌面应用](desktop-app.md)（连接你的电脑，也让别人连接这台电脑）在每个发布版本里单独提供：
 
 | 系统 | 文件 | 然后 |
 |---|---|---|
-| Windows 10/11 | `RemoHop-windows-amd64.zip`（ARM64：`RemoHop-windows-arm64.zip`） | 解压，双击 `RemoHop.exe`；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”） |
+| Windows 10/11 | `RemoHop-windows-amd64.zip`（ARM64：`RemoHop-windows-arm64.zip`） | 解压，双击 `RemoHop.exe`；尚未做代码签名，SmartScreen 会提示（点“更多信息”，再点“仍要运行”）。`install.ps1 -App` 会安装它并添加开始菜单项 |
 | macOS 12+ | `RemoHop-macos.dmg`（Apple 芯片和 Intel） | 打开后把 `RemoHop.app` 拖到“应用程序”文件夹，再从那里打开；已用 Developer ID 签名、经 Apple 公证并附带公证票据 |
+| Linux | `remohop-app_linux_amd64.tar.gz`（ARM64：`..._arm64.tar.gz`） | 解压，运行 `./remohop-app`（`remohop.desktop` 和 `remohop.png` 是菜单项及其图标）。它需要 glibc，自己的窗口还需要 WebKitGTK（否则在浏览器中打开）；在 Alpine 等 musl 系统上，请改用静态链接的 `remohop` 运行 `remohop app`，它会在浏览器中打开 |
+
+## 快速协助
+
+给被协助的人双击打开的程序（见[快速协助](quick-support.md)）：无需安装，关闭窗口即结束。它与桌面应用是同一个程序，只是换了一个让它以快速协助方式启动的名字：
+
+| 系统 | 文件 | 然后 |
+|---|---|---|
+| Windows 10/11 | `RemoHop-QuickSupport-windows-amd64.zip`（ARM64：`RemoHop-QuickSupport-windows-arm64.zip`） | 解压，双击 `RemoHop-QuickSupport.exe`（SmartScreen 提示同上） |
+| macOS 12+ | `RemoHop-QuickSupport-macos.zip`（Apple 芯片和 Intel） | 解压（Safari 会自动解压），打开 `RemoHop Quick Support.app`；已签名、经公证并附带公证票据 |
 | Linux | `remohop-quick_linux_amd64.tar.gz`（ARM64：`..._arm64.tar.gz`） | 解压，运行 `./remohop-quick` |
 
 下载地址都是 `https://github.com/readori/RemoHop/releases/latest/download/<文件名>`，都列在发布页的 `SHA256SUMS` 里。Microsoft Store 版本正在准备中。

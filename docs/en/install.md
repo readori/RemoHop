@@ -20,7 +20,7 @@ Package managers:
 | Manager | Command |
 |---|---|
 | Homebrew (macOS, Linux) | `brew install readori/tap/remohop` |
-| Homebrew cask (macOS, quick support) | `brew install --cask readori/tap/remohop-quick` |
+| Homebrew cask (macOS, the desktop app) | `brew install --cask readori/tap/remohop-quick` |
 | Scoop (Windows) | `scoop bucket add readori https://github.com/readori/scoop-bucket` then `scoop install remohop` |
 | winget (Windows; **not published yet**) | `winget install RemoHop.RemoHop` |
 | AUR (Arch; **not published yet**) | `yay -S remohop-bin` |
@@ -62,14 +62,24 @@ Remove the service before the binary, or it keeps trying to start a program that
 
 What stays behind is the hosts' state (identity key, password, pairings): `~/.config/remohop` (macOS: `~/Library/Application Support/remohop`), and for a system service `/var/lib/remohop`, `/Library/Application Support/remohop` or `%ProgramData%\RemoHop`. Delete those directories to forget the machine's identity.
 
-## Quick support
+## Desktop app
 
-The double-click program for the person being helped ([Quick support](quick-support.md)) is a separate download in each release:
+The [desktop app](desktop-app.md) (connect to your computers, let others connect to this one) is a download of its own in each release:
 
 | System | File | Then |
 |---|---|---|
-| Windows 10/11 | `RemoHop-windows-amd64.zip` (ARM64: `RemoHop-windows-arm64.zip`) | unzip, double-click `RemoHop.exe`; not code-signed yet, so SmartScreen warns ("More info", "Run anyway") |
+| Windows 10/11 | `RemoHop-windows-amd64.zip` (ARM64: `RemoHop-windows-arm64.zip`) | unzip, double-click `RemoHop.exe`; not code-signed yet, so SmartScreen warns ("More info", "Run anyway"). `install.ps1 -App` installs it with a Start menu entry |
 | macOS 12+ | `RemoHop-macos.dmg` (Apple silicon and Intel) | open it, drag `RemoHop.app` to Applications, open it from there; signed with a Developer ID, notarized and stapled |
+| Linux | `remohop-app_linux_amd64.tar.gz` (ARM64: `..._arm64.tar.gz`) | unpack, run `./remohop-app` (`remohop.desktop` and `remohop.png` are a menu entry and its icon). It needs glibc, and WebKitGTK for its own window (else it opens in a browser); on musl systems such as Alpine, run `remohop app` from the static `remohop` instead, which opens in a browser |
+
+## Quick support
+
+The double-click program for the person being helped ([Quick support](quick-support.md)): nothing to install, closing its window ends it. It is the same program as the desktop app under a name that makes it start in quick-support mode:
+
+| System | File | Then |
+|---|---|---|
+| Windows 10/11 | `RemoHop-QuickSupport-windows-amd64.zip` (ARM64: `RemoHop-QuickSupport-windows-arm64.zip`) | unzip, double-click `RemoHop-QuickSupport.exe` (SmartScreen as above) |
+| macOS 12+ | `RemoHop-QuickSupport-macos.zip` (Apple silicon and Intel) | unzip (Safari does it by itself), open `RemoHop Quick Support.app`; signed, notarized and stapled |
 | Linux | `remohop-quick_linux_amd64.tar.gz` (ARM64: `..._arm64.tar.gz`) | unpack, run `./remohop-quick` |
 
 Each is at `https://github.com/readori/RemoHop/releases/latest/download/<file>` and covered by the release's `SHA256SUMS`. A Microsoft Store version is in preparation.
