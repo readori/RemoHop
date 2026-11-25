@@ -128,6 +128,11 @@ const (
 	CodeFull        = "full"         // the server will not allocate more IDs
 	CodeBadRequest  = "bad_request"
 	CodeNoRelay     = "no_relay" // relaying is not offered, or the host refuses it
+	// CodeIdentityInUse: another machine keeps registering with the same
+	// identity key (a cloned disk image, a copied configuration
+	// directory); this one waits RetryAfter. Hosts before 1.0.1 log the
+	// message and retry with their own backoff (up to a minute).
+	CodeIdentityInUse = "identity_in_use"
 
 	// Account failures.
 	CodeNoAccounts  = "no_accounts"   // the server does not offer accounts
@@ -274,7 +279,7 @@ func (r *response) err() error {
 	switch r.Code {
 	case CodeUnknownID, CodeOffline, CodeNoAnswer, CodeDeclined, CodeFull, CodeBadRequest, CodeNoRelay,
 		CodeNoAccounts, CodeNotAllowed, CodeBadCode, CodeNotLoggedIn, CodeForbidden, CodeConflict:
-	case CodeRateLimited:
+	case CodeRateLimited, CodeIdentityInUse:
 		e.RetryAfter = time.Duration(min(max(r.RetryAfterMS, 0), MaxRetryAfter.Milliseconds())) * time.Millisecond
 	default:
 		e.Code = CodeBadRequest

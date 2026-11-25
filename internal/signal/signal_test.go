@@ -399,6 +399,86 @@ func TestIntroductionsExpire(t *testing.T) {
 	}
 }
 
+// Two machines with one identity key (a cloned VM) take turns replacing
+// each other, as hosts redial when replaced. The server keeps one online and
+// refuses the other for a while, saying why. A host that just restarts, from
+// new sockets, is never refused.
+func TestClonedIdentity(t *testing.T) {
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	id := newIdentity(t)
+	register := func(sock *nat.Socket) (*Client, error) {
+		c := tn.dial(sock, Options{})
+		_, err := c.Register(ctx, id)
+		return c, err
+	}
+	a, b := tn.socket(tn.net.Host("192.0.2.1")), tn.socket(tn.net.Host("192.0.2.2"))
+	var err error
+	var last *Client
+	for i := 0; i < 8; i++ {
+		sock := a
+		if i%2 == 1 {
+			sock = b
+		}
+		var c *Client
+		if c, err = register(sock); err != nil {
+			break
+		}
+		last = c
+	}
+	if CodeOf(err) != CodeIdentityInUse {
+		t.Fatalf("ping-pong of two machines with one key: %v", err)
+	}
+	if e, _ := errors.AsType[*Error](err); e.RetryAfter < time.Minute || !strings.Contains(e.Error(), "identity key") {
+		t.Fatalf("refusal %q, retry after %s", e.Error(), e.RetryAfter)
+	}
+	select {
+	case <-last.Done():
+		t.Fatal("the machine that stayed online was dropped")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Restarts from fresh sockets, each replacing a registration the
+	// server still holds, are never refused.
+	id = newIdentity(t)
+	pub := tn.net.Host("192.0.2.3")
+	for i := 0; i < 8; i++ {
+		if _, err := register(tn.socket(pub)); err != nil {
+			t.Fatalf("restart %d: %v", i, err)
+		}
+	}
+}
+
+// A server that lost a host's connection without closing it (it crashed and
+// restarted, or dropped the host while it slept) tells the host so at its
+// next packet, with a stateless reset, instead of leaving it to find out by
+// its idle timeout, offline meanwhile.
+func TestStatelessResetAfterServerRestart(t *testing.T) {
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	hc := tn.dial(tn.socket(tn.net.Host("192.0.2.20")), Options{})
+	reg, err := hc.Register(ctx, newIdentity(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The server goes away without a word reaching the host, and comes
+	// back with the same key and no memory of the connection.
+	tn.net.SetLoss(1)
+	tn.stop()
+	tn.net.SetLoss(0)
+	tn.start(Limits{})
+	start := time.Now()
+	pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	go hc.Presence(pctx, []string{reg.ID})
+	select {
+	case <-hc.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("the host did not learn that the server forgot its connection")
+	}
+	t.Logf("host noticed after %s", time.Since(start).Round(time.Millisecond))
+}
+
 func TestOneIdentityPerConnection(t *testing.T) {
 	tn := newTestNet(t, Limits{})
 	ctx := testCtx(t)

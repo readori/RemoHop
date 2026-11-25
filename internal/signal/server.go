@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -147,6 +148,30 @@ const (
 	maxIntros = 20000
 )
 
+// Two machines with one identity key (a cloned VM image, a copied
+// configuration directory) replace each other's registration once a second,
+// forever, and clients reach either at random. The server notices when a
+// registration comes from an address whose registration of the same ID it
+// replaced moments ago, while the other one is still connected: after
+// cloneFlaps such returns within cloneWindow it keeps the one online and
+// refuses the other address for cloneBlock (CodeIdentityInUse). A host that
+// merely restarted, moved or reconnected never comes back from an address
+// it was replaced at while its replacement lives.
+const (
+	cloneWindow = 2 * time.Minute
+	cloneFlaps  = 3
+	cloneBlock  = MaxRetryAfter
+	maxGone     = 8
+)
+
+// replacements is what the server remembers about an ID's registrations
+// replacing one another; see cloneWindow.
+type replacements struct {
+	gone  map[netip.AddrPort]time.Time // addresses replaced, and when
+	flaps []time.Time
+	block time.Time // other addresses than the online one are refused until then
+}
+
 // Server is a rendezvous server.
 type Server struct {
 	cfg      Config
@@ -184,6 +209,7 @@ type Server struct {
 
 	mu        sync.Mutex
 	online    map[string]*serverConn
+	repl      map[string]*replacements // see cloneWindow
 	perSource map[netip.Addr]int
 	conns     int
 }
@@ -300,6 +326,7 @@ func NewServer(cfg Config) (*Server, error) {
 		offers:      newRateTable[string](l.OfferBurst, l.OfferEvery),
 		handshakes:  newRateTable[struct{}](500, 2*time.Millisecond),
 		online:      map[string]*serverConn{},
+		repl:        map[string]*replacements{},
 		perSource:   map[netip.Addr]int{},
 	}, nil
 }
@@ -342,6 +369,11 @@ func (s *Server) Serve(ctx context.Context, main, alt net.PacketConn) error {
 	}
 	tr := &quic.Transport{
 		Conn: main,
+		// A peer whose connection this server no longer knows (it restarted,
+		// or dropped a host that slept) learns so from its next packet
+		// instead of after its idle timeout. Derived from the server's key,
+		// so the resets stay valid across restarts.
+		StatelessResetKey: s.resetKey(),
 		// QUIC already limits what it sends to an unverified address to
 		// three times what it received. Under a flood of new connections
 		// we additionally demand a Retry round trip, so spoofed Initials
@@ -485,7 +517,15 @@ func (s *Server) shortHousekeeping(ctx context.Context) {
 	}
 }
 
-// expireIntros forgets introductions too old to be relayed.
+// resetKey derives the QUIC stateless reset key from the server's identity:
+// an Ed25519 signature is deterministic and only the key's holder can make it.
+func (s *Server) resetKey() *quic.StatelessResetKey {
+	k := quic.StatelessResetKey(sha256.Sum256(s.id.Sign([]byte("remohop rendezvous stateless reset key v1"))))
+	return &k
+}
+
+// expireIntros forgets introductions too old to be relayed, and
+// replacements too old to matter.
 func (s *Server) expireIntros(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -494,6 +534,61 @@ func (s *Server) expireIntros(now time.Time) {
 			delete(s.intros, k)
 		}
 	}
+	for id, r := range s.repl {
+		for a, t := range r.gone {
+			if now.Sub(t) > cloneWindow {
+				delete(r.gone, a)
+			}
+		}
+		if len(r.gone) == 0 && now.After(r.block) {
+			delete(s.repl, id)
+		}
+	}
+}
+
+// cloneCheck decides whether c may take id over from old, the connection
+// registered under it now (see cloneWindow). It returns how long to refuse
+// c, or 0. s.mu must be held.
+func (s *Server) cloneCheck(id string, c, old *serverConn, now time.Time) time.Duration {
+	if old == nil || old == c || c.bridged || old.bridged {
+		return 0
+	}
+	from, was := c.current(), old.current()
+	if from == was {
+		return 0 // the same socket: the same machine
+	}
+	r := s.repl[id]
+	if r == nil {
+		r = &replacements{gone: map[netip.AddrPort]time.Time{}}
+		s.repl[id] = r
+	}
+	if now.Before(r.block) {
+		r.block = now.Add(cloneBlock)
+		return cloneBlock
+	}
+	if at, ok := r.gone[from]; ok && now.Sub(at) < cloneWindow {
+		recent := r.flaps[:0]
+		for _, t := range r.flaps {
+			if now.Sub(t) < cloneWindow {
+				recent = append(recent, t)
+			}
+		}
+		r.flaps = append(recent, now)
+		if len(r.flaps) >= cloneFlaps {
+			r.block = now.Add(cloneBlock)
+			s.log.Warn("two machines are registering with the same identity key (a cloned disk image or copied configuration?); "+
+				"keeping one online and refusing the other", "id", id, "online", was, "refused", from)
+			return cloneBlock
+		}
+	}
+	if len(r.gone) >= maxGone {
+		for a := range r.gone {
+			delete(r.gone, a)
+			break
+		}
+	}
+	r.gone[was] = now
+	return 0
 }
 
 // checkMoves asks registered hosts whose address changed to register again
@@ -701,6 +796,12 @@ func (s *Server) handleRegister(c *serverConn, st *quic.Stream, req *request, fa
 
 	s.mu.Lock()
 	old := s.online[id]
+	if wait := s.cloneCheck(id, c, old, time.Now()); wait > 0 {
+		s.mu.Unlock()
+		fail(CodeIdentityInUse, "another machine is registered under this host's identity key (a cloned disk image or a copied "+
+			"configuration directory?); each machine needs its own: delete identity.key in the copy's configuration directory", wait)
+		return
+	}
 	s.online[id] = c
 	s.mu.Unlock()
 	c.id.Store(&id)
