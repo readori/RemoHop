@@ -1,0 +1,182 @@
+# TEMPORARY (removed before the PR is opened): validates the packaging and service fixes on real
+# Windows, macOS and Linux runners. Runs only on the audit-fix branch.
+name: TMP validate packaging fixes
+
+on:
+  push:
+    branches: [claude/audit-fix-release]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: Install cosign (pinned)
+        shell: pwsh
+        run: |
+          $d = Join-Path $env:RUNNER_TEMP 'cosign'; New-Item -ItemType Directory $d | Out-Null
+          Invoke-WebRequest -UseBasicParsing https://github.com/sigstore/cosign/releases/download/v2.6.1/cosign-windows-amd64.exe -OutFile "$d\cosign.exe"
+          if ((Get-FileHash "$d\cosign.exe").Hash.ToLower() -ne '049026dae3246d6ea8201512ec3efce3aab0c7f1d338d52e26c525dd02b418a0') { throw 'cosign hash' }
+          "$d" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: install.ps1 on Windows PowerShell 5.1 (latest, cosign, then upgrade over a running copy twice)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSVersionTable.PSVersion.ToString()
+          $b = Join-Path $env:RUNNER_TEMP 'b51'
+          powershell -ExecutionPolicy Bypass -File .\packaging\install.ps1 -Verify require -BinDir $b -NoPath
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed: $LASTEXITCODE" }
+          $p = Start-Process -FilePath "$b\remohop.exe" -ArgumentList 'version' -PassThru -Wait
+          $h = Start-Process -FilePath "$b\remohop.exe" -ArgumentList 'host','--no-signal' -PassThru
+          Start-Sleep 2
+          powershell -ExecutionPolicy Bypass -File .\packaging\install.ps1 -Version v1.0.0 -Verify require -BinDir $b -NoPath
+          if ($LASTEXITCODE -ne 0) { throw "second install failed: $LASTEXITCODE" }
+          $h2 = Start-Process -FilePath "$b\remohop.exe" -ArgumentList 'host','--no-signal' -PassThru
+          Start-Sleep 2
+          powershell -ExecutionPolicy Bypass -File .\packaging\install.ps1 -Version 1.0.0 -Verify require -BinDir $b -NoPath
+          if ($LASTEXITCODE -ne 0) { throw "third install (two older copies running) failed: $LASTEXITCODE" }
+          Get-ChildItem $b | Format-Table Name, Length
+          Stop-Process -Id $h.Id, $h2.Id -Force -ErrorAction SilentlyContinue
+      - name: install.ps1 refuses a version that does not match (5.1)
+        shell: powershell
+        run: |
+          $b = Join-Path $env:RUNNER_TEMP 'bbad'
+          powershell -ExecutionPolicy Bypass -File .\packaging\install.ps1 -Version v1.0.0 -Verify require -BinDir $b -NoPath -BaseUrl https://github.com/readori/RemoHop/releases/download/v1.0.0
+          if ($LASTEXITCODE -ne 0) { throw "the matching base url failed" }
+          # -Version v1.0.1 with v1.0.0's files: the signature names v1.0.0.
+          powershell -ExecutionPolicy Bypass -File .\packaging\install.ps1 -Version v1.0.1 -Verify require -BinDir "$b-2" -NoPath -BaseUrl https://github.com/readori/RemoHop/releases/download/v1.0.0
+          if ($LASTEXITCODE -eq 0) { throw "v1.0.0 files accepted as v1.0.1" }
+          if (Test-Path "$b-2\remohop.exe") { throw "installed anyway" }
+          Write-Output "refused as expected"
+      - name: install.ps1 on PowerShell 7
+        shell: pwsh
+        run: |
+          $b = Join-Path $env:RUNNER_TEMP 'b7'
+          pwsh -File .\packaging\install.ps1 -Verify require -BinDir $b -NoPath
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 failed: $LASTEXITCODE" }
+          & "$b\remohop.exe" version
+      - name: Service end to end (install, reinstall = upgrade, uninstall)
+        shell: pwsh
+        env:
+          REMOHOP_SERVICE_E2E: '1'
+        run: go test -count=1 -v -run 'TestServiceE2E|TestPrepareStateDir|TestInstallBinaryCopies' ./internal/service
+      - name: Default service from a user-profile binary is copied to Program Files
+        shell: pwsh
+        run: |
+          go build -o "$env:LOCALAPPDATA\Programs\RemoHop\remohop.exe" ./cmd/remohop
+          $exe = "$env:LOCALAPPDATA\Programs\RemoHop\remohop.exe"
+          & $exe service install --no-signal
+          if ($LASTEXITCODE -ne 0) { throw "install" }
+          (Get-CimInstance Win32_Service -Filter "Name='RemoHop'").PathName
+          $acl = Get-Acl "$env:ProgramData\RemoHop"; "owner: $($acl.Owner)"; $acl.Access | Format-Table IdentityReference, FileSystemRights, IsInherited
+          & $exe service install --no-signal
+          if ($LASTEXITCODE -ne 0) { throw "reinstall" }
+          Start-Sleep 3
+          & $exe service status
+          & $exe service logs -n 5
+          & $exe service uninstall
+          if (Test-Path "$env:ProgramFiles\RemoHop\remohop.exe") { throw "copy left behind" }
+      - name: A pre-created state directory owned by another user is refused
+        shell: pwsh
+        run: |
+          $exe = "$env:LOCALAPPDATA\Programs\RemoHop\remohop.exe"
+          New-Item -ItemType Directory "$env:ProgramData\RemoHop" -Force | Out-Null
+          # Make a local standard user its owner, as if that user had created it.
+          net user rhtest 'Rh-test-12345!' /add | Out-Null
+          icacls "$env:ProgramData\RemoHop" /setowner rhtest /T | Out-Null
+          & $exe service install --no-signal 2>&1 | Tee-Object -Variable out
+          if ($LASTEXITCODE -eq 0) { & $exe service uninstall; throw "accepted a directory owned by rhtest" }
+          if ("$out" -notmatch 'belongs to') { throw "unexpected message: $out" }
+          Write-Output "refused as expected"
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: Unit tests (service, config)
+        run: go test -count=1 ./internal/service ./internal/config
+      - name: LaunchAgent end to end (install, reinstall = upgrade, uninstall)
+        env:
+          REMOHOP_SERVICE_E2E: '1'
+        run: go test -count=1 -v -run TestServiceE2E ./internal/service
+      - name: LaunchDaemon refuses a user-writable binary, works from /Library/RemoHop
+        run: |
+          set -x
+          go build -o "$RUNNER_TEMP/remohop" ./cmd/remohop
+          if sudo "$RUNNER_TEMP/remohop" service install --system --no-signal; then echo "::error::accepted"; exit 1; fi
+          sudo mkdir -p /Library/RemoHop && sudo install -m 755 "$RUNNER_TEMP/remohop" /Library/RemoHop/remohop
+          sudo /Library/RemoHop/remohop service install --system --no-signal
+          ls -l /var/log/remohop.log
+          [ "$(stat -f %Lp /var/log/remohop.log)" = 600 ] || { echo "::error::log mode"; exit 1; }
+          grep -A1 '<key>PATH</key>' /Library/LaunchDaemons/com.remohop.host.plist
+          sleep 3; sudo /Library/RemoHop/remohop service status
+          sudo /Library/RemoHop/remohop service install --system --no-signal
+          sleep 3; sudo /Library/RemoHop/remohop service status
+          sudo /Library/RemoHop/remohop service restart
+          sudo /Library/RemoHop/remohop service logs -n 5
+          sudo /Library/RemoHop/remohop service uninstall
+      - name: Homebrew-style link is what the agent names
+        run: |
+          mkdir -p "$RUNNER_TEMP/brew/Cellar/remohop/1.0.0/bin" "$RUNNER_TEMP/brew/bin"
+          go build -o "$RUNNER_TEMP/brew/Cellar/remohop/1.0.0/bin/remohop" ./cmd/remohop
+          ln -s ../Cellar/remohop/1.0.0/bin/remohop "$RUNNER_TEMP/brew/bin/remohop"
+          "$RUNNER_TEMP/brew/bin/remohop" service print --user | grep -A1 ProgramArguments | tail -1 | grep -q "brew/bin/remohop"
+
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+      - name: System unit refuses a binary in the home directory, works from /usr/local/bin
+        run: |
+          set -x
+          go build -o "$HOME/.local/bin/remohop" ./cmd/remohop
+          if sudo "$HOME/.local/bin/remohop" service install --system --no-signal; then echo "::error::accepted"; exit 1; fi
+          sudo install -m 755 "$HOME/.local/bin/remohop" /usr/local/bin/remohop
+          sudo /usr/local/bin/remohop service install --system --no-signal
+          sleep 2; remohop_status() { /usr/local/bin/remohop service status; }; remohop_status
+          sudo /usr/local/bin/remohop service uninstall
+      - name: Packaged unit is seen by remohop service
+        run: |
+          set -x
+          sudo install -m 755 "$HOME/.local/bin/remohop" /usr/bin/remohop
+          sudo install -m 644 packaging/systemd/remohop.service /usr/lib/systemd/system/remohop.service
+          sudo systemctl daemon-reload
+          /usr/bin/remohop service status && { echo "::error::disabled packaged unit counted as installed"; exit 1; } || true
+          sudo systemctl enable --now remohop.service
+          sleep 2; /usr/bin/remohop service status
+          sudo /usr/bin/remohop service restart
+          sudo /usr/bin/remohop service logs -n 3
+          sudo /usr/bin/remohop service uninstall | tee out.txt
+          grep -q 'belongs to the remohop package' out.txt
+          test -f /usr/lib/systemd/system/remohop.service
+          systemctl is-enabled remohop.service && exit 1 || true
+      - name: Homebrew-style link is what the unit names (Linux resolves os.Executable)
+        run: |
+          mkdir -p "$RUNNER_TEMP/brew/Cellar/remohop/1.0.0/bin" "$RUNNER_TEMP/brew/bin"
+          cp "$HOME/.local/bin/remohop" "$RUNNER_TEMP/brew/Cellar/remohop/1.0.0/bin/remohop"
+          ln -s ../Cellar/remohop/1.0.0/bin/remohop "$RUNNER_TEMP/brew/bin/remohop"
+          "$RUNNER_TEMP/brew/bin/remohop" service print --user | tee unit.txt
+          grep -q "^ExecStart=$RUNNER_TEMP/brew/bin/remohop host" unit.txt
+          PATH="$RUNNER_TEMP/brew/bin:$PATH" remohop service print --user | grep -q "^ExecStart=$RUNNER_TEMP/brew/bin/remohop host"
+      - name: Package maintainer scripts with the real systemd
+        run: |
+          set -x
+          sudo systemctl enable --now remohop.service
+          sudo sh packaging/scripts/postinstall.sh configure 1.0.0
+          sudo sh packaging/scripts/preremove.sh remove
+          systemctl is-active remohop.service && exit 1 || true
