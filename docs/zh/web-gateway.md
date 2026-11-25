@@ -19,11 +19,12 @@ remohop web --target dev
 
 ```bash
 remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
-        --public-url https://remohop.example.com --no-open --no-saved
+        --public-url https://remohop.example.com --real-ip-header CF-Connecting-IP \
+        --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 <隧道名>
 ```
 
-`--public-url` 要求回环监听地址和 `--password-file`。经公网地址来的请求，登录限速按 Cloudflare 填写的 `CF-Connecting-IP` 区分访客。
+`--public-url` 要求回环监听地址和 `--password-file`。经公网地址来的请求，登录限速按 `--real-ip-header` 指定的请求头区分访客（Cloudflare 填写并覆盖 `CF-Connecting-IP`）。只能指定代理一定会设置的请求头：任何人都可以自己发送任意请求头。不加这个参数时，经代理来的所有访客共用一个限速额度，网关启动时会提示。30 天内从同一地址成功登录过的访客不受陌生人输错密码耗尽的全局额度限制，只受自己的锁定限制。
 
 - 在 Cloudflare Zero Trust 里为这个主机名创建 Access 应用，只允许你自己的身份或域。
 - 保留 `remohop web` 自己的登录（`--password-file`）。Access 挡在前面，但网关仍然能看到页面里的一切。

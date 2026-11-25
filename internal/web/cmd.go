@@ -16,7 +16,8 @@ import (
 
 const usage = `usage: remohop web [--listen ADDR] [--tls-cert FILE --tls-key FILE]
                [--password-file FILE] [--api-token-file FILE]
-               [--public-url URL] [--no-open] [--target ID] [--no-saved]
+               [--public-url URL [--real-ip-header NAME]] [--no-open]
+               [--target ID] [--no-saved]
 
 Serve a browser client (remote desktop, terminal, files, clipboard, info)
 from this machine.
@@ -47,6 +48,11 @@ Flags:
                          reverse proxy or tunnel forwards to this gateway
                          (see "Behind Cloudflare Tunnel" below); needs a
                          loopback --listen and --password-file
+  --real-ip-header NAME  with --public-url: the header in which the proxy
+                         puts the visitor's address (CF-Connecting-IP for
+                         Cloudflare), used to rate-limit logins per visitor.
+                         Name only a header your proxy always sets; without
+                         it, all visitors through the proxy share one limit
   --no-open              print the URL, do not start a browser
   --target ID            pre-fill the connect form with this host
   --no-saved             shared-gateway mode: hide saved peers and never use
@@ -63,12 +69,16 @@ gateway on loopback with a fixed port and a password, and name the public
 address so its Host and Origin headers are accepted:
 
   remohop web --listen 127.0.0.1:8470 --password-file ~/.config/remohop-web.pw \
-          --public-url https://desk.example.com --no-open
+          --public-url https://desk.example.com --real-ip-header CF-Connecting-IP \
+          --no-open
   cloudflared tunnel ... --url http://127.0.0.1:8470
 
-Put a Cloudflare Access policy in front of the hostname as well. The login
-rate limiter keys on the CF-Connecting-IP header for requests that arrive
-through the public address.
+Put a Cloudflare Access policy in front of the hostname as well. With
+--real-ip-header the login rate limiter keys on that header for requests
+that arrive through the public address; name it only when the proxy sets it
+(Cloudflare overwrites CF-Connecting-IP), since anyone can send it. A visitor
+who has logged in from an address within 30 days is not held back by the
+limit that strangers' failures use up, only by its own.
 
 Programs: with --api-token-file, a program (not a browser) can skip the
 login call and send the token on every request as "Authorization: Bearer
@@ -118,6 +128,7 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	target := fs.String("target", "", "")
 	noSaved := fs.Bool("no-saved", false, "")
 	publicURL := fs.String("public-url", "", "")
+	realIPHeader := fs.String("real-ip-header", "", "")
 	if err := fs.Parse(args); err != nil {
 		env.Errorf("web: %v\n%s", err, usage)
 		return cli.ExitUsage
@@ -127,7 +138,7 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 		return cli.ExitUsage
 	}
 	srv, err := New(Config{Listen: *listen, TLSCert: *cert, TLSKey: *key, PasswordFile: *pwFile, APITokenFile: *apiFile,
-		Target: cli.NormalizeTarget(*target), NoSaved: *noSaved, PublicURL: *publicURL})
+		Target: cli.NormalizeTarget(*target), NoSaved: *noSaved, PublicURL: *publicURL, RealIPHeader: *realIPHeader})
 	if err != nil {
 		env.Errorf("web: %v", err)
 		if errors.Is(err, errNoTLSPassword) {
@@ -143,6 +154,9 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 		fmt.Fprintln(env.Stdout, "the token in the URL is the login; do not share it")
 	}
 	fmt.Fprintln(env.Stdout, "the gateway sees everything you do in the page; stop it with Ctrl-C")
+	if *publicURL != "" && *realIPHeader == "" {
+		env.Errorf("web: note: without --real-ip-header, all visitors through %s share one login rate limit (behind Cloudflare, add --real-ip-header CF-Connecting-IP)", *publicURL)
+	}
 	if !*noOpen {
 		defer openBrowser(env, url)()
 	}
