@@ -351,8 +351,22 @@ type hostSession struct {
 	lastDrop    time.Time
 	bitrate     int64 // current target
 	fps         int
-	failures    []time.Time
+	failures    []encFailure
 	congestion  []time.Time
+	// delivered: an encoder of this session has delivered a frame (the
+	// screen can be captured here). While it cannot be for now (paused,
+	// the reason), the session waits and retries (pause).
+	delivered   bool
+	paused      string
+	pausedSince time.Time
+	pauseTries  int
+	// gpuSuspect: the GPU chain failed in this session; once the default
+	// chain works, later sessions are kept off it too (gpuFailed).
+	gpuSuspect bool
+	// excluded are encoders that produced nothing in this session, and
+	// encWarn says which one it uses instead.
+	excluded []string
+	encWarn  string
 	// lastKeyRestart is when a restart was last made to get a key frame.
 	lastKeyRestart time.Time
 	// gpuChain: the next encoder is fed by the capture's GPU chain
@@ -954,6 +968,9 @@ func (h *hostSession) onFrame(f encFrame) {
 	if !ok {
 		return
 	}
+	if !h.delivered || h.paused != "" {
+		h.onDelivering()
+	}
 	if key {
 		h.lastKey = f.readAt
 	}
@@ -1027,6 +1044,23 @@ func (h *hostSession) onFrame(f encFrame) {
 	h.sentBytes += int64(len(f.data))
 }
 
+// onDelivering runs when the encoder delivers its first frame after the
+// session started or the screen was unavailable.
+func (h *hostSession) onDelivering() {
+	h.delivered = true
+	if h.paused != "" {
+		slog.Debug("desktop: the screen can be captured again", "after", time.Since(h.pausedSince).Round(time.Millisecond))
+	}
+	h.paused, h.pausedSince, h.pauseTries = "", time.Time{}, 0
+	if h.gpuSuspect && h.proc != nil && !h.proc.gpu {
+		// The default chain works where the GPU chain did not.
+		h.gpuSuspect = false
+		if h.spec.gpuFailed != nil {
+			h.spec.gpuFailed(h.enc)
+		}
+	}
+}
+
 func putFrameHead(b []byte, typ byte, n int) {
 	b[0], b[1], b[2], b[3] = byte(n>>24), byte(n>>16), byte(n>>8), byte(n)
 	b[4] = typ
@@ -1039,7 +1073,7 @@ func (h *hostSession) sendHello() bool {
 	hello := Hello{
 		FPS: h.fps, Bitrate: h.bitrate, Encoder: h.enc.name, Hardware: h.enc.hw,
 		ScreenWidth: h.spec.width, ScreenHeight: h.spec.height,
-		Input: input, InputError: inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning, h.limitWarn),
+		Input: input, InputError: inErr, Warning: joinWarnings(h.spec.warning, h.enc.warning, h.encWarn, h.limitWarn),
 		Display: h.opts.Display, Displays: h.spec.displays, AllDisplays: h.spec.all,
 		Unsupported: unsupportedControls(inErr),
 		Generation:  h.gen,
@@ -1252,16 +1286,35 @@ func (h *hostSession) onEncoderExit(e encExit) error {
 		slog.Debug("desktop: encoder exited while its replacement starts", "err", e.err)
 		return nil
 	}
+	now := time.Now()
+	secure := secureDesktop()
+	if e.frames == 0 && (secure != "" || h.delivered && h.pauseTries < maxBlindRetries) {
+		// The screen cannot be captured right now, though it could be:
+		// Windows shows the secure desktop (a UAC prompt, the lock or
+		// sign-in screen, Ctrl+Alt+Del), where Desktop Duplication and
+		// GDI see nothing until it closes. That is no reason to end the
+		// session, nor to give up on the GPU chain.
+		return h.pause(now, secure, e.err)
+	}
 	if e.gpu && e.frames == 0 {
 		// The GPU chain passed its test run but not a session: fall back
-		// to the default chain, now and for later sessions.
+		// to the default chain for this session. Later sessions are only
+		// kept off it once the default chain has worked (gpuSuspect):
+		// a capture failing on both says nothing against the GPU.
 		slog.Debug("desktop: encoder failed on the GPU chain; using the default one", "err", e.err)
-		h.noGPU = true
-		if h.spec.gpuFailed != nil {
-			h.spec.gpuFailed(h.enc)
-		}
-		h.scheduleRestart(time.Now())
+		h.noGPU, h.gpuSuspect = true, true
+		h.scheduleRestart(now)
 		return nil
+	}
+	if e.frames == 0 && !e.shared {
+		// Nothing came out. A GPU encoder that initialises (the
+		// probe runs at 320x240) may still refuse the real size (H.264
+		// hardware encoders stop at about 4096 pixels): try the next
+		// encoder before giving up.
+		if h.fallbackEncoder(e.err) {
+			h.scheduleRestart(now)
+			return nil
+		}
 	}
 	// An encoder that never produced a frame will not on a second try
 	// either, unless what failed was the shared capture it read: that one
@@ -1269,20 +1322,81 @@ func (h *hostSession) onEncoderExit(e encExit) error {
 	if e.frames == 0 && (!e.shared || len(h.failures) > 0) {
 		return fmt.Errorf("screen capture/encoding failed: %v", e.err)
 	}
-	now := time.Now()
 	recent := h.failures[:0]
-	for _, t := range h.failures {
-		if now.Sub(t) < 30*time.Second {
-			recent = append(recent, t)
+	gpuFails := 0
+	for _, f := range h.failures {
+		if now.Sub(f.at) < 30*time.Second {
+			recent = append(recent, f)
+			if f.gpu {
+				gpuFails++
+			}
 		}
 	}
-	h.failures = append(recent, now)
+	h.failures = append(recent, encFailure{at: now, gpu: e.gpu})
+	if e.gpu && gpuFails >= 1 && !h.noGPU {
+		// The GPU chain works for a while and then fails, again: use the
+		// default chain for the rest of the session.
+		slog.Debug("desktop: the GPU chain keeps failing; using the default one", "err", e.err)
+		h.noGPU = true
+	}
 	if len(h.failures) > 3 {
 		return fmt.Errorf("encoder keeps failing: %v", e.err)
 	}
 	slog.Debug("desktop: encoder exited, restarting", "err", e.err)
 	h.scheduleRestart(now)
 	return nil
+}
+
+// maxBlindRetries is how many encoders in a row may deliver nothing, after
+// the session has shown the screen, before that counts as a failure when
+// the platform cannot say why (secureDesktop is "").
+const maxBlindRetries = 5
+
+// pauseLimit is how long a session waits for the screen to come back.
+const pauseLimit = 30 * time.Minute
+
+// pause keeps the session while the screen cannot be captured, trying again
+// with a growing interval, and tells the viewer why (HostStats.Paused).
+func (h *hostSession) pause(now time.Time, reason string, err error) error {
+	if h.pausedSince.IsZero() {
+		h.pausedSince = now
+		slog.Debug("desktop: the screen cannot be captured for now; waiting for it", "reason", reason, "err", err)
+	} else if now.Sub(h.pausedSince) > pauseLimit {
+		return fmt.Errorf("the screen could not be captured for %v: %v", pauseLimit, err)
+	}
+	if reason == "" {
+		reason = "the host cannot capture its screen right now"
+		if err != nil {
+			reason += " (" + err.Error() + ")"
+		}
+	}
+	h.paused = reason
+	h.pauseTries++
+	h.scheduleRestartAt(now, now.Add(min(2*time.Second, 250*time.Millisecond<<min(h.pauseTries, 4))))
+	h.sendStats(now)
+	return nil
+}
+
+// fallbackEncoder moves the session to the next encoder after the current
+// one failed to produce anything, if there is one to try.
+func (h *hostSession) fallbackEncoder(why error) bool {
+	if h.opts.Encoder != "" || !h.enc.hw {
+		return false
+	}
+	h.excluded = append(h.excluded, h.enc.name)
+	next, err := selectEncoder(h.ctx, h.ffmpeg, encRequest{codec: h.opts.Codec, decode: h.opts.Decode, exclude: h.excluded})
+	if err != nil {
+		return false
+	}
+	slog.Debug("desktop: encoder produced nothing; trying the next one", "failed", h.enc.name, "next", next.name, "err", why)
+	failed := h.enc.name
+	h.enc = next
+	h.encWarn = fmt.Sprintf("%s could not encode the screen at %s, so the host uses %s", failed, h.sizeText(), next.name)
+	h.noGPU = false
+	if h.opts.Bitrate == 0 {
+		h.bitrate = h.targetBitrate()
+	}
+	return true
 }
 
 func (h *hostSession) onControl(c Control) {
@@ -1362,6 +1476,7 @@ func (h *hostSession) sendStats(now time.Time) {
 		InFlight:   int(h.seq - h.acked),
 		PipelineMS: h.pipelineEW,
 		Restarts:   h.restarts,
+		Paused:     h.paused,
 		AckMS:      float64(h.acks.srtt.Microseconds()) / 1000,
 		WindowMS:   float64(h.acks.window(now).Milliseconds()),
 	}
@@ -1605,4 +1720,10 @@ func unsupportedControls(inputErr string) map[string]string {
 		}
 	}
 	return out
+}
+
+// encFailure is one encoder exit counted against the session.
+type encFailure struct {
+	at  time.Time
+	gpu bool
 }

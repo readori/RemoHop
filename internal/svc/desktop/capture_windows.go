@@ -44,6 +44,12 @@ func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
 		backend = "ddagrab"
 	default:
 		backend = "ddagrab"
+		// While the secure desktop is shown nothing can be duplicated;
+		// a probe now would keep the host on GDI for failedProbeLife.
+		// The session waits for the screen to come back instead.
+		if secureDesktop() != "" {
+			break
+		}
 		if ffmpeg, err := ffmpegPath(); err == nil {
 			if ddaErr = ddagrabProblem(ffmpeg, idx); ddaErr != "" {
 				backend = "gdigrab"

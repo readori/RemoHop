@@ -433,6 +433,8 @@ type encRequest struct {
 	codec string
 	// decode lists the families the viewer can decode (nil: assume any).
 	decode []string
+	// exclude names encoders not to use (they failed in this session).
+	exclude []string
 }
 
 func (r encRequest) allows(codec string) bool {
@@ -589,7 +591,7 @@ func selectEncoder(ctx context.Context, ffmpeg string, req encRequest) (*encoder
 	var slowSVT string
 	for _, class := range rank() {
 		for _, e := range encoders {
-			if !listed[e.name] || !req.allows(e.codec) {
+			if !listed[e.name] || !req.allows(e.codec) || slices.Contains(req.exclude, e.name) {
 				continue
 			}
 			// The class of libsvtav1 is only known once probed; for the
