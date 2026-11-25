@@ -350,19 +350,27 @@ func verifyRegistration(key ed25519.PublicKey, challenge, exporter, sig []byte) 
 // observed is the address that peer's packets actually come from.
 //
 // A self-reported address is only passed on if probing it cannot bother a
-// stranger: an address from private, unique-local, link-local or
+// stranger much: an address from private, unique-local, link-local or
 // carrier-NAT space, or one on the peer's own observed address (the same
-// IPv4 address, the same IPv6 /64). Anything else is dropped; otherwise a
-// peer could name a third party and have the other side send it probes.
-// The cost is that a public address on a second interface, or a global
-// IPv6 address when the rendezvous connection runs over IPv4, is not
-// offered as a candidate.
+// IPv4 address, the same IPv6 /64). Otherwise a peer could name a third
+// party and have the other side send it probes.
+//
+// One exception: a peer that reaches the server over IPv4 may name one
+// global IPv6 address, which nothing here can check. Without it IPv6 would
+// never be used, because both peers nearly always reach a dual-stack
+// rendezvous name over IPv4, and an IPv6 punch between two stateful
+// firewalls is the one direct path two carrier-grade or symmetric IPv4 NATs
+// leave. The cost is bounded: one address per introduction, introductions
+// are rate-limited, and what reaches it is a few dozen 36-byte probes over
+// a few seconds (internal/nat bounds the routable addresses a punch probes
+// too), never more than the requester itself sent to ask for them.
 func parseCandidates(in []string, observed netip.Addr) ([]netip.AddrPort, error) {
 	if len(in) > maxCandidates {
 		return nil, errors.New("too many candidates")
 	}
 	observed = observed.Unmap()
 	out := make([]netip.AddrPort, 0, len(in))
+	unverified6 := 0
 	for _, s := range in {
 		if len(s) > maxCandidateLn {
 			return nil, errors.New("malformed candidate")
@@ -376,7 +384,11 @@ func parseCandidates(in []string, observed netip.Addr) ([]netip.AddrPort, error)
 		if ap.Port() == 0 || ip.IsUnspecified() || ip.IsMulticast() {
 			continue
 		}
-		if sameSite(ip, observed) || (!nat.Routable(ip) && !ip.IsLoopback() && !(ip.Is6() && ip.IsLinkLocalUnicast())) {
+		switch {
+		case sameSite(ip, observed) || (!nat.Routable(ip) && !ip.IsLoopback() && !(ip.Is6() && ip.IsLinkLocalUnicast())):
+			out = append(out, ap)
+		case ip.Is6() && observed.Is4() && nat.Routable(ip) && unverified6 == 0:
+			unverified6++
 			out = append(out, ap)
 		}
 	}

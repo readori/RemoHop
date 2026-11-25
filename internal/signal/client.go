@@ -115,13 +115,12 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 		}
 	}
 	bridged := wsdgram.IsBridge(sock.LocalAddr())
-	network := "udp"
-	if la, ok := sock.LocalAddr().(*net.UDPAddr); ok && la.IP.To4() != nil {
-		// A socket bound to an IPv4 address cannot reach an IPv6 server.
-		network = "udp4"
-	}
-	ua, err := net.ResolveUDPAddr(network, net.JoinHostPort(host, port))
+	// Within ctx, and an address family this machine can route (see there).
+	ua, err := nat.ResolveUDP(ctx, sock.LocalAddr(), net.JoinHostPort(host, port))
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("rendezvous server %s: %w", addr, ctx.Err())
+		}
 		return nil, fmt.Errorf("rendezvous server %s: %w", addr, err)
 	}
 
