@@ -85,7 +85,7 @@ func serveDesktop(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.Raw
 	if opts.Probe {
 		return serveProbe(ctx, s, opts, hostOff)
 	}
-	h, err := newHostSession(ctx, s, opts, hostOff)
+	h, err := newHostSession(ctx, s, opts, hostOff, fastPath(c))
 	if err != nil {
 		writeFatal(s, err)
 		return err
@@ -96,6 +96,30 @@ func serveDesktop(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.Raw
 	defer stop()
 	h.setHostInput(hostd.Allowed(c, perm.Input)) // a change before the watch began
 	return h.run()
+}
+
+// fastPathRTT is the largest smallest-round-trip of a path taken to have
+// bandwidth to spare (a LAN, Wi-Fi included). Over such a path the
+// automatic bitrate is doubled and the encoders get a larger rate-control
+// buffer (see autoBitrate and vbv).
+const fastPathRTT = 15 * time.Millisecond
+
+// fastPath reports whether the session's connection runs over a fast path:
+// directly (not relayed, not through a websocket bridge) with a LAN-like
+// round trip. A variable so tests can choose.
+var fastPath = func(c *peer.Conn) bool {
+	if c == nil {
+		return false
+	}
+	if s := hostd.SessionOf(c); s != nil && s.Path == "relayed" {
+		return false
+	}
+	q := peer.QUICConn(c)
+	if q == nil {
+		return false
+	}
+	rtt := q.ConnectionStats().MinRTT
+	return rtt > 0 && rtt <= fastPathRTT
 }
 
 // watchInput calls fn whenever the host's owner allows or stops allowing
@@ -189,6 +213,8 @@ type encExit struct {
 	// shared: the encoder read a capture shared between sessions, which
 	// can end under it (and is started again by the next encoder).
 	shared bool
+	// gpu: the encoder was fed by the capture's GPU chain.
+	gpu bool
 }
 
 // encProc is one running ffmpeg.
@@ -203,6 +229,7 @@ type encProc struct {
 	// at a shared capture).
 	release func()
 	shared  bool
+	gpu     bool
 
 	mu     sync.Mutex
 	reaped bool
@@ -240,6 +267,8 @@ type hostSession struct {
 	enc    *encoder
 	spec   captureSpec
 	start  time.Time
+	// fast: the connection runs over a fast path (fastPath).
+	fast bool
 
 	// Input. The host's owner can take it away and give it back while
 	// the session runs (setHostInput): injMu serialises every injection
@@ -285,6 +314,9 @@ type hostSession struct {
 	congestion  []time.Time
 	// lastKeyRestart is when a restart was last made to get a key frame.
 	lastKeyRestart time.Time
+	// gpuChain: the next encoder is fed by the capture's GPU chain
+	// (captureSpec.gpu); noGPU: that chain failed in this session.
+	gpuChain, noGPU bool
 
 	// stats
 	sentFrames  int
@@ -295,7 +327,7 @@ type hostSession struct {
 	lastStatsAt time.Time
 }
 
-func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff bool) (*hostSession, error) {
+func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, fast bool) (*hostSession, error) {
 	ffmpeg, err := ffmpegPath()
 	if err != nil {
 		return nil, err
@@ -312,6 +344,7 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff bo
 		ctl:    make(chan Control, 256),
 		wdone:  make(chan struct{}),
 		fps:    opts.FPS,
+		fast:   fast,
 
 		viewOnly:     opts.ViewOnly,
 		hostOff:      hostOff,
@@ -423,7 +456,7 @@ func (h *hostSession) targetBitrate() int64 {
 	if h.opts.Bitrate > 0 {
 		return h.opts.Bitrate
 	}
-	return autoBitrate(h.outputPixels(), h.fps)
+	return autoBitrate(h.outputPixels(), h.fps, h.fast)
 }
 
 func (h *hostSession) windowFrames() int {
@@ -462,12 +495,24 @@ func (h *hostSession) ffmpegArgs() ([]string, captureSpec, error) {
 		chain = append(chain, spec.filter)
 	}
 	chain = append(chain, h.scaleFilter(), h.enc.pixFmt)
+	h.gpuChain = false
+	if spec.gpu != nil && !h.noGPU && h.scaleFactor() >= 1 {
+		if c, ok := spec.gpu(h.enc); ok {
+			h.gpuChain, chain = true, nil
+			if c != "" {
+				chain = []string{c}
+			}
+		}
+	}
+	args = append(args, "-an")
+	if len(chain) > 0 {
+		args = append(args, "-vf", strings.Join(chain, ","))
+	}
 	// -copyts with passthrough timing keeps the capture device's
 	// timestamps, which for x11grab are wall-clock: the host then knows
 	// when each frame was captured and the viewer can show true latency.
-	args = append(args, "-an", "-vf", strings.Join(chain, ","),
-		"-copyts", "-fps_mode", "passthrough", "-enc_time_base", "1:1000")
-	args = append(args, h.enc.args(encParams{fps: h.fps, bitrate: h.bitrate, gop: h.gopFrames(), pixels: h.outputPixels()})...)
+	args = append(args, "-copyts", "-fps_mode", "passthrough", "-enc_time_base", "1:1000")
+	args = append(args, h.enc.args(encParams{fps: h.fps, bitrate: h.bitrate, gop: h.gopFrames(), pixels: h.outputPixels(), fast: h.fast})...)
 	args = append(args, "-flush_packets", "1")
 	if h.enc.codec == codecH264 {
 		args = append(args, "-flvflags", "no_duration_filesize", "-f", "flv", "pipe:1")
@@ -520,11 +565,11 @@ func (h *hostSession) startEncoder() error {
 		release()
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
-	p := &encProc{gen: h.gen, cmd: cmd, stderr: tail, bitrate: h.bitrate, h264: h.enc.codec == codecH264, release: release, shared: shared}
+	p := &encProc{gen: h.gen, cmd: cmd, stderr: tail, bitrate: h.bitrate, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain}
 	h.proc = p
 	h.lastRestart = time.Now()
 	h.restartAt = time.Time{}
-	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate)
+	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast)
 	go h.readEncoder(p, stdout)
 	return nil
 }
@@ -618,7 +663,7 @@ func (h *hostSession) readEncoder(p *encProc, stdout io.Reader) {
 		err = errors.New("ffmpeg exited")
 	}
 	select {
-	case h.exits <- encExit{gen: p.gen, err: err, frames: n, shared: p.shared}:
+	case h.exits <- encExit{gen: p.gen, err: err, frames: n, shared: p.shared, gpu: p.gpu}:
 	case <-h.ctx.Done():
 	}
 }
@@ -945,6 +990,17 @@ func (h *hostSession) scheduleRestart(now time.Time) {
 // onEncoderExit decides whether an encoder that died can be restarted.
 func (h *hostSession) onEncoderExit(e encExit) error {
 	h.proc = nil
+	if e.gpu && e.frames == 0 {
+		// The GPU chain passed its test run but not a session: fall back
+		// to the default chain, now and for later sessions.
+		slog.Debug("desktop: encoder failed on the GPU chain; using the default one", "err", e.err)
+		h.noGPU = true
+		if h.spec.gpuFailed != nil {
+			h.spec.gpuFailed(h.enc)
+		}
+		h.scheduleRestart(time.Now())
+		return nil
+	}
 	// An encoder that never produced a frame will not on a second try
 	// either, unless what failed was the shared capture it read: that one
 	// reports its own failures when the next encoder attaches.

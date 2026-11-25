@@ -29,6 +29,11 @@ type encParams struct {
 	bitrate int64
 	gop     int
 	pixels  int // output width*height, or 0 if unknown
+	// fast: the path to the viewer has bandwidth to spare (a LAN, or a
+	// direct path with a LAN-like round trip; see hostSession.fastPath).
+	// The rate-control buffer may then be larger, which is what lets a
+	// key frame or a scroll keep its text sharp.
+	fast bool
 }
 
 type encoder struct {
@@ -49,10 +54,36 @@ type encoder struct {
 	warning string
 }
 
-// vbv is a small rate-control buffer (about two frames) so the encoder
-// smooths bitrate over very little time: a bigger buffer lets frame sizes
-// swing and shows up as latency on a tight link.
-func vbv(p encParams) string { return strconv.FormatInt(p.bitrate*2/int64(p.fps), 10) }
+// vbv sizes the rate-control buffer. It bounds how far a frame may exceed
+// its share of the bitrate, and so both what a burst costs in latency on a
+// link that runs at the bitrate and how sharp a key frame or a frame with a
+// lot of change (scrolling text) can be. With the two frames this used to
+// be, every hardware encoder starved its key frames: measured with x264 on
+// a 1080p60 text clip at 7.5 Mbit/s (host_quality_linux_test.go has the
+// method), the first frame came out at SSIM 0.78 (smeared text) against
+// 0.92 with eight frames, and a scroll at 0.970 against 0.994. A tenth of
+// a second (six frames at 60 fps) is the default; a fast path gets a
+// quarter of a second, where a 1.5 Mbit key frame takes a few
+// milliseconds on the wire.
+func vbv(p encParams) string {
+	div := int64(10)
+	if p.fast {
+		div = 4
+	}
+	return strconv.FormatInt(max(p.bitrate/div, p.bitrate*2/int64(max(p.fps, 1))), 10)
+}
+
+// qsvLowDelay is Quick Sync's LowDelayBRC switch. It holds every frame,
+// key frames included, close to the average frame size whatever the
+// buffer allows, which is what smears the text of a QSV stream after every
+// key frame and while scrolling. Where the path has bandwidth to spare it
+// is off and the buffer alone bounds the frame sizes.
+func qsvLowDelay(p encParams) string {
+	if p.fast {
+		return "0"
+	}
+	return "1"
+}
 
 func br(p encParams) string { return strconv.FormatInt(p.bitrate, 10) }
 
@@ -84,7 +115,7 @@ var encoders = []*encoder{
 		hw:     true,
 		pixFmt: "format=nv12",
 		args: func(p encParams) []string {
-			return []string{"-c:v", "av1_qsv", "-preset", "veryfast", "-low_delay_brc", "1", "-async_depth", "1",
+			return []string{"-c:v", "av1_qsv", "-preset", "veryfast", "-low_delay_brc", qsvLowDelay(p), "-async_depth", "1",
 				"-b:v", br(p), "-maxrate", br(p), "-bufsize", vbv(p), "-g", strconv.Itoa(p.gop), "-bf", "0"}
 		},
 	},
@@ -145,7 +176,7 @@ var encoders = []*encoder{
 		hw:     true,
 		pixFmt: "format=nv12",
 		args: func(p encParams) []string {
-			return []string{"-c:v", "h264_qsv", "-preset", "veryfast", "-low_delay_brc", "1", "-async_depth", "1",
+			return []string{"-c:v", "h264_qsv", "-preset", "veryfast", "-low_delay_brc", qsvLowDelay(p), "-async_depth", "1",
 				"-look_ahead", "0", "-b:v", br(p), "-maxrate", br(p), "-bufsize", vbv(p),
 				"-g", strconv.Itoa(p.gop), "-bf", "0"}
 		},
@@ -340,15 +371,27 @@ func vaapiDevice() string {
 }
 
 // autoBitrate picks a bitrate for screen content: about 0.06 bits per pixel
-// per frame, which keeps text crisp in AV1 (≈7.5 Mbit/s for 1080p60,
-// ≈30 Mbit/s for 4K60).
-func autoBitrate(pixels, fps int) int64 {
+// per frame (≈7.5 Mbit/s for 1080p60, ≈30 Mbit/s for 4K60), twice that
+// on a fast path (≈15 Mbit/s for 1080p60, ≈27 for 1440p60, ≈60 for
+// 4K60). Doubling the bitrate took the 1080p60 text clip of
+// host_quality_linux_test.go from 48 to 56 dB PSNR; the fast path can
+// carry it without queueing, and an encoder spends less than its target
+// whenever the screen is still.
+func autoBitrate(pixels, fps int, fast bool) int64 {
 	if pixels <= 0 {
 		pixels = 1920 * 1080
 	}
-	b := int64(float64(pixels) * float64(fps) * 0.06)
-	return min(max(b, 1_000_000), 80_000_000)
+	bpp := 0.06
+	if fast {
+		bpp = 0.12
+	}
+	b := int64(float64(pixels) * float64(fps) * bpp)
+	return min(max(b, 1_000_000), maxAutoBitrate)
 }
+
+// maxAutoBitrate caps the automatic bitrate (4K at 60 fps on a fast path
+// fits below it).
+const maxAutoBitrate = 100_000_000
 
 // ffmpegPath finds the ffmpeg binary: $REMOHOP_FFMPEG, then PATH.
 func ffmpegPath() (string, error) {

@@ -55,10 +55,21 @@ func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
 	}
 	spec := captureSpec{
 		input: []string{
+			// ddagrab stamps its frames with a monotonic clock counted
+			// from its first frame, not with wall-clock time, so the host
+			// could not tell when a frame was captured: the viewers then
+			// show no latency at all, and the pipeline delay is unknown.
+			// The demuxer's wall-clock stamp is taken as the frame leaves
+			// ddagrab (the lavfi graph holds nothing else), in
+			// microseconds (ddagrab's time base), which is what x11grab
+			// and gdigrab give.
+			"-use_wallclock_as_timestamps", "1",
 			"-f", "lavfi",
 			"-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=1", idx, fps),
 		},
-		filter: "hwdownload,format=bgra",
+		filter:    "hwdownload,format=bgra",
+		gpu:       func(e *encoder) (string, bool) { return ddagrabGPUChain(idx, e) },
+		gpuFailed: func(e *encoder) { forgetGPUChain(idx, e) },
 	}
 	if idx == 0 {
 		// SM_CXSCREEN/SM_CYSCREEN: the primary monitor, which is what
@@ -153,4 +164,82 @@ func ddaReason(out string, err error) string {
 		}
 	}
 	return lastLine(out, err.Error())
+}
+
+// GPU encoders can take Desktop Duplication's frames where they are, in
+// video memory, instead of the default chain: download every frame to
+// system memory (hwdownload: 8 MB a frame at 1080p, 33 MB at 4K), convert
+// it from BGRA to NV12 on one CPU core (swscale) and upload it again for the
+// encoder. At 1440p and 4K that round trip is what keeps 60 fps out of
+// reach and adds milliseconds to every frame. NVENC and AMF encode BGRA
+// D3D11 textures themselves (ffmpeg's own ddagrab example feeds h264_nvenc
+// directly); Quick Sync needs the frames mapped into its device and
+// converted to NV12 by its video processor. A chain is used only after a
+// test run of ddagrab into the session's encoder works on this machine
+// (cached like the ddagrab probe), and only when the picture is not scaled.
+var ddagrabGPU = map[string]string{
+	"h264_nvenc": "",
+	"av1_nvenc":  "",
+	"h264_amf":   "",
+	"av1_amf":    "",
+	"h264_qsv":   "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12",
+	"av1_qsv":    "hwmap=derive_device=qsv,format=qsv,vpp_qsv=format=nv12",
+}
+
+type gpuKey struct {
+	ffmpeg, enc string
+	idx         int
+}
+
+var (
+	gpuMu    sync.Mutex
+	gpuCache = map[gpuKey]ddaProbe{}
+)
+
+// ddagrabGPUChain returns the filter chain that feeds e from ddagrab's GPU
+// frames, and whether that works here. REMOHOP_WIN_GPU_CHAIN=0 turns it
+// off.
+func ddagrabGPUChain(idx int, e *encoder) (string, bool) {
+	chain, known := ddagrabGPU[e.name]
+	if !known || os.Getenv("REMOHOP_WIN_GPU_CHAIN") == "0" {
+		return "", false
+	}
+	ffmpeg, err := ffmpegPath()
+	if err != nil {
+		return "", false
+	}
+	gpuMu.Lock()
+	defer gpuMu.Unlock()
+	k := gpuKey{ffmpeg, e.name, idx}
+	if p, ok := gpuCache[k]; ok && (p.problem == "" || time.Since(p.at) < failedProbeLife) {
+		return chain, p.problem == ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	args := []string{"-hide_banner", "-nostdin", "-loglevel", "error",
+		"-f", "lavfi", "-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=10", idx), "-frames:v", "3"}
+	if chain != "" {
+		args = append(args, "-vf", chain)
+	}
+	args = append(args, e.args(encParams{fps: 10, bitrate: 2_000_000, gop: 20})...)
+	args = append(args, "-f", "null", "-")
+	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, args...)).CombinedOutput()
+	p := ddaProbe{at: time.Now()}
+	if err != nil {
+		p.problem = lastLine(string(out), err.Error())
+	}
+	gpuCache[k] = p
+	return chain, p.problem == ""
+}
+
+// forgetGPUChain records that a session's encoder failed on the GPU chain,
+// so the next start uses the default one.
+func forgetGPUChain(idx int, e *encoder) {
+	ffmpeg, err := ffmpegPath()
+	if err != nil {
+		return
+	}
+	gpuMu.Lock()
+	gpuCache[gpuKey{ffmpeg, e.name, idx}] = ddaProbe{problem: "failed in a session", at: time.Now()}
+	gpuMu.Unlock()
 }
