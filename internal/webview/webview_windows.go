@@ -332,7 +332,7 @@ func (a *winApp) drain() {
 func (a *winApp) Quit() { a.Dispatch(func() { pPostQuitMessage.Call(0) }) }
 
 func (a *winApp) NewWindow(o Options) (Window, error) {
-	width, height := o.size()
+	width, height := o.Size()
 	title := windows.StringToUTF16Ptr(o.Title)
 	style, ex := uintptr(wsOverlappedWindow), uintptr(0)
 	x, y := uintptr(cwUseDefault), uintptr(cwUseDefault)

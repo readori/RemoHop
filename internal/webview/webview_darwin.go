@@ -429,7 +429,7 @@ func (a *macApp) Quit() {
 }
 
 func (a *macApp) NewWindow(o Options) (Window, error) {
-	width, height := o.size()
+	width, height := o.Size()
 	rect := nsRect{Size: nsSize{float64(width), float64(height)}}
 	class := "NSWindow"
 	style := uint(styleTitled | styleClosable | styleMiniaturizable | styleResizable)
