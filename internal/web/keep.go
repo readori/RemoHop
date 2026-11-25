@@ -310,9 +310,20 @@ func (s *Server) CheckSessions() {
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(s.ctx, checkTimeout)
 			defer cancel()
+			before := received(conn)
 			if _, err := hostd.Ping(ctx, conn, hostd.PingOptions{Count: 1}); err != nil && s.ctx.Err() == nil && !dead(conn) {
 				if _, refused := errors.AsType[*peer.RemoteError](err); refused {
 					return // it answered, just not to this
+				}
+				if after := received(conn); before >= 0 && after > before+20 {
+					// Packets kept arriving while the ping waited (more
+					// than a dying connection's retransmissions: a
+					// desktop stream, a big download): the connection
+					// works and the host is merely slow to open a
+					// stream. Closing it would cost a reconnect and the
+					// picture for nothing.
+					s.log.Info("web: a host session is slow to answer but still receiving; keeping it", "target", p.key)
+					return
 				}
 				s.log.Info("web: a host session does not answer; reconnecting", "target", p.key)
 				conn.CloseWithReason("no answer to a liveness check")
@@ -321,6 +332,16 @@ func (s *Server) CheckSessions() {
 	}
 	wg.Wait()
 	s.ReconnectNow()
+}
+
+// received is how many packets the connection has received, or -1 when
+// that is not known (not a QUIC connection).
+func received(c *peer.Conn) int64 {
+	q := peer.QUICConn(c)
+	if q == nil {
+		return -1
+	}
+	return int64(q.ConnectionStats().PacketsReceived)
 }
 
 // DropSessionsForTest closes the connection of every host session as a
