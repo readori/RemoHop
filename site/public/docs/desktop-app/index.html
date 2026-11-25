@@ -89,7 +89,7 @@
 <p>窗口使用系统自带的网页引擎：Windows 上是 WebView2（Windows 10 和 11 自带），macOS 上是 WKWebView，Linux 上是 WebKitGTK（远程桌面需要 GStreamer 的 H.264 解码器，Debian 和 Ubuntu 上是 <code>gstreamer1.0-libav</code>）。没有时应用会改在浏览器窗口中打开，命令行程序的 <code>remohop app</code> 也是如此。</p>
 <p>在 Linux 上 <code>remohop-app</code> 链接了 GNU C 库（它要加载 GTK 来显示窗口）；在 Alpine 等 musl 系统上，请用静态链接的 <code>remohop</code> 运行 <code>remohop app</code>，它会在浏览器中打开应用。</p>
 <h2 id="快速协助">快速协助</h2>
-<p>只想帮别人一次、不留下任何东西时，对方改为下载<strong>快速协助</strong>（<code>RemoHop-QuickSupport.exe</code>、<code>RemoHop Quick Support.app</code>、<code>remohop-quick</code>）：同一个程序，按名字以快速协助方式启动，立即共享屏幕，关闭窗口即退出。见<a href="/docs/quick-support/">快速协助</a>。</p>
+<p>只想帮别人一次、不留下任何东西时，对方改为下载<strong>快速协助</strong>（<code>RemoHop-QuickSupport.exe</code>、<code>RemoHop Quick Support.app</code>、<code>remohop-quick</code>）：同一个程序，按名字以快速协助方式启动，立即共享屏幕，关闭窗口即退出。见<a href="/docs/quick-support/">快速协助</a>。在 macOS 上，系统把 RemoHop 和 RemoHop Quick Support 当作两个应用，“屏幕录制”和“辅助功能”权限要分别授予（系统设置 &gt; 隐私与安全性）。</p>
 <h2 id="安全">安全</h2>
 <p>窗口是应用在 <code>127.0.0.1</code> 上提供的页面，地址中带随机令牌，保护措施与<a href="/docs/quick-support/">快速协助</a>相同，其他机器无法访问。你连接的电脑显示在只有应用自己的页面才能嵌入的框架中。设计说明见 <a href="https://github.com/readori/RemoHop/blob/main/docs/desktop-app.md">desktop-app.md</a>。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/desktop-app.md">源文件（GitHub）</a></p>

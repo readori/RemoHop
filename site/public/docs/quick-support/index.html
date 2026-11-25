@@ -104,7 +104,7 @@
 <p>需要了解的限制：</p>
 <ul>
 <li><strong>Windows：</strong> <code>RemoHop.exe</code> 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。</li>
-<li><strong>macOS：</strong> 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 &gt; 隐私与安全性；两处都显示为“RemoHop”，“屏幕录制”要在重新启动 RemoHop 后才生效）。下载的 <code>RemoHop-macos.dmg</code> 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 <code>RemoHop.app</code> 没有签名；签名和公证见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a>。</li>
+<li><strong>macOS：</strong> 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 &gt; 隐私与安全性；单独下载的快速协助显示为“RemoHop Quick Support”，完整应用显示为“RemoHop”。macOS 把它们当作两个应用，权限要分别授予；“屏幕录制”要在重新启动应用后才生效）。下载的 <code>RemoHop-macos.dmg</code> 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 <code>RemoHop.app</code> 没有签名；签名和公证见 <a href="https://github.com/readori/RemoHop/blob/main/packaging/quick/README.md">packaging/quick/README.md</a>。</li>
 <li>页面及其服务器在 Linux 上用真实浏览器测试过；启动器窗口在 CI 中于 Windows、macOS 和 Linux 上实际启动并截图。</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/quick-support.md">源文件（GitHub）</a></p>
