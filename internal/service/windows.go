@@ -41,8 +41,14 @@ func (w winService) Print(o Options) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	text := fmt.Sprintf("service %q, start type automatic (delayed), restart on failure after 5s\ncommand: %q %v\nconfig dir: %s\n",
-		w.svcName(o), exe, w.runArgs(o), w.dataDir(o))
+	copyNote := ""
+	if !adminOnlyLocation(exe) {
+		copyNote = fmt.Sprintf("binary: %s is copied to %s, which only administrators can change\n",
+			exe, filepath.Join(serviceExeDir(), serviceExeName(w.svcName(o))))
+		exe = filepath.Join(serviceExeDir(), serviceExeName(w.svcName(o)))
+	}
+	text := fmt.Sprintf("service %q, start type automatic (delayed), restart on failure after 5s\n%scommand: %q %v\nconfig dir: %s\n",
+		w.svcName(o), copyNote, exe, w.runArgs(o), w.dataDir(o))
 	if o.Unattended {
 		text += "unattended access: clients see and control the console session (sign-in, lock and UAC screens included)\n"
 	}
@@ -56,7 +62,7 @@ func (w winService) Install(ctx context.Context, o Options) (*Installed, error) 
 	if o.RunAs != "" || o.Linger {
 		return nil, errors.New("--run-as and --linger do not apply on Windows")
 	}
-	exe, err := o.exePath()
+	src, err := o.exePath()
 	if err != nil {
 		return nil, err
 	}
@@ -66,20 +72,53 @@ func (w winService) Install(ctx context.Context, o Options) (*Installed, error) 
 	}
 	defer m.Disconnect()
 	name := w.svcName(o)
-	if s, err := m.OpenService(name); err == nil {
-		s.Close()
-		return nil, fmt.Errorf("service %q already exists; run `remohop service uninstall` first", name)
+	// Installing over an existing service is the upgrade step: stop it so
+	// that its binary can be replaced, then change it in place (which keeps
+	// settings made outside RemoHop, such as its environment).
+	existing, err := m.OpenService(name)
+	if err == nil {
+		defer existing.Close()
+		if err := stopAndWait(ctx, existing); err != nil {
+			return nil, fmt.Errorf("cannot stop the running service %q: %w", name, err)
+		}
+	} else {
+		existing = nil
 	}
-	s, err := m.CreateService(name, exe, mgr.Config{
+	// The service runs as LocalSystem: whoever can replace its binary gets
+	// LocalSystem. A binary outside Program Files (install.ps1 and Scoop
+	// install under the user's profile) is copied there first.
+	exe, copied, err := installBinary(src, name)
+	if err != nil {
+		return nil, err
+	}
+	if err := prepareStateDir(w.dataDir(o)); err != nil {
+		return nil, err
+	}
+	cfg := mgr.Config{
 		DisplayName:      "RemoHop host",
 		Description:      "Lets authorised RemoHop clients control this machine (remohop host).",
 		StartType:        mgr.StartAutomatic,
 		DelayedAutoStart: true,
-	}, w.runArgs(o)...)
-	if err != nil {
-		return nil, err
 	}
-	defer s.Close()
+	var s *mgr.Service
+	if existing != nil {
+		cur, err := existing.Config()
+		if err != nil {
+			return nil, err
+		}
+		cur.BinaryPathName = commandLine(exe, w.runArgs(o))
+		cur.DisplayName, cur.Description = cfg.DisplayName, cfg.Description
+		cur.StartType, cur.DelayedAutoStart = cfg.StartType, cfg.DelayedAutoStart
+		if err := existing.UpdateConfig(cur); err != nil {
+			return nil, err
+		}
+		s = existing
+	} else {
+		if s, err = m.CreateService(name, exe, cfg, w.runArgs(o)...); err != nil {
+			return nil, err
+		}
+		defer s.Close()
+	}
 	actions := []mgr.RecoveryAction{
 		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},
 		{Type: mgr.ServiceRestart, Delay: 5 * time.Second},
@@ -98,12 +137,19 @@ func (w winService) Install(ctx context.Context, o Options) (*Installed, error) 
 	}
 	notes := []string{
 		"the service runs in session 0 and cannot capture the interactive desktop (no screenshots or remote desktop of the logged-in screen); --unattended changes that",
-		"what the host prints goes to " + serviceLogPath(w.dataDir(o)),
-		"the state directory holds this instance's credentials; the service restricts it to SYSTEM and Administrators",
 	}
 	if o.Unattended {
-		notes = append(unattendedNotes(exe), notes[1:]...)
+		notes = unattendedNotes(exe)
 	}
+	if copied {
+		notes = append(notes, "the service runs "+exe+", a copy only administrators can change; after installing a new remohop, run `remohop service install` (elevated) again to update the service")
+	}
+	if existing != nil {
+		notes = append(notes, "the existing service was updated in place and restarted")
+	}
+	notes = append(notes,
+		"what the host prints goes to "+serviceLogPath(w.dataDir(o)),
+		"the state directory holds this instance's credentials; only SYSTEM and Administrators can open it")
 	return &Installed{Backend: "Windows service", Name: name, Scope: ScopeSystem, ConfigDir: w.dataDir(o), Notes: notes}, nil
 }
 
@@ -130,10 +176,22 @@ func (w winService) Uninstall(ctx context.Context, o Options) (bool, error) {
 	}
 	defer m.Disconnect()
 	defer s.Close()
+	var exe string
+	if cfg, err := s.Config(); err == nil {
+		if args, err := windows.DecomposeCommandLine(cfg.BinaryPathName); err == nil && len(args) > 0 {
+			exe = args[0]
+		}
+	}
 	if err := stopAndWait(ctx, s); err != nil {
 		return true, err
 	}
-	return true, s.Delete()
+	if err := s.Delete(); err != nil {
+		return true, err
+	}
+	if exe != "" {
+		removeInstalledBinary(exe)
+	}
+	return true, nil
 }
 
 func stopAndWait(ctx context.Context, s *mgr.Service) error {
@@ -249,9 +307,6 @@ func unattendedNotes(exe string) []string {
 	if ok, why := sasPolicyNote(); !ok {
 		notes = append(notes, "Ctrl+Alt+Del from clients: "+why)
 	}
-	if !adminOnlyLocation(exe) {
-		notes = append(notes, "the service runs "+exe+" as LocalSystem, in the console session too; keep it where only administrators can write (e.g. under Program Files)")
-	}
 	return notes
 }
 
@@ -302,23 +357,6 @@ func installedDataDir(s *mgr.Service) string {
 		}
 	}
 	return windowsDataDir()
-}
-
-// secureDir replaces dir's access list with one that admits only SYSTEM and
-// the Administrators group, not inherited from the parent: %ProgramData%
-// lets every local user read what is created under it, and this directory
-// holds the identity key and the host password.
-func secureDir(dir string) error {
-	sd, err := windows.SecurityDescriptorFromString("D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)")
-	if err != nil {
-		return err
-	}
-	dacl, _, err := sd.DACL()
-	if err != nil {
-		return err
-	}
-	return windows.SetNamedSecurityInfo(dir, windows.SE_FILE_OBJECT,
-		windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil)
 }
 
 // runAsService is `remohop service run`: the process the SCM starts.
@@ -383,16 +421,22 @@ func (h *handler) Execute(_ []string, req <-chan svc.ChangeRequest, status chan<
 	}
 }
 
-// openServiceLog creates and locks down the state directory before the host
-// writes any key material into it, then opens the log there.
+// openServiceLog checks and locks down the state directory before the host
+// reads or writes any key material there (adoptStateDir), then opens the
+// log there, rotated by size.
 func openServiceLog(dir string) (io.WriteCloser, error) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	note, err := adoptStateDir(dir)
+	if err != nil {
 		return nil, err
 	}
-	if err := secureDir(dir); err != nil {
-		return nil, fmt.Errorf("cannot restrict access to %s: %w", dir, err)
+	l, err := openRotatingLog(serviceLogPath(dir), maxServiceLog)
+	if err != nil {
+		return nil, err
 	}
-	return os.OpenFile(serviceLogPath(dir), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if note != "" {
+		fmt.Fprintln(l, note)
+	}
+	return l, nil
 }
 
 // sasPolicyNote reports whether the policy lets the service send
