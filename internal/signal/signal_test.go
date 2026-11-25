@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -310,6 +311,57 @@ func TestReRegistrationReplaces(t *testing.T) {
 	cc := tn.dial(tn.socket(pub), Options{})
 	if _, err := cc.Connect(ctx, reg1.ID, nil, nat.TypeUnknown); err != nil {
 		t.Fatalf("connect after re-registration: %v", err)
+	}
+}
+
+// A registered host's NAT changes its mapping (a rebooted router, a new
+// public address, the laptop on another network) and the rendezvous
+// connection follows it. Clients must be given the new address at once, and
+// the host is asked to register again, so it measures its NAT afresh.
+func TestHostMovesBehindItsNAT(t *testing.T) {
+	defer func(d time.Duration) { moveCheckEvery = d }(moveCheckEvery)
+	moveCheckEvery = 50 * time.Millisecond
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	box := tn.net.NAT("203.0.113.20", vnet.PortRestrictedCone)
+	hostSock := tn.socket(box.Host("10.0.0.20"))
+	id := newIdentity(t)
+	hc := tn.dial(hostSock, Options{})
+	reg, err := hc.Register(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go hc.ServeOffers(ctx, func(Offer) Answer { return Answer{Local: hostSock.Candidates()} })
+
+	box.Rebind()
+	// Any packet from the host now leaves through a new mapping.
+	if _, err := hc.Presence(ctx, []string{reg.ID}); err != nil {
+		t.Fatalf("presence after the NAT rebound: %v", err)
+	}
+	cc := tn.dial(tn.socket(tn.net.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10")), Options{})
+	in, err := cc.Connect(ctx, reg.ID, nil, nat.TypeUnknown)
+	if err != nil {
+		t.Fatalf("connect after the host moved: %v", err)
+	}
+	if in.Peer.Reflexive == reg.Reflexive || in.Peer.Reflexive.Addr() != reg.Reflexive.Addr() {
+		t.Fatalf("client was told the host is at %s; it registered from %s and has since moved to another port", in.Peer.Reflexive, reg.Reflexive)
+	}
+	select {
+	case <-hc.Done():
+	case <-time.After(3 * time.Second):
+		t.Fatal("the moved host was not asked to register again")
+	}
+	if ae, ok := errors.AsType[*quic.ApplicationError](hc.Err()); !ok || ae.ErrorCode != closeMoved {
+		t.Fatalf("host connection ended with %v, want code %d", hc.Err(), closeMoved)
+	}
+	// Registering again from the new mapping works and reports it.
+	hc2 := tn.dial(hostSock, Options{})
+	reg2, err := hc2.Register(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reg2.ID != reg.ID || reg2.Reflexive.Addr() != reg.Reflexive.Addr() || reg2.Reflexive == reg.Reflexive {
+		t.Fatalf("re-registered at %s", reg2.Reflexive)
 	}
 }
 
