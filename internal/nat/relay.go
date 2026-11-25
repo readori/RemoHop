@@ -37,6 +37,14 @@ import (
 // A peer whose session is over sends release, so the relay frees the
 // session at once instead of after its idle timeout (which matters where
 // the operator caps concurrent sessions per address).
+//
+// Only bound peers keep a session alive: packets from anyone else neither
+// pass nor count as activity, so whoever finds the port cannot hold the
+// session (and its slot) open. A bind is a pure function of the nonce and
+// the role, so an observer on the path could replay one from another
+// address; a bind therefore moves a role to a new address only once its
+// current address has been silent for relayMoveQuiet, which a peer that is
+// still talking never is.
 const (
 	pktRelayBind    = 0x05
 	pktRelayAck     = 0x06
@@ -44,6 +52,9 @@ const (
 
 	relayBindLen = 40
 	relayAckLen  = 20
+
+	// relayMoveQuiet: see above.
+	relayMoveQuiet = 2 * time.Second
 )
 
 func relayKey(nonce []byte) []byte { return derive(nonce, "remohop relay key") }
@@ -285,10 +296,12 @@ func ServeRelay(ctx context.Context, pc net.PacketConn, nonce []byte, limits Rel
 	}
 	q := newPacer(pc, limits.Meter)
 	var peers [3]netip.AddrPort // indexed by Role
+	var heard [3]time.Time      // when each role's address last sent anything
 	var stats RelayStats
 	buf := make([]byte, 2048)
+	active := time.Now() // the last bind or packet from a bound peer
 	for ctx.Err() == nil {
-		pc.SetReadDeadline(time.Now().Add(limits.Idle))
+		pc.SetReadDeadline(active.Add(limits.Idle))
 		n, from, err := pc.ReadFrom(buf)
 		if err != nil {
 			break // idle, cancelled or closed
@@ -301,10 +314,13 @@ func ServeRelay(ctx context.Context, pc net.PacketConn, nonce []byte, limits Rel
 		if n == relayBindLen && hasHeader(p, pktRelayBind) {
 			role := Role(p[4])
 			if (role == RoleClient || role == RoleHost) && hmac.Equal(p[24:], relayMAC(key, 'B', p[:24])) {
+				now := time.Now()
 				// A valid bind may also move a peer whose NAT mapping
-				// changed.
-				peers[role] = src
-				pc.WriteTo(ack, from)
+				// changed, once its old address has gone quiet.
+				if !peers[role].IsValid() || peers[role] == src || now.Sub(heard[role]) > relayMoveQuiet {
+					peers[role], heard[role], active = src, now, now
+					pc.WriteTo(ack, from)
+				}
 			}
 			continue
 		}
@@ -321,16 +337,16 @@ func ServeRelay(ctx context.Context, pc net.PacketConn, nonce []byte, limits Rel
 			continue
 		}
 		var to netip.AddrPort
+		now := time.Now()
 		switch src {
 		case peers[RoleClient]:
-			to = peers[RoleHost]
+			to, heard[RoleClient], active = peers[RoleHost], now, now
 		case peers[RoleHost]:
-			to = peers[RoleClient]
+			to, heard[RoleHost], active = peers[RoleClient], now, now
 		}
 		if !to.IsValid() {
 			continue // a stranger, or the other side has not bound yet
 		}
-		now := time.Now()
 		w1, ok := session.reserve(now, n, maxDelay)
 		if !ok {
 			stats.Dropped++
