@@ -40,6 +40,12 @@ type gtkLib struct {
 	windowResize     func(w uintptr, width, height int32)
 	screenDefault    func() uintptr
 	screenWidth      func(s uintptr) int32
+	screenHeight     func(s uintptr) int32
+	displayDefault   func() uintptr
+	primaryMonitor   func(d uintptr) uintptr
+	monitorN         func(d uintptr, n int32) uintptr
+	monitorWorkarea  func(m uintptr, r *gdkRect)
+	haveWorkarea     bool
 	menuNew          func() uintptr
 	menuItemNew      func(label string) uintptr
 	separatorNew     func() uintptr
@@ -142,6 +148,7 @@ func loadGTK() (*gtkLib, error) {
 		reg(&l.windowResize, l.gtk, "gtk_window_resize")
 		reg(&l.screenDefault, l.gtk, "gdk_screen_get_default")
 		reg(&l.screenWidth, l.gtk, "gdk_screen_get_width")
+		reg(&l.screenHeight, l.gtk, "gdk_screen_get_height")
 		reg(&l.menuNew, l.gtk, "gtk_menu_new")
 		reg(&l.menuItemNew, l.gtk, "gtk_menu_item_new_with_label")
 		reg(&l.separatorNew, l.gtk, "gtk_separator_menu_item_new")
@@ -159,6 +166,15 @@ func loadGTK() (*gtkLib, error) {
 		if err != nil {
 			libErr = err
 			return
+		}
+		// GTK 3.22 and later know each monitor's work area (the screen minus panels).
+		if has(l.gtk, "gdk_monitor_get_workarea") {
+			reg(&l.displayDefault, l.gtk, "gdk_display_get_default")
+			reg(&l.primaryMonitor, l.gtk, "gdk_display_get_primary_monitor")
+			reg(&l.monitorN, l.gtk, "gdk_display_get_monitor")
+			reg(&l.monitorWorkarea, l.gtk, "gdk_monitor_get_workarea")
+			l.haveWorkarea = err == nil
+			err = nil
 		}
 		// WebKitGTK 2.42 and later list their web features; WebCodecs is one.
 		if has(l.webkit, "webkit_settings_get_all_features") {
@@ -332,9 +348,8 @@ func (a *gtkApp) NewWindow(o Options) (Window, error) {
 		l.setKeepAbove(w.win, true)
 		l.setSkipTaskbar(w.win, true)
 		l.setSkipPager(w.win, true)
-		if s := l.screenDefault(); s != 0 {
-			l.windowMove(w.win, (l.screenWidth(s)-int32(width))/2, 8)
-		}
+		x, y := a.overlayOrigin(width, height)
+		l.windowMove(w.win, x, y)
 	}
 	w.view = l.webViewNew()
 	a.enableFeatures(w.view)
@@ -370,6 +385,35 @@ func (a *gtkApp) enableFeatures(view uintptr) {
 			l.setFeatureOn(st, f, true)
 		}
 	}
+}
+
+// gdkRect is a GdkRectangle.
+type gdkRect struct{ X, Y, W, H int32 }
+
+// overlayOrigin is where the banner goes: the bottom-right corner of the
+// primary monitor's work area, where notifications appear, away from the
+// app's own window and its tab bar. Wayland compositors may place it
+// elsewhere.
+func (a *gtkApp) overlayOrigin(width, height int) (int32, int32) {
+	l := a.l
+	r := gdkRect{}
+	if l.haveWorkarea {
+		if d := l.displayDefault(); d != 0 {
+			m := l.primaryMonitor(d)
+			if m == 0 {
+				m = l.monitorN(d, 0)
+			}
+			if m != 0 {
+				l.monitorWorkarea(m, &r)
+			}
+		}
+	}
+	if r.W == 0 || r.H == 0 {
+		if s := l.screenDefault(); s != 0 {
+			r = gdkRect{W: l.screenWidth(s), H: l.screenHeight(s) - 48}
+		}
+	}
+	return r.X + r.W - int32(width) - overlayMargin, r.Y + r.H - int32(height) - overlayMargin
 }
 
 func (w *gtkWindow) Navigate(url string) {

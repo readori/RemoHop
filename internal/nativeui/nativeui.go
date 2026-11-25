@@ -69,8 +69,9 @@ type Options struct {
 	// Hidden creates the window without showing it.
 	Hidden bool
 	// Overlay makes a small undecorated window that stays above the
-	// others and out of the task bar, at the top centre of the screen:
-	// the "this computer is being controlled" banner.
+	// others and out of the task bar, in the bottom-right corner of the
+	// work area (where notifications appear, clear of the app's own
+	// window and tab bar): the "this computer is being controlled" banner.
 	Overlay bool
 }
 

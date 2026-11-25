@@ -450,9 +450,11 @@ func (a *macApp) NewWindow(o Options) (Window, error) {
 		win.Send(sel("setLevel:"), floatingLevel)
 		win.Send(sel("setCollectionBehavior:"), uint(1|16|64)) // all spaces, stationary, not in Cmd-` cycle
 		win.Send(sel("setHidesOnDeactivate:"), false)
+		// The bottom-right corner of the visible frame (above the Dock),
+		// away from the menu bar and the app's window and tab bar.
 		if scr := cls("NSScreen").Send(sel("mainScreen")); scr != 0 {
 			f := objc.Send[nsRect](scr, sel("visibleFrame"))
-			win.Send(sel("setFrameOrigin:"), nsPoint{f.Origin.X + (f.Size.W-float64(width))/2, f.Origin.Y + f.Size.H - float64(height) - 8})
+			win.Send(sel("setFrameOrigin:"), nsPoint{f.Origin.X + f.Size.W - float64(width) - overlayMargin, f.Origin.Y + overlayMargin})
 		}
 	} else {
 		win.Send(sel("center"))
