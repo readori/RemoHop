@@ -4,7 +4,7 @@
   'use strict';
   const base = location.pathname.replace(/[^/]*$/, '');
   const W = {
-    en: {one: '{n} is connected to this computer', many: '{c} devices are connected to this computer', stop: 'Disconnect'},
+    en: {one: '{n} is connected', many: '{c} devices are connected', stop: 'Disconnect'},
     zh: {one: '{n} 正连接到这台电脑', many: '{c} 台设备正连接到这台电脑', stop: '断开'}
   };
   let csrf = '';
