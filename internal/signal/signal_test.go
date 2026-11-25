@@ -808,11 +808,22 @@ func TestParseCandidates(t *testing.T) {
 
 	// Reflection: a peer may not name addresses that are not its own. A
 	// third party's public address, a neighbour's, another IPv6 network.
-	for _, victim := range []string{"8.8.8.8:53", "203.0.113.8:4000", "[2001:db8:1::1]:9", "[fe80::1]:9", "10.0.0.1:0"} {
+	for _, victim := range []string{"8.8.8.8:53", "203.0.113.8:4000", "[fe80::1]:9", "10.0.0.1:0"} {
 		got, err := parseCandidates([]string{victim}, observed)
 		if err != nil || len(got) != 0 {
 			t.Errorf("candidate %s from a peer at %s was passed on (%v, %v)", victim, observed, got, err)
 		}
+	}
+	// A peer seen over IPv4 may name one global IPv6 address (it cannot be
+	// checked, and without it IPv6 would never be tried); not two.
+	got, _ = parseCandidates([]string{"[2001:db8:1::1]:9", "192.168.1.5:9", "[2001:db8:7::1]:9"}, observed)
+	if len(got) != 2 || got[0].String() != "[2001:db8:1::1]:9" || got[1].String() != "192.168.1.5:9" {
+		t.Errorf("global IPv6 from a peer seen over IPv4: kept %v", got)
+	}
+	// A peer seen over IPv6 has its /64 checked, as before.
+	got, _ = parseCandidates([]string{"[2001:db8:7::1]:9"}, netip.MustParseAddr("2001:db8:1:2::1"))
+	if len(got) != 0 {
+		t.Errorf("another /64 from a peer seen over IPv6 was passed on: %v", got)
 	}
 	// IPv6: the peer's own /64 is its own.
 	got, _ = parseCandidates([]string{"[2001:db8:1:2::99]:9", "[2001:db8:1:3::99]:9"}, netip.MustParseAddr("2001:db8:1:2::1"))

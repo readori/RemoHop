@@ -715,16 +715,15 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		return nil, route{}, err
 	}
 	if t.id == "" {
-		network := "udp"
-		if la, ok := sock.LocalAddr().(*net.UDPAddr); ok && la.IP.To4() != nil {
-			network = "udp4"
-		}
-		ua, err := net.ResolveUDPAddr(network, t.canonical)
-		if err != nil {
-			return nil, route{}, fmt.Errorf("cannot resolve %s: %w", t.canonical, err)
-		}
 		dctx, cancel := context.WithTimeout(ctx, directTimeout)
 		defer cancel()
+		ua, err := nat.ResolveUDP(dctx, sock.LocalAddr(), t.canonical)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, route{}, ctx.Err()
+			}
+			return nil, route{}, fmt.Errorf("cannot resolve %s: %w", t.canonical, err)
+		}
 		q, err := sock.Transport().Dial(dctx, ua, tlsConf, peer.QUICConfig())
 		if err != nil {
 			if ctx.Err() != nil {

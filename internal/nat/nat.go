@@ -143,7 +143,7 @@ func Explain(local, remote Type) string {
 	default:
 		return "no probe got through although both NATs look punchable. Likely causes: a firewall on either side that blocks UDP, " +
 			"or a NAT that keeps state for unsolicited inbound packets (some Linux-based routers and VM or container hosts do) " +
-			"and then remaps the port for this one peer; retrying sometimes helps, a forwarded UDP port or IPv6 always does (" + types + ")"
+			"and then remaps the port for this one peer; retrying sometimes helps, and a forwarded UDP port or IPv6 on both sides usually does (" + types + ")"
 	}
 }
 

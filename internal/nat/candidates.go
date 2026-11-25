@@ -3,6 +3,8 @@ package nat
 import (
 	"net"
 	"net/netip"
+	"slices"
+	"strings"
 
 	"github.com/readori/RemoHop/internal/tailnet"
 )
@@ -26,16 +28,30 @@ const MaxCandidates = 6
 // interfaces that a peer might reach: every IPv4 address except loopback
 // and link-local (private ones matter most: they are how two machines on
 // the same LAN find each other), and global or unique-local IPv6 addresses.
-// IPv4 comes first, except that the addresses of a Tailscale interface come
-// before everything: they work through any NAT when both peers are on the
-// same tailnet (see internal/tailnet), so they must not fall victim to the
-// MaxCandidates cap on a machine with many interfaces.
+//
+// Only the first MaxCandidates are advertised, so the order matters:
+//
+//   - the addresses of a Tailscale interface: they work through any NAT
+//     when both peers are on the same tailnet (see internal/tailnet);
+//   - the addresses the machine sends from on its default routes, IPv4 then
+//     IPv6: the real LAN address, and the IPv6 address a punch's packets
+//     actually leave from (a stateful firewall opens only for that one);
+//   - other IPv4, then IPv6, addresses of interfaces that are up and do not
+//     look virtual;
+//   - last, those of virtual adapters (Hyper-V and WSL switches, Docker
+//     and libvirt bridges, VMware, VirtualBox) and of interfaces without a
+//     carrier, which on a developer's machine could otherwise crowd the
+//     real LAN address out of the list.
 func InterfaceAddrs() []netip.Addr {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil
 	}
-	var overlay, v4, v6 []netip.Addr
+	// The documentation prefixes route like any address beyond the LAN;
+	// connecting a UDP socket to them sends nothing.
+	src4, _ := routeSource(netip.MustParseAddrPort("192.0.2.1:9"))
+	src6, _ := routeSource(netip.MustParseAddrPort("[2001:db8::1]:9"))
+	var overlay, primary4, primary6, v4, v6, late4, late6 []netip.Addr
 	for _, ifc := range ifaces {
 		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
 			continue
@@ -61,10 +77,19 @@ func InterfaceAddrs() []netip.Addr {
 			ips = append(ips, ip)
 		}
 		tailnetIf := !tailnet.Disabled() && tailnet.IsInterface(ifc.Name, ips)
+		late := virtualInterface(ifc.Name) || ifc.Flags&net.FlagRunning == 0
 		for _, ip := range ips {
 			switch {
 			case tailnetIf && tailnet.InRange(ip):
 				overlay = append(overlay, ip)
+			case ip == src4:
+				primary4 = append(primary4, ip)
+			case ip == src6:
+				primary6 = append(primary6, ip)
+			case late && ip.Is4():
+				late4 = append(late4, ip)
+			case late:
+				late6 = append(late6, ip)
 			case ip.Is4():
 				v4 = append(v4, ip)
 			default:
@@ -72,7 +97,20 @@ func InterfaceAddrs() []netip.Addr {
 			}
 		}
 	}
-	return append(overlay, append(v4, v6...)...)
+	return slices.Concat(overlay, primary4, primary6, v4, v6, late4, late6)
+}
+
+// virtualInterface reports whether an interface name is one that
+// hypervisors, container engines and the like create on the host.
+func virtualInterface(name string) bool {
+	n := strings.ToLower(name)
+	for _, p := range []string{"docker", "br-", "veth", "virbr", "vmnet", "vboxnet", "lxcbr", "lxdbr", "cni", "podman",
+		"flannel", "vethernet", "vmware", "bridge", "vmenet"} {
+		if strings.HasPrefix(n, p) {
+			return true
+		}
+	}
+	return strings.Contains(n, "virtual") // VirtualBox, "Hyper-V Virtual Ethernet Adapter"
 }
 
 func usableLocal(ip netip.Addr) bool {
