@@ -91,9 +91,9 @@ func TestPartialUploadIsLockedAndKept(t *testing.T) {
 		t.Fatal("broken upload succeeded")
 	}
 	var size int64
-	for i := 0; i < 50; i++ {
-		if fi, err := os.Stat(part); err == nil && fi.Size() == 3*bulkChunk {
-			size = fi.Size()
+	for i := 0; i < 400; i++ {
+		if keptAndReleased(part, 3*bulkChunk) {
+			size = 3 * bulkChunk
 			break
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -240,6 +240,26 @@ func waitForSize(p string, size int64) {
 	}
 }
 
+// keptAndReleased reports whether the partial file p has size bytes and the
+// host's broken upload has let go of it (its lock is free), so that what
+// the test does next does not race the end of that upload.
+func keptAndReleased(p string, size int64) bool {
+	fi, err := os.Stat(p)
+	if err != nil || fi.Size() != size {
+		return false
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	if syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB) != nil {
+		return false
+	}
+	syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	return true
+}
+
 // breakUpload sends n bytes to dst through the partial file of key and
 // then breaks the upload, and returns the partial file's path once the
 // host has written all of it.
@@ -261,8 +281,8 @@ func breakUpload(t *testing.T, c *Client, dst, key string, n int) string {
 	if _, err := c.Upload(ctx2, dst, pr, PutOptions{Partial: part, PartialKey: key}); err == nil {
 		t.Fatal("broken upload succeeded")
 	}
-	for i := 0; i < 100; i++ {
-		if fi, err := os.Stat(part); err == nil && fi.Size() == int64(n) {
+	for i := 0; i < 1000; i++ {
+		if keptAndReleased(part, int64(n)) {
 			return part
 		}
 		time.Sleep(20 * time.Millisecond)
