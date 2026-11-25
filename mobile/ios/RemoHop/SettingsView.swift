@@ -241,6 +241,8 @@ final class SettingsModel: ObservableObject {
     @Published var pairing = false
     @Published var pairStatus = ""
     @Published var pairOK = false
+    /// The last pairing failure's code (to offer "Set up" for a rendezvous problem).
+    @Published var pairCode = ""
     @Published var hosts: [SavedHost] = []
     @Published var hostsLoaded = false
     @Published var hostsStatus = ""
@@ -309,12 +311,13 @@ final class SettingsModel: ObservableObject {
         let v = value(f)
         guard stored[f] != v else { return }
         Task.detached {
-            let err: String?
-            do { try Core.setSetting(f.rawValue, v); err = nil } catch { err = error.localizedDescription }
+            let failure = Core.setSettingCode(f.rawValue, v)
             let s = (try? Core.settings()) ?? [:]
             await MainActor.run {
-                if let err {
-                    self.fieldError = err
+                if let failure {
+                    // In the app's words; the core's text goes to the log.
+                    Diag.log("setting \(f.rawValue) not saved: \(failure.code) \(failure.message)")
+                    self.fieldError = L10n.settingError(code: failure.code)
                     return
                 }
                 self.fieldError = ""
@@ -331,6 +334,19 @@ final class SettingsModel: ObservableObject {
 
     func commitAll() {
         for f in [Field.signal, .pin, .relay, .name] { commit(f) }
+    }
+
+    /// Test connection: tests what is typed. A changed address or key is
+    /// saved first (a saved change is checked right away); otherwise the
+    /// saved server is checked again.
+    func testRendezvous() {
+        if stored[.signal] != value(.signal) {
+            commit(.signal) // a new address drops the old server's key
+        } else if stored[.pin] != value(.pin) {
+            commit(.pin)
+        } else {
+            checkRendezvous()
+        }
     }
 
     private func flashSaved(_ f: Field) {
@@ -378,6 +394,7 @@ final class SettingsModel: ObservableObject {
         pairPassword = ""
         pairing = true
         pairOK = false
+        pairCode = ""
         pairStatus = L("Connecting… the host may ask its owner to approve.")
         Task.detached {
             let r = (try? Core.pair(target: t, password: pw, alias: a)) ?? ["ok": false, "error": "pairing failed"]
@@ -389,8 +406,12 @@ final class SettingsModel: ObservableObject {
                     Diag.log("paired with a host")
                     self.loadHosts(online: false)
                 } else {
-                    self.pairStatus = L10n.pairError(code: r["code"] as? String, raw: r["error"] as? String ?? L("Pairing failed."))
-                    Diag.log("pairing failed: \(r["code"] as? String ?? "") \(r["error"] as? String ?? "")")
+                    // A request turned down before trying says why in "reason".
+                    let reason = r["reason"] as? String ?? ""
+                    let code = reason.isEmpty ? (r["code"] as? String ?? "") : reason
+                    self.pairCode = code
+                    self.pairStatus = L10n.pairError(code: code)
+                    Diag.log("pairing failed: \(code) \(r["error"] as? String ?? "")")
                 }
             }
         }

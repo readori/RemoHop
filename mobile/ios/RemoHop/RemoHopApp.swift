@@ -83,7 +83,7 @@ final class AppModel: ObservableObject {
 
     /// The app went to the background. iOS suspends it within seconds
     /// unless it asks for time: it asks (about 30 seconds) when a host
-    /// session exists, so that copying a password from another app does not
+    /// session or a connection attempt exists, so that copying a password from another app does not
     /// drop the session, and closes the gateway's listener when the time is
     /// up or right away when there is nothing to keep (Apple's TN2277). No
     /// background mode is used: once suspended, the sessions drop, and the
@@ -91,7 +91,8 @@ final class AppModel: ObservableObject {
     func enterBackground() {
         endBackgroundTask()
         gatewayQueue.async {
-            let keep = Core.hasSessions
+            // A session, or an attempt waiting for the host's owner to approve.
+            let keep = Core.busy
             Task { @MainActor in
                 // Back in front meanwhile: nothing to do (ensureGateway ran).
                 guard UIApplication.shared.applicationState == .background else { return }

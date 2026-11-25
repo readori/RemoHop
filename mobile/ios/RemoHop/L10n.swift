@@ -44,12 +44,31 @@ enum L10n {
         lang == "zh" ? (zh[english] ?? english) : english
     }
 
-    /// A pairing failure in the app's words where its code is known and the
-    /// app is in Chinese; otherwise the core's own (English) message.
-    static func pairError(code: String?, raw: String) -> String {
-        guard effective == "zh", let code, let english = pairErrors[code] else { return raw }
-        return text(english)
+    /// A pairing failure in the app's words, in either language (a code the
+    /// app does not know yet gets a general sentence). The core's own text
+    /// is English and may name CLI commands: it goes to the diagnostic log
+    /// only.
+    static func pairError(code: String?) -> String {
+        text(pairErrors[code ?? ""] ?? pairFailed)
     }
+
+    static let pairFailed = "Pairing did not work. Turn on Diagnostic logs in Settings to see why."
+
+    /// Codes a fix in Settings → Rendezvous server cures: the pair screen offers "Set up".
+    static let rendezvousProblems: Set<String> = ["no_rendezvous", "rendezvous_unreachable", "signal_is_host", "signal_wrong_protocol"]
+
+    /// A setting the core refused (SetSettingJSON's code), in the app's words.
+    static func settingError(code: String?) -> String {
+        text(settingErrors[code ?? ""] ?? "The setting could not be saved.")
+    }
+
+    static let settingErrors: [String: String] = [
+        "bad_address": "Enter the server's name or IP address, optionally with a port, for example rendezvous.example.net:21116.",
+        "bad_key": "This is not a server key. Paste the key the server's administrator gave you.",
+        "bad_name": "Use at most 64 characters, without line breaks.",
+        "bad_value": "Use at most 64 characters, without line breaks.",
+        "error": "The setting could not be saved.",
+    ]
 
     /// How a saved host logs in ("pairing", "key", "password") and whether it
     /// is online, as the core reports them.
@@ -61,13 +80,27 @@ enum L10n {
         "unknown_id": "No host with that ID exists.",
         "host_offline": "That host is not online.",
         "no_path": "No direct path to the host could be found.",
-        "no_rendezvous": "No rendezvous server is set: enter one above, or pair by address (host:port).",
+        "no_rendezvous": "IDs are found through a rendezvous server, and none is set up yet. Set one up, or pair by the host's address (host:port) instead.",
         "host_key_changed": "The host's identity key changed since it was first seen. This could be an impersonation attempt.",
         "denied": "The host's owner denied the pairing, or nobody answered in time.",
         "locked_out": "The host has locked this device out after too many wrong passwords. Wait a while, then try again.",
         "password_required": "Enter the host's password.",
         "timeout": "Timed out.",
         "canceled": "Canceled.",
+        "target_required": "Enter the host's ID or address.",
+        "bad_target": "That is not a 9-digit ID, a saved name or an address such as 192.168.1.20:21118.",
+        "bad_alias": "Start with a letter; then use letters, digits, single spaces, ., _ or - (up to 63 characters).",
+        "already_pairing": "A pairing is already in progress. Wait for it to finish or cancel it.",
+        "host_unreachable": "The host did not answer. Check the ID or address, and that RemoHop is running on it.",
+        "cannot_resolve": "That address could not be found. Check its spelling.",
+        "rendezvous_unreachable": "The rendezvous server set in Settings cannot be reached. Check its address and the network, or pair by address (host:port).",
+        "rendezvous_rate_limited": "The rendezvous server is limiting requests from this device. Try again in a moment.",
+        "signal_is_host": "The rendezvous server in Settings is a RemoHop host, not a rendezvous server. Pair with it by its address (host:port), and fix the setting.",
+        "signal_wrong_protocol": "The address in Settings → Rendezvous server is not a RemoHop rendezvous server.",
+        "host_busy": "The host is busy with other logins. Try again in a moment.",
+        "key_rejected": "The host does not accept this device's key. Pair with its password.",
+        "pairing_rejected": "The host no longer accepts this device's pairing. Pair again with its password.",
+        "password_login_disabled": "This host does not accept password logins.",
     ]
 
     static let zh: [String: String] = [
@@ -83,8 +116,6 @@ enum L10n {
         "Server key (optional)": "服务器密钥（可选）",
         "Allow relayed connections": "允许中继连接",
         "Rendezvous server": "汇合服务器",
-        "Introduces this device to your hosts by their 9-digit ID. RemoHop has no default server: run your own with `remohop signal`. Without one you can connect by address (host:port). Relayed connections stay end-to-end encrypted.":
-            "凭 9 位 ID 把这台设备介绍给你的被控端。RemoHop 不提供默认服务器：请用 `remohop signal` 自行搭建。没有汇合服务器时，可以通过地址（host:port）连接。中继连接同样是端到端加密的。",
         "This device": "本设备",
         "Device name shown to hosts (optional)": "向被控端显示的设备名称（可选）",
         "Save": "保存",
@@ -126,7 +157,30 @@ enum L10n {
         "No host with that ID exists.": "没有这个 ID 的被控端。",
         "That host is not online.": "该被控端不在线。",
         "No direct path to the host could be found.": "找不到通往被控端的直连路径。",
-        "No rendezvous server is set: enter one above, or pair by address (host:port).": "尚未设置汇合服务器：请在上方填写，或用地址（host:port）配对。",
+        "IDs are found through a rendezvous server, and none is set up yet. Set one up, or pair by the host's address (host:port) instead.": "ID 要通过汇合服务器查找，而目前还没有设置。请先设置，或改用被控端的地址（host:port）配对。",
+        "Enter the host's ID or address.": "请输入被控端的 ID 或地址。",
+        "That is not a 9-digit ID, a saved name or an address such as 192.168.1.20:21118.": "这不是 9 位 ID、已保存的名称，也不是像 192.168.1.20:21118 这样的地址。",
+        "A pairing is already in progress. Wait for it to finish or cancel it.": "已有一个配对正在进行。请等待它完成或取消它。",
+        "The host did not answer. Check the ID or address, and that RemoHop is running on it.": "被控端没有应答。请检查 ID 或地址，并确认它上面正在运行 RemoHop。",
+        "That address could not be found. Check its spelling.": "找不到这个地址，请检查拼写。",
+        "The rendezvous server set in Settings cannot be reached. Check its address and the network, or pair by address (host:port).": "无法连接设置中的汇合服务器。请检查它的地址和网络，或用地址（host:port）配对。",
+        "The rendezvous server is limiting requests from this device. Try again in a moment.": "汇合服务器正在限制本设备的请求，请稍后再试。",
+        "The rendezvous server in Settings is a RemoHop host, not a rendezvous server. Pair with it by its address (host:port), and fix the setting.": "设置中填写的汇合服务器是一台 RemoHop 被控端，不是汇合服务器。请直接用它的地址（host:port）配对，并修改该设置。",
+        "The address in Settings → Rendezvous server is not a RemoHop rendezvous server.": "“设置 → 汇合服务器”中填写的不是 RemoHop 汇合服务器。",
+        "The host is busy with other logins. Try again in a moment.": "被控端正忙于处理其他登录，请稍后再试。",
+        "The host does not accept this device's key. Pair with its password.": "被控端不接受本设备的密钥，请用它的密码配对。",
+        "The host no longer accepts this device's pairing. Pair again with its password.": "被控端已不再接受本设备的配对，请用它的密码重新配对。",
+        "This host does not accept password logins.": "这台被控端不接受密码登录。",
+        "Pairing did not work. Turn on Diagnostic logs in Settings to see why.": "配对未成功。可以在设置中开启诊断日志查看原因。",
+        "Set up": "去设置",
+        "Enter the server's name or IP address, optionally with a port, for example rendezvous.example.net:21116.": "请填写服务器的域名或 IP 地址，可以带端口，例如 rendezvous.example.net:21116。",
+        "This is not a server key. Paste the key the server's administrator gave you.": "这不是服务器密钥。请粘贴服务器管理员给你的密钥。",
+        "Use at most 64 characters, without line breaks.": "最多 64 个字符，不能换行。",
+        "The setting could not be saved.": "无法保存该设置。",
+        "Downloading %@…": "正在下载 %@…",
+        "Downloading %@ · %d%%": "正在下载 %@ · %d%%",
+        "Download canceled.": "已取消下载。",
+        "Another download is still running. Wait for it, or cancel it.": "另一个下载仍在进行。请等待它完成，或取消它。",
         "The host's identity key changed since it was first seen. This could be an impersonation attempt.": "被控端的身份密钥与首次连接时不同，可能有人在冒充它。",
         "The host's owner denied the pairing, or nobody answered in time.": "被控端的主人拒绝了配对，或没有及时响应。",
         "The host has locked this device out after too many wrong passwords. Wait a while, then try again.": "密码错误次数过多，被控端已暂时拒绝这台设备。请稍后再试。",
@@ -159,12 +213,12 @@ enum L10n {
         "Optional": "可选",
         "Test connection": "测试连接",
         "Relay when there is no direct path": "无法直连时使用中继",
-        "Finds your computers by their 9-digit ID. Not needed when you connect by address (host:port). RemoHop has no default server: use your own.": "凭 9 位 ID 找到你的电脑。用地址（host:port）连接时不需要。RemoHop 不提供默认服务器，请使用你自己的。",
+        "A rendezvous server is a small meeting point on the internet: it introduces this device to your computers by their 9-digit ID and helps the two find a direct path. RemoHop has no default server; enter the address of the one you or your administrator run. Without one you can still connect by address (host:port), for example to a computer on the same network.": "汇合服务器是互联网上的一个小“碰头点”：它凭 9 位 ID 把本设备介绍给你的电脑，并帮两者找到直连路径。RemoHop 不提供默认服务器，请填写你或管理员搭建的服务器地址。没有汇合服务器时，仍可以通过地址（host:port）连接，例如同一网络中的电脑。",
         "The server's public key, if you want this device to accept only that server. Leave it empty to trust the address.": "服务器的公钥，用于让本设备只接受这台服务器。留空则信任该地址。",
         "Relay": "中继",
         "When no direct path works, the connection goes through the server. It stays end-to-end encrypted, but is slower.": "无法直连时，连接经由服务器中转。仍然端到端加密，只是速度较慢。",
         "For administrators": "给管理员",
-        "Run a server with `remohop signal`; it prints its address and key.": "用 `remohop signal` 运行服务器，它会显示地址和密钥。",
+        "Ask whoever set up RemoHop on your computers for the server's address and key. To run your own, see \"Rendezvous server\" on the RemoHop website.": "请向为你的电脑安装 RemoHop 的人索取服务器地址和密钥。如果想自己搭建，请参阅 RemoHop 网站上的“汇合服务器”。",
         "Working": "正常",
         "This is a host, not a server": "这是被控端，不是服务器",
         "Unreachable": "无法连接",
@@ -181,7 +235,7 @@ enum L10n {
         "Host password": "被控端密码",
         "Name (optional)": "名称（可选）",
         "Log in once with the host's password. The host gives this device a token, so later connections need no password. The password is used once and not stored.": "用被控端的密码登录一次，被控端会给本设备发一个令牌，以后连接无需密码。密码只用这一次，不会保存。",
-        "The host's 9-digit ID (needs a rendezvous server), a saved name, or its address such as 192.168.1.20:21118.": "被控端的 9 位 ID（需要汇合服务器）、已保存的名称，或它的地址，例如 192.168.1.20:21118。",
+        "The host's 9-digit ID (needs a rendezvous server, set in Settings), a saved name, or its address such as 192.168.1.20:21118 (no server needed).": "被控端的 9 位 ID（需要在设置中填写汇合服务器）、已保存的名称，或它的地址，例如 192.168.1.20:21118（不需要服务器）。",
         "Log size": "日志大小",
         "File format": "文件格式",
         "Share diagnostic logs": "分享诊断日志",
@@ -239,7 +293,7 @@ enum L10n {
         "Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.": "从本设备删除配对信息和固定的密钥。之后连接这台电脑需要再次输入密码，密钥变化也不会再被发现。",
         "Hosts this device has connected to or paired with. Tap one to rename it, connect to it or forget it; pull down to check which are online.": "本设备连接或配对过的被控端。轻点一台可重命名、连接或移除；下拉可检查哪些在线。",
         "No server key set": "未设置服务器密钥",
-        "Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key that `remohop signal` printed, or use the one this server presented after comparing it.": "没有密钥时，本设备第一次连接会信任在这个地址上应答的服务器（首次使用即信任）。请粘贴 `remohop signal` 显示的密钥，或在核对后使用这台服务器提供的密钥。",
+        "Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key your server's administrator gave you, or use the one this server presented after comparing it.": "没有密钥时，本设备第一次连接会信任在这个地址上应答的服务器（首次使用即信任）。请粘贴服务器管理员给你的密钥，或在核对后使用这台服务器提供的密钥。",
         "Use this key": "使用此密钥",
         "Privacy questions": "隐私问题",
     ]
@@ -270,12 +324,12 @@ enum L10n {
         "Optional",
         "Test connection",
         "Relay when there is no direct path",
-        "Finds your computers by their 9-digit ID. Not needed when you connect by address (host:port). RemoHop has no default server: use your own.",
+        "A rendezvous server is a small meeting point on the internet: it introduces this device to your computers by their 9-digit ID and helps the two find a direct path. RemoHop has no default server; enter the address of the one you or your administrator run. Without one you can still connect by address (host:port), for example to a computer on the same network.",
         "The server's public key, if you want this device to accept only that server. Leave it empty to trust the address.",
         "Relay",
         "When no direct path works, the connection goes through the server. It stays end-to-end encrypted, but is slower.",
         "For administrators",
-        "Run a server with `remohop signal`; it prints its address and key.",
+        "Ask whoever set up RemoHop on your computers for the server's address and key. To run your own, see \"Rendezvous server\" on the RemoHop website.",
         "Working",
         "This is a host, not a server",
         "Unreachable",
@@ -293,7 +347,7 @@ enum L10n {
         "Host password",
         "Name (optional)",
         "Log in once with the host's password. The host gives this device a token, so later connections need no password. The password is used once and not stored.",
-        "The host's 9-digit ID (needs a rendezvous server), a saved name, or its address such as 192.168.1.20:21118.",
+        "The host's 9-digit ID (needs a rendezvous server, set in Settings), a saved name, or its address such as 192.168.1.20:21118 (no server needed).",
         "Log size",
         "File format",
         "Share diagnostic logs",
@@ -350,9 +404,14 @@ enum L10n {
         "Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.",
         "Hosts this device has connected to or paired with. Tap one to rename it, connect to it or forget it; pull down to check which are online.",
         "No server key set",
-        "Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key that `remohop signal` printed, or use the one this server presented after comparing it.",
+        "Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key your server's administrator gave you, or use the one this server presented after comparing it.",
         "Use this key",
         "Privacy questions",
+        "Set up",
+        "Downloading %@…",
+        "Downloading %@ · %d%%",
+        "Download canceled.",
+        "Another download is still running. Wait for it, or cancel it.",
     ]
 }
 

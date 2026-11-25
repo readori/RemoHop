@@ -101,7 +101,7 @@ struct RendezvousView: View {
                     Label {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(L("No server key set")).font(.subheadline.weight(.semibold))
-                            Text(markdown: L("Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key that `remohop signal` printed, or use the one this server presented after comparing it."))
+                            Text(markdown: L("Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key your server's administrator gave you, or use the one this server presented after comparing it."))
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
                     } icon: {
@@ -121,7 +121,7 @@ struct RendezvousView: View {
             }
             if RendezvousCheck.available && !m.signal.isEmpty {
                 Section {
-                    Button { m.checkRendezvous() } label: {
+                    Button { focus = nil; m.testRendezvous() } label: {
                         HStack {
                             Text(L("Test connection"))
                             Spacer()
@@ -143,10 +143,10 @@ struct RendezvousView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 InfoButton(title: L("Rendezvous server"), items: [
-                    InfoItem(title: L("Rendezvous server"), text: L("Finds your computers by their 9-digit ID. Not needed when you connect by address (host:port). RemoHop has no default server: use your own.")),
+                    InfoItem(title: L("Rendezvous server"), text: L("A rendezvous server is a small meeting point on the internet: it introduces this device to your computers by their 9-digit ID and helps the two find a direct path. RemoHop has no default server; enter the address of the one you or your administrator run. Without one you can still connect by address (host:port), for example to a computer on the same network.")),
                     InfoItem(title: L("Server key"), text: L("The server's public key, if you want this device to accept only that server. Leave it empty to trust the address.")),
                     InfoItem(title: L("Relay"), text: L("When no direct path works, the connection goes through the server. It stays end-to-end encrypted, but is slower.")),
-                    InfoItem(title: L("For administrators"), text: L("Run a server with `remohop signal`; it prints its address and key.")),
+                    InfoItem(title: L("For administrators"), text: L("Ask whoever set up RemoHop on your computers for the server's address and key. To run your own, see \"Rendezvous server\" on the RemoHop website.")),
                 ])
             }
         }
@@ -459,6 +459,10 @@ struct PairView: View {
                 Section {
                     Label(m.pairStatus, systemImage: m.pairOK ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .foregroundStyle(m.pairOK ? Color.green : Color.red)
+                    // What is missing or wrong is the rendezvous server: one tap to it.
+                    if !m.pairOK && L10n.rendezvousProblems.contains(m.pairCode) {
+                        NavigationLink(value: SettingsPage.rendezvous) { Label(L("Set up"), systemImage: "network") }
+                    }
                 }
             }
         }
@@ -468,7 +472,7 @@ struct PairView: View {
             ToolbarItem(placement: .primaryAction) {
                 InfoButton(title: L("Pair with a host"), items: [
                     InfoItem(title: "", text: L("Log in once with the host's password. The host gives this device a token, so later connections need no password. The password is used once and not stored.")),
-                    InfoItem(title: L("Host ID or address"), text: L("The host's 9-digit ID (needs a rendezvous server), a saved name, or its address such as 192.168.1.20:21118.")),
+                    InfoItem(title: L("Host ID or address"), text: L("The host's 9-digit ID (needs a rendezvous server, set in Settings), a saved name, or its address such as 192.168.1.20:21118 (no server needed).")),
                 ])
             }
         }
