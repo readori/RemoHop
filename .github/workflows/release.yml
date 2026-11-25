@@ -5,7 +5,8 @@ name: Release
 #   build    linux + windows archives (remohop and quick support), .deb/.rpm/.apk, SBOM
 #            (scripts/build-release.sh)
 #   macos    signed + notarized universal binary and RemoHop.app (stapled), made in the public CI repository
-#            (readori/test-env-setup, sodesk-macos-release.yml: CI file names keep the pre-rename prefix) where the Apple secrets live
+#            (readori/test-env-setup, sodesk-macos-release.yml: CI file names keep the pre-rename prefix) where the Apple secrets live,
+#            then rebuilt here and compared byte for byte (scripts/verify-macos-release.sh)
 #   publish  adds installers, SHA256SUMS, a keyless cosign signature, then the GitHub release
 #   docker   multi-arch rendezvous-server image to ghcr.io, signed, with SBOM + provenance
 #
@@ -35,6 +36,9 @@ env:
   # The public CI repository that signs and notarizes the macOS binary (see the macos job).
   CI_REPO: readori/test-env-setup
   CI_WORKFLOW: sodesk-macos-release.yml
+  # The Apple team of the Developer ID certificate that signs the macOS files. Public: it is in
+  # every signature made with it. Changing it is a reviewed change to this file, on purpose.
+  APPLE_TEAM_ID: H7FLAAL9RB
 
 jobs:
   # The commit being released must pass the checks first: formatting, vet, the
@@ -42,9 +46,29 @@ jobs:
   # toolchain). Nothing is built, signed or published unless this job passes.
   verify:
     name: verify the tagged commit
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest: the AV1 tests depend on the distribution's encoders.
+    runs-on: ubuntu-24.04
     steps:
+      # First, so that nothing at all runs for a malformed tag.
+      - name: Check the tag
+        run: |
+          set -eu
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::$TAG is not a release tag like v1.2.3"; exit 1 ;;
+          esac
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      # Releases are cut from main. This catches a tag put on the wrong commit (a branch, a
+      # commit that never passed review); who may create tags is a repository setting.
+      - name: The tagged commit is on main
+        if: github.ref_type == 'tag'
+        run: |
+          set -eu
+          git fetch --no-tags --filter=blob:none origin "+refs/heads/main:refs/remotes/origin/main"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main ||
+            { echo "::error::$GITHUB_SHA ($TAG) is not on main"; exit 1; }
 
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
@@ -66,6 +90,13 @@ jobs:
       - name: Unit tests
         run: go test -count=1 ./...
 
+      # The mobile library is its own module, so ./... above does not reach it.
+      - name: Mobile module vet and tests
+        working-directory: mobile
+        run: |
+          go vet ./...
+          go test -count=1 ./...
+
       - name: govulncheck
         run: |
           set -eu
@@ -75,21 +106,13 @@ jobs:
   build:
     name: build linux and windows
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version-file: go.mod
-
-      - name: Check the tag
-        run: |
-          set -eu
-          case "$TAG" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "::error::$TAG is not a release tag like v1.2.3"; exit 1 ;;
-          esac
 
       # Same flags as every other build: see LDFLAGS in the Makefile.
       - name: Build
@@ -118,54 +141,95 @@ jobs:
   # The macOS binary is built, signed and notarized by the public CI repository, so that
   # the Apple certificate and App Store Connect key never live in this repository (they would
   # be exposed to everything that runs here once it is public). This job starts that workflow
-  # for the commit being released, waits for it, and fetches the result. It needs one secret:
-  # CI_REPO_TOKEN, a fine-grained token limited to readori/test-env-setup with "Actions:
-  # read and write" (see packaging/README.md). Set the repository variable SKIP_MACOS=true to
-  # release without macOS (install.sh and Homebrew then cannot work on macOS: only for tests).
+  # for the commit being released (only after verify passed: nothing unverified gets an Apple
+  # signature), waits for it, fetches the result, and then trusts none of it on the CI
+  # repository's word: it rebuilds the binaries from the tagged commit and requires the signed
+  # files to be exactly that code plus an Apple signature of APPLE_TEAM_ID
+  # (scripts/verify-macos-release.sh). It needs one secret: CI_REPO_TOKEN, a fine-grained token
+  # limited to readori/test-env-setup with "Actions: read and write" (see packaging/README.md).
+  # Set the repository variable SKIP_MACOS=true to release without macOS (install.sh and
+  # Homebrew then cannot work on macOS: only for tests).
   macos:
     name: macOS (sign + notarize in the CI repo)
+    needs: verify
     if: github.ref_type == 'tag' && vars.SKIP_MACOS != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
-    env:
-      GH_TOKEN: ${{ secrets.CI_REPO_TOKEN }}
     steps:
       - name: Start the signing workflow and wait for it
+        env:
+          GH_TOKEN: ${{ secrets.CI_REPO_TOKEN }}
         run: |
           set -euo pipefail
           [ -n "$GH_TOKEN" ] || { echo "::error::secret CI_REPO_TOKEN is not set (see packaging/README.md)"; exit 1; }
           corr="rel-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          # The commit, not the tag name: it is exactly what the other jobs built.
-          gh workflow run "$CI_WORKFLOW" -R "$CI_REPO" -f ref="$GITHUB_SHA" -f version="$TAG" \
-            -f upload=true -f correlation="$corr"
-          id=
-          for _ in $(seq 1 30); do
-            sleep 10
-            id="$(gh run list -R "$CI_REPO" --workflow "$CI_WORKFLOW" --event workflow_dispatch --limit 30 \
-              --json databaseId,displayTitle \
-              --jq "map(select(.displayTitle | contains(\"[$corr]\"))) | .[0].databaseId // empty")"
-            [ -z "$id" ] || break
-          done
+          me="$(gh api user --jq .login)"
+          # The commit, not the tag name: it is exactly what the other jobs built. The API
+          # returns the ID of the run it started (return_run_details); older API versions
+          # return nothing, and the run is then found by the correlation string in its title.
+          dispatch() {
+            gh api -X POST "repos/$CI_REPO/actions/workflows/$CI_WORKFLOW/dispatches" \
+              -f ref=main -f "inputs[ref]=$GITHUB_SHA" -f "inputs[version]=$TAG" -f "inputs[upload]=true" \
+              -f "inputs[correlation]=$corr" "$@"
+          }
+          if ! resp="$(dispatch -F return_run_details=true 2>dispatch.err)"; then
+            # Refused as an unknown key: nothing was started; dispatch the classic way.
+            grep -q return_run_details dispatch.err || { cat dispatch.err; exit 1; }
+            resp="$(dispatch)"
+          fi
+          id="$(printf '%s' "$resp" | jq -r '.workflow_run_id // empty' 2>/dev/null || true)"
+          if [ -z "$id" ]; then
+            for _ in $(seq 1 30); do
+              sleep 10
+              id="$(gh run list -R "$CI_REPO" --workflow "$CI_WORKFLOW" --event workflow_dispatch --limit 30 \
+                --json databaseId,displayTitle \
+                --jq "map(select(.displayTitle | endswith(\"[$corr]\"))) | .[0].databaseId // empty")"
+              [ -z "$id" ] || break
+            done
+          fi
           [ -n "$id" ] || { echo "::error::the signing run did not appear in $CI_REPO"; exit 1; }
+          # Whatever way it was found, it must be the run this job started: the release workflow
+          # of the CI repository's main branch, dispatched by this token's account, for this commit.
+          gh api "repos/$CI_REPO/actions/runs/$id" >run.json
+          jq -e --arg wf ".github/workflows/$CI_WORKFLOW" --arg me "$me" --arg corr "[$corr]" --arg sha "$GITHUB_SHA" '
+            .path == $wf and .event == "workflow_dispatch" and .head_branch == "main"
+            and .triggering_actor.login == $me and (.display_title | endswith($corr))
+            and (.display_title | contains($sha))' run.json >/dev/null ||
+            { echo "::error::run $id in $CI_REPO is not the signing run this job started"; jq '{path, event, head_branch, display_title, triggering_actor: .triggering_actor.login}' run.json; exit 1; }
           echo "signing run: https://github.com/$CI_REPO/actions/runs/$id"
           echo "- macOS signing run: https://github.com/$CI_REPO/actions/runs/$id" >> "$GITHUB_STEP_SUMMARY"
           gh run watch "$id" -R "$CI_REPO" --exit-status --interval 30 >/dev/null ||
             { echo "::error::the macOS signing run failed: https://github.com/$CI_REPO/actions/runs/$id"; exit 1; }
           gh run download "$id" -R "$CI_REPO" -n remohop-macos-universal -D macos
 
-      # The artifact crossed repositories, so check what can be checked on a Linux machine: the
-      # hashes the signing run recorded, that it is a universal Mach-O, and that it carries this
-      # release's version string; for RemoHop.app also the bundle layout and the stapled ticket
-      # (build-release.sh darwin-app). codesign and Gatekeeper were verified in the signing run.
-      - name: Check the downloaded binary and app
+      - name: Check the hand-off
         run: |
           set -eu
           cd macos
           sha256sum -c SHA256SUMS-macos
           grep -q ' RemoHop-macos.zip$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.zip (is the CI repo's workflow up to date?)"; exit 1; }
           grep -q ' RemoHop-macos.dmg$' SHA256SUMS-macos || { echo "::error::the signing run returned no RemoHop-macos.dmg (is the CI repo's workflow up to date?)"; exit 1; }
-          [ "$(head -c 4 remohop | od -An -tx1 | tr -d ' \n')" = cafebabe ] || { echo "::error::remohop is not a universal Mach-O"; exit 1; }
-          grep -aqF -- "$TAG" remohop || { echo "::error::remohop does not carry version $TAG"; exit 1; }
+
+      # The files crossed repositories. Go builds are reproducible, so build the same binaries
+      # and RemoHop.app here from the tagged commit and accept the signed ones only if they are
+      # that code plus an Apple signature of APPLE_TEAM_ID (no entitlements, hardened runtime,
+      # page hashes matching), and the disk image only if it holds exactly that app. The
+      # certificate chain and notarization were checked by codesign, spctl and stapler in the
+      # signing run, and Gatekeeper checks them again on every Mac.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: src
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: src/go.mod
+
+      - name: Compare with a rebuild of the tagged commit
+        run: |
+          set -eu
+          command -v 7z >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq 7zip; }
+          VERSION="$TAG" TEAM_ID="$APPLE_TEAM_ID" src/scripts/verify-macos-release.sh "$PWD/macos"
+          echo "- macOS files: the rebuilt code of $GITHUB_SHA, signed by team $APPLE_TEAM_ID" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -180,8 +244,8 @@ jobs:
     name: sign checksums and publish
     needs: [build, macos]
     # macos is skipped only through SKIP_MACOS; a failed macos job must stop the release.
-    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.build.result == 'success' && (needs.macos.result == 'success' || needs.macos.result == 'skipped') }}
-    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.build.result == 'success' && (needs.macos.result == 'success' || (needs.macos.result == 'skipped' && vars.SKIP_MACOS == 'true')) }}
+    runs-on: ubuntu-24.04
     permissions:
       contents: write   # create the release
       id-token: write   # keyless signing: the OIDC token names this workflow and tag
@@ -246,6 +310,9 @@ jobs:
           retention-days: 30
 
       # Created as a draft and published last, so nobody sees a release without its signature.
+      # Re-running the job after a failed upload or edit continues with the draft it left
+      # (files replaced with this run's, which were signed again above); a published release
+      # is never touched.
       - name: Create the release
         working-directory: assets
         run: |
@@ -253,14 +320,20 @@ jobs:
           ls -l
           flags=
           case "$TAG" in *-*) flags=--prerelease ;; esac
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
-            --draft --title "$TAG" $flags -- *
+          if draft="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            [ "$draft" = true ] || { echo "::error::release $TAG is already published"; exit 1; }
+            echo "continuing with the existing draft of $TAG"
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber -- *
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+              --draft --title "$TAG" $flags -- *
+          fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
 
   docker:
     name: rendezvous server image
     needs: publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write   # push to ghcr.io
@@ -279,7 +352,10 @@ jobs:
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           # The container driver is needed for multi-platform builds and attestations. No QEMU:
           # the Dockerfile cross-compiles with the Go toolchain.
-          docker buildx create --name release --driver docker-container --use
+          # Every image the build uses is pinned by digest (the Dockerfile's syntax and Go images,
+          # and BuildKit here), so a moved Docker Hub tag cannot change what is built and signed.
+          docker buildx create --name release --driver docker-container --use \
+            --driver-opt image=moby/buildkit:v0.35.1@sha256:baf6138eb8c37644800c7c913fba051e840ebb9ba13eaf92d92ef9a1712d0b4c
           docker buildx build -f packaging/docker/Dockerfile --platform linux/amd64,linux/arm64 \
             --build-arg VERSION="$TAG" --provenance=mode=max --sbom=true \
             --metadata-file "$RUNNER_TEMP/meta.json" "${tags[@]}" --push .
