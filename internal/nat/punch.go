@@ -368,6 +368,12 @@ var hedgeAfter = []time.Duration{400 * time.Millisecond, 1200 * time.Millisecond
 // through its own relays can be a few hundred milliseconds.
 const DefaultPreferWait = time.Second
 
+// preferHold bounds how long a handshake over a preferred path holds back
+// proven other paths: one that has not finished by then lost its packets
+// or found a path that does not carry QUIC, and would otherwise hold them
+// until it timed out (10 s, more with hedges). A variable for tests.
+var preferHold = 2500 * time.Millisecond
+
 // Connect punches towards the host and establishes QUIC over the first
 // path that works, returning the connection and the host address it runs
 // to. When several candidates answer, their handshakes race and the losers
@@ -422,14 +428,21 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 	// Preference (see ConnectConfig.Prefer): held are proven paths waiting
 	// for a preferred one, holdC fires when they have waited long enough.
 	var held []netip.AddrPort
-	var holdC <-chan time.Time
+	var holdC, prefStaleC <-chan time.Time
 	holdOver := cfg.Prefer == nil
 	prefActive := 0
+	prefStale := false // the preferred handshakes have had their time
+	prefDone := func() bool { return prefActive == 0 || prefStale }
 	dialOne := func(addr netip.AddrPort, pref bool) {
 		active++
 		pending[addr]++
 		if pref {
 			prefActive++
+			if prefStaleC == nil && !prefStale {
+				t := time.NewTimer(preferHold)
+				timers = append(timers, t)
+				prefStaleC = t.C
+			}
 		}
 		go func() {
 			q, err := s.tr.Dial(dctx, net.UDPAddrFromAddrPort(addr), cfg.TLS, cfg.QUIC)
@@ -483,7 +496,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 				cfg.OnPath = nil
 			}
 			pref := cfg.Prefer != nil && cfg.Prefer(addr)
-			if pref || lanLike(addr.Addr()) || (holdOver && prefActive == 0) {
+			if pref || lanLike(addr.Addr()) || (holdOver && prefDone()) {
 				startDial(addr, pref)
 				continue
 			}
@@ -499,7 +512,13 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 			}
 		case <-holdC:
 			holdC, holdOver = nil, true
-			if prefActive == 0 {
+			if prefDone() {
+				release()
+			}
+		case <-prefStaleC:
+			prefStaleC, prefStale = nil, true
+			if holdOver {
+				logf("punch: preferred path still has no QUIC connection; releasing the others", "after", since())
 				release()
 			}
 		case r := <-results:
@@ -514,7 +533,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 					continue // another handshake over this path is still running
 				}
 				lastErr = fmt.Errorf("QUIC handshake with %s: %w", r.addr, r.err)
-				if holdOver && prefActive == 0 {
+				if holdOver && prefDone() {
 					release()
 				}
 				continue

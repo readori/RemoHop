@@ -501,6 +501,18 @@ func cliStatus(ctx context.Context) ([]byte, error) {
 	return out, nil
 }
 
+// Warm starts a detection in the background when this machine has a
+// tailnet interface, so that the Prefer of a dial in progress finds the
+// answer cached (or being fetched) instead of starting `tailscale status`
+// (up to 2 s on Windows and the macOS App Store build) between the
+// introduction and the first probe, while the host's priming hold runs.
+func Warm() {
+	if Disabled() || (os.Getenv("REMOHOP_TAILSCALE_STATUS") == "" && len(LocalAddrs()) == 0) {
+		return
+	}
+	go Detect(context.Background())
+}
+
 // Prefer returns a predicate for the candidates of a peer that are worth
 // preferring because they are on this machine's tailnet, or nil when there
 // are none: the peer offers no address in Tailscale's ranges, or this

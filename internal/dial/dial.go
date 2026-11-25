@@ -759,6 +759,9 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 	}
 
 	addr, sopts := d.signalAddr, d.sopts
+	if !d.onWS {
+		tailnet.Warm() // asked after the introduction; see there
+	}
 	sctx, cancel := context.WithTimeout(ctx, signalTimeout)
 	defer cancel()
 	var sc *signal.Client
