@@ -361,6 +361,7 @@
   .pill { display: inline-block; white-space: nowrap; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0 0.6rem; font-size: 0.8rem; font-weight: 650; line-height: 1.7; }
   .node .where { font-family: var(--mono); font-size: 0.86rem; background: var(--surface-2); border-radius: 8px; padding: 0.2rem 0.6rem; display: inline-block; overflow-wrap: anywhere; }
   .node .runs { color: var(--ink-2); font-size: 0.9rem; }
+  .node .runs .soon { display: block; font-size: 0.82rem; opacity: 0.85; }
   .node .foot { color: var(--ink-2); font-size: 0.86rem; margin-block-start: 0.6rem; }
 
   ul.dots { list-style: none; padding: 0; margin: 0; font-size: 0.94rem; }
