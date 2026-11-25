@@ -18,7 +18,7 @@ remohop config otp on
 | Approval for known clients | `remohop config ask-paired on` | with `ask on`, paired clients and authorised keys need approval too |
 | One-time password | `remohop config otp on` | the temporary password is replaced after each login, and only one of several logins presenting it at once gets in; a denied, unanswered or abandoned login does not use it up; `remohop otp` prints the current one, `remohop otp new` replaces it |
 | Fixed password | `remohop passwd` | set or (`--clear`) remove it; `remohop status` never prints a fixed password |
-| Pairings | `remohop host paired`, `remohop host revoke NAME` | list and remove paired clients and authorised keys |
+| Pairings | `remohop host paired`, `remohop host revoke NAME` | list and remove paired clients and authorised keys (`revoke IDENTITY` removes all of one client's; revoking a key also removes the pairings its sessions minted) |
 | USB devices | `remohop usb allow BUSID`, `remohop usb allowed` | allow each device before a client may attach it |
 | Account devices | `remohop config account-trust on` | accept the account's other devices like authorised keys; off by default (see [Accounts](accounts.md)) |
 | Audit log | `remohop log` | logins accepted and refused, approval decisions, first use of each feature, session ends |
