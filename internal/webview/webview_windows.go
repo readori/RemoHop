@@ -52,6 +52,7 @@ var (
 	pFlashWindow              = user32.NewProc("FlashWindow")
 	pBringWindowToTop         = user32.NewProc("BringWindowToTop")
 	pAllowSetForegroundWindow = user32.NewProc("AllowSetForegroundWindow")
+	pSystemParametersInfoW    = user32.NewProc("SystemParametersInfoW")
 )
 
 const (
@@ -337,9 +338,17 @@ func (a *winApp) NewWindow(o Options) (Window, error) {
 	style, ex := uintptr(wsOverlappedWindow), uintptr(0)
 	x, y := uintptr(cwUseDefault), uintptr(cwUseDefault)
 	if o.Overlay {
+		// The bottom-right corner of the work area (above the task bar),
+		// where notifications appear, away from the app's window.
 		style, ex = wsPopup|wsBorder, wsExTopmost|wsExToolWindow|wsExNoActivate
-		sw, _, _ := pGetSystemMetrics.Call(smCxScreen)
-		x, y = (sw-a.scale(width))/2, a.scale(8)
+		var wa struct{ Left, Top, Right, Bottom int32 }
+		if r, _, _ := pSystemParametersInfoW.Call(0x0030 /* SPI_GETWORKAREA */, 0, uintptr(unsafe.Pointer(&wa)), 0); r == 0 {
+			sw, _, _ := pGetSystemMetrics.Call(smCxScreen)
+			sh, _, _ := pGetSystemMetrics.Call(1 /* SM_CYSCREEN */)
+			wa.Right, wa.Bottom = int32(sw), int32(sh)-int32(a.scale(48))
+		}
+		x = uintptr(wa.Right - int32(a.scale(width)) - int32(a.scale(overlayMargin)))
+		y = uintptr(wa.Bottom - int32(a.scale(height)) - int32(a.scale(overlayMargin)))
 	}
 	hwnd, _, err := pCreateWindowExW.Call(ex, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(title)), style,
 		x, y, a.scale(width), a.scale(height), 0, 0, uintptr(a.instance), 0)

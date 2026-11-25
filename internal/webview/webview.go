@@ -45,6 +45,10 @@ var ErrUnavailable = nativeui.ErrUnavailable
 
 func init() { nativeui.Register(probe, run) }
 
+// overlayMargin is the banner's distance from the work area's edges, in
+// logical pixels.
+const overlayMargin = 12
+
 // Probe reports whether Run can show native windows here, without
 // creating any. ErrUnavailable (possibly wrapped) means it cannot.
 func Probe() (Info, error) { return probe() }
