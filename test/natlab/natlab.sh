@@ -17,7 +17,7 @@
 # as it was, since a process inside a namespace can still reach host-global
 # state through shared files and the system bus (see root_snapshot).
 #
-# Usage: sudo test/natlab/natlab.sh [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|all]
+# Usage: sudo test/natlab/natlab.sh [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|samelan|mtu|rebind|routeloss|all]
 #
 #   cone        home-router NATs: MASQUERADE, unsolicited WAN input dropped.
 #               Every feature must work over a punched path.
@@ -47,6 +47,17 @@
 #   tailnet     a fake Tailscale (an interface named tailscale0 with 100.x
 #               addresses joining host and client, and a stub status file):
 #               the tailnet candidate must win over a faster punched path.
+#   samelan     host and client behind one router: the LAN path; then with
+#               client isolation (bridge ports isolated, no hairpin) and the
+#               relay on, a relayed session within a few seconds, not 12.
+#   mtu         the client's uplink carries no IPv4 packet over 1300 bytes,
+#               first silently (no ICMP), then with a 1300-byte link MTU on
+#               the client's LAN: rendezvous, session and a 3 MB copy work.
+#   rebind      the host's router gets a new public address under a
+#               registered host: the host must register again by itself and
+#               be reachable over a punched path at the new address.
+#   routeloss   the client's default route disappears for a second during a
+#               shell session (Wi-Fi roam, DHCP, VPN): the session survives.
 set -euo pipefail
 
 MODE=${1:-all}
@@ -854,6 +865,122 @@ test_mesh() {
 	for d in alpha bravo charlie; do same "$d: interfaces, routes, firewall and forwarding exactly as before" "$LAB/$d.before" "$(ns_of $d)"; done
 }
 
+# samelan_up: host and client on one LAN behind one cone NAT (a bridge on
+# the router), the server on the internet segment behind one provider hop.
+samelan_up() {
+	teardown
+	local n
+	for n in "${NS[@]}"; do ip netns add "$n"; ip -n "$n" link set lo up; done
+	ip -n sd-inet link add br0 type bridge
+	ip -n sd-inet addr add 100.64.0.1/24 dev br0
+	ip -n sd-inet link set br0 up
+	for n in sd-ispA sd-natA; do ip netns exec $n sysctl -qw net.ipv4.ip_forward=1; done
+	link sd-ispA upl 100.64.0.2/24 sd-inet pA; ip -n sd-inet link set pA master br0
+	link sd-natA wan 100.65.1.2/24 sd-ispA dwn 100.65.1.1/24
+	ip -n sd-natA route add default via 100.65.1.1
+	ip -n sd-inet route add 100.65.1.0/24 via 100.64.0.2
+	ip -n sd-natA link add brlan type bridge
+	ip -n sd-natA addr add 192.168.1.1/24 dev brlan
+	ip -n sd-natA link set brlan up
+	link sd-host eth0 192.168.1.2/24 sd-natA lh; ip -n sd-natA link set lh master brlan
+	link sd-cli eth0 192.168.1.3/24 sd-natA lc; ip -n sd-natA link set lc master brlan
+	ip -n sd-host route add default via 192.168.1.1
+	ip -n sd-cli route add default via 192.168.1.1
+	ip netns exec sd-natA iptables -t nat -A POSTROUTING -o wan -j MASQUERADE
+	ip netns exec sd-natA iptables -A FORWARD -i wan -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	ip netns exec sd-natA iptables -A FORWARD -i wan -j DROP
+	ip netns exec sd-natA iptables -A INPUT -i wan -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+	ip netns exec sd-natA iptables -A INPUT -i wan -j DROP
+}
+
+# timed_ping: one ping to the host; sets T (milliseconds) and leaves the
+# output in $LAB/tping.txt; returns the ping's exit code.
+timed_ping() {
+	local t0 code=0
+	t0=$(date +%s%N)
+	remohop_pass "$ID" ping -c 1 >"$LAB/tping.txt" 2>&1 || code=$?
+	T=$((($(date +%s%N) - t0) / 1000000))
+	return $code
+}
+
+test_samelan() {
+	say "host and client behind one router"
+	samelan_up
+	RELAY=1 start_services
+	if timed_ping && grep -q 'lan path' "$LAB/tping.txt"; then ok "same LAN: lan path (${T} ms)"; else fail "same LAN (${T} ms)"; cat "$LAB/tping.txt"; fi
+
+	say "the same, with client isolation (a guest network) and no hairpin: the relay, quickly"
+	ip netns exec sd-natA bridge link set dev lh isolated on
+	ip netns exec sd-natA bridge link set dev lc isolated on
+	if cli ping -c 1 -W 1 192.168.1.2 >/dev/null 2>&1; then fail "isolation not in effect (lab broken)"; fi
+	rm -f "$LAB/cfg-cli/relay-hints.json"
+	if timed_ping && grep -q 'relayed path' "$LAB/tping.txt" && [ "$T" -le 5000 ]; then
+		ok "isolated: relayed after ${T} ms (was 12 s: punch, retry, then relay)"
+	else
+		fail "isolated: expected a relayed session within 5 s (${T} ms)"; cat "$LAB/tping.txt"
+	fi
+}
+
+test_mtu() {
+	say "the client's uplink carries no IPv4 packet over 1300 bytes"
+	lab_up cone; start_services
+	local W=$LAB/work
+	# silently, as a tunnel whose ICMP is filtered does
+	ip netns exec sd-ispB iptables -A FORWARD -p udp -m length --length 1301:65535 -j DROP
+	if timed_ping && grep -q 'punched path' "$LAB/tping.txt"; then ok "ping through a silent 1300-byte limit (${T} ms)"; else fail "ping through a silent 1300-byte limit (${T} ms)"; cat "$LAB/tping.txt"; fi
+	ip netns exec sd-ispB iptables -F FORWARD
+	# and as a link MTU on the client's own LAN (the client's sends of more
+	# fail locally; everyone else meets it mid-path)
+	ip -n sd-cli link set eth0 mtu 1300; ip -n sd-natB link set lan mtu 1300
+	if timed_ping; then ok "ping over a 1300-byte LAN (${T} ms)"; else fail "ping over a 1300-byte LAN (${T} ms)"; cat "$LAB/tping.txt"; fi
+	head -c 3000000 /dev/urandom >"$W/mtu.bin"
+	check "cp upload over a 1300-byte LAN" remohop_pass "$ID" cp "$W/mtu.bin" ":$W/remote/mtu.bin"
+	check "cp download over a 1300-byte LAN" remohop_pass "$ID" cp ":$W/remote/mtu.bin" "$W/mtu.back"
+	if cmp -s "$W/mtu.bin" "$W/mtu.back" && cmp -s "$W/mtu.bin" "$W/remote/mtu.bin"; then ok "3 MB round trip is byte-identical"; else fail "cp integrity over a small MTU"; fi
+}
+
+test_rebind() {
+	say "the host's router gets a new public address under a registered host"
+	lab_up cone; start_services
+	if timed_ping && grep -q 'punched path' "$LAB/tping.txt"; then ok "before: punched path"; else fail "before"; cat "$LAB/tping.txt"; fi
+	ip -n sd-natA addr del 100.65.1.2/24 dev wan
+	ip -n sd-natA addr add 100.65.1.3/24 dev wan
+	ip -n sd-natA route replace default via 100.65.1.1
+	local i t0=$SECONDS
+	for i in $(seq 1 60); do
+		grep -q 'registered with the rendezvous server.*public_addr=100.65.1.3' "$LAB/host.log" && break
+		sleep 0.5
+	done
+	if grep -q 'registered with the rendezvous server.*public_addr=100.65.1.3' "$LAB/host.log"; then
+		ok "the host registered again at its new address after $((SECONDS - t0)) s"
+	else
+		fail "the host never registered at its new address"; grep -E 'registered|rendezvous' "$LAB/host.log" | tail -5 | sed 's/^/         /'
+	fi
+	if timed_ping && grep -q 'punched path' "$LAB/tping.txt"; then ok "after: punched path to the new address (${T} ms)"; else fail "after the address change (${T} ms)"; cat "$LAB/tping.txt"; fi
+}
+
+test_routeloss() {
+	say "the client's default route disappears for a second during a session"
+	lab_up cone; start_services
+	(
+		code=0
+		remohop_pass "$ID" shell -c 'for i in $(seq 80); do echo $i; sleep 0.1; done' >"$LAB/rl.out" 2>&1 || code=$?
+		echo "exit=$code" >>"$LAB/rl.out"
+	) &
+	local sh=$!
+	sleep 2
+	ip -n sd-cli route del default
+	sleep 1
+	ip -n sd-cli route add default via 192.168.2.1
+	wait $sh || true
+	local lines; lines=$(grep -c '^[0-9]' "$LAB/rl.out" || true)
+	if [ "$lines" = 80 ] && grep -q '^exit=0' "$LAB/rl.out"; then
+		ok "the session survived: 80 of 80 lines, exit 0"
+	else
+		fail "the session did not survive the route loss ($lines of 80 lines)"; tail -3 "$LAB/rl.out" | sed 's/^/         /'
+	fi
+}
+
 run() { # mode: the test, its namespaces gone, then the root namespace compared
 	"test_$1"
 	teardown
@@ -861,9 +988,9 @@ run() { # mode: the test, its namespaces gone, then the root namespace compared
 }
 
 case "$MODE" in
-	cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet) run "$MODE" ;;
-	all) for m in cone symmetric permissive relay wsrelay tailnet mesh; do run $m; done ;;
-	*) echo "usage: $0 [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|all]" >&2; exit 2 ;;
+	cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|samelan|mtu|rebind|routeloss) run "$MODE" ;;
+	all) for m in cone symmetric permissive relay wsrelay tailnet mesh samelan mtu rebind routeloss; do run $m; done ;;
+	*) echo "usage: $0 [cone|symmetric|permissive|relay|wsrelay|vpn|mesh|tailnet|samelan|mtu|rebind|routeloss|all]" >&2; exit 2 ;;
 esac
 
 echo
