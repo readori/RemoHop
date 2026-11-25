@@ -3,12 +3,24 @@ package snapenv
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// linuxOnly skips tests of snap paths elsewhere: snaps exist only on Linux,
+// Setup does nothing on other systems, and the expected values are written
+// with Linux path rules (forward slashes, /snap, no symlinked temp dirs).
+func linuxOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		t.Skip("snaps exist only on Linux")
+	}
+}
 
 func env(m map[string]string) func(string) string { return func(k string) string { return m[k] } }
 
 func TestDetect(t *testing.T) {
+	linuxOnly(t)
 	snap := map[string]string{"SNAP": "/snap/remohop/x1", "SNAP_REVISION": "x1"}
 	for _, c := range []struct {
 		exe  string
@@ -34,6 +46,7 @@ func TestDetect(t *testing.T) {
 // On Fedora and Arch /snap is a link to /var/lib/snapd/snap: $SNAP keeps the
 // /snap spelling while os.Executable reports the resolved path.
 func TestDetectResolvesLinks(t *testing.T) {
+	linuxOnly(t)
 	dir := t.TempDir()
 	realRev := filepath.Join(dir, "var", "lib", "snapd", "snap", "remohop", "7")
 	if err := os.MkdirAll(filepath.Join(realRev, "bin"), 0o755); err != nil {
@@ -53,6 +66,7 @@ func TestDetectResolvesLinks(t *testing.T) {
 }
 
 func TestStable(t *testing.T) {
+	linuxOnly(t)
 	for _, c := range []struct{ exe, root, want string }{
 		{"/snap/remohop/x1/bin/remohop", "/snap/remohop/x1", "/snap/remohop/current/bin/remohop"},
 		{"/snap/remohop_beta/23/bin/remohop", "/snap/remohop_beta/23", "/snap/remohop_beta/current/bin/remohop"},
