@@ -36,8 +36,8 @@ const (
 	// sendGap apart, as other wake tools do.
 	sendRepeats = 3
 	sendGap     = 100 * time.Millisecond
-	hostBurst    = 10              // remote requests per window a host accepts
-	hostWindow   = time.Minute     // length of that window
+	hostBurst   = 10          // remote requests per window a host accepts
+	hostWindow  = time.Minute // length of that window
 )
 
 // Options tune a send. The zero value broadcasts on every IPv4 interface to
