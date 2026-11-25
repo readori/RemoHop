@@ -4,6 +4,7 @@ import android.content.DialogInterface
 import android.widget.EditText
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -35,6 +36,7 @@ class NativeDialogTest {
                 field.setText("new name.txt")
                 d.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
             }
+            idle() // dialog buttons answer through a posted message
             assertEquals(DialogAnswer.Confirmed("new name.txt"), answer)
         }
     }
@@ -46,13 +48,19 @@ class NativeDialogTest {
                 val d = NativeDialog.show(a, request("confirm")) { answers += it }
                 assertTrue(d.isShowing)
                 d.getButton(DialogInterface.BUTTON_NEGATIVE).performClick()
+            }
+            idle()
+            s.onActivity { a ->
                 val acts = NativeDialog.show(a, request("actions", listOf(DialogRequest.Action("Rename", false), DialogRequest.Action("Delete", true)))) { answers += it }
                 assertTrue(acts.isShowing)
                 acts.listView.performItemClick(acts.listView, 1, 1)
             }
+            idle()
             assertEquals(listOf(DialogAnswer.Cancelled, DialogAnswer.Picked(1)), answers)
         }
     }
+
+    private fun idle() = InstrumentationRegistry.getInstrumentation().waitForIdleSync()
 
     private fun findEditText(v: android.view.View): EditText? {
         if (v is EditText) return v
