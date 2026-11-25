@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/readori/RemoHop/internal/nat"
 )
 
 // Codes of a WrongServerError, as CodeOf returns them. They are stable: the
@@ -86,7 +88,7 @@ func wrongServer(ctx context.Context, tr *quic.Transport, ua *net.UDPAddr, addr 
 		NextProtos:         []string{peerALPN},
 		MinVersion:         tls.VersionTLS13,
 		InsecureSkipVerify: true, // only asking which protocol it speaks; nothing is sent
-	}, &quic.Config{HandshakeIdleTimeout: 3 * time.Second})
+	}, &quic.Config{HandshakeIdleTimeout: 3 * time.Second, InitialPacketSize: nat.InitialPacketSize})
 	switch {
 	case perr == nil:
 		e.Host = true

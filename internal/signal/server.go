@@ -356,6 +356,9 @@ func (s *Server) Serve(ctx context.Context, main, alt net.PacketConn) error {
 		MaxStreamReceiveWindow:         16 << 10,
 		InitialConnectionReceiveWindow: 32 << 10,
 		MaxConnectionReceiveWindow:     32 << 10,
+		// The server answers at the size the peer started with; see
+		// nat.InitialPacketSize.
+		InitialPacketSize: nat.InitialPacketSize,
 	})
 	if err != nil {
 		return err

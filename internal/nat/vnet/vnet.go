@@ -27,7 +27,9 @@
 // that do the same. A packet whose TTL runs out is dropped silently.
 //
 // It is test support: delivery is immediate (plus optional latency and
-// loss), there is no MTU, and mappings never expire.
+// loss), there is no MTU unless SetMTU sets one (then larger packets are
+// dropped silently, as on a path whose ICMP is filtered), and mappings
+// never expire unless NAT.Rebind drops them.
 package vnet
 
 import (
@@ -79,6 +81,7 @@ type Net struct {
 	latency time.Duration
 	loss    float64
 	hops    int
+	mtu     int
 }
 
 // New returns an empty network whose public internet is three routers wide.
@@ -105,6 +108,14 @@ func (n *Net) SetLatency(d time.Duration) {
 func (n *Net) SetLoss(p float64) {
 	n.mu.Lock()
 	n.loss = p
+	n.mu.Unlock()
+}
+
+// SetMTU drops every packet crossing the public internet whose IPv4 packet
+// (UDP payload plus 28 bytes of headers) would exceed mtu. Zero is no limit.
+func (n *Net) SetMTU(mtu int) {
+	n.mu.Lock()
+	n.mtu = mtu
 	n.mu.Unlock()
 }
 
@@ -139,8 +150,11 @@ func (n *Net) NAT(publicIP string, kind NATKind) *NAT {
 func (n *Net) route(src, dst netip.AddrPort, data []byte, ttl int) {
 	n.mu.Lock()
 	host, box := n.hosts[dst.Addr()], n.nats[dst.Addr()]
-	latency, loss, hops := n.latency, n.loss, n.hops
+	latency, loss, hops, mtu := n.latency, n.loss, n.hops, n.mtu
 	n.mu.Unlock()
+	if mtu > 0 && len(data)+28 > mtu {
+		return
+	}
 	// Each router on the way needs the packet to arrive with TTL >= 2.
 	if ttl <= hops {
 		return
@@ -204,6 +218,17 @@ type mapping struct {
 func (b *NAT) SetHairpin(on bool) {
 	b.mu.Lock()
 	b.hairpin = on
+	b.mu.Unlock()
+}
+
+// Rebind forgets every mapping, as a router does when it reboots or its
+// public address changes: the next packet out of each socket gets a new
+// public port, and packets to the old ones are dropped.
+func (b *NAT) Rebind() {
+	b.mu.Lock()
+	b.byKey = map[mapKey]*mapping{}
+	b.byPort = map[uint16]*mapping{}
+	b.stray = map[strayKey]bool{}
 	b.mu.Unlock()
 }
 

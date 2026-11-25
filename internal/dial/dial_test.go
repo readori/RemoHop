@@ -893,6 +893,33 @@ func TestRelayFallback(t *testing.T) {
 	})
 }
 
+// A path that carries no IPv4 packet above 1280 bytes (a router whose
+// uplink is a WireGuard or Tailscale tunnel, many VPNs) and filters the
+// ICMP that would say so. QUIC's default first packets (1308 bytes on the
+// wire) never arrive there; the whole stack has to start smaller.
+func TestEndToEndSmallPathMTU(t *testing.T) {
+	w := newVnetWorld(t)
+	w.net.SetMTU(1280)
+	host := w.host(w.net.NAT("203.0.113.20", vnet.PortRestrictedCone).Host("10.0.0.20"))
+	conn, err := Dial(testCtx(t), host.ID(), w.options(w.net.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10"), host.Password()))
+	if err != nil {
+		t.Fatalf("dial over a 1280-byte path: %v", err)
+	}
+	defer conn.Close()
+	ctx := testCtx(t)
+	s, err := conn.Open(ctx, echoService, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	msg := bytes.Repeat([]byte("0123456789abcdef"), 16<<10) // 256 KiB: many full-size packets
+	go func() { s.Write(msg); s.CloseWrite() }()
+	got, err := io.ReadAll(s)
+	if err != nil || !bytes.Equal(got, msg) {
+		t.Fatalf("echo of %d bytes: got %d, %v", len(msg), len(got), err)
+	}
+}
+
 func TestEndToEndSameLAN(t *testing.T) {
 	w := newVnetWorld(t)
 	box := w.net.NAT("203.0.113.10", vnet.PortRestrictedCone)
