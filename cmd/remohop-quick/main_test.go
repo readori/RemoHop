@@ -40,8 +40,10 @@ func TestSameFeaturesAsRemoHop(t *testing.T) {
 
 func TestQuickArgs(t *testing.T) {
 	for _, c := range []struct{ in, want []string }{
-		{nil, []string{"quick"}},
-		{[]string{"-psn_0_12345"}, []string{"quick"}},
+		{nil, []string{"app"}},
+		{[]string{"-psn_0_12345"}, []string{"app"}},
+		{[]string{"--quick"}, []string{"quick"}},
+		{[]string{"--quick", "--lang", "zh"}, []string{"quick", "--lang", "zh"}},
 		{[]string{"status"}, []string{"status"}},
 		{[]string{"quick", "--no-open"}, []string{"quick", "--no-open"}},
 	} {

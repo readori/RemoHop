@@ -1,7 +1,9 @@
 // Command remohop-quick is the double-click build of RemoHop: RemoHop.exe on Windows
 // and the program inside RemoHop.app on macOS (see packaging/quick). Started
-// without arguments it runs `remohop quick`, the quick-support window; with
-// arguments it is the same program as remohop (the Linux build is remohop-quick).
+// without arguments it runs `remohop app`, the desktop app, in a native window
+// (internal/webview); `--quick` runs `remohop quick`, the one-shot
+// quick-support window; with other arguments it is the same program as
+// remohop (the Linux build is remohop-quick).
 //
 // On Windows it is linked with -H windowsgui so that no console window
 // appears. That is also why it is a separate build from remohop: a console
@@ -20,6 +22,7 @@ import (
 	// The same set as cmd/remohop (main_test.go checks it): the host side of
 	// every feature must be in this binary for a helper to use it.
 	_ "github.com/readori/RemoHop/internal/bg"
+	_ "github.com/readori/RemoHop/internal/desktop"
 	_ "github.com/readori/RemoHop/internal/dial"
 	_ "github.com/readori/RemoHop/internal/doctor"
 	_ "github.com/readori/RemoHop/internal/hostd"
@@ -43,8 +46,9 @@ import (
 	_ "github.com/readori/RemoHop/internal/web"
 )
 
-// quickArgs turns the arguments of a double-click into `quick`. Finder on
-// older macOS versions passes a process serial number (-psn_0_12345).
+// quickArgs turns the arguments of a double-click into `app`, and a lone
+// --quick into `quick`. Finder on older macOS versions passes a process
+// serial number (-psn_0_12345).
 func quickArgs(args []string) []string {
 	var out []string
 	for _, a := range args {
@@ -52,8 +56,11 @@ func quickArgs(args []string) []string {
 			out = append(out, a)
 		}
 	}
-	if len(out) == 0 {
-		return []string{"quick"}
+	switch {
+	case len(out) == 0:
+		return []string{"app"}
+	case out[0] == "--quick":
+		return append([]string{"quick"}, out[1:]...)
 	}
 	return out
 }

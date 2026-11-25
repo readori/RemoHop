@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>RemoHop</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<svg width="0" height="0" class="vh" aria-hidden="true">
+  <symbol id="i-connect" viewBox="0 0 24 24"><path fill="currentColor" d="M4 5h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6v2h3v2H7v-2h3v-2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2v9h16V7H4Zm9.5 1.5L17 12l-3.5 3.5-1.4-1.4 1.1-1.1H8v-2h5.2l-1.1-1.1 1.4-1.4Z"/></symbol>
+  <symbol id="i-computer" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6v2h3v2H7v-2h3v-2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v10h16V6H4Zm8 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM8 15c.6-1.5 2.2-2 4-2s3.4.5 4 2H8Z"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.3-1.6ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path fill="currentColor" d="M11 7h2v2h-2V7Zm0 4h2v6h-2v-6Zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4Z"/></symbol>
+  <symbol id="i-popout" viewBox="0 0 24 24"><path fill="currentColor" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3h-7Z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path fill="currentColor" d="M1 21h22L12 2 1 21Zm12-3h-2v-2h2v2Zm0-4h-2v-4h2v4Z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3h-2v10h2V3Zm4.8 2.2-1.4 1.4A6 6 0 1 1 6 12c0-1.7.7-3.2 1.8-4.3L6.4 6.2A8 8 0 1 0 20 12a8 8 0 0 0-2.2-6.8Z"/></symbol>
+</svg>
+
+<header class="bar" id="bar">
+  <div class="brand"><img src="assets/icon.svg" alt=""><span>RemoHop</span></div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="RemoHop">
+    <button class="tab" role="tab" id="tab-connect" data-view="connect" aria-selected="true"><svg class="ic"><use href="#i-connect"/></svg><span class="lbl" data-t="tab.connect">Connect</span></button>
+    <button class="tab" role="tab" id="tab-computer" data-view="computer" aria-selected="false"><svg class="ic"><use href="#i-computer"/></svg><span class="lbl" data-t="tab.computer">This computer</span><span class="badge" id="badge" hidden></span></button>
+  </nav>
+  <button class="icon-btn" id="tab-settings" data-view="settings" aria-pressed="false" data-ta="tab.settings" aria-label="Settings" title="Settings"><svg><use href="#i-settings"/></svg></button>
+</header>
+
+<main id="main">
+  <!-- first-run wizard -->
+  <section class="view" id="v-wizard" hidden>
+    <div class="wizard">
+      <img class="logo" src="assets/icon.svg" alt="">
+      <h1 data-t="wiz.title">Welcome to RemoHop</h1>
+      <p class="muted" data-t="wiz.lead">Connect to your computers, or let someone help you.</p>
+      <div class="steps"><i class="on"></i><i id="wiz-s2"></i></div>
+      <div id="wiz-1">
+        <span class="lbl-sm" data-t="set.lang">Language</span>
+        <div class="seg" id="wiz-lang"><button data-lang="">Auto</button><button data-lang="zh" lang="zh-CN">中文</button><button data-lang="en" lang="en">English</button></div>
+        <div class="row end mt"><button class="btn" id="wiz-next" data-t="next">Next</button></div>
+      </div>
+      <div id="wiz-2" hidden>
+        <h3 data-t="wiz.server">Rendezvous server <button class="info" data-help="h-server" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+        <p class="help" id="h-server" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
+        <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small">signal.remohop.com</span></span></label>
+        <label class="opt"><input type="radio" name="wsrv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
+          <span class="field mt8"><input id="wiz-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
+        <label class="opt"><input type="radio" name="wsrv" value=""><span><span class="t" data-t="srv.skip">Skip for now</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>
+        <p class="err" id="wiz-err"></p>
+        <div class="row between mt"><button class="btn text" id="wiz-back" data-t="back">Back</button><button class="btn" id="wiz-done" data-t="done">Done</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- connect -->
+  <section class="view" id="v-connect" role="tabpanel" aria-labelledby="tab-connect">
+    <div class="page">
+      <form class="connect-form" id="connect-form" autocomplete="off">
+        <label class="field"><span class="lbl-sm" data-t="c.target">Computer ID or address</span>
+          <input id="target" class="mono" placeholder="123 456 789" inputmode="url" spellcheck="false" autocapitalize="off" autocorrect="off" required></label>
+        <button class="btn tall" data-t="c.connect">Connect</button>
+      </form>
+      <p class="err" id="c-err"></p>
+      <h3><span data-t="c.saved">Saved computers</span> <button class="info" data-help="h-saved" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+      <p class="help" id="h-saved" hidden data-t="help.saved">Computers you connected to or paired with. A paired computer needs no password.</p>
+      <div class="peers" id="peers"></div>
+      <div class="empty" id="peers-empty" hidden data-t="c.none">No saved computers yet.</div>
+    </div>
+  </section>
+
+  <!-- this computer -->
+  <section class="view" id="v-computer" role="tabpanel" aria-labelledby="tab-computer" hidden>
+    <div class="page">
+      <div class="card">
+        <div class="row">
+          <div class="grow"><div class="title-m" id="in-allow-l" data-t="in.allow">Allow incoming connections</div>
+            <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div></div>
+          <button class="info" data-help="h-incoming" aria-expanded="false"><svg><use href="#i-info"/></svg></button>
+          <input type="checkbox" class="switch" id="incoming" role="switch" aria-labelledby="in-allow-l">
+        </div>
+        <p class="help" id="h-incoming" hidden data-t="help.incoming">While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.</p>
+        <div class="creds" id="creds" hidden>
+          <div class="cred"><div class="muted small" data-t="in.id">ID</div><div class="v" id="in-id"></div>
+            <div class="acts"><button class="btn text sm" data-copy="in-id"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
+          <div class="cred"><div class="muted small" data-t="in.pw">Temporary password</div><div class="v" id="in-pw"></div>
+            <div class="acts"><button class="btn text sm" data-copy="in-pw"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
+              <button class="btn text sm" id="regen"><svg><use href="#i-refresh"/></svg><span data-t="in.new">New</span></button></div></div>
+        </div>
+        <p class="muted small" id="in-addr" hidden></p>
+        <p class="err" id="in-err"></p>
+      </div>
+
+      <div id="sessions-box" hidden>
+        <h3 data-t="in.sessions">Connected now</h3>
+        <div id="sessions"></div>
+        <button class="btn danger sm" id="disc-all"><svg><use href="#i-power"/></svg><span data-t="in.discall">Disconnect everyone</span></button>
+      </div>
+
+      <h3><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+      <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
+      <div class="card filled row">
+        <div class="grow"><div id="un-state"></div><div class="muted small" id="un-sub"></div></div>
+        <button class="btn tonal sm" id="un-btn"></button>
+      </div>
+
+      <div id="trusted-box" hidden>
+        <h3><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+        <p class="help" id="h-tr" hidden data-t="help.tr">These devices connect without asking, with the access you chose, while incoming connections are on.</p>
+        <div class="card" id="trusted"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- settings -->
+  <section class="view" id="v-settings" hidden>
+    <div class="page">
+      <h2 data-t="tab.settings">Settings</h2>
+      <h3><span data-t="wiz.server">Rendezvous server</span> <button class="info" data-help="h-server2" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+      <p class="help" id="h-server2" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
+      <div class="card">
+        <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small">signal.remohop.com</span></span></label>
+        <label class="opt"><input type="radio" name="srv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
+          <span class="field mt8"><input id="srv-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
+        <label class="opt"><input type="radio" name="srv" value="none"><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>
+        <p class="err" id="srv-err"></p>
+        <div class="row end"><button class="btn sm" id="srv-save" data-t="save">Save</button></div>
+      </div>
+      <h3 data-t="set.lang">Language</h3>
+      <div class="seg" id="set-lang"><button data-lang="" data-t="auto">Auto</button><button data-lang="zh" lang="zh-CN">中文</button><button data-lang="en" lang="en">English</button></div>
+      <h3 data-t="set.theme">Theme</h3>
+      <div class="seg" id="set-theme"><button data-theme="" data-t="auto">Auto</button><button data-theme="light" data-t="set.light">Light</button><button data-theme="dark" data-t="set.dark">Dark</button></div>
+      <div id="autostart-box">
+        <h3 data-t="set.start">Start</h3>
+        <div class="card row"><div class="grow" data-t="set.autostart">Start RemoHop when I sign in</div><input type="checkbox" class="switch" id="autostart" role="switch"></div>
+      </div>
+      <p class="muted small mt" id="about"></p>
+    </div>
+  </section>
+
+  <div id="hostviews"></div>
+</main>
+
+<!-- connection request -->
+<dialog id="dlg-req" aria-labelledby="req-title">
+  <form method="dialog" class="dlg" id="req-form">
+    <h2 id="req-title"></h2>
+    <div id="req-chips" class="row wrap"></div>
+    <div class="warnbox" id="req-warn"><svg><use href="#i-warn"/></svg><span data-t="req.scam">Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.</span></div>
+    <dl class="kv" id="req-kv"></dl>
+    <div class="choice" id="req-choice">
+      <div class="muted small pt8" data-t="req.may">They may see your screen, and also:</div>
+      <label class="check"><input type="checkbox" id="req-control"><span data-t="req.control">Control the mouse and keyboard</span></label>
+      <label class="check"><input type="checkbox" id="req-files"><span data-t="req.files">Transfer files and use the clipboard</span></label>
+    </div>
+    <label class="check" id="req-remember-row"><input type="checkbox" id="req-remember"><span data-t="req.remember">Remember this device</span></label>
+    <div class="acts"><span class="muted small count left" id="req-left"></span>
+      <button class="btn outline" value="deny" id="req-deny" autofocus data-t="deny">Deny</button>
+      <button class="btn" value="allow" id="req-allow" data-t="allow">Allow</button></div>
+  </form>
+</dialog>
+
+<!-- unattended setup -->
+<dialog id="dlg-un" aria-labelledby="un-title">
+  <form method="dialog" class="dlg" id="un-form">
+    <h2 id="un-title" data-t="un.title">Unattended access</h2>
+    <p class="muted" data-t="un.lead">Choose a strong password. Anyone with this ID and password can connect without asking.</p>
+    <label class="field mt8"><span class="lbl-sm" data-t="un.pw">Password</span><input id="un-pw1" type="password" autocomplete="new-password"></label>
+    <label class="field mt8"><span class="lbl-sm" data-t="un.pw2">Repeat</span><input id="un-pw2" type="password" autocomplete="new-password"></label>
+    <button type="button" class="btn text sm mt8" id="un-gen" data-t="un.gen">Suggest a strong password</button>
+    <p class="muted small" id="un-admin" hidden data-t="un.admin">Windows will ask for an administrator.</p>
+    <p class="err" id="un-err"></p>
+    <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="un-ok" data-t="un.enable">Turn on</button></div>
+  </form>
+</dialog>
+
+<!-- small prompts (rename, MAC address) -->
+<dialog id="dlg-ask">
+  <form method="dialog" class="dlg">
+    <h2 id="ask-title"></h2>
+    <label class="field mt8"><span class="lbl-sm" id="ask-label"></span><input id="ask-input" autocomplete="off" spellcheck="false"></label>
+    <p class="err" id="ask-err"></p>
+    <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" data-t="save">Save</button></div>
+  </form>
+</dialog>
+
+<div class="snack" id="snack" role="status" hidden></div>
+<script src="assets/app.js"></script>
+</body>
+</html>

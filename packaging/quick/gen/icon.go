@@ -234,3 +234,30 @@ func icnsFile() []byte {
 	out.Write(body.Bytes())
 	return out.Bytes()
 }
+
+// trayTemplate draws the mark alone, black on transparent, for the macOS
+// menu bar (a template image: only its alpha counts). The mark spans units
+// 10 to 54, so that range fills the canvas.
+func trayTemplate(size int) *image.NRGBA {
+	const ss = 4
+	img := image.NewNRGBA(image.Rect(0, 0, size, size))
+	scale := 44 / float64(size)
+	for py := 0; py < size; py++ {
+		for px := 0; px < size; px++ {
+			n := 0
+			for sy := 0; sy < ss; sy++ {
+				for sx := 0; sx < ss; sx++ {
+					x := 10 + (float64(px)+(float64(sx)+0.5)/ss)*scale
+					y := 10 + (float64(py)+(float64(sy)+0.5)/ss)*scale
+					if onMark(x, y) {
+						n++
+					}
+				}
+			}
+			if n > 0 {
+				img.SetNRGBA(px, py, color.NRGBA{0, 0, 0, uint8(n*255/(ss*ss) + 0)})
+			}
+		}
+	}
+	return img
+}
