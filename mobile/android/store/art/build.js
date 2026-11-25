@@ -64,7 +64,7 @@ function poster(lang, scene, shot, wide) {
   if (wide) {
     // Both ways round: the desktop tab upright behind, full screen sideways in front.
     const pw = 820, lw = 1150, lh = frameH(lw, 9 / 16);
-    body = pixel(shot, (W - pw) / 2, 1010, pw, 16 / 9) +
+    body = pixel(shot, (W - pw) / 2, 880, pw, 16 / 9) +
       `<div style="position:absolute;left:0;right:0;top:650px;height:${lh}px;transform:rotate(-4deg)">${pixel(wide, (W - lw) / 2, 0, lw, 9 / 16, true)}</div>`;
   } else {
     const pw = 880, ph = frameH(pw, 16 / 9);
