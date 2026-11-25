@@ -104,6 +104,12 @@ PAGES = {
         "Features and limits",
         "RemoHop's common commands, the browser client, how a connection is made, platform support, installation and known limits.",
     ),
+    "how-it-works": (
+        "工作原理：P2P 打洞与端到端加密",
+        "RemoHop 怎样把两台设备直接连起来：汇合服务器的职责、局域网直连、公网打洞、中继和 WebSocket 桥四种路径、默认端口、六步连接流程，以及 QUIC、TLS 1.3 和 CPace 怎样保护会话。",
+        "How it works: P2P hole punching and end-to-end encryption",
+        "How RemoHop connects two devices directly: what the rendezvous server does, the four paths (LAN, hole punching, relay, websocket bridge), the default ports, the six connection steps, and how QUIC, TLS 1.3 and CPace protect the session.",
+    ),
     "docs": (
         "快速开始与文档",
         pick("从源码编译 remohop，运行汇合服务器，启动被控机，配对并连接。附 RemoHop 全部使用指南和参考文档的目录。",
@@ -166,6 +172,7 @@ PAGES = {
 
 NAV = [
     ("features", "功能", "Features"),
+    ("how-it-works", "工作原理", "How it works"),
     ("docs", "文档", "Docs"),
     ("download", "下载", "Download"),
     ("apps", "移动应用", "Apps"),

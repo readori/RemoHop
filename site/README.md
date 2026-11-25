@@ -16,7 +16,7 @@ site/
   review/      screenshots from a layout check; not deployed
 ```
 
-Pages, each in Chinese (`/…`) and English (`/en/…`): home, `features/`, `docs/`,
+Pages, each in Chinese (`/…`) and English (`/en/…`): home, `features/`, `how-it-works/`, `docs/`,
 `apps/`, `security/`, `self-hosting/`, `privacy/`, `terms/`, `licensing/`,
 `support/`, plus `404.html`. The documentation is generated from the Markdown
 in the repository's `docs/` (see below).

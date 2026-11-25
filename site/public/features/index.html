@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>功能与限制 | RemoHop</title>
 <meta name="description" content="RemoHop 的常用命令、浏览器客户端、连接如何建立、平台支持、安装方式和已知限制。">
-<link rel="stylesheet" href="/assets/site.css?v=33c4c46186">
+<link rel="stylesheet" href="/assets/site.css?v=d77e34eabe">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -36,6 +36,7 @@
 <nav class="site-nav" aria-label="主导航">
 <ul>
 <li><a href="/features/" aria-current="page">功能</a></li>
+<li><a href="/how-it-works/">工作原理</a></li>
 <li><a href="/docs/">文档</a></li>
 <li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
@@ -281,6 +282,7 @@ remohop log</code></pre>
 <li>两端在这条连接上用密码做认证密钥交换（CPace）。中间人，包括汇合服务器，没法完成这一步。</li>
 </ol>
 <p>打洞不一定成功：双方都在对称型 NAT 之后时就打不通。这时如果服务器的运营者开启了中继（<code>remohop signal --relay</code>，默认关闭），会话改走中继；中继转发的仍是同一条加密会话，只是更慢，并且有带宽上限（每个会话默认 8 Mbit/s）。<code>remohop dev ping</code> 会告诉你当前走的是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>。没有中继可用时，连接会在大约一秒内失败并给出诊断信息。</p>
+<p>端口、六步连接流程和打洞前后的对比见<a href="/how-it-works/">工作原理</a>。</p>
 <p>只放行 HTTPS 的网络（CI 运行器、企业网络）可以走服务器的 websocket 桥。经过桥没法打洞，所以这类会话一定走中继，内容照样是密文。能直接访问被控机时可以完全不用服务器：<code>remohop host --no-signal --listen :21118</code>，然后用地址代替 ID。</p>
 
 <h2 id="security">安全，用大白话说</h2>
@@ -344,6 +346,7 @@ sh install.sh</code></pre>
 <h2>产品</h2>
 <ul>
 <li><a href="/features/">功能</a></li>
+<li><a href="/how-it-works/">工作原理</a></li>
 <li><a href="/docs/">文档</a></li>
 <li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>

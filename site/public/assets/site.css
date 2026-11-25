@@ -145,7 +145,7 @@
   .site-nav a[aria-current="page"], .site-nav a[aria-current="true"] { color: var(--accent); background: var(--accent-soft); }
   .lang a { border: 1px solid var(--rule); }
   .site-head .lang { margin: 0; }
-  @media (max-width: 47.99rem) {
+  @media (max-width: 63.99rem) {
     .site-head .wrap { justify-content: space-between; }
     .site-nav { order: 3; flex-basis: 100%; margin-inline: -0.6rem; }
     .site-nav a { font-size: 0.92rem; padding-inline: 0.55rem; }
@@ -316,12 +316,196 @@
   .more-list a { font-weight: 650; }
   .more-list span { color: var(--ink-2); font-size: 0.9rem; }
 
+  /* ---- how it works (/how-it-works/): the connection map and its cards ----
+     One column on phones; the map becomes a three-column picture (server on
+     top, the two devices and the direct link in the middle) from 60rem. */
+  .hiw {
+    --ok-line: var(--rule); --ok-line: color-mix(in srgb, var(--ok) 38%, var(--surface));
+    --warn-mid: var(--warn-line);
+    --acc-line: var(--rule); --acc-line: color-mix(in srgb, var(--accent) 45%, var(--surface));
+    --link-bg: light-dark(#17824f, #1e7a50);
+  }
+  @supports not (color: light-dark(#000, #fff)) { .hiw { --link-bg: #17824f; } }
+  .hiw .sprite { position: absolute; inline-size: 0; block-size: 0; overflow: hidden; }
+  .hiw .ic { inline-size: 1.25em; block-size: 1.25em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .hiw-head { margin-block-end: 1.4rem; }
+  .hiw-head h1 { max-inline-size: 24em; }
+  .hiw-head .lede { color: var(--ink-2); font-size: 1.06rem; max-inline-size: var(--prose); margin-block: 0.9rem 0; }
+  .hiw-overview { display: flex; gap: 0.9rem; align-items: flex-start; max-inline-size: none; padding: 1rem 1.2rem; }
+  .hiw-overview > .ic { inline-size: 1.6rem; block-size: 1.6rem; color: var(--accent); margin-block-start: 0.1rem; }
+  .hiw-overview p { margin: 0; }
+  .hiw-overview b { color: var(--accent); font-weight: 650; }
+  .hiw h2 { display: flex; align-items: center; gap: 0.5rem; }
+  .hiw h2 .ic { color: var(--accent); }
+  .hiw :is(td, li) code { white-space: nowrap; }
+  .hiw .mono { font-family: var(--mono); font-size: 0.9em; overflow-wrap: anywhere; }
+
+  /* The map. Source order is the phone order: server, the two chip lists,
+     A, link, B, then the boxes around them. */
+  .hiw-map { display: grid; gap: 1rem; margin-block: 1.6rem 0; grid-template-areas: "srv" "cl" "cr" "a" "link" "b" "data" "opt" "rel"; }
+  .hiw-map > * { min-inline-size: 0; }
+  .node { background: var(--surface); border: 2px solid var(--accent-bg); border-radius: var(--radius); padding: 1rem 1.1rem; box-shadow: var(--shadow); }
+  .node h3 { margin: 0 0 0.6rem; font-size: 1.12rem; color: var(--accent); text-wrap: pretty; }
+  .node h3 .ic { display: inline-block; inline-size: 1.4rem; block-size: 1.4rem; vertical-align: -0.3em; margin-inline-end: 0.45rem; }
+  .node h3 .pill { margin-inline-start: 0.3rem; vertical-align: 0.12em; }
+  .node > p { margin-block-end: 0.6rem; }
+  .node > :last-child { margin-block-end: 0; }
+  .node.srv { grid-area: srv; }
+  .node.dev-a { grid-area: a; }
+  .node.dev-b { grid-area: b; }
+  .node.data { grid-area: data; border-color: var(--ok); box-shadow: none; }
+  .node.data h3 { color: var(--ok); }
+  .node.opt { grid-area: opt; border-color: var(--warn); box-shadow: none; }
+  .node.rel { grid-area: rel; border-color: var(--warn); box-shadow: none; }
+  .node.opt h3, .node.rel h3 { color: var(--warn); }
+  .pill { display: inline-block; white-space: nowrap; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 0 0.6rem; font-size: 0.8rem; font-weight: 650; line-height: 1.7; }
+  .node .where { font-family: var(--mono); font-size: 0.86rem; background: var(--surface-2); border-radius: 8px; padding: 0.2rem 0.6rem; display: inline-block; overflow-wrap: anywhere; }
+  .node .runs { color: var(--ink-2); font-size: 0.9rem; }
+  .node .foot { color: var(--ink-2); font-size: 0.86rem; margin-block-start: 0.6rem; }
+
+  ul.dots { list-style: none; padding: 0; margin: 0; font-size: 0.94rem; }
+  ul.dots li { position: relative; padding-inline-start: 1.1rem; margin-block: 0.25rem; }
+  ul.dots li::before { content: ""; position: absolute; inset-inline-start: 0.15rem; inset-block-start: 0.62em; inline-size: 0.42rem; block-size: 0.42rem; border-radius: 50%; background: var(--accent); }
+  .data ul.dots li::before { background: var(--ok); }
+  :is(.opt, .rel) ul.dots li::before { background: var(--warn); }
+  @media (min-width: 36rem) { .data ul.dots { columns: 2; column-gap: 1.4rem; } .data ul.dots li { break-inside: avoid; } }
+
+  /* Device facts: ID, local address, public mapping (documentation ranges). */
+  .kv { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0.35rem 0.55rem; align-items: center; margin: 0; font-size: 0.92rem; }
+  .kv dt { display: contents; font-weight: 500; }
+  .kv dt abbr, .kv .tag { display: grid; place-items: center; inline-size: 1.5rem; block-size: 1.5rem; border-radius: 6px; background: var(--accent-bg); color: var(--accent-ink); font-size: 0.68rem; font-weight: 700; text-decoration: none; }
+  .kv .tag .ic { inline-size: 0.95rem; block-size: 0.95rem; stroke-width: 2.4; }
+  .kv dd { font-family: var(--mono); font-size: 0.86rem; background: var(--surface-2); border-radius: 6px; padding: 0.1rem 0.5rem; margin: 0; white-space: nowrap; }
+  .kv dt { line-height: 1.3; }
+
+  /* Signalling chips beside the server; the dashed elbow leads to it. */
+  .sig-steps { padding: 0.2rem 0 0.2rem 1.4rem; display: flex; flex-direction: column; justify-content: center; gap: 0.4rem; position: relative; }
+  .sig-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+  .sig-steps.a { grid-area: cl; }
+  .sig-steps.b { grid-area: cr; }
+  .sig-steps::before { content: ""; position: absolute; inset-block: -1rem; inset-inline-start: 0.45rem; border-inline-start: 2px dashed var(--acc-line); }
+  .sig-steps .who { font-size: 0.8rem; color: var(--ink-2); font-weight: 650; margin: 0; }
+  .sig-steps li { margin: 0; display: flex; align-items: center; gap: 0.45rem; inline-size: fit-content; max-inline-size: 100%; background: var(--surface); border: 1px solid var(--acc-line); border-radius: 1rem; padding: 0.2rem 0.75rem 0.2rem 0.3rem; font-size: 0.9rem; font-weight: 650; color: var(--accent); line-height: 1.35; position: relative; }
+  .num { display: inline-grid; place-items: center; inline-size: 1.45rem; block-size: 1.45rem; border-radius: 50%; background: var(--accent-bg); color: var(--accent-ink); font-size: 0.78rem; font-weight: 750; flex: none; }
+  .sig-steps .arr::after { content: "↑"; }
+
+  /* The direct link: a green double arrow (vertical on phones). */
+  .p2p { grid-area: link; display: grid; place-items: center; text-align: center; background: var(--link-bg); color: #fff; font-weight: 750; letter-spacing: 0.02em; min-block-size: 7.5rem; padding: 1.7rem 1rem; margin-inline: auto; inline-size: min(100%, 22rem);
+    clip-path: polygon(50% 0, 100% 1.4rem, 100% calc(100% - 1.4rem), 50% 100%, 0 calc(100% - 1.4rem), 0 1.4rem); }
+  .p2p p { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; font-size: 1.05rem; line-height: 1.35; }
+  .p2p .ic { inline-size: 1.4rem; block-size: 1.4rem; }
+  .p2p small { color: #e3f7ec; font-size: 0.82rem; font-weight: 600; }
+
+  /* Tablets: the devices side by side, the link under them. */
+  @media (min-width: 40rem) {
+    .hiw-map { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "srv srv" "cl cr" "a b" "link link" "data data" "opt rel"; column-gap: 1.2rem; }
+    .p2p { inline-size: 100%; min-block-size: 5.5rem; align-self: center; padding: 1rem 3.4rem;
+      clip-path: polygon(0 50%, 2.8rem 0, 2.8rem 1rem, calc(100% - 2.8rem) 1rem, calc(100% - 2.8rem) 0, 100% 50%, calc(100% - 2.8rem) 100%, calc(100% - 2.8rem) calc(100% - 1rem), 2.8rem calc(100% - 1rem), 2.8rem 100%); }
+    .p2p p { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.1rem 0.45rem; font-size: 1.02rem; }
+    .p2p small { flex-basis: 100%; }
+  }
+  @media (min-width: 60rem) {
+    .hiw-map {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr);
+      grid-template-areas: "cl srv cr" "a link b" "opt data rel";
+      column-gap: 1.2rem; row-gap: 1.6rem;
+    }
+    .sig-steps { padding: 0 0 0 1.6rem; align-self: stretch; }
+    .sig-steps.b { padding: 0 1.6rem 0 0; }
+    .sig-steps.b ol { align-items: flex-end; }
+    /* elbow: down from the middle of the chip column into the device box,
+       across into the server box */
+    .sig-steps::before { inset-block: 50% -1.6rem; inset-inline: 0.5rem -1.2rem; border-block-start: 2px dashed var(--acc-line); border-start-start-radius: 14px; }
+    .sig-steps.b::before { inset-inline: -1.2rem 0.5rem; border-inline-start: 0; border-inline-end: 2px dashed var(--acc-line); border-start-start-radius: 0; border-start-end-radius: 14px; }
+    .sig-steps .who { display: none; }
+    .sig-steps.a .arr::after { content: "→"; }
+    .sig-steps.b .arr::after { content: "←"; }
+    .sig-steps.b li { flex-direction: row-reverse; padding: 0.2rem 0.3rem 0.2rem 0.75rem; }
+    .p2p { padding-inline: 3.2rem; }
+  }
+
+  /* The four paths. */
+  .paths { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr)); }
+  .paths li { margin: 0; background: var(--surface); border: 2px solid var(--ok-line); border-radius: var(--radius); padding: 0.8rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .paths li.opt { border-color: var(--warn-line); }
+  .paths h3 { margin: 0; font-size: 1.02rem; color: var(--ok); }
+  .paths li.opt h3 { color: var(--warn); }
+  .paths h3 code { background: none; padding: 0; font-weight: 600; }
+  .paths p { margin: 0; font-size: 0.92rem; }
+  .paths .chip { margin-block-start: auto; }
+
+  /* Reference cards and the four detail cards. */
+  .hiw-cards { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); margin-block-start: 2.4rem; }
+  .hiw-cards.four { grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); }
+  @media (min-width: 40rem) {
+    .hiw-cards:not(.four) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hiw-cards:not(.four) > :last-child { grid-column: 1 / -1; }
+  }
+  @media (min-width: 60rem) {
+    .hiw-cards:not(.four) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .hiw-cards:not(.four) > :last-child { grid-column: auto; }
+  }
+  .hiw-cards .panel { padding: 1.1rem 1.2rem 1.2rem; }
+  .hiw-cards .panel > h2 { font-size: 1.12rem; margin: 0 0 0.8rem; padding-block-end: 0.6rem; border-block-end: 2px solid var(--accent-soft); }
+  .hiw-cards .panel.good > h2 { border-block-end-color: var(--ok-bg); }
+  .hiw-cards .panel.good > h2 .ic { color: var(--ok); }
+  .hiw-cards .panel > :last-child { margin-block-end: 0; }
+  .hiw-cards table { font-size: 0.9rem; margin: 0; }
+  .hiw-cards th, .hiw-cards td { padding: 0.45rem 0.6rem 0.45rem 0; }
+  .hiw-cards td:last-child, .hiw-cards th:last-child { padding-inline-end: 0; }
+  .hiw-cards thead th { color: var(--ink-2); font-size: 0.84rem; }
+  .hiw-cards tbody th { font-family: var(--mono); font-size: 0.86rem; white-space: nowrap; }
+  .hiw-cards tbody th.word { font-family: var(--sans); font-size: inherit; }
+  .hiw-cards .small { margin-block: 0.8rem 0; }
+  .hiw-cards ul.dots { font-size: 0.92rem; }
+
+  ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; display: grid; gap: 0.5rem; }
+  ol.steps li { counter-increment: step; margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; background: var(--surface-2); border-radius: 10px; padding: 0.55rem 0.75rem; font-size: 0.92rem; }
+  ol.steps li::before { content: counter(step); display: grid; place-items: center; inline-size: 1.45rem; block-size: 1.45rem; border-radius: 50%; background: var(--accent-bg); color: var(--accent-ink); font-size: 0.78rem; font-weight: 750; margin-block-start: 0.1rem; }
+  ol.steps b { color: var(--accent); font-weight: 650; }
+
+  .lanes { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.55rem 0.7rem; align-items: center; margin-block-end: 0.9rem; }
+  .lanes .when { font-size: 0.8rem; font-weight: 700; border-radius: 6px; padding: 0.1rem 0.45rem; white-space: nowrap; }
+  .lanes .when.before { background: color-mix(in srgb, var(--danger) 14%, var(--surface)); color: var(--danger); }
+  .lanes .when.after { background: var(--ok-bg); color: var(--ok); }
+  .lane { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; background: var(--surface-2); border-radius: 10px; padding: 0.45rem 0.6rem; font-size: 0.8rem; min-inline-size: 0; }
+  .lane.ok { background: var(--ok-bg); }
+  .lane .dev { display: flex; flex-direction: column; align-items: center; color: var(--ink-2); flex: none; line-height: 1.3; }
+  .lane .dev .ic { inline-size: 1.4rem; block-size: 1.4rem; color: var(--ink); }
+  .lane .wall { font-weight: 750; color: var(--warn); border-inline-start: 4px solid currentColor; padding-inline-start: 0.3rem; }
+  .lane .wall.r { border-inline-start: 0; border-inline-end: 4px solid currentColor; padding-inline: 0 0.3rem; }
+  .lane .x { color: var(--danger); font-weight: 800; font-size: 1rem; }
+  .lane .go { color: var(--ok); font-weight: 750; text-align: center; flex: 1; }
+
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; margin-block: 0.55rem; font-size: 0.94rem; }
+  ul.checks li::before { content: "✓"; display: grid; place-items: center; inline-size: 1.4rem; block-size: 1.4rem; border-radius: 6px; background: var(--ok-bg); color: var(--ok); font-weight: 800; font-size: 0.85rem; margin-block-start: 0.1rem; }
+
+  /* Feature strip. */
+  /* Phones: two columns of icon + text rows (the seventh spans both);
+     tablets: four tiles a row; wide screens: one row of seven. */
+  .feats { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feats li { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 0.6rem 0.7rem; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.6rem; align-items: center; font-size: 0.86rem; color: var(--ink-2); line-height: 1.4; }
+  .feats li:last-child { grid-column: 1 / -1; }
+  .feats .ic { inline-size: 1.5rem; block-size: 1.5rem; color: var(--accent); grid-row: span 2; }
+  .feats b { color: var(--ink); font-weight: 650; font-size: 0.95rem; }
+  @media (min-width: 40rem) {
+    .feats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; }
+    .feats li { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.15rem; padding: 0.8rem 0.6rem; }
+    .feats li:last-child { grid-column: auto; }
+    .feats .ic { inline-size: 1.6rem; block-size: 1.6rem; margin-block-end: 0.2rem; }
+  }
+  @media (min-width: 60rem) { .feats { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+  .hiw-more { margin-block-start: 2.4rem; }
+
   @media (pointer: coarse) {
     .site-nav a, .lang a { padding-block: 0.6rem; }
   }
   @media (forced-colors: active) {
     .site-nav a[aria-current="page"], .site-nav a[aria-current="true"] { text-decoration: underline; }
     .note, .panel, .chip { border: 1px solid CanvasText; }
+    .p2p { clip-path: none; border: 2px solid CanvasText; }
+    .sig-steps li, .lane, ol.steps li, .feats li { border: 1px solid CanvasText; }
   }
 }
 
