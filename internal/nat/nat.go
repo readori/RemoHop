@@ -66,6 +66,17 @@
 // at the latest. The client just sends. Where a per-packet TTL is not
 // available (not Linux, or not a kernel UDP socket) the host sends normal
 // probes from the start, as it would have to anyway to open its own NAT.
+//
+// # Symmetric NATs
+//
+// A peer behind a symmetric NAT reaches the other side from a port nobody
+// advertised; that works when the other NAT does not filter by port, and
+// the address is then adopted as peer-reflexive. When the other NAT does
+// filter by port, the punch still works if the symmetric NAT hands out its
+// ports in sequence: the symmetric side advertises a prediction of its
+// next ports and the other side probes a bounded window of them (see
+// predict.go). Two symmetric NATs, or one with random ports and a
+// port-restricted one, cannot be punched.
 package nat
 
 import (
@@ -124,19 +135,28 @@ func ParseType(s string) Type {
 var ErrNoPath = errors.New("no direct path to the peer")
 
 // Explain turns the two sides' NAT types into the most likely reason a
-// punch failed, for the error shown to the user.
-func Explain(local, remote Type) string {
+// punch failed, for the error shown to the user. predicted says the punch
+// used port prediction (see UsesPrediction).
+func Explain(local, remote Type, predicted bool) string {
 	types := fmt.Sprintf("NAT here: %s, NAT at the peer: %s", local, remote)
 	switch {
 	case local == TypeSymmetric && remote == TypeSymmetric:
-		return "both sides are behind symmetric NATs, which cannot be hole-punched (each picks an unpredictable port per destination); " +
+		return "both sides are behind symmetric NATs, which cannot be hole-punched (each picks a new port per destination, so neither side knows where to send); " +
 			"one side needs a different network, a forwarded UDP port, or IPv6 (" + types + ")"
+	case (local == TypeSymmetric || remote == TypeSymmetric) && predicted:
+		side, other := "this side is", "the peer"
+		if remote == TypeSymmetric {
+			side, other = "the peer is", "this side"
+		}
+		return side + " behind a symmetric NAT that seemed to hand out its ports in sequence, so " + other + " also probed the ports it was likely to use next, " +
+			"but none answered: other traffic behind that NAT may have moved its ports on too far, it may not allocate them as regularly as it seemed, " +
+			"or the other side's RemoHop may be too old to probe them; one side needs a different network, a forwarded UDP port, or IPv6 (" + types + ")"
 	case local == TypeSymmetric || remote == TypeSymmetric:
 		side := "this side is"
 		if remote == TypeSymmetric {
 			side = "the peer is"
 		}
-		return side + " behind a symmetric NAT and the other side's NAT only accepts packets from ports it has sent to (port-restricted), " +
+		return side + " behind a symmetric NAT whose ports cannot be predicted and the other side's NAT only accepts packets from ports it has sent to (port-restricted), " +
 			"a combination that cannot be hole-punched; one side needs a different network, a forwarded UDP port, or IPv6 (" + types + ")"
 	case local == TypeUnknown || remote == TypeUnknown:
 		return "no probe got through in either direction; a firewall may be blocking UDP, or a NAT on the path is not punchable (" + types + ")"
@@ -151,11 +171,15 @@ func Explain(local, remote Type) string {
 // Two symmetric NATs cannot be punched, so only a moment is spent on the
 // chance that a LAN or IPv6 candidate answers; with one symmetric NAT it
 // either works within the first few probes (the other NAT does not filter
-// by port) or never.
-func PunchTime(local, remote Type) time.Duration {
+// by port) or never. With port prediction (predicted, see UsesPrediction)
+// the window of predicted ports is probed in several passes over the first
+// few seconds, the first of them possibly only after predictLead.
+func PunchTime(local, remote Type, predicted bool) time.Duration {
 	switch {
 	case local == TypeSymmetric && remote == TypeSymmetric:
 		return 1200 * time.Millisecond
+	case (local == TypeSymmetric || remote == TypeSymmetric) && predicted:
+		return 5 * time.Second
 	case local == TypeSymmetric || remote == TypeSymmetric:
 		return 4 * time.Second
 	}

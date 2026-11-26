@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -168,6 +169,14 @@ func TestRegisterAndConnect(t *testing.T) {
 	}
 	if len(offer.Peer.Local) != 1 || offer.Peer.Local[0].Addr() != netip.MustParseAddr("192.168.1.10") {
 		t.Errorf("client local candidates = %v", offer.Peer.Local)
+	}
+	// The symmetric client's port prediction reached the host, for the
+	// address the server observed; the cone host has none.
+	if pred, _ := clientSock.Prediction(); !pred.Valid() || offer.Peer.Prediction != pred || pred.IP != in.Reflexive.Addr() {
+		t.Errorf("host was told the client's prediction is %+v, client has %+v", offer.Peer.Prediction, pred)
+	}
+	if in.Peer.Prediction.Valid() {
+		t.Errorf("client was told of a prediction for a cone host: %+v", in.Peer.Prediction)
 	}
 	if got := in.Peer.Candidates(); len(got) != 2 || got[0] != reg.Reflexive {
 		t.Errorf("Candidates() = %v", got)
@@ -893,6 +902,98 @@ func TestCandidatesFilteredEndToEnd(t *testing.T) {
 	}
 	if len(p.Local) != 2 || p.Local[0].String() != "10.0.0.20:4000" || p.Local[1].String() != "203.0.113.20:1" {
 		t.Errorf("unfiltered introduction parsed to %v", p.Local)
+	}
+}
+
+// A symmetric host's port prediction travels to the client through an
+// unchanged server, as a hint at the end of the host's candidates, and
+// survives a full candidate list. Old peers on either side: one that
+// sends no hint gives no prediction, and one that does not read hints sees
+// two more candidates on the observed address, after its others.
+func TestPredictionHint(t *testing.T) {
+	tn := newTestNet(t, Limits{})
+	ctx := testCtx(t)
+	hb := tn.net.NAT("203.0.113.20", vnet.Symmetric)
+	hb.SetPortStep(2)
+	hostSock := tn.socket(hb.Host("10.0.0.20"))
+	mapped := netip.MustParseAddrPort("203.0.113.20:41641")
+	hostSock.Mapped = func() netip.AddrPort { return mapped }
+	hc := tn.dial(hostSock, Options{})
+	reg, err := hc.Register(ctx, newIdentity(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hc.NATType() != nat.TypeSymmetric {
+		t.Fatalf("host NAT %s", hc.NATType())
+	}
+	pred, ok := hostSock.Prediction()
+	if !ok || pred.Step != 2 || pred.IP != reg.Reflexive.Addr() {
+		t.Fatalf("host prediction %+v, %v", pred, ok)
+	}
+	hostNAT := make(chan nat.Type, 4)
+	go hc.ServeOffers(ctx, func(o Offer) Answer {
+		return Answer{Local: hostSock.Candidates(), NAT: <-hostNAT}
+	})
+
+	cc := tn.dial(tn.socket(tn.net.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10")), Options{})
+	hostNAT <- nat.TypeSymmetric
+	in, err := cc.Connect(ctx, reg.ID, nil, nat.TypeCone)
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	if in.Peer.Prediction != pred {
+		t.Errorf("client was told the host's prediction is %+v, want %+v", in.Peer.Prediction, pred)
+	}
+	// The hint is not a candidate; the mapped address is still first.
+	if want := []netip.AddrPort{mapped, netip.AddrPortFrom(netip.MustParseAddr("10.0.0.20"), in.Peer.Local[1].Port())}; !slices.Equal(in.Peer.Local, want) {
+		t.Errorf("host candidates %v, want %v", in.Peer.Local, want)
+	}
+
+	// What a client that predates hints makes of a full answer (a mapped
+	// address and as many local ones as are advertised; one makes room
+	// for the hint, or the server would refuse the list): the filter it
+	// shares with the server passes the hint as two more candidates on
+	// the observed address, at the end, where its bound on routable
+	// candidates takes them last, after an IPv6 address.
+	full := []netip.AddrPort{mapped}
+	for i := range nat.MaxCandidates - 1 {
+		full = append(full, netip.AddrPortFrom(netip.AddrFrom4([4]byte{10, 0, 0, byte(20 + i)}), 4000))
+	}
+	full = append(full, netip.MustParseAddrPort("[2001:db8::20]:4000"))
+	raw := advertise(full, nat.TypeSymmetric, hostSock)
+	old, err := parseCandidates(raw, reg.Reflexive.Addr())
+	if err != nil || len(raw) != maxCandidates || len(old) != maxCandidates {
+		t.Fatalf("an old client parses %v from %v (%v)", old, raw, err)
+	}
+	if hint := pred.Hint(); old[len(old)-2] != hint[0] || old[len(old)-1] != hint[1] || old[0] != mapped || old[len(old)-3] != full[len(full)-1] {
+		t.Errorf("want the mapped address first, IPv6 kept and the hint %v at the end: %v", hint, old)
+	}
+
+	// A host that predates hints, or does not claim a symmetric NAT,
+	// gives no prediction, and its candidates are left alone.
+	hostNAT <- nat.TypeCone
+	in, err = cc.Connect(ctx, reg.ID, nil, nat.TypeCone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in.Peer.Prediction.Valid() || !slices.Equal(in.Peer.Local, hostSock.Candidates()) {
+		t.Errorf("cone host: prediction %+v, candidates %v", in.Peer.Prediction, in.Peer.Local)
+	}
+	// An old symmetric host: its list (a mapped address first) has no hint.
+	p, err := parsePeer(&peerInfo{Reflexive: "203.0.113.20:40000", NAT: "symmetric", Local: []string{"203.0.113.20:41641", "10.0.0.20:4000"}})
+	if err != nil || p.Prediction.Valid() || len(p.Local) != 2 {
+		t.Errorf("old symmetric peer parsed to %+v (%v)", p, err)
+	}
+	// Nor does a list that merely ends in two addresses on the observed
+	// address when the peer does not say it is symmetric.
+	p, err = parsePeer(&peerInfo{Reflexive: "203.0.113.20:40000", NAT: "cone", Local: []string{"203.0.113.20:40001", "203.0.113.20:40002"}})
+	if err != nil || p.Prediction.Valid() || len(p.Local) != 2 {
+		t.Errorf("cone peer parsed to %+v (%v)", p, err)
+	}
+	// A hint for another address does not get through the filter.
+	p, err = parsePeer(&peerInfo{Reflexive: "203.0.113.20:40000", NAT: "symmetric", Local: []string{"198.51.100.7:40001", "198.51.100.7:40002"}})
+	if err != nil || p.Prediction.Valid() || len(p.Local) != 0 {
+		t.Errorf("hint for a third party parsed to %+v (%v)", p, err)
 	}
 }
 

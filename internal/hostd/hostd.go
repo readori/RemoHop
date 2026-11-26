@@ -796,6 +796,11 @@ func (h *Host) onRelay(sock *nat.Socket, nonce []byte, relay netip.AddrPort) err
 	return nil
 }
 
+// predictRefreshTime bounds how long an offer waits for the port prediction
+// to be brought up to date (nat.Socket.RefreshPrediction); without an
+// answer by then the old one is used.
+const predictRefreshTime = 300 * time.Millisecond
+
 // onOffer reacts to an introduction: start punching towards the client and
 // tell it where we are. bridged says we are registered through the
 // websocket bridge; then, as when the client is, nothing can be punched
@@ -805,7 +810,17 @@ func (h *Host) onOffer(o signal.Offer, bridged bool) signal.Answer {
 	// the punch works, simply shows up at the listener.
 	punch := !bridged && !o.Peer.Bridged
 	if punch {
-		if _, err := h.sock.Punch(o.Nonce, nat.RoleHost, o.Peer.Candidates(), nat.DefaultPunchTime+5*time.Second); err != nil {
+		if _, ok := h.sock.Prediction(); ok && (o.Peer.NAT == nat.TypeCone || o.Peer.NAT == nat.TypeNone) {
+			// The client will probe the ports our symmetric NAT is
+			// predicted to use next. The measurement may be hours old;
+			// bring it up to date first (a round trip to the server at
+			// most), before the punch itself takes the next port.
+			ctx, cancel := context.WithTimeout(context.Background(), predictRefreshTime)
+			h.sock.RefreshPrediction(ctx)
+			cancel()
+		}
+		if _, err := h.sock.PunchWith(nat.PunchConfig{Nonce: o.Nonce, Role: nat.RoleHost, Remote: o.Peer.Candidates(),
+			Lifetime: nat.DefaultPunchTime + 5*time.Second, Predicted: o.Peer.Prediction}); err != nil {
 			h.log.Warn("declined a connection request", "from", o.Peer.Reflexive, "err", err)
 			return signal.Answer{Decline: "host is busy"}
 		}

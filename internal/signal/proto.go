@@ -68,6 +68,11 @@
 //	bridge (see ws.go): its addresses are placeholders, and the two
 //	peers go straight to the relay instead of punching.
 //
+//	A peer whose nat is "symmetric" may end its candidates with a port
+//	prediction: two addresses on its observed address (nat.Prediction.Hint),
+//	which the receiving peer reads back (nat.ReadHint). To the server they
+//	are candidates like any other; it needs to know nothing about them.
+//
 // Failures are {ok:false, code, error, retry_after_ms}. "you" is the
 // requester's own reflexive address; alt_port is the UDP port of the
 // server's NAT-probe (reflect) service, see internal/nat. The main port
