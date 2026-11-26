@@ -36,7 +36,7 @@ remohop host</code></pre>
 <p><code>remohop host</code> runs in the foreground and prints the ID and the temporary password. To start at boot, install it as a service:</p>
 <pre><code>remohop service install
 remohop status --show-password</code></pre>
-<p>This writes a systemd unit (Linux), a launchd job (macOS) or a Windows service. The service has its own identity, ID and password; it is not the same instance as an <code>remohop host</code> you start by hand. A system-wide service and the Windows service cannot see the desktop session, so use the per-user service when you need screenshots or remote desktop.</p>
+<p>This writes a systemd unit (Linux), a launchd job (macOS) or a Windows service. The service has its own identity, ID and password; it is not the same instance as an <code>remohop host</code> you start by hand. A system-wide service and the Windows service cannot see the desktop session, so use the per-user service when you need screenshots or remote desktop. On Windows, <code>remohop service install --unattended</code> instead gives the service's clients the console session, including the sign-in screen, the lock screen and UAC prompts (off by default); the desktop app's unattended access installs it this way.</p>
 <p>For a fixed password run <code>remohop passwd</code>. It asks without echo and never prints the password again.</p>
 
 <h2 id="connect">4. Connect and pair</h2>

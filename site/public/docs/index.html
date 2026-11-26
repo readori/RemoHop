@@ -71,7 +71,7 @@ remohop host</code></pre>
 <p><code>remohop host</code> 在前台运行，打印 ID 和临时密码。想开机自启就装成系统服务：</p>
 <pre tabindex="0"><code>remohop service install
 remohop status --show-password</code></pre>
-<p>它会写入 systemd 单元（Linux）、launchd 任务（macOS）或 Windows 服务。服务有自己独立的身份、ID 和密码，和手动启动的 <code>remohop host</code> 不是同一个实例。系统级服务和 Windows 服务看不到桌面会话，需要截图或远程桌面时请用用户级服务。</p>
+<p>它会写入 systemd 单元（Linux）、launchd 任务（macOS）或 Windows 服务。服务有自己独立的身份、ID 和密码，和手动启动的 <code>remohop host</code> 不是同一个实例。系统级服务和 Windows 服务看不到桌面会话，需要截图或远程桌面时请用用户级服务。在 Windows 上，<code>remohop service install --unattended</code> 则让服务的客户端看到控制台会话，包括登录界面、锁屏和 UAC 提示（默认关闭）；桌面应用的“无人值守访问”就是这样安装的。</p>
 <p>需要固定密码时执行 <code>remohop passwd</code>，它以不回显的方式询问，之后也不会再把密码打印出来。</p>
 
 <h2 id="connect">4. 连接并配对</h2>
