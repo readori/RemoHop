@@ -117,6 +117,7 @@ A relay is off unless the rendezvous operator runs `remohop signal --relay`. It 
 - The relay sees more than a rendezvous-only server: the size and timing of the whole session, and both peers' addresses for its duration. It can slow the session down or cut it.
 - A relayed session is announced on stderr when it is set up and is labelled `relayed` in `remohop <ID> ping` and `remohop status`.
 - A client or host refuses relayed connections with `remohop config relay off` or `REMOHOP_RELAY=0`. With that set, a connection that cannot be made directly fails.
+- A relayed session moves to a direct path when one becomes possible (see [how-it-works.md](en/how-it-works.md#relay)). The move is QUIC connection migration: the same connection, under the same keys, with the same authenticated host and the same login. A new path is used only after the host has answered a PATH_CHALLENGE on it inside that encrypted connection, which nobody without the session keys can do. The rendezvous server, which is not trusted, could hand the client an impostor's address and the nonce to punch it with; the impostor could answer the punch but not the challenge, so the session stays on the relay. No new credential is sent, nothing is authorised again, and the host's owner is not asked. `REMOHOP_RELAY_UPGRADE=0` on the client turns the moves off.
 - Traffic over the cap is paced: held back for up to 100 ms, then dropped. The queue is bounded per session (1024 packets, at most 100 ms of the cap), so pacing adds no unbounded memory.
 
 ## Websocket bridge

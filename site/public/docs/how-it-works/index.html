@@ -77,7 +77,8 @@
 <li>只有打洞失败之后才会使用，例如双方都在对称型 NAT 之后；或者一方只能通过 websocket 桥访问服务器时直接使用（见下文）。</li>
 <li>中继承载的仍是同一条端到端加密、经过认证的会话。中继只转发密文，无法读取内容，也无法加入会话。</li>
 <li>建立中继时会在 stderr 上提示，<code>remohop &lt;ID&gt; ping</code> 和 <code>remohop status</code> 中显示为 <code>relayed</code>。它更慢，并受带宽上限约束（<code>--relay-kbps</code>，每个会话默认 8000；<code>--relay-total-kbps</code>，默认 40000；<code>--relay-max</code>）。超过上限的流量会被整形（最多排队 100 毫秒，之后才丢弃），而不是直接截断，QUIC 的拥塞控制可以平滑地跟上。中继每 10 Mbit/s 大约消耗 1% 的 CPU 核。</li>
-<li>客户端或被控机可以用 <code>remohop config relay off</code> 或 <code>REMOHOP_RELAY=0</code> 拒绝中继。走了中继的会话之后不会升级为直连。对某台被控机打洞失败之后，10 分钟内从同样的网络发起的后续命令会跳过打洞，直接走中继。</li>
+<li>客户端或被控机可以用 <code>remohop config relay off</code> 或 <code>REMOHOP_RELAY=0</code> 拒绝中继。对某台被控机打洞失败之后，10 分钟内从同样的网络发起的后续命令会立即建立中继（打洞仍在同时进行，若直连路径有应答则直连胜出）。</li>
+<li>走了中继的会话不会无谓地一直走中继。会话存续期间，客户端会在后台继续尝试打洞：会话建立 5 秒后一次，之后再隔 20 秒、60 秒各一次，此后每 3 分钟一次；网络发生变化时也会立即尝试。每次尝试都向汇合服务器申请一次新的介绍（与新建连接时的请求相同），并从会话自己的套接字打洞。一旦某条路径有应答，会话的 QUIC 连接就迁移过去（QUIC 连接迁移：客户端先验证新路径，再切换；被控机自动跟随）。数据流、远程桌面画面和文件传输都不会中断，不需要重新登录，也不会再次询问被控机的主人。几秒后中继会被释放。双方都会记录日志 <code>relayed session moved to a direct path after …</code>，网页客户端、<code>remohop status</code> 和桌面应用中显示的路径会从 <code>relayed</code> 变为 <code>punched</code>（或 <code>direct</code>、<code>lan</code>）。新路径在会话自身的加密之内验证，因此只有会话已认证的那台被控机才能在其上应答；详见 <a href="/en/docs/security/#relay">security.md</a>。这一机制不需要两端或汇合服务器的任何新功能，所以对旧版本的服务器和被控机同样有效。在客户端设置 <code>REMOHOP_RELAY_UPGRADE=0</code> 可以让走中继的会话一直留在中继上。经由 WebSocket 桥接的会话仍然走中继。</li>
 </ul>
 <h2 id="纯-ipv6-网络nat64">纯 IPv6 网络（NAT64）</h2>
 <p>有些网络只给设备分配 IPv6，通过 NAT64 和 DNS64 访问 IPv4 互联网，例如部分移动运营商，以及 Apple 审核 iOS 应用时用的网络。在这种网络里主机名照常可用（DNS64 返回一个由 NAT64 转换的 IPv6 地址），IPv4 地址却不行，而 RemoHop 经常遇到 IPv4 地址：用户输入的地址（<code>203.0.113.7:21118</code>）、按地址配置的汇合服务器，以及汇合服务器下发的被控机和中继地址。</p>
