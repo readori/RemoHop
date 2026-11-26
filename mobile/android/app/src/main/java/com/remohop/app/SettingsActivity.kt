@@ -739,13 +739,13 @@ class SettingsActivity : AppCompatActivity() {
         f.counterMaxLength = 63
         f.isCounterEnabled = true
         val d = ui.section(col, null)
-        val idLabel = getString(if (h.isId) R.string.hm_id else R.string.hm_address)
+        val idLabel = getString(if (h.isId) R.string.host_id else R.string.host_address)
         val idRow = ui.row(d, idLabel, summary = h.target, icon = R.drawable.ic_copy) {
             getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(idLabel, h.target))
             if (Build.VERSION.SDK_INT < 33) snack(R.string.copied)
         }
-        idRow.view.contentDescription = getString(R.string.hm_copy, h.target)
-        ui.row(d, getString(R.string.hm_status), summary = getString(when (h.kind) {
+        idRow.view.contentDescription = getString(R.string.host_copy, h.target)
+        ui.row(d, getString(R.string.host_status), summary = getString(when (h.kind) {
             SavedHost.Kind.PAIRED -> R.string.host_status_paired
             SavedHost.Kind.KEY -> R.string.host_status_key
             SavedHost.Kind.SAVED_PASSWORD -> R.string.host_status_savedpw
