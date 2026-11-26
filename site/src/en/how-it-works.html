@@ -27,12 +27,12 @@
 
 <header class="hiw-head">
 <h1>How it works: P2P hole punching and end-to-end encryption</h1>
-<p class="lede">How RemoHop connects two devices directly: what the rendezvous server does, the four connection paths, the default ports, the six steps of a connection, and why only the two ends can read a session. For the details, see the <a href="{{L:docs/how-it-works}}">How it works</a> guide and the <a href="{{L:security}}">security model</a>.</p>
+<p class="lede">How RemoHop connects two devices directly: what the rendezvous server does, the connection paths and the order they are tried in, the default ports, the six steps of a connection, and why only the two ends can read a session. For the details, see the <a href="{{L:docs/how-it-works}}">How it works</a> guide and the <a href="{{L:security}}">security model</a>.</p>
 </header>
 
 <div class="note hiw-overview">
 <svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>
-<p><b>In short:</b> the host and the controller first talk to the RemoHop rendezvous server (<code>remohop signal</code>) for ID registration, presence, NAT type detection and the exchange of candidate addresses. Then both send UDP probes to each other at the same time to punch through their NATs, and set up a <b>direct QUIC connection</b> on the first path that answers, end-to-end encrypted with <b>TLS 1.3 + CPace password authentication (bound to the Ed25519 identity keys)</b>. Remote desktop, terminal, files and every other feature are multiplexed over that one session. If punching fails, the connection switches to the (optional) relay within about 1.5 seconds, and the relay only forwards ciphertext.</p>
+<p><b>In short:</b> the host and the controller first talk to the RemoHop rendezvous server (<code>remohop signal</code>) for ID registration, presence, NAT type detection and the exchange of candidate addresses. Then both send UDP probes to each other at the same time to punch through their NATs, and set up a <b>direct QUIC connection</b> on the first path that answers, end-to-end encrypted with <b>TLS 1.3 + CPace password authentication (bound to the Ed25519 identity keys)</b>. Remote desktop, terminal, files and every other feature are multiplexed over that one session. The host also asks its router to map its port, and the ports of symmetric NATs that allocate in sequence are predicted, so most networks connect directly. If nothing gets through, the connection switches to the (optional) relay within about 1.5 seconds; the relay only forwards ciphertext, and the session moves back to a direct path, without a break, once one works.</p>
 </div>
 
 <section aria-labelledby="map-h">
@@ -83,7 +83,7 @@
 
 <section class="node dev-b" aria-labelledby="b-h">
 <h3 id="b-h"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Host <span class="pill">your device B</span></h3>
-<p class="runs">Windows · macOS · Linux · headless servers</p>
+<p class="runs">Windows · macOS · Linux · headless servers · Android · iPhone / iPad (view only)</p>
 <dl class="kv">
 <dt><abbr title="Device ID">ID</abbr>Device ID</dt><dd>707 612 667</dd>
 <dt><abbr title="IP address">IP</abbr>Local address</dt><dd>10.0.0.234</dd>
@@ -95,7 +95,7 @@
 <section class="node data" aria-labelledby="data-h">
 <h3 id="data-h"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>What the session carries (never via the server)</h3>
 <ul class="dots">
-<li>Remote desktop video, H.264 / AV1, up to 4K at 60 fps</li>
+<li>Remote desktop video, H.264 / AV1, up to 4K and 144 fps</li>
 <li>Keyboard and mouse (key repeat, shortcuts)</li>
 <li>Opus audio</li>
 <li>Terminal and background jobs</li>
@@ -120,6 +120,8 @@
 <h3 id="rel-h"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>Reliability</h3>
 <ul class="dots">
 <li>Survives short network drops; a broken session reconnects by itself</li>
+<li>A relayed session keeps punching in the background and moves to a direct path without a break</li>
+<li>The phone apps restore their sessions after the system ended the app</li>
 <li>Host changes network or address: registered again within seconds</li>
 <li>Works on small-MTU networks (starts at 1200 bytes)</li>
 <li>A peer that vanishes is noticed within about 25 seconds</li>
@@ -130,12 +132,15 @@
 </section>
 
 <section aria-labelledby="paths-h">
-<h2 id="paths-h"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Four connection paths (chosen automatically; the fastest wins)</h2>
-<ol class="paths">
-<li><h3>① LAN direct <code>lan</code></h3><p>Same network, direct connection; the data never leaves the LAN</p><p class="chip">set up in a few ms</p></li>
-<li><h3>② Hole punched <code>punched</code></h3><p>Across networks, cone NATs, direct P2P</p><p class="chip">set up in about 30–60 ms</p></li>
-<li class="opt"><h3>③ Relay <code>relayed</code> (optional)</h3><p>Symmetric NATs, client isolation; forwards ciphertext only</p><p class="chip wait">switches within about 1.5 s</p></li>
-<li class="opt"><h3>④ Websocket bridge (optional)</h3><p>Networks that only reach the web (HTTPS on 443)</p><p class="chip wait">tens of ms once remembered</p></li>
+<h2 id="paths-h"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>Connection paths: direct first, the relay last</h2>
+<p class="paths-lede">All of the host's candidates (LAN, public, mapped port, predicted ports, IPv6, Tailscale) are probed at once, and the first path that answers wins, LAN first; if none has answered after 1.5 s, a relay is set up in parallel. <code>remohop &lt;ID&gt; ping</code> shows which path a session uses.</p>
+<ol class="paths six">
+<li><h3>① LAN <code>lan</code></h3><p>Same network, direct connection; the data never leaves the LAN</p><p class="chip">set up in a few ms</p></li>
+<li><h3>② Direct and punched <code>direct</code> <code>punched</code></h3><p>Straight to a host with a public address; behind NATs both sides send at once to punch through, which almost always works with cone NATs</p><p class="chip">set up in about 30–60 ms</p></li>
+<li><h3>③ Router port mapping</h3><p>The host asks its router to forward its UDP port (PCP, NAT-PMP or UPnP), so a client behind any NAT, even two symmetric NATs, connects directly. <code>remohop config portmap off</code> turns it off</p><p class="chip">mapped within about 3 s</p></li>
+<li><h3>④ Port prediction</h3><p>A symmetric NAT that hands out its ports in sequence (common on home routers and carrier NATs) has its next ports predicted, and a cone NAT on the other side probes them</p><p class="chip">up to 48 predicted ports</p></li>
+<li class="opt"><h3>⑤ Relay <code>relayed</code> (optional)</h3><p>Only when nothing else gets through; forwards ciphertext only. The session keeps punching in the background and moves to a direct path by QUIC connection migration, without a break or a new login</p><p class="chip wait">takes over within about 1.5 s</p></li>
+<li class="opt"><h3>⑥ Websocket bridge (optional)</h3><p>Networks that only reach the web (HTTPS on 443); there is no punching through the bridge, so it is always relayed</p><p class="chip wait">tens of ms once remembered</p></li>
 </ol>
 </section>
 
@@ -164,7 +169,7 @@
 <tr><th scope="row">21117</th><td>UDP</td><td>NAT type detection</td></tr>
 <tr><th scope="row">443</th><td>TCP</td><td>Websocket bridge (optional, behind a reverse proxy)</td></tr>
 <tr><th scope="row" class="word">Your range</th><td>UDP</td><td>Relay (optional, <code>--relay-ports</code>)</td></tr>
-<tr><th scope="row" class="word">Random / fixed</th><td>UDP</td><td>Host P2P port (fix it with <code>--listen</code>)</td></tr>
+<tr><th scope="row" class="word">Random / fixed</th><td>UDP</td><td>Host P2P port (fix it with <code>--listen</code>; mapped on the router when it agrees)</td></tr>
 </tbody>
 </table>
 <p class="small">A cloud VM with 1 GB of memory is enough for the rendezvous server; without the relay it uses almost no bandwidth. See <a href="{{L:self-hosting}}">self-hosting</a>.</p>
@@ -188,8 +193,8 @@
 <ol class="steps">
 <li><span><b>Register:</b> the host registers with the rendezvous server using its Ed25519 identity, gets its 9-digit ID and keeps sending heartbeats.</span></li>
 <li><span><b>Start:</b> the controller enters the ID (or an address:port directly, with no server).</span></li>
-<li><span><b>Exchange:</b> the server sends both sides each other's candidate addresses (LAN / public / IPv6 / Tailscale) and NAT types.</span></li>
-<li><span><b>Punch:</b> both send probes at the same time and the first path that answers wins (LAN first); with no path after 1.5 s, the relay is tried in parallel.</span></li>
+<li><span><b>Exchange:</b> the server sends both sides each other's candidate addresses (LAN / public / router-mapped / IPv6 / Tailscale), NAT types and port predictions.</span></li>
+<li><span><b>Punch:</b> both send probes at the same time and the first path that answers wins (LAN first); with no path after 1.5 s, the relay is tried in parallel, and a later punch moves the session back to direct.</span></li>
 <li><span><b>Authenticate:</b> CPace runs over QUIC (TLS 1.3); the password or pairing token never crosses the network. The host can ask for approval.</span></li>
 <li><span><b>Session:</b> desktop, terminal, files and the rest are multiplexed over one encrypted session that reconnects after a drop.</span></li>
 </ol>
@@ -215,7 +220,7 @@
 <li>Both sides register with the rendezvous server, which sees each one's public address and port.</li>
 <li>The server tells each side the other's candidate addresses, and both send UDP probes to each other at the same time.</li>
 <li>Each outgoing probe opens a hole in its own NAT, so the other side's packets can come in.</li>
-<li>Cone NATs can almost always be punched; when both sides are behind symmetric NATs, the relay is used automatically.</li>
+<li>Cone NATs can almost always be punched; symmetric NATs that allocate ports in sequence are reached by port prediction; with a port mapped on the router, even two symmetric NATs connect directly. Only when none of this works is the relay used.</li>
 </ul>
 </section>
 
@@ -241,7 +246,7 @@
 <li>Once punched, data flows directly between the two devices, end-to-end encrypted.</li>
 <li>No account needed, and you can skip the server entirely by connecting to an address.</li>
 <li>One program: controller, host, server, web console and AI interface, all self-hostable.</li>
-<li>The experience depends mostly on NAT type and network quality; if no direct path works, the relay takes over within 1.5 s.</li>
+<li>The experience depends mostly on NAT type and network quality; if no direct path works, the relay takes over within 1.5 s and hands the session back to a direct path once one opens.</li>
 </ul>
 </section>
 </div>

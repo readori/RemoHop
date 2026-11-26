@@ -27,12 +27,12 @@
 
 <header class="hiw-head">
 <h1>工作原理：P2P 打洞与端到端加密</h1>
-<p class="lede">RemoHop 怎样把两台设备直接连起来：汇合服务器负责什么、四种连接路径、默认端口、连接建立的六个步骤，以及会话为什么只有两端能读。更细的说明见文档《<a href="{{L:docs/how-it-works}}">工作原理</a>》和<a href="{{L:security}}">安全模型</a>。</p>
+<p class="lede">RemoHop 怎样把两台设备直接连起来：汇合服务器负责什么、几条连接路径按什么顺序尝试、默认端口、连接建立的六个步骤，以及会话为什么只有两端能读。更细的说明见文档《<a href="{{L:docs/how-it-works}}">工作原理</a>》和<a href="{{L:security}}">安全模型</a>。</p>
 </header>
 
 <div class="note hiw-overview">
 <svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>
-<p><b>概述：</b>被控端和控制端先联系 RemoHop 汇合服务器（<code>remohop signal</code>），完成 ID 注册、在线状态、NAT 类型探测和候选地址交换；随后双方同时互发 UDP 探测包打洞，在第一条有应答的路径上建立 <b>QUIC 直连</b>，用 <b>TLS 1.3 + CPace 密码认证（绑定 Ed25519 身份密钥）</b>做端到端加密。远程桌面、终端、文件等全部功能都在这一条会话里多路传输；打洞失败约 1.5 秒内自动切到（可选的）中继，中继也只转发密文。</p>
+<p><b>概述：</b>被控端和控制端先联系 RemoHop 汇合服务器（<code>remohop signal</code>），完成 ID 注册、在线状态、NAT 类型探测和候选地址交换；随后双方同时互发 UDP 探测包打洞，在第一条有应答的路径上建立 <b>QUIC 直连</b>，用 <b>TLS 1.3 + CPace 密码认证（绑定 Ed25519 身份密钥）</b>做端到端加密。远程桌面、终端、文件等全部功能都在这一条会话里多路传输；被控端还会请路由器映射端口，并为按顺序分配端口的对称型 NAT 预测端口，所以多数网络都能直连。实在打不通时约 1.5 秒内切到（可选的）中继，中继也只转发密文；之后一旦打通，会话会不中断地挪回直连。</p>
 </div>
 
 <section aria-labelledby="map-h">
@@ -83,7 +83,7 @@
 
 <section class="node dev-b" aria-labelledby="b-h">
 <h3 id="b-h"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>被控端 <span class="pill">你的设备 B</span></h3>
-<p class="runs">Windows · macOS · Linux · 无显示器服务器</p>
+<p class="runs">Windows · macOS · Linux · 无显示器服务器 · Android · <span class="nobr">iPhone / iPad</span>（只能观看）</p>
 <dl class="kv">
 <dt><abbr title="设备 ID">ID</abbr>设备 ID</dt><dd>707 612 667</dd>
 <dt><abbr title="IP 地址">IP</abbr>本地地址</dt><dd>10.0.0.234</dd>
@@ -95,7 +95,7 @@
 <section class="node data" aria-labelledby="data-h">
 <h3 id="data-h"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>会话里传输的数据（不经服务器）</h3>
 <ul class="dots">
-<li>远程桌面视频 H.264 / AV1，最高 4K 60 帧</li>
+<li>远程桌面视频 H.264 / AV1，最高 4K，帧率最高 144 fps</li>
 <li>键盘、鼠标（连发、组合键）</li>
 <li>音频 Opus</li>
 <li>终端与后台任务</li>
@@ -120,6 +120,8 @@
 <h3 id="rel-h"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg>稳定性</h3>
 <ul class="dots">
 <li>短暂断网不掉线，会话断开自动重连</li>
+<li>走中继的会话在后台继续打洞，打通后不中断地换到直连</li>
+<li>手机应用被系统结束后，再打开时自动恢复会话</li>
 <li>被控端换网、地址变化：几秒内重新登记</li>
 <li>小 MTU 网络（1200 字节起步）也能连</li>
 <li>对方意外离线约 25 秒内发现</li>
@@ -130,12 +132,15 @@
 </section>
 
 <section aria-labelledby="paths-h">
-<h2 id="paths-h"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>四种连接路径（自动选择，最快的胜出）</h2>
-<ol class="paths">
-<li><h3>① 局域网直连 <code>lan</code></h3><p>同一网络里直接连，数据不出局域网</p><p class="chip">建立约几毫秒</p></li>
-<li><h3>② 公网打洞 <code>punched</code></h3><p>跨网络、锥形 NAT，P2P 直连</p><p class="chip">建立约 30–60 ms</p></li>
-<li class="opt"><h3>③ 中继 <code>relayed</code>（可选）</h3><p>对称 NAT、客户端隔离时；只转发密文</p><p class="chip wait">约 1.5 秒内切换</p></li>
-<li class="opt"><h3>④ WebSocket 桥（可选）</h3><p>只能访问网页（HTTPS 443）的网络</p><p class="chip wait">记住后几十毫秒</p></li>
+<h2 id="paths-h"><svg class="ic" aria-hidden="true"><use href="#i-route"/></svg>连接路径：先直连，最后才中继</h2>
+<p class="paths-lede">被控端的候选地址（局域网、公网、映射端口、预测端口、IPv6、Tailscale）同时探测，第一条有应答的路径胜出，局域网优先；1.5 秒内还没有路径，就并行建立中继。<code>remohop &lt;ID&gt; ping</code> 显示当前走的是哪一条。</p>
+<ol class="paths six">
+<li><h3>① 局域网 <code>lan</code></h3><p>同一网络里直接连，数据不出局域网</p><p class="chip">建立约几毫秒</p></li>
+<li><h3>② 直连与打洞 <code>direct</code> <code>punched</code></h3><p>被控端有公网地址时直接连；在 NAT 后面时两边同时发包打洞，锥形 NAT 基本都能打通</p><p class="chip">建立约 30–60 ms</p></li>
+<li><h3>③ 路由器端口映射</h3><p>被控端用 PCP、NAT-PMP 或 UPnP 请路由器转发它的 UDP 端口；不管对方在哪种 NAT 后面，包括两个对称型 NAT，都能直接连上。<code>remohop config portmap off</code> 关闭</p><p class="chip">后台约 3 秒内完成</p></li>
+<li><h3>④ 端口预测</h3><p>对称型 NAT 按顺序分配端口时（家用路由器和运营商 NAT 很常见），另一边如果是锥形 NAT，会探测预测出的端口</p><p class="chip">最多探测 48 个端口</p></li>
+<li class="opt"><h3>⑤ 中继 <code>relayed</code>（可选）</h3><p>以上都不通时才用，只转发密文。会话在后台继续打洞，打通后经 QUIC 连接迁移换到直连，不中断、不重新登录</p><p class="chip wait">约 1.5 秒内接上</p></li>
+<li class="opt"><h3>⑥ WebSocket 桥（可选）</h3><p>只能访问网页（HTTPS 443）的网络；经过桥没法打洞，所以一定走中继</p><p class="chip wait">记住后几十毫秒</p></li>
 </ol>
 </section>
 
@@ -164,7 +169,7 @@
 <tr><th scope="row">21117</th><td>UDP</td><td>NAT 类型探测</td></tr>
 <tr><th scope="row">443</th><td>TCP</td><td>WebSocket 桥（可选，经反向代理）</td></tr>
 <tr><th scope="row" class="word">自选范围</th><td>UDP</td><td>中继（可选，<code>--relay-ports</code>）</td></tr>
-<tr><th scope="row" class="word">随机 / 固定</th><td>UDP</td><td>被控端 P2P 端口（<code>--listen</code> 可固定）</td></tr>
+<tr><th scope="row" class="word">随机 / 固定</th><td>UDP</td><td>被控端 P2P 端口（<code>--listen</code> 可固定；路由器支持时自动映射）</td></tr>
 </tbody>
 </table>
 <p class="small">汇合服务器 1 GB 内存的云主机即可；不开中继时几乎不耗带宽。见<a href="{{L:self-hosting}}">自建汇合服务器</a>。</p>
@@ -188,8 +193,8 @@
 <ol class="steps">
 <li><span><b>注册：</b>被控端用 Ed25519 身份向汇合服务器注册，拿到 9 位 ID 并保持心跳。</span></li>
 <li><span><b>发起：</b>控制端输入 ID（或直接输入 地址:端口，无需服务器）。</span></li>
-<li><span><b>交换：</b>服务器下发双方候选地址（局域网 / 公网 / IPv6 / Tailscale）与 NAT 类型。</span></li>
-<li><span><b>打洞：</b>双方同时互发探测包，第一条应答的路径胜出（局域网优先）；1.5 秒无路径则并行走中继。</span></li>
+<li><span><b>交换：</b>服务器下发双方候选地址（局域网 / 公网 / 路由器映射 / IPv6 / Tailscale）、NAT 类型和端口预测。</span></li>
+<li><span><b>打洞：</b>双方同时互发探测包，第一条应答的路径胜出（局域网优先）；1.5 秒无路径则并行走中继，之后打通再换回直连。</span></li>
 <li><span><b>认证：</b>在 QUIC（TLS 1.3）上跑 CPace，密码或配对令牌从不上网传输；可弹窗批准。</span></li>
 <li><span><b>会话：</b>桌面、终端、文件等在同一条加密会话里多路传输，断线自动重连。</span></li>
 </ol>
@@ -215,7 +220,7 @@
 <li>双方先向汇合服务器登记，服务器看到各自的公网地址和端口。</li>
 <li>服务器把对方的候选地址告诉双方，双方同时向对方发 UDP 探测。</li>
 <li>出站的探测在各自 NAT 上“开洞”，对方的包就能进来。</li>
-<li>锥形 NAT 基本都能打通；双方都是对称型 NAT 时自动走中继。</li>
+<li>锥形 NAT 基本都能打通；按顺序分配端口的对称型 NAT 靠端口预测打通；路由器映射了端口时，双方都是对称型 NAT 也能直连。都不行才走中继。</li>
 </ul>
 </section>
 
@@ -241,7 +246,7 @@
 <li>打洞成功后数据在两台设备之间直接传输，端到端加密。</li>
 <li>不需要注册账号；也能完全不用服务器，按地址直连。</li>
 <li>一个程序：控制、被控、服务器、网页、AI 接口全包含，可自建。</li>
-<li>体验主要取决于 NAT 类型与网络质量；连不通 1.5 秒内转中继。</li>
+<li>体验主要取决于 NAT 类型与网络质量；连不通 1.5 秒内转中继，打通后再自动换回直连。</li>
 </ul>
 </section>
 </div>
