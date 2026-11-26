@@ -154,6 +154,8 @@ type Host struct {
 	// by the socket's Mapped hook, which must not take mu.
 	portmap   atomic.Pointer[portmap.Mapper]
 	reflexive atomic.Pointer[netip.AddrPort]
+	// mappingFn replaces the Mapper's Mapping in tests; nil in production.
+	mappingFn func() (portmap.Mapping, bool)
 
 	registered chan struct{} // closed on first successful registration
 	started    time.Time

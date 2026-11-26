@@ -117,6 +117,9 @@ func runStatus(env *cli.Env, args []string, strict bool) int {
 		if st.Signal != "" {
 			fmt.Fprintf(w, "  NAT:         %s\n", st.NAT)
 		}
+		if line := portMapLine(st.PortMap); line != "" {
+			fmt.Fprintln(w, line)
+		}
 		off := "none"
 		if len(st.FeaturesOff) > 0 {
 			off = strings.Join(st.FeaturesOff, ", ")
@@ -408,4 +411,15 @@ func runLog(_ context.Context, env *cli.Env, args []string) int {
 		fmt.Fprintf(env.Stdout, "%s %-12s%s\n", e.Time.Local().Format("2006-01-02 15:04:05"), cli.Sanitize(e.Event), cli.Sanitize(b.String()))
 	}
 	return cli.ExitOK
+}
+
+// portMapLine is the `Router port:` status line; empty without a mapping.
+func portMapLine(pm *PortMapStatus) string {
+	switch {
+	case pm == nil:
+		return ""
+	case pm.Offered:
+		return fmt.Sprintf("  Router port: %s %s (offered to clients)", cli.Sanitize(pm.Protocol), cli.Sanitize(pm.External))
+	}
+	return fmt.Sprintf("  Router port: %s %s (not offered: the router is behind another NAT)", cli.Sanitize(pm.Protocol), cli.Sanitize(pm.External))
 }
