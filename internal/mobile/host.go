@@ -733,11 +733,11 @@ func DisconnectHostSession(id int) error {
 	defer run.poke()
 	if id == 0 {
 		for _, s := range run.h.Sessions() {
-			run.h.Disconnect(s.ID(), "disconnected on the phone")
+			run.h.Disconnect(s.ID(), hostd.ReasonDisconnectedOnPhone)
 		}
 		return nil
 	}
-	return run.h.Disconnect(id, "disconnected on the phone")
+	return run.h.Disconnect(id, hostd.ReasonDisconnectedOnPhone)
 }
 
 // RegenerateHostPassword replaces the temporary password.

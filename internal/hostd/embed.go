@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/perm"
@@ -58,6 +59,29 @@ func (o *Overrides) apply(p policy) policy {
 // ID numbers the session within its host, from 1 in the order sessions
 // opened; a front end names a session by it (see Host.Disconnect).
 func (s *Session) ID() int { return s.id }
+
+// The reasons a host gives when a person at it ends a session on purpose.
+// A client that would otherwise reconnect by itself (the phone apps'
+// persistent sessions) must not log straight back in after one of them:
+// OwnerEnded. Older hosts send the same words, so the strings stay.
+const (
+	ReasonDisconnectedAtHost  = "disconnected at the host"         // the desktop app, quick assist
+	ReasonDisconnectedByOwner = "disconnected by the host's owner" // remohop host disconnect
+	ReasonDisconnectedOnPhone = "disconnected on the phone"        // a phone sharing its screen
+	ReasonPairingRevoked      = "pairing revoked"
+	reasonPanicPrefix         = "ended by the host's owner"
+)
+
+// OwnerEnded reports whether reason, given by a host closing a session,
+// says a person there ended it (rather than the host stopping or the
+// network failing), so the client must not reconnect.
+func OwnerEnded(reason string) bool {
+	switch reason {
+	case ReasonDisconnectedAtHost, ReasonDisconnectedByOwner, ReasonDisconnectedOnPhone, ReasonPairingRevoked:
+		return true
+	}
+	return strings.HasPrefix(reason, reasonPanicPrefix)
+}
 
 // Disconnect ends the session with the given ID, telling the client why.
 func (h *Host) Disconnect(id int, reason string) error {

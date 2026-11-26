@@ -36,6 +36,9 @@ import (
 //     state "failed" with the reason, until the user disconnects or
 //     connects again. A lockout is not such a failure: it expires, and
 //     the next attempt waits for the time the host named;
+//   - when someone at the host ended the session on purpose (its
+//     Disconnect, hostd.OwnerEnded), there is no attempt at all: state
+//     "failed" with code host_disconnected;
 //   - the page re-opens its tab when the state is "connected" again: the
 //     terminal re-attaches to the same shell session (the host keeps a
 //     detached terminal), the file list reloads, the desktop restarts.
@@ -145,6 +148,19 @@ func (s *Server) keep(ws *webSession, p *pooled, release func()) {
 		case <-p.stopped:
 			return
 		default:
+		}
+		if reason, ok := peer.ClosedByPeer(conn); ok && hostd.OwnerEnded(reason) {
+			// Someone at the host pressed Disconnect: logging straight back
+			// in (with the remembered pairing or the saved password) would
+			// undo it. The session stays listed, saying so, until the user
+			// closes it or connects again.
+			p.setState(stateFailed, &apiError{Code: "host_disconnected", Message: "the host ended the session: " + reason}, 0)
+			s.log.Info("web: the host ended the session; not reconnecting", "target", p.key, "reason", reason)
+			select {
+			case <-p.stopped:
+			case <-s.ctx.Done():
+			}
+			return
 		}
 		if !s.reconnect(p) {
 			// Failed for good: listed as failed until the user acts.

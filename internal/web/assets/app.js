@@ -566,7 +566,8 @@
     if (c && now !== prev) {
       if (state === 'reconnecting') { callTabs('hide'); banner('sess.reconnecting', {target: c.target}, false); }
       else if (state === 'waiting_approval') { callTabs('hide'); banner('sess.reapproval', {target: c.target}, false); }
-      else if (state === 'failed') { callTabs('hide'); banner('sess.lost', {target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
+      else if (state === 'failed' && c.error && c.error.code === 'host_disconnected') { callTabs('hide'); banner('sess.hostended', {target: c.target}, true); }
+      else if (state === 'failed') { callTabs('hide'); banner('sess.lost',{target: c.target, msg: c.error ? SD.errVar(c.error) : ''}, true); }
       else { banner(null); if (!$('workspace').hidden) showTab(load('sd.tab') || 'desktop'); }
     }
     if (state !== 'connected' && state !== 'failed' && !fastPoll) fastPoll = setTimeout(() => { fastPoll = null; heartbeat(); }, 2000);

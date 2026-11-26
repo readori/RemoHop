@@ -1052,7 +1052,7 @@ func (h *Host) revocationLoop(ctx context.Context) {
 			}
 			if ok, err := h.tokens.Exists(id); err == nil && !ok {
 				h.log.Info("closing session of a revoked pairing", "client", s.Auth.TokenName, "from", s.Remote)
-				s.conn.CloseWithReason("pairing revoked")
+				s.conn.CloseWithReason(ReasonPairingRevoked)
 			}
 		}
 		// Grants expire, and are revoked or suspended from other

@@ -231,7 +231,9 @@ func (ws *webSession) acquire(key string, now func() time.Time) (*pooled, func()
 	switch info := p.snapshot(); {
 	case info.State == stateFailed:
 		e := *errNotConnected
-		if info.Error != nil {
+		if info.Error != nil && info.Error.Code == "host_disconnected" {
+			e.Message = info.Error.Message
+		} else if info.Error != nil {
 			e.Message = "the connection to the host was lost and could not be re-established: " + info.Error.Message
 		}
 		return nil, nil, &e

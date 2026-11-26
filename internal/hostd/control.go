@@ -140,7 +140,7 @@ func (h *Host) control(req controlRequest) controlReply {
 		// to live sessions now rather than at the next tick.
 		return controlReply{Closed: h.enforceGrants()}
 	case "panic":
-		return controlReply{Closed: h.endGrantSessions(req.All, "ended by the host's owner (remohop host panic)")}
+		return controlReply{Closed: h.endGrantSessions(req.All, reasonPanicPrefix+" (remohop host panic)")}
 	case "sessions":
 		out := []ControlSession{}
 		for _, s := range h.Sessions() {
@@ -157,7 +157,7 @@ func (h *Host) control(req controlRequest) controlReply {
 		n := 0
 		for _, s := range h.Sessions() {
 			if req.N == 0 || s.ID() == req.N {
-				if h.Disconnect(s.ID(), "disconnected by the host's owner") == nil {
+				if h.Disconnect(s.ID(), ReasonDisconnectedByOwner) == nil {
 					n++
 				}
 			}
