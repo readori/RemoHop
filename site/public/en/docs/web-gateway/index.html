@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Browser client | RemoHop</title>
 <meta name="description" content="remohop web serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine:">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -63,7 +63,7 @@ remohop web --target dev</code></pre>
         --public-url https://remohop.example.com --real-ip-header CF-Connecting-IP \
         --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 &lt;tunnel-name&gt;</code></pre>
-<p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the header named with <code>--real-ip-header</code> (<code>CF-Connecting-IP</code>, which Cloudflare sets and overwrites). Name only a header your proxy always sets: anyone can send any header. Without the flag, every visitor through the proxy shares one rate limit, and the gateway says so when it starts. A visitor that logged in from the same address within 30 days is not held back by the global failure budget that strangers' wrong passwords use up, only by its own lockout.</p>
+<p><code>--public-url</code> requires a loopback listen address and <code>--password-file</code>. For requests through the public address, the login rate limiter tells visitors apart by the header named with <code>--real-ip-header</code> (<code>CF-Connecting-IP</code>, which Cloudflare sets and overwrites). Name only a header your proxy always sets: anyone can send any header. Without the flag, every visitor through the proxy shares one rate limit, and the gateway says so when it starts. A visitor that logged in from the same address within 30&nbsp;days is not held back by the global failure budget that strangers' wrong passwords use up, only by its own lockout.</p>
 <ul>
 <li>In Cloudflare Zero Trust, create an Access application for the hostname and allow only your own identity or domain.</li>
 <li>Keep <code>remohop web</code>'s own login on (<code>--password-file</code>). Access sits in front, but the gateway still sees everything in the page.</li>

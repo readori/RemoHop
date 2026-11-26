@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Shell and background jobs | RemoHop</title>
 <meta name="description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -55,7 +55,7 @@
 <p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. <code>dev</code> is the example alias from <code>remohop &lt;ID&gt; pair --name dev</code> (see <a href="/en/docs/quick-start/">Quick start</a>). Run <code>remohop help &lt;command&gt;</code> for the full syntax.</p>
 <p>An interactive shell is persistent: it keeps running on the host after you disconnect and reattaches with the output you missed.</p>
 <pre tabindex="0"><code class="language-bash">remohop dev shell</code></pre>
-<p>Press Enter, then <code>~.</code> to detach. The session stays on the host for 30 minutes by default (the host's <code>term-keep</code> setting). Reattach with <code>remohop dev shell</code>, or start another session with <code>remohop dev shell -s build --new</code>.</p>
+<p>Press Enter, then <code>~.</code> to detach. The session stays on the host for 30&nbsp;minutes by default (the host's <code>term-keep</code> setting). Reattach with <code>remohop dev shell</code>, or start another session with <code>remohop dev shell -s build --new</code>.</p>
 <p>Run a single command, or a background job that keeps running after you disconnect:</p>
 <pre tabindex="0"><code class="language-bash">remohop dev shell -c 'make test' --cwd src/app --env CI=1 --timeout 10m
 remohop dev spawn --name build --cwd src/app make -j8

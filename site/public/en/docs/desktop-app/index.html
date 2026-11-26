@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Desktop app | RemoHop</title>
 <meta name="description" content="One window to connect to your other computers and to let someone connect to this one, on Windows, macOS and Linux. It is RemoHop.exe, RemoHop.app and…">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -89,7 +89,7 @@
 <p><strong>Settings &gt; Updates</strong> switches the daily check off and has <strong>Check now</strong>. Administrators can switch it off for everyone with the environment variable <code>REMOHOP_NO_UPDATE_CHECK=1</code>. With unattended access on, turn it off and on again after upgrading, so that the service runs the new copy.</p>
 <h2 id="window-tray-and-background">Window, tray and background</h2>
 <p>Closing the window keeps RemoHop running in the tray (the menu bar on macOS), so incoming connections stay possible; Quit in the tray menu ends it and every connection. Starting RemoHop again brings the window back. Where the system has no tray (a Linux desktop without AppIndicator support), closing the window quits.</p>
-<p>The window uses the system's web engine: WebView2 on Windows (part of Windows 10 and 11), WKWebView on macOS, WebKitGTK on Linux (the remote desktop there needs GStreamer's H.264 decoder, <code>gstreamer1.0-libav</code> on Debian and Ubuntu). Without one the app opens in a browser window instead, as does <code>remohop app</code> from the command-line binary.</p>
+<p>The window uses the system's web engine: WebView2 on Windows (part of Windows&nbsp;10 and 11), WKWebView on macOS, WebKitGTK on Linux (the remote desktop there needs GStreamer's H.264 decoder, <code>gstreamer1.0-libav</code> on Debian and Ubuntu). Without one the app opens in a browser window instead, as does <code>remohop app</code> from the command-line binary.</p>
 <p>On Linux <code>remohop-app</code> is linked against the GNU C library (it loads GTK for its window); on musl systems such as Alpine, run <code>remohop app</code> from the static <code>remohop</code> binary, which opens the app in a browser.</p>
 <h2 id="quick-support">Quick support</h2>
 <p>To help someone just once without anything staying behind, they download <strong>Quick Support</strong> instead (<code>RemoHop-QuickSupport.exe</code>, <code>RemoHop Quick Support.app</code>, <code>remohop-quick</code>): the same program, which starts in quick-support mode by its name, shares the screen at once and quits when its window closes. See <a href="/en/docs/quick-support/">Quick support</a>. On macOS the system treats RemoHop and RemoHop Quick Support as two apps, so Screen Recording and Accessibility are granted to each separately (System Settings &gt; Privacy &amp; Security).</p>

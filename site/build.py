@@ -600,6 +600,42 @@ def fill(text, lang):
     return text.replace("<pre>", '<pre tabindex="0">')
 
 
+# ---- typesetting ----
+#
+# A few spaces must not become line breaks: between a number and its unit
+# ("120 fps", "8 Mbit/s", "60 秒"), between a product and its version
+# ("macOS 12", "TLS 1.3"), and, in Chinese, around 和/或/与/及 between two
+# Latin names ("iPhone 和 iPad"), which otherwise often splits after the
+# conjunction. typeset() turns those spaces into no-break spaces in the text
+# of a page, never inside tags, <pre>, <code>, <svg>, <script> or <style>.
+UNITS = (r"%|ms|s|fps|Hz|kHz|Mbit/s|kbit/s|Gbit/s|MB|KB|GB|MiB|KiB|GiB|px|bits?|bytes?|"
+         r"seconds?|minutes?|hours?|days?|weeks?|months?|pixels|packets|毫秒|秒|分钟|小时|天|个|位|字节|像素|比特|核")
+NUM_UNIT = re.compile(r"(\d) (?=(?:" + UNITS + r")(?![A-Za-z0-9/]))")
+PRODUCT_VERSION = re.compile(r"\b(Windows|macOS|iOS|iPadOS|Android|TLS|Go|Chromium|JDK|API|Ubuntu|Debian|RemoHop|ffmpeg) (?=\d)")
+NAME_PAIR = re.compile(r"([A-Za-z][A-Za-z0-9.+-]*) (和|或|与|及) (?=[A-Za-z])")
+RAW_TAGS = ("pre", "code", "svg", "script", "style")
+
+
+def typeset(text, lang):
+    out, depth = [], 0
+    for part in re.split(r"(<[^>]*>)", text):
+        if part.startswith("<"):
+            m = re.match(r"<(/?)([a-zA-Z0-9]+)", part)
+            if m and m.group(2).lower() in RAW_TAGS and not part.endswith("/>"):
+                depth += -1 if m.group(1) else 1
+            out.append(part)
+            continue
+        if depth == 0 and part:
+            part = NUM_UNIT.sub("\\1&nbsp;", part)
+            part = PRODUCT_VERSION.sub("\\1&nbsp;", part)
+            if lang == "zh":
+                part = NAME_PAIR.sub("\\1&nbsp;\\2&nbsp;", part)
+        out.append(part)
+    if depth:
+        raise SystemExit("typeset: unbalanced <pre>/<code>/<svg> tags")
+    return "".join(out)
+
+
 def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), other=None,
          section=None, raw=False, cls="prose"):
     """langs: the languages the page exists in (hreflang); other: the target
@@ -662,7 +698,7 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
     home_cur = ' aria-current="page"' if is_home and not status404 else ""
     # The home page lays out its own full-width bands; every other page is
     # one column of prose.
-    content = (body if raw else fill(body, lang)).strip()
+    content = typeset((body if raw else fill(body, lang)).strip(), lang)
     if not is_home:
         content = f'<div class="wrap {cls}">\n{content}\n</div>'
 

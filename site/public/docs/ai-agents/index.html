@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>AI 代理 | RemoHop</title>
 <meta name="description" content="remohop mcp 以 stdio 方式运行 MCP 服务器，由代理宿主程序启动。以 Claude Code 为例：">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -66,7 +66,7 @@ claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
   }
 }</code></pre>
 <p>在 <code>args</code> 中加入 <code>"--target", "276941009"</code> 可以设置默认机器。服务器使用你用 <code>remohop &lt;ID&gt; pair</code> 保存的配对，所以请先配对。它无法提示输入密码，工具也不接受密码参数。如果某台机器尚未配对，或者被控机关闭了某项功能，工具返回的错误会说明需要由人执行哪条命令。</p>
-<p>29 个工具分为以下几组。除非设置了 <code>--target</code>，每个工具都需要 <code>target</code> 参数（ID、别名或 <code>host:port</code>）。</p>
+<p>29&nbsp;个工具分为以下几组。除非设置了 <code>--target</code>，每个工具都需要 <code>target</code> 参数（ID、别名或 <code>host:port</code>）。</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="类别 / 工具">
 <table>
 <thead><tr><th scope="col">类别</th><th scope="col">工具</th></tr></thead>
@@ -91,7 +91,7 @@ for s in skills/remohop-*; do ln -sfn "$PWD/$s" ~/.claude/skills/$(basename "$s"
 <pre tabindex="0"><code class="language-bash">remohop host grant claude-session --for 2h --allow shell:run-only,files:read:~/project,screenshot   # 在被控机上
 remohop peers redeem 276941009 remohopg1-...                                                        # 在代理所在的机器上
 remohop host panic                                                                                  # 在被控机上：立即结束所有代理会话</code></pre>
-<p>授权由被控机强制执行；<code>remohop_limits</code> 工具告诉代理它能做什么，被拒绝时错误信息会指明是哪条限制（<code>files:write is not allowed by grant claude-session</code>）。<code>remohop mcp --read-only</code> 还会隐藏所有会改动东西的工具。授权、批准、审计日志与录像、紧急停止，以及 Claude Code、Claude Desktop、Cursor 和 VS Code 的具体配置，见 <a href="/en/docs/agents/">agents.md</a>（英文）。不使用授权时：只为希望代理访问的机器配对，关掉它用不到的功能（例如 <code>remohop config feature input off</code>），不再需要时用 <code>remohop host revoke</code> 撤销配对。详见 <a href="/en/docs/security/#what-an-authenticated-client-can-do">security.md</a>。</p>
+<p>授权由被控机强制执行；<code>remohop_limits</code> 工具告诉代理它能做什么，被拒绝时错误信息会指明是哪条限制（<code>files:write is not allowed by grant claude-session</code>）。<code>remohop mcp --read-only</code> 还会隐藏所有会改动东西的工具。授权、批准、审计日志与录像、紧急停止，以及 Claude Code、Claude Desktop、Cursor&nbsp;和&nbsp;VS Code 的具体配置，见 <a href="/en/docs/agents/">agents.md</a>（英文）。不使用授权时：只为希望代理访问的机器配对，关掉它用不到的功能（例如 <code>remohop config feature input off</code>），不再需要时用 <code>remohop host revoke</code> 撤销配对。详见 <a href="/en/docs/security/#what-an-authenticated-client-can-do">security.md</a>。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/ai-agents.md">源文件（GitHub）</a></p>
 </div>
 </main>

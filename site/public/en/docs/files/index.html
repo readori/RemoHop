@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Files | RemoHop</title>
 <meta name="description" content="Every remote command has the form remohop &lt;ID&gt; &lt;command&gt;. dev is the example alias from remohop &lt;ID&gt; pair --name dev (see Quick start). Run remohop help…">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -60,7 +60,7 @@ remohop dev cp -rp :project .
 remohop dev send report.pdf
 remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site</code></pre>
 <ul>
-<li><code>cp</code> and <code>sync</code> resume an interrupted file of 8 MiB or more when you run the same command again (<code>--no-resume</code> starts over). <code>sync --perms</code> copies permission bits exactly. When uploading, the host names the hidden partial file itself, from the source, the destination and the session's credential; with a <a href="/en/docs/agents/#grants">grant</a> a reissued credential starts over, and clients older than this cannot resume under a grant (they send the whole file).</li>
+<li><code>cp</code> and <code>sync</code> resume an interrupted file of 8&nbsp;MiB or more when you run the same command again (<code>--no-resume</code> starts over). <code>sync --perms</code> copies permission bits exactly. When uploading, the host names the hidden partial file itself, from the source, the destination and the session's credential; with a <a href="/en/docs/agents/#grants">grant</a> a reissued credential starts over, and clients older than this cannot resume under a grant (they send the whole file).</li>
 <li>Under a grant with file roots, everything happens inside the roots: links and junctions that lead out are not followed, links created must point inside the same root, the root folder itself cannot be removed or replaced, and moving or linking between two different roots fails with <code>EXDEV</code> (<code>mv</code> then copies).</li>
 <li><code>send</code> delivers files to the remote user's Downloads folder and never overwrites: a taken name becomes <code>name (1).ext</code>.</li>
 </ul>

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>串口与 USB 设备 | RemoHop</title>
 <meta name="description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -58,7 +58,7 @@
 remohop dev serial -b ttyUSB0 115200 --local /tmp/board
 picocom /tmp/board
 remohop unserial /tmp/board</code></pre>
-<p>虚拟串口需要本机是 Linux 或 macOS；远程一侧可以是 Linux、macOS 或 Windows。本地程序修改波特率或帧格式时，改动会同步到远程串口。</p>
+<p>虚拟串口需要本机是 Linux&nbsp;或&nbsp;macOS；远程一侧可以是 Linux、macOS&nbsp;或&nbsp;Windows。本地程序修改波特率或帧格式时，改动会同步到远程串口。</p>
 <p>像本地设备一样使用插在远程机器上的 USB 设备（USB/IP；两端都必须是 Linux 且有 root 权限，被控机需要内核模块 <code>usbip-host</code>，客户端需要 <code>vhci-hcd</code>）：</p>
 <pre tabindex="0"><code class="language-bash">remohop dev usb list
 remohop usb allow 1-2

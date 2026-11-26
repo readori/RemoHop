@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Features and limits | RemoHop</title>
 <meta name="description" content="RemoHop&#x27;s common commands, the browser client, how a connection is made, platform support, installation and known limits.">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -126,7 +126,7 @@ Linux x86_64
 <section class="task">
 <div>
 <h3>Terminal and background jobs</h3>
-<p>The interactive shell is persistent. It keeps running on the host after you disconnect, for 30 minutes by default, and replays the output you missed when you come back. On a Windows host the shell is PowerShell.</p>
+<p>The interactive shell is persistent. It keeps running on the host after you disconnect, for 30&nbsp;minutes by default, and replays the output you missed when you come back. On a Windows host the shell is PowerShell.</p>
 </div>
 <div>
 <pre tabindex="0"><code>remohop dev shell
@@ -139,7 +139,7 @@ remohop dev logs -f build</code></pre>
 <section class="task">
 <div>
 <h3>Files</h3>
-<p>Remote paths start with <code>:</code>. An interrupted transfer of a file of 8 MiB or more resumes when you run the same command again. Mounts use FUSE on Linux and the operating system's own WebDAV client on macOS and Windows.</p>
+<p>Remote paths start with <code>:</code>. An interrupted transfer of a file of 8&nbsp;MiB or more resumes when you run the same command again. Mounts use FUSE on Linux and the operating system's own WebDAV client on macOS and Windows.</p>
 </div>
 <div>
 <pre tabindex="0"><code>remohop dev cp ./build.tar.gz :/tmp/
@@ -165,7 +165,7 @@ sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
 <section class="task">
 <div>
 <h3>Screen and remote desktop</h3>
-<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p. The viewer picks the quality (native size, or at most 2160p down to 480p), the frame rate (30 to 144 fps; Auto follows the display's refresh rate, up to 120) and the monitor, and Stats shows bitrate, latency and the frames dropped in the last 10 seconds.</p>
+<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20&nbsp;ms at 720p and 31&nbsp;ms at 1080p. The viewer picks the quality (native size, or at most 2160p down to 480p), the frame rate (30 to 144&nbsp;fps; Auto follows the display's refresh rate, up to 120) and the monitor, and Stats shows bitrate, latency and the frames dropped in the last 10&nbsp;seconds.</p>
 </div>
 <div>
 <pre tabindex="0"><code>remohop dev desktop --max-height 1080 --fps 30
@@ -283,15 +283,15 @@ remohop log</code></pre>
 <li>Both sides send probes to those addresses, which opens a hole in each NAT. The client sets up a QUIC connection over the first path that answers.</li>
 <li>On that connection the two ends run a password-authenticated key exchange (CPace). A man in the middle, the rendezvous server included, cannot complete it.</li>
 </ol>
-<p>Symmetric NATs, which give every destination a new port, used to be the hard case. The host now asks its router to forward its UDP port (PCP, NAT-PMP or UPnP); where the router agrees, a client behind any NAT connects directly. A symmetric NAT that hands out its ports in sequence has its next ports predicted and probed. If nothing works and the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8 Mbit/s per session by default). Meanwhile the client keeps punching in the background, and once a path works the session moves onto it by QUIC connection migration, without a break or a new login. <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
+<p>Symmetric NATs, which give every destination a new port, used to be the hard case. The host now asks its router to forward its UDP port (PCP, NAT-PMP or UPnP); where the router agrees, a client behind any NAT connects directly. A symmetric NAT that hands out its ports in sequence has its next ports predicted and probed. If nothing works and the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8&nbsp;Mbit/s per session by default). Meanwhile the client keeps punching in the background, and once a path works the session moves onto it by QUIC connection migration, without a break or a new login. <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
 <p>The order in which the paths are tried, the ports, the six connection steps and hole punching step by step are on <a href="/en/how-it-works/">How it works</a>.</p>
 <p>Networks that let only HTTPS out, such as CI runners and corporate networks, can use the server's websocket bridge. Hole punching is impossible through the bridge, so those sessions are always relayed, and still ciphertext. If you can reach the host directly you need no server at all: <code>remohop host --no-signal --listen :21118</code>, then use the address in place of an ID.</p>
 
 <h2 id="security">Security in plain words</h2>
 <ul>
-<li><strong>Only the two ends can read the content.</strong> A session runs in QUIC with TLS 1.3 inside. The rendezvous server and the relay see ciphertext.</li>
+<li><strong>Only the two ends can read the content.</strong> A session runs in QUIC with TLS&nbsp;1.3 inside. The rendezvous server and the relay see ciphertext.</li>
 <li><strong>The password never goes over the wire.</strong> Login is a CPace key exchange bound to that one connection. Recording a failed login gives an attacker nothing to test guesses against offline.</li>
-<li><strong>Online guessing is rate limited.</strong> From the third consecutive failure a source is locked out for 10 seconds, doubling each time up to 10 minutes. A temporary password is 8 random characters, about 40 bits.</li>
+<li><strong>Online guessing is rate limited.</strong> From the third consecutive failure a source is locked out for 10&nbsp;seconds, doubling each time up to 10&nbsp;minutes. A temporary password is 8 random characters, about 40&nbsp;bits.</li>
 <li><strong>Host keys are pinned on first login.</strong> If the host later presents a different key, the client refuses before it sends any login message.</li>
 <li><strong>Pairing replaces the password.</strong> The client stores a random 256-bit token bound to its own identity, and the host can revoke it at any time with <code>remohop host revoke</code>.</li>
 </ul>
@@ -307,7 +307,7 @@ remohop log</code></pre>
 <tbody>
 <tr><th scope="row">Shell</th><td>PTY</td><td>PTY</td><td>ConPTY; commands run in PowerShell</td></tr>
 <tr><th scope="row">Files, forwards, clipboard, screenshot</th><td>Yes</td><td>Yes</td><td>Yes; downloads do not resume on a Windows client</td></tr>
-<tr><th scope="row">Mount</th><td>FUSE</td><td>Built-in WebDAV</td><td>WebDAV on a drive letter; verified on a hosted Windows 11 runner</td></tr>
+<tr><th scope="row">Mount</th><td>FUSE</td><td>Built-in WebDAV</td><td>WebDAV on a drive letter; verified on a hosted Windows&nbsp;11 runner</td></tr>
 <tr><th scope="row">Remote desktop (host)</th><td>X11; no native Wayland</td><td>Needs Screen Recording and Accessibility permissions; VideoToolbox; verified on a hosted VM only</td><td>ddagrab capture, SendInput; verified on hosted runners</td></tr>
 <tr><th scope="row">VPN</th><td>Yes (TUN)</td><td>Client (utun), verified on a hosted VM only</td><td>Client (bring your own Wintun driver); adapter verified on a hosted runner</td></tr>
 <tr><th scope="row">USB/IP</th><td>Yes; verified with the real kernel on a hosted runner</td><td>No</td><td>No</td></tr>
@@ -332,7 +332,7 @@ sh install.sh</code></pre>
 <li>No code signing for Windows. The command-line program has no built-in default server (the desktop app and quick support offer the official one on first start).</li>
 <li>No independent security audit.</li>
 <li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested. Two symmetric NATs, or a symmetric NAT with random ports facing a port-restricted one, cannot be punched unless the router maps a port or a relay is available.</li>
-<li>Untested: everything on a physical Mac, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
+<li>Untested: everything on a physical Mac, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60&nbsp;fps.</li>
 <li>Serial ports were verified with pseudo-terminals and picocom, not a real UART. USB/IP was verified with the real kernel on a hosted runner, not on physical USB hardware.</li>
 <li>Shell sessions do not survive a restart of the host.</li>
 <li>Phones as hosts: screen capture and control on a real phone are not tested yet, and an iPhone or iPad can only be viewed.</li>

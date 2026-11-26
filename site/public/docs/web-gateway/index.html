@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>浏览器客户端 | RemoHop</title>
 <meta name="description" content="remohop web 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）：">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -63,7 +63,7 @@ remohop web --target dev</code></pre>
         --public-url https://remohop.example.com --real-ip-header CF-Connecting-IP \
         --no-open --no-saved
 cloudflared tunnel run --url http://127.0.0.1:8470 &lt;隧道名&gt;</code></pre>
-<p><code>--public-url</code> 要求回环监听地址和 <code>--password-file</code>。经公网地址来的请求，登录限速按 <code>--real-ip-header</code> 指定的请求头区分访客（Cloudflare 填写并覆盖 <code>CF-Connecting-IP</code>）。只能指定代理一定会设置的请求头：任何人都可以自己发送任意请求头。不加这个参数时，经代理来的所有访客共用一个限速额度，网关启动时会提示。30 天内从同一地址成功登录过的访客不受陌生人输错密码耗尽的全局额度限制，只受自己的锁定限制。</p>
+<p><code>--public-url</code> 要求回环监听地址和 <code>--password-file</code>。经公网地址来的请求，登录限速按 <code>--real-ip-header</code> 指定的请求头区分访客（Cloudflare 填写并覆盖 <code>CF-Connecting-IP</code>）。只能指定代理一定会设置的请求头：任何人都可以自己发送任意请求头。不加这个参数时，经代理来的所有访客共用一个限速额度，网关启动时会提示。30&nbsp;天内从同一地址成功登录过的访客不受陌生人输错密码耗尽的全局额度限制，只受自己的锁定限制。</p>
 <ul>
 <li>在 Cloudflare Zero Trust 里为这个主机名创建 Access 应用，只允许你自己的身份或域。</li>
 <li>保留 <code>remohop web</code> 自己的登录（<code>--password-file</code>）。Access 挡在前面，但网关仍然能看到页面里的一切。</li>
@@ -72,7 +72,7 @@ cloudflared tunnel run --url http://127.0.0.1:8470 &lt;隧道名&gt;</code></pre
 <li>Cloudflare Tunnel 只转发 HTTP(S)。汇合服务器本身使用 UDP；它为只能用 HTTPS 出网的机器提供的 websocket 桥可以走隧道（见<a href="/docs/self-hosting/#只允许-https-出网的网络websocket-桥">只允许 HTTPS 出网的网络</a>）。</li>
 </ul>
 <h2 id="程序客户端bearer-令牌">程序客户端（Bearer 令牌）</h2>
-<p>程序接入默认关闭。用 <code>--api-token-file FILE</code> 启动网关（文件权限 600，至少 8 个字符，需要同时有 <code>--password-file</code>）后，程序客户端（不是浏览器）可以不调用登录接口，在每个请求里带 <code>Authorization: Bearer &lt;令牌&gt;</code>。这适合由代理注入请求头、程序本身看不到令牌的场景，例如在 Cloudflare Access 服务令牌之外再注入这个令牌。这类请求共用一个网关会话，不需要 Cookie、CSRF 令牌和 Origin，失败次数计入登录限速。没有 <code>--api-token-file</code> 时，Bearer 请求会得到 <code>bearer_disabled</code> 错误。</p>
+<p>程序接入默认关闭。用 <code>--api-token-file FILE</code> 启动网关（文件权限 600，至少 8&nbsp;个字符，需要同时有 <code>--password-file</code>）后，程序客户端（不是浏览器）可以不调用登录接口，在每个请求里带 <code>Authorization: Bearer &lt;令牌&gt;</code>。这适合由代理注入请求头、程序本身看不到令牌的场景，例如在 Cloudflare Access 服务令牌之外再注入这个令牌。这类请求共用一个网关会话，不需要 Cookie、CSRF 令牌和 Origin，失败次数计入登录限速。没有 <code>--api-token-file</code> 时，Bearer 请求会得到 <code>bearer_disabled</code> 错误。</p>
 <pre tabindex="0"><code class="language-bash">remohop web --listen 127.0.0.1:8470 --password-file /etc/remohop/web-pass \
         --api-token-file /etc/remohop/web-api-token \
         --public-url https://remohop.example.com --no-open --no-saved</code></pre>

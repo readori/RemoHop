@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Running a public rendezvous server | RemoHop</title>
 <meta name="description" content="This page is for operators who offer remohop signal to people they do not know, for example as the default server of a distribution of remohop. The…">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -51,7 +51,7 @@
 <h1 id="running-a-public-rendezvous-server">Running a public rendezvous server</h1>
 <p>This page is for operators who offer <code>remohop signal</code> to people they do not know, for example as the default server of a distribution of <code>remohop</code>. The rendezvous service itself is cheap and stays open to everyone. The relay is the part that costs bandwidth, so it has access controls and a budget.</p>
 <h2 id="recommended-flags">Recommended flags</h2>
-<p>For an Oracle Cloud Always Free micro VM (1/8 OCPU, 1 GB RAM, 10 TB of outbound traffic a month), with the websocket bridge behind a Cloudflare Tunnel:</p>
+<p>For an Oracle Cloud Always Free micro VM (1/8 OCPU, 1&nbsp;GB RAM, 10 TB of outbound traffic a month), with the websocket bridge behind a Cloudflare Tunnel:</p>
 <pre tabindex="0"><code class="language-bash">sudo remohop service install --role signal --relay --relay-ports 40000-40099 -- \
     --relay-kbps 2000 --relay-per-source 2 --relay-monthly-gb 8000 \
     --relay-deny /etc/remohop/relay-deny \
@@ -60,9 +60,9 @@
 <table>
 <thead><tr><th scope="col">Flag</th><th scope="col">What it does</th></tr></thead>
 <tbody>
-<tr><td><code>--relay-kbps 2000</code></td><td>Per-session cap for anonymous sessions (2 Mbit/s). Traffic over the cap is paced, not cut off.</td></tr>
+<tr><td><code>--relay-kbps 2000</code></td><td>Per-session cap for anonymous sessions (2&nbsp;Mbit/s). Traffic over the cap is paced, not cut off.</td></tr>
 <tr><td><code>--relay-per-source 2</code></td><td>At most two relayed sessions at a time per address (an IPv6 address counts by its /64). Both peers count, and so does the real address of a websocket client. A session is freed as soon as the client closes it.</td></tr>
-<tr><td><code>--relay-monthly-gb 8000</code></td><td>Monthly relay budget (UTC calendar month). At 80 % anonymous sessions get half their rate. At 100 % new anonymous sessions are refused. At 110 % all new sessions are refused. It is counted in <code>--data</code> and survives restarts.</td></tr>
+<tr><td><code>--relay-monthly-gb 8000</code></td><td>Monthly relay budget (UTC calendar month). At 80&nbsp;% anonymous sessions get half their rate. At 100&nbsp;% new anonymous sessions are refused. At 110&nbsp;% all new sessions are refused. It is counted in <code>--data</code> and survives restarts.</td></tr>
 <tr><td><code>--relay-deny FILE</code></td><td>No relay for the addresses, networks and identity keys listed. Listed keys also cannot register as hosts.</td></tr>
 <tr><td><code>--ws-listen</code> / <code>--ws-real-ip-header</code></td><td>The websocket bridge for networks without UDP. See <a href="/en/docs/self-hosting/#networks-that-allow-only-https-websocket-bridge">Self-hosting</a>.</td></tr>
 </tbody>
@@ -80,13 +80,13 @@
 198.51.100.0/24
 2001:db8:1234::/48
 Xk3...base64-identity-key...=</code></pre>
-<p>The server re-reads the file within 10 seconds of a change, and at once on SIGHUP (<code>sudo systemctl kill -s HUP remohop-signal</code>). If the file has a syntax error, the previous list stays in force and the error is logged. Under the installed service, keep the file outside <code>/home</code> and <code>/tmp</code>; the sandbox hides those.</p>
+<p>The server re-reads the file within 10&nbsp;seconds of a change, and at once on SIGHUP (<code>sudo systemctl kill -s HUP remohop-signal</code>). If the file has a syntax error, the previous list stays in force and the error is logged. Under the installed service, keep the file outside <code>/home</code> and <code>/tmp</code>; the sandbox hides those.</p>
 <h2 id="watching-it">Watching it</h2>
 <ul>
 <li><code>sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8000</code> prints this month's relayed bytes and the budget state. The running server writes the count about once a minute.</li>
 <li>The startup line shows the limits in force and this month's usage so far.</li>
 <li>Once an hour the log has a <code>relay summary</code> line: sessions started, bytes relayed, active sessions, and refusals by reason (<code>per_source</code>, <code>mode</code>, <code>deny</code>, <code>budget</code>, <code>full</code>). It contains no addresses.</li>
-<li>Lines at 50 %, 80 %, 100 % and 110 % of the budget are logged once per month.</li>
+<li>Lines at 50&nbsp;%, 80&nbsp;%, 100&nbsp;% and 110&nbsp;% of the budget are logged once per month.</li>
 <li><code>journalctl -u remohop-signal</code> shows everything else.</li>
 </ul>
 <h2 id="what-a-public-operator-can-and-cannot-see">What a public operator can and cannot see</h2>
@@ -97,7 +97,7 @@ Xk3...base64-identity-key...=</code></pre>
 <li><strong>Websocket bridge:</strong> the client's address (from Cloudflare's header), when it connected and how many bytes it carried.</li>
 <li><strong>Accounts:</strong> the hash of each email address, the devices' identity keys and names, and the signed membership log. Login codes are mailed and never stored.</li>
 </ul>
-<p>Memory: what the server keeps per introduction (for a relay request that may follow) is a few dozen bytes and is dropped after a minute, so a 1 GB VM is ample. Keep UDP 21117 open next to 21116: peers measure their NAT against it.</p>
+<p>Memory: what the server keeps per introduction (for a relay request that may follow) is a few dozen bytes and is dropped after a minute, so a 1&nbsp;GB VM is ample. Keep UDP 21117 open next to 21116: peers measure their NAT against it.</p>
 <p>Two machines registering with the same identity key (a cloned VM image, a copied configuration directory) would replace each other once a second. The server notices the ping-pong, keeps one online, refuses the other for ten minutes with a message that says why, and logs a warning naming both addresses.</p>
 <p>What the server writes to its log by default: hosts going online and offline (ID and address), hosts that moved to another address (asked to register again), relay sessions starting and ending (both addresses, tier, rate, duration, bytes), websocket connections opening and closing (address, duration, bytes), account logins, and the hourly summary. With <code>-v</code> it also logs each introduction. The logs go to the systemd journal. Set a retention period you can defend, for example <code>MaxRetentionSec=14day</code> in <code>/etc/systemd/journald.conf</code>, and say what it is in your notice.</p>
 <h2 id="privacy-notice-template">Privacy notice template</h2>
@@ -117,7 +117,7 @@ Xk3...base64-identity-key...=</code></pre>
 <p><strong>Logs.</strong> The server logs devices coming online and going offline, relayed connections and websocket connections, with the IP addresses and data volumes listed above. Logs are kept for <code>&lt;N&gt;</code> days and then deleted. Hourly statistics contain no IP addresses.</p>
 <p><strong>Why.</strong> To provide the service, to keep it within its limits (per-address and monthly caps), and to stop abuse.</p>
 <p><strong>Sharing.</strong> We do not sell or share this data, except <code>&lt;e.g. with Cloudflare, which carries the websocket endpoint, and Oracle Cloud, which hosts the server&gt;</code> and where the law requires it.</p>
-<p><strong>Your choices.</strong> You can run your own server (<code>remohop signal</code>) and point your devices at it. You can turn relaying off on your device (<code>remohop config relay off</code>). To delete an account, run <code>remohop account delete --yes</code>. An ID that is not used for 90 days is released.</p>
+<p><strong>Your choices.</strong> You can run your own server (<code>remohop signal</code>) and point your devices at it. You can turn relaying off on your device (<code>remohop config relay off</code>). To delete an account, run <code>remohop account delete --yes</code>. An ID that is not used for 90&nbsp;days is released.</p>
 <p><strong>Contact.</strong> <code>&lt;EMAIL&gt;</code> for questions, deletion requests and abuse reports.</p>
 </blockquote>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/public-server.md">Source file (GitHub)</a></p>

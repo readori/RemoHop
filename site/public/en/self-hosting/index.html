@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Self-hosting the rendezvous server | RemoHop</title>
 <meta name="description" content="Run remohop signal on a small VM: ports, memory use, the relay, the websocket bridge, and the limits, traffic budget and visible metadata when you offer a relay to the public.">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -54,7 +54,7 @@
 <p>The <code>remohop</code> command-line program has no built-in default server (the desktop app and quick support offer the official <code>signal.remohop.com</code> on first start). The rendezvous server (<code>remohop signal</code>) lets two machines find each other: it assigns IDs, tracks presence and passes candidate addresses. It is light enough for the smallest VM you can rent. Session content does not pass through it unless you turn the relay on.</p>
 
 <h2 id="size">How big a machine</h2>
-<p>Measured figures, from <code>remohop help signal</code> and from measurement, not guarantees: about 17 MB of memory when idle, about 70 KB per online host, about 85 MB with 1000 hosts. An Oracle Cloud Always Free instance with 1 OCPU and 1 GB is enough. The relay uses roughly 1% of a CPU core per 10 Mbit/s.</p>
+<p>Measured figures, from <code>remohop help signal</code> and from measurement, not guarantees: about 17&nbsp;MB of memory when idle, about 70&nbsp;KB per online host, about 85&nbsp;MB with 1000 hosts. An Oracle Cloud Always Free instance with 1 OCPU and 1&nbsp;GB is enough. The relay uses roughly 1% of a CPU core per 10&nbsp;Mbit/s.</p>
 
 <h2 id="run">Run it</h2>
 <pre tabindex="0"><code>remohop signal --relay --relay-ports 40000-40099
@@ -63,7 +63,7 @@ remohop signal --show-key</code></pre>
 <ul>
 <li><code>--relay</code> turns the relay on. It is off by default because it is the only feature that really uses the server's bandwidth.</li>
 <li><code>--relay-ports LO-HI</code> confines relay ports to a range, so the firewall only has to open that range. Without it each session uses a random high port.</li>
-<li><code>--max-conns N</code> caps open connections. The default is estimated from available memory: about 6400 on a 1 GB machine, at most 50000.</li>
+<li><code>--max-conns N</code> caps open connections. The default is estimated from available memory: about 6400 on a 1&nbsp;GB machine, at most 50000.</li>
 <li><code>--print-firewall</code> only prints the commands that would open the ports. It runs nothing.</li>
 </ul>
 <p>To install it as a hardened systemd service (Linux only, needs root):</p>
@@ -81,7 +81,7 @@ remohop config set signal-pin KEY</code></pre>
   -X github.com/readori/RemoHop/internal/dial.DefaultSignalPin=KEY" -o remohop ./cmd/remohop</code></pre>
 
 <h2 id="ws">Networks that let only HTTPS out: the websocket bridge</h2>
-<p>CI runners, cloud containers and corporate networks often block UDP. The server can also serve a websocket bridge, and clients and hosts fall back to it automatically when UDP rendezvous has not answered within 4 seconds:</p>
+<p>CI runners, cloud containers and corporate networks often block UDP. The server can also serve a websocket bridge, and clients and hosts fall back to it automatically when UDP rendezvous has not answered within 4&nbsp;seconds:</p>
 <pre tabindex="0"><code>remohop signal --relay --relay-ports 40000-40099 \
     --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP</code></pre>
 <pre tabindex="0"><code>remohop config set signal relay.example.com:21116
@@ -98,10 +98,10 @@ remohop config set signal-ws wss://relay.example.com/remohop/v1/udp</code></pre>
 <table>
 <thead><tr><th scope="col">Flag</th><th scope="col">What it does</th></tr></thead>
 <tbody>
-<tr><th scope="row"><code>--relay-kbps 2000</code></th><td>Per-session cap for anonymous sessions (2 Mbit/s). Traffic over the cap is paced, not cut off.</td></tr>
+<tr><th scope="row"><code>--relay-kbps 2000</code></th><td>Per-session cap for anonymous sessions (2&nbsp;Mbit/s). Traffic over the cap is paced, not cut off.</td></tr>
 <tr><th scope="row"><code>--relay-per-source 2</code></th><td>At most two relayed sessions at a time per address (an IPv6 address counts by its /64). Both peers count. A slot is freed as soon as the session closes.</td></tr>
 <tr><th scope="row"><code>--relay-monthly-gb 8000</code></th><td>Monthly relay budget, per UTC calendar month. At 80% anonymous sessions get half their rate. At 100% new anonymous sessions are refused. At 110% all new sessions are refused. The count survives restarts.</td></tr>
-<tr><th scope="row"><code>--relay-deny FILE</code></th><td>No relay for the addresses, networks and identity keys listed. Listed keys also cannot register as hosts. The file is re-read within 10 seconds of a change.</td></tr>
+<tr><th scope="row"><code>--relay-deny FILE</code></th><td>No relay for the addresses, networks and identity keys listed. Listed keys also cannot register as hosts. The file is re-read within 10&nbsp;seconds of a change.</td></tr>
 </tbody>
 </table>
 </div>

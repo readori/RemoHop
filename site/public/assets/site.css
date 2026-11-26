@@ -77,7 +77,10 @@
     accent-color: var(--accent);
     scrollbar-color: var(--ink-2) transparent;
   }
-  :lang(en) { line-height: 1.6; }
+  /* On the root only: ":lang(en)" alone matches every element of an English
+     page and resets the line height of each span, link and code inside a
+     heading or table to 1.6, instead of letting it inherit. */
+  html:lang(en) { line-height: 1.6; }
   body { min-block-size: 100svh; display: flex; flex-direction: column; overflow-wrap: break-word; }
 
   h1, h2, h3 { line-height: 1.25; text-wrap: balance; font-weight: 700; }
@@ -85,7 +88,14 @@
   h2 { font-size: clamp(1.3rem, 1.15rem + 0.7vw, 1.65rem); margin-block: 3.2rem 0.9rem; letter-spacing: -0.01em; }
   h3 { font-size: 1.08rem; margin-block: 2rem 0.5rem; }
   p, ul, ol, dl, pre, figure, table, .table-wrap, .note { margin-block: 0 1.05rem; }
-  p, li { text-wrap: pretty; }
+  p, li, dt, dd, td, th, figcaption, blockquote { text-wrap: pretty; }
+  /* Chinese: headings, buttons and labels break only at spaces and
+     punctuation, so a word is never split across lines ("控 / 制"). A run
+     too long for its box still breaks (overflow-wrap on body). Running
+     text keeps the usual CJK breaking, where any gap between characters
+     may end a line, so its lines stay full. */
+  :lang(zh-CN) :is(h1, h2, h3, h4, th, dt, .btn, .chip, .pill, .kicker, .h-pill a, .site-nav a, .site-foot h2, .term-title) { word-break: keep-all; }
+  :lang(zh-CN) body { line-break: strict; }
   ul, ol { padding-inline-start: 1.4em; }
   li { margin-block: 0.3rem; }
   li > ul, li > ol { margin-block: 0.3rem 0; }
@@ -209,6 +219,7 @@
   .table-wrap.wide > table { min-inline-size: 46rem; }
   .table-wrap.dl > table { min-inline-size: 0; }
   td.file code { white-space: nowrap; }
+  .table-wrap :not(pre) > code { overflow-wrap: break-word; }
 
   .diagram { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
   .diagram svg { inline-size: 100%; min-inline-size: 38rem; font-family: var(--sans); }
@@ -261,6 +272,7 @@
   .chip { display: inline-flex; align-items: center; gap: 0.4rem; inline-size: fit-content; padding: 0.1rem 0.55rem; border-radius: 6px; font-size: 0.82rem; font-weight: 650; line-height: 1.6; background: var(--ok-bg); color: var(--ok); }
   .chip::before { content: ""; inline-size: 0.5rem; block-size: 0.5rem; border-radius: 50%; background: currentColor; }
   .chip.wait { background: var(--warn-bg); color: var(--warn); }
+  .chip, .h-pill a { text-wrap: balance; }
 
   /* ---- documentation pages, rendered from docs/*.md by build.py ---- */
   .crumbs { font-size: 0.9rem; margin-block-end: 0.5rem; }
@@ -308,6 +320,12 @@
   }
   .home-hero h1 { color: #fff; font-size: clamp(2.3rem, 1.2rem + 4.4vw, 4.1rem); letter-spacing: -0.035em; line-height: 1.08; font-weight: 800; }
   :lang(zh-CN) .home-hero h1 { letter-spacing: -0.02em; line-height: 1.15; }
+  /* Two columns: the Chinese heading's second line (seven characters, which
+     never break apart) must fit the text column, which is about 47% of the
+     viewport less the gutters. */
+  @media (min-width: 60rem) {
+    :lang(zh-CN) .home-hero h1 { font-size: min(4.1rem, 6.3vw - 0.6rem); }
+  }
   /* Each line of the hero heading is its own block, so each is balanced. */
   .home-hero h1 > span { display: block; }
   .home-hero h1 > .glow-text { inline-size: fit-content; }
@@ -633,6 +651,12 @@
   .hiw-cards thead th { color: var(--ink-2); font-size: 0.84rem; }
   .hiw-cards tbody th { font-family: var(--mono); font-size: 0.86rem; white-space: nowrap; }
   .hiw-cards tbody th.word { font-family: var(--sans); font-size: inherit; }
+  /* Phones: the port table's row and column headers may wrap (Chinese ones
+     only between words, see th above), so the table fits its card. */
+  @media (max-width: 26rem) {
+    .hiw-cards :is(tbody th.word, thead th) { white-space: normal; }
+    .hiw-cards th, .hiw-cards td { padding-inline-end: 0.45rem; }
+  }
   .hiw-cards .small { margin-block: 0.8rem 0; }
   .hiw-cards ul.dots { font-size: 0.92rem; }
 
@@ -652,7 +676,13 @@
   .lane .wall { font-weight: 750; color: var(--warn); border-inline-start: 4px solid currentColor; padding-inline-start: 0.3rem; }
   .lane .wall.r { border-inline-start: 0; border-inline-end: 4px solid currentColor; padding-inline: 0 0.3rem; }
   .lane .x { color: var(--danger); font-weight: 800; font-size: 1rem; }
-  .lane .go { color: var(--ok); font-weight: 750; text-align: center; flex: 1; }
+  .lane .go { color: var(--ok); font-weight: 750; text-align: center; flex: 1; min-inline-size: 0; }
+  /* Phones: the Before/After label goes above its lane, so the lane has the
+     full width for both devices and the arrow text. */
+  @media (max-width: 26rem) {
+    .lanes { grid-template-columns: minmax(0, 1fr); }
+    .lanes .when { justify-self: start; }
+  }
 
   ul.checks { list-style: none; padding: 0; margin: 0; }
   ul.checks li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.6rem; margin-block: 0.55rem; font-size: 0.94rem; }
