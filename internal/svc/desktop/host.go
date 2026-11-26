@@ -914,8 +914,23 @@ func (h *hostSession) run() error {
 	}
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
+	// A restart (a key frame for the viewer, a new rate or size) starts
+	// when it is due, not at the next tick: waiting for the tick added up
+	// to 100 ms to every recovery.
+	restart := time.NewTimer(time.Hour)
+	restart.Stop()
+	defer restart.Stop()
+	var armed time.Time
 	h.lastStatsAt = time.Now()
 	for {
+		var restartC <-chan time.Time
+		if !h.restartAt.IsZero() && h.next == nil {
+			if !armed.Equal(h.restartAt) {
+				restart.Reset(time.Until(h.restartAt))
+				armed = h.restartAt
+			}
+			restartC = restart.C
+		}
 		select {
 		case <-h.ctx.Done():
 			return h.ended()
@@ -947,18 +962,18 @@ func (h *hostSession) run() error {
 				return nil // client closed the stream
 			}
 			h.onControl(c)
-		case now := <-tick.C:
-			// One replacement at a time: a restart asked for while one
-			// is starting waits for it to take over.
-			if !h.restartAt.IsZero() && !now.Before(h.restartAt) && h.next == nil {
-				if err := h.startEncoder(); err != nil {
-					h.fatal(err)
-					return err
-				}
-				h.restarts++
+		case <-restartC:
+			armed = time.Time{}
+			if err := h.restartIfDue(time.Now()); err != nil {
+				return err
 			}
+		case now := <-tick.C:
 			h.fitRate(now)
 			h.adapt(now)
+			// After adapt, so that a restart it asks for now goes now.
+			if err := h.restartIfDue(now); err != nil {
+				return err
+			}
 			if screenChanged != nil && now.Sub(h.lastScreenCheck) >= screenCheckEvery {
 				h.lastScreenCheck = now
 				if h.restartAt.IsZero() && screenChanged(h.spec) {
@@ -971,6 +986,21 @@ func (h *hostSession) run() error {
 			}
 		}
 	}
+}
+
+// restartIfDue starts the pending restart when it is due. One replacement
+// at a time: a restart asked for while one is starting waits for it to
+// take over.
+func (h *hostSession) restartIfDue(now time.Time) error {
+	if h.restartAt.IsZero() || now.Before(h.restartAt) || h.next != nil {
+		return nil
+	}
+	if err := h.startEncoder(); err != nil {
+		h.fatal(err)
+		return err
+	}
+	h.restarts++
+	return nil
 }
 
 // ended is run's answer to its context ending. When that is because the

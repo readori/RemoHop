@@ -5,7 +5,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const SD = window.SD;
-  const canvas = $('d-canvas'), g = canvas.getContext('2d', {alpha: false});
+  const canvas = $('d-canvas'), g = canvas.getContext('2d', {alpha: false, desynchronized: true});
   // Wall-clock microseconds, the clock the gateway stamps capture times
   // with. performance.timeOrigin + performance.now() is not that clock: the
   // monotonic clock stops while the device sleeps or the app is suspended
