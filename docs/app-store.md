@@ -16,7 +16,7 @@
 | SKU | `remohop-ios` | 自定，仅内部可见；App Store 记录创建后不能修改 |
 | 主要语言 | English (U.S.) | 应用的开发语言是英文，主语言与之一致 |
 | 其他本地化 | 简体中文 | 商店页面和应用界面都有简体中文：应用在“设置 > 语言”里可选“跟随系统 / 简体中文 / English”，权限说明由 `zh-Hans.lproj/InfoPlist.strings` 翻译，`CFBundleLocalizations` 声明了 `en` 和 `zh-Hans`，App Store 会列出这两种语言 |
-| 版本号 | `1.0.1` | 工程里的 `MARKETING_VERSION`（1.0.0 已上架）。版本号与桌面版的发布版本保持一致 |
+| 版本号 | `1.0.3` | 工程里的 `MARKETING_VERSION`（1.0.0 已上架，1.0.1 只发过 TestFlight，桌面版 1.0.2 没有手机版）。版本号与桌面版的发布版本保持一致 |
 | 构建号 | 每个版本从 `1` 开始 | `CFBundleVersion` 按版本单独计数：1.0.0 (1)…(5)，然后 1.0.1 (1)、1.0.1 (2)……CI（`sodesk-ios.yml` testflight 模式）不填 build_number 时自动取“本版本最新构建 + 1”。注：1.0.1 的第一个构建因旧规则成了 1.0.1 (6)，从 1.0.2 起都从 (1) 开始。Android 的 versionCode 是 Play 的全局递增数，不能按版本重置，versionName 与 iOS 版本号一致 |
 | 版权 | `© 2026 Readori` | **【提交前确认】** 如需写法律实体全称请替换 |
 | 主要类别 | Utilities（工具） | 与工程里的 `LSApplicationCategoryType = public.app-category.utilities` 一致 |
