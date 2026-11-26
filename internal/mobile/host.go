@@ -47,6 +47,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/readori/RemoHop/internal/auth"
@@ -171,6 +172,7 @@ func SetScreenSource(s ScreenSource) {
 func SetInputInjector(i InputInjector) {
 	hostMu.Lock()
 	nativeInput = i
+	hasInput.Store(i != nil)
 	hostMu.Unlock()
 }
 
@@ -289,8 +291,47 @@ func (p inputProxy) ReleaseAll() {
 	}
 }
 
-// phoneFeatures are what the phone's host can offer at all.
-var phoneFeatures = map[perm.Feature]bool{perm.Screen: true, perm.Input: true, perm.Info: true}
+// offeredFeatures are what the phone's host can offer at all: the screen
+// and system information, and control only while an input injector is set
+// (iOS sets none: its host is view-only, and control is not even offered,
+// so viewers are not invited to ask for it).
+func offeredFeatures() map[perm.Feature]bool {
+	m := map[perm.Feature]bool{perm.Screen: true, perm.Info: true}
+	if controlOffered() {
+		m[perm.Input] = true
+	}
+	return m
+}
+
+// controlOffered reports whether an input injector is set. Lock-free: the
+// host's policy asks from its own goroutines, StartHost among them.
+func controlOffered() bool { return hasInput.Load() }
+
+var hasInput atomic.Bool
+
+// Screen options (SetScreenOptions), applied when host mode starts.
+var (
+	screenEncoder = "mediacodec"
+	screenMaxFPS  = 60
+)
+
+// SetScreenOptions names the native video encoder, as viewers see it (e.g.
+// "mediacodec" on Android, the default, or "videotoolbox" on iOS), and caps
+// the frame rate the core asks of it and plans bitrates for (1..60; 0
+// keeps 60). It applies from the next StartHost.
+func SetScreenOptions(encoder string, maxFPS int) {
+	hostMu.Lock()
+	defer hostMu.Unlock()
+	if e := cli.Sanitize(auth.CleanText(encoder, 32)); e != "" {
+		screenEncoder = e
+	}
+	switch {
+	case maxFPS <= 0 || maxFPS > 60:
+		screenMaxFPS = 60
+	default:
+		screenMaxFPS = maxFPS
+	}
+}
 
 // phoneServices is the phone host's registry: the provided screen as the
 // desktop service, system information, and the host's own housekeeping
@@ -320,7 +361,7 @@ func StartHost() error {
 		return nil
 	}
 	log := quietLogger()
-	screen := desktop.NewScreen(desktop.ScreenConfig{Source: screenProxy{}, Input: inputProxy{}, Encoder: "mediacodec", Logger: log})
+	screen := desktop.NewScreen(desktop.ScreenConfig{Source: screenProxy{}, Input: inputProxy{}, Encoder: screenEncoder, MaxFPS: screenMaxFPS, Logger: log})
 	screen.SetScreenInfo(screenInfo[0], screenInfo[1], screenInfo[2])
 	run := &hostState{screen: screen, started: time.Now(), wake: make(chan struct{}, 1), firstSeen: map[int]bool{}}
 	hc := hostd.Config{
@@ -332,7 +373,7 @@ func StartHost() error {
 		Services:   phoneServices(screen),
 		Locals:     localAddrs,
 		Overrides: &hostd.Overrides{AskAll: true, TempPasswordOnly: true, Features: func() map[perm.Feature]bool {
-			return phoneFeatures
+			return offeredFeatures()
 		}},
 	}
 	addr, opts, err := signal.Resolve("")
@@ -468,7 +509,8 @@ func notifyHost(state *string) {
 // owner.
 func (r *hostState) onApproval(p hostd.Approval) {
 	login := len(p.Access) == 0 && p.Action == ""
-	if !login && !slices.ContainsFunc(p.Access, func(f perm.Feature) bool { return phoneFeatures[f] }) {
+	offered := offeredFeatures()
+	if !login && !slices.ContainsFunc(p.Access, func(f perm.Feature) bool { return offered[f] }) {
 		// Asks only for what the phone does not offer at all.
 		go r.h.Decide(p.N, false)
 		return
@@ -522,22 +564,25 @@ type hostSession struct {
 
 // hostDoc is HostStateJSON's document.
 type hostDoc struct {
-	On        bool          `json:"on"`
-	Phase     string        `json:"phase"`
-	Error     string        `json:"error,omitempty"`
-	ID        string        `json:"id,omitempty"`
-	Password  string        `json:"password,omitempty"`
-	Online    bool          `json:"online"`
-	Server    string        `json:"server,omitempty"`
-	Addresses []string      `json:"addresses,omitempty"`
-	Waited    int           `json:"waited,omitempty"`
-	Device    string        `json:"device,omitempty"`
-	Viewers   int           `json:"viewers"`
-	Control   bool          `json:"control_available"`
-	NoControl string        `json:"control_unavailable,omitempty"`
-	Timeout   int           `json:"ask_timeout"`
-	Requests  []hostRequest `json:"requests"`
-	Sessions  []hostSession `json:"sessions"`
+	On        bool     `json:"on"`
+	Phase     string   `json:"phase"`
+	Error     string   `json:"error,omitempty"`
+	ID        string   `json:"id,omitempty"`
+	Password  string   `json:"password,omitempty"`
+	Online    bool     `json:"online"`
+	Server    string   `json:"server,omitempty"`
+	Addresses []string `json:"addresses,omitempty"`
+	Waited    int      `json:"waited,omitempty"`
+	Device    string   `json:"device,omitempty"`
+	Viewers   int      `json:"viewers"`
+	Control   bool     `json:"control_available"`
+	NoControl string   `json:"control_unavailable,omitempty"`
+	// Offered: the phone offers control at all (an input injector is set);
+	// without, the approval should not show a control choice.
+	Offered  bool          `json:"control_offered"`
+	Timeout  int           `json:"ask_timeout"`
+	Requests []hostRequest `json:"requests"`
+	Sessions []hostSession `json:"sessions"`
 }
 
 func (r *hostState) requestOf(p hostd.Approval, now time.Time) hostRequest {
@@ -571,7 +616,8 @@ func addrOnly(ap netip.AddrPort) string {
 //	there is no server or the host is offline), waited (seconds since
 //	start while starting), device (this device's name), viewers (open
 //	screen streams), control_available and control_unavailable (whether
-//	the input injector works, and why not), ask_timeout (seconds),
+//	the input injector works, and why not), control_offered (an
+//	injector is set: offer control at all), ask_timeout (seconds),
 //	requests [{n, name, device, identity, from, auth, left, first_seen,
 //	access, session}] and sessions [{id, label, device, identity, from,
 //	path, seconds, control}].
@@ -581,7 +627,7 @@ func HostStateJSON() (string, error) {
 	hostMu.Unlock()
 	doc := hostDoc{Phase: phase, Error: herr, Timeout: int(HostAskTimeout / time.Second), Requests: []hostRequest{}, Sessions: []hostSession{}}
 	why := inputProxy{}.Unavailable()
-	doc.Control, doc.NoControl = why == "", why
+	doc.Control, doc.NoControl, doc.Offered = why == "", why, controlOffered()
 	if run != nil {
 		now := time.Now()
 		hs := run.h.Status()
@@ -656,7 +702,7 @@ func DecideHostRequest(n int, allow, control bool) error {
 	if len(p.Access) > 0 || p.Action != "" {
 		err = run.h.Decide(n, allow)
 	} else {
-		err = run.h.DecideWith(n, allow, hostFeatures(control))
+		err = run.h.DecideWith(n, allow, hostFeatures(control && controlOffered()))
 	}
 	run.mu.Lock()
 	delete(run.firstSeen, n)

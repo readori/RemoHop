@@ -478,3 +478,43 @@ func TestHostModeRegenerateAndOff(t *testing.T) {
 		t.Fatal("disconnected with host mode off")
 	}
 }
+
+// A phone without an input injector (the iOS app) does not offer control
+// at all: the state says so and a login allowed "with control" views only.
+// The encoder's name and the frame rate cap reach the viewer's Hello.
+func TestHostModeNoInjectorAndScreenOptions(t *testing.T) {
+	SetScreenOptions("videotoolbox", 30)
+	t.Cleanup(func() { SetScreenOptions("mediacodec", 0) })
+	_, _, l, addr := startPhoneHost(t)
+	SetInputInjector(nil)
+	d := hostDocNow(t)
+	if d.Offered || d.Control {
+		t.Fatalf("state %+v", d)
+	}
+	req, out := login(t, l, addr, d.Password, t.TempDir())
+	if err := DecideHostRequest(req.N, true, true); err != nil {
+		t.Fatal(err)
+	}
+	r := <-out
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	defer r.conn.Close()
+	if d := waitDoc(t, "the session", func(d hostDoc) bool { return len(d.Sessions) == 1 }); d.Sessions[0].Control {
+		t.Fatalf("control granted without an injector: %+v", d.Sessions)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	s, err := desktop.Open(ctx, r.conn, desktop.Options{FPS: 60})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if h := s.Hello(); h.Encoder != "videotoolbox" || h.FPS != 30 || h.Input {
+		t.Fatalf("hello %+v", h)
+	}
+	SetInputInjector(&fakeInjector{})
+	if d := hostDocNow(t); !d.Offered {
+		t.Fatalf("state %+v", d)
+	}
+}
