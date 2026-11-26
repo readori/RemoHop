@@ -7,7 +7,7 @@
 <li>Your sessions (screen, keystrokes, files, clipboard, terminal content) are end-to-end encrypted between your two devices. RemoHop cannot see them, and neither can a relay server.</li>
 <li>The software and the apps contain no analytics, advertising or crash-reporting components and send no usage data to RemoHop.</li>
 <li>Identity keys, pairing tokens, the host passwords you chose to remember and settings are stored only on your own devices.</li>
-<li>When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. The desktop and mobile apps let you choose the official server operated by the RemoHop project, your own server, or no server (connecting by address); the command-line program has no built-in default server. Whoever operates that server is the one who processes the metadata.</li>
+<li>When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. The desktop app and quick support let you choose the official server operated by the RemoHop project, your own server, or no server (connecting by address); the mobile apps and the command-line program have no built-in default server and use only a server you enter. Whoever operates that server is the one who processes the metadata.</li>
 <li>Accounts are optional. A server with accounts enabled stores a hash of your email address and your device list.</li>
 <li>We do not sell data, and we do not use it for advertising or for tracking across apps.</li>
 </ul>
@@ -55,7 +55,7 @@
 
 <h2 id="server">3. Rendezvous server and relay</h2>
 <p>The data below is processed only when you point a device at a rendezvous server. <strong>If that server is run by you or by a third party, that operator's notice applies</strong>, and RemoHop has no access to the data. When you connect by <code>host:port</code>, no server is involved at all.</p>
-<p>The rest of this section applies to the official rendezvous server operated by the RemoHop project, <code>signal.remohop.com</code> (and its websocket endpoint through Cloudflare). The desktop app, quick support and the mobile apps offer it as one choice during setup and use it only if you choose it; you can enter your own server instead, or use none. The command-line program <code>remohop</code> has no built-in default server and connects to a rendezvous server only after you set one with <code>remohop config set signal</code>.</p>
+<p>The rest of this section applies to the official rendezvous server operated by the RemoHop project, <code>signal.remohop.com</code> (and its websocket endpoint through Cloudflare). The desktop app and quick support offer it as one choice during setup and use it only if you choose it; you can enter your own server instead, or use none. The mobile apps do not offer it: they use it only if you enter its address yourself. The command-line program <code>remohop</code> has no built-in default server and connects to a rendezvous server only after you set one with <code>remohop config set signal</code>.</p>
 <h3>What the server cannot see</h3>
 <p>Connections between your devices are end-to-end encrypted. The server cannot read or change what you send, cannot see your screen or files, and cannot learn your passwords. This includes relayed connections: a relay forwards ciphertext.</p>
 <h3>What the server processes</h3>
