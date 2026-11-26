@@ -100,7 +100,9 @@ const (
 // encoders lists what the host knows how to drive; choose ranks them. Every
 // one is configured for low delay: no frame reordering or lookahead,
 // CBR-ish rate control, and a key frame every gop frames so a decoder that
-// joins late or lost data resyncs quickly.
+// joins late or lost data resyncs quickly. Where the encoder has a switch
+// for it, a forced key frame (keyforce.go) is an IDR frame, which is what
+// the host and the viewers take as a key frame.
 var encoders = []*encoder{
 	{
 		name:   "av1_nvenc",
@@ -120,7 +122,7 @@ var encoders = []*encoder{
 		pixFmt: "format=nv12",
 		args: func(p encParams) []string {
 			return []string{"-c:v", "av1_qsv", "-preset", "veryfast", "-low_delay_brc", qsvLowDelay(p), "-async_depth", "1",
-				"-b:v", br(p), "-maxrate", br(p), "-bufsize", vbv(p), "-g", strconv.Itoa(p.gop), "-bf", "0"}
+				"-b:v", br(p), "-maxrate", br(p), "-bufsize", vbv(p), "-g", strconv.Itoa(p.gop), "-bf", "0", "-forced_idr", "1"}
 		},
 	},
 	{
@@ -182,7 +184,7 @@ var encoders = []*encoder{
 		args: func(p encParams) []string {
 			return []string{"-c:v", "h264_qsv", "-preset", "veryfast", "-low_delay_brc", qsvLowDelay(p), "-async_depth", "1",
 				"-look_ahead", "0", "-b:v", br(p), "-maxrate", br(p), "-bufsize", vbv(p),
-				"-g", strconv.Itoa(p.gop), "-bf", "0"}
+				"-g", strconv.Itoa(p.gop), "-bf", "0", "-forced_idr", "1"}
 		},
 	},
 	{
@@ -260,7 +262,7 @@ var encoders = []*encoder{
 			// (their time base). x264 then starves every frame until the
 			// picture is flat grey, so tell it the rate ourselves.
 			return []string{"-c:v", "libx264", "-preset", preset, "-tune", "zerolatency", "-bf", "0",
-				"-g", strconv.Itoa(p.gop), "-keyint_min", strconv.Itoa(p.gop), "-sc_threshold", "0",
+				"-g", strconv.Itoa(p.gop), "-keyint_min", strconv.Itoa(p.gop), "-sc_threshold", "0", "-forced-idr", "1",
 				"-b:v", br(p), "-maxrate", br(p), "-bufsize", buf, "-x264-params", "fps=" + strconv.Itoa(p.fps) + "/1"}
 		},
 	},
