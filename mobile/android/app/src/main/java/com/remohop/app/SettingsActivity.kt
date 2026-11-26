@@ -159,6 +159,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onStop() {
         hidePassword?.invoke() // a shown saved password is masked again when the screen is left
+        hostPage?.mask() // and so is a shown own password for host mode
         super.onStop()
     }
 

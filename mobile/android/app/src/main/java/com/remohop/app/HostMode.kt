@@ -109,6 +109,23 @@ object HostMode : HostListener {
         refresh()
     }
 
+    /**
+     * Sets the owner's own password, kept across starts ("" goes back to a
+     * new temporary password at every start); it applies at once when host
+     * mode is on. [done] gets the core's refusal (a weak password) on the
+     * main thread, or null.
+     */
+    fun setOwnPassword(password: String, done: (String?) -> Unit) = bg.execute {
+        val err = runCatching { Remohopcore.setHostFixedPassword(password) }.exceptionOrNull()
+        Diag.log(when {
+            err != null -> "host mode: password setting not saved"
+            password.isEmpty() -> "host mode: temporary password chosen"
+            else -> "host mode: own password chosen"
+        })
+        refresh()
+        main.post { done(err?.let { it.message?.takeIf { m -> m.isNotBlank() } ?: it.javaClass.simpleName }) }
+    }
+
     /** Ends session [id], or every session with 0. */
     fun disconnect(id: Int) = bg.execute {
         runCatching { Remohopcore.disconnectHostSession(id.toLong()) }

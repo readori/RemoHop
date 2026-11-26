@@ -138,6 +138,42 @@ class HostModeLogicTest {
         assertEquals(HostState.OFF, HostState.parse(null))
     }
 
+    @Test fun passwordMode() {
+        val own = HostState.parse("""{"on":true,"phase":"ready","id":"1","password":"Garden-42-Ok","password_mode":"fixed"}""")
+        assertTrue(own.fixedPassword)
+        assertEquals("Garden-42-Ok", own.password)
+        // Reported while host mode is off too (no password then).
+        val off = HostState.parse("""{"on":false,"phase":"off","password_mode":"fixed"}""")
+        assertTrue(off.fixedPassword)
+        assertEquals("", off.password)
+        assertEquals(HostState.Status.OFF, off.status)
+        // Temporary, missing (an older core) or unknown: the temporary password.
+        assertFalse(HostState.parse("""{"on":true,"phase":"ready","password":"ab12-cd34","password_mode":"temporary"}""").fixedPassword)
+        assertFalse(HostState.parse("""{"on":true,"phase":"ready","password":"ab12-cd34"}""").fixedPassword)
+        assertEquals(HostState.PASSWORD_TEMPORARY, HostState.parse("""{"password_mode":"other"}""").passwordMode)
+        assertFalse(HostState.OFF.fixedPassword)
+    }
+
+    @Test fun passwordForm() {
+        val f = HostPasswordForm
+        // Random: saved only when it changes something.
+        assertEquals(HostPasswordForm.Outcome.Unchanged, f.check(false, "", "", wasOwn = false))
+        assertEquals(HostPasswordForm.Outcome.Save(""), f.check(false, "typed", "", wasOwn = true))
+        // Own: typed twice.
+        assertEquals(HostPasswordForm.Outcome.Save("Garden-42-Ok"), f.check(true, "Garden-42-Ok", "Garden-42-Ok", wasOwn = false))
+        assertEquals(HostPasswordForm.Outcome.Mismatch, f.check(true, "Garden-42-Ok", "Garden-42-ok", wasOwn = false))
+        assertEquals(HostPasswordForm.Outcome.Mismatch, f.check(true, "", "x", wasOwn = true))
+        // Nothing typed: keeps the own password in force, else it is missing.
+        assertEquals(HostPasswordForm.Outcome.Unchanged, f.check(true, "", "", wasOwn = true))
+        assertEquals(HostPasswordForm.Outcome.Empty, f.check(true, "", "", wasOwn = false))
+        // Spaces and dashes alone are no password (the core drops them).
+        assertEquals(HostPasswordForm.Outcome.Empty, f.check(true, " - ", " - ", wasOwn = false))
+        // The core's rule is told in the app's words; anything else as it is.
+        assertTrue(f.isRuleMessage("use at least two of: letters, digits, other characters"))
+        assertTrue(f.isRuleMessage("password too short: need at least 8 characters (not counting spaces and dashes)"))
+        assertFalse(f.isRuleMessage("open /data/host-password: permission denied"))
+    }
+
     @Test fun request() {
         val r = HostRequest.parse("""{"n":5,"name":"pairing name","identity":"SHA256:x","access":["input"],"session":2,"left":10}""")!!
         assertTrue(r.isAccess)
