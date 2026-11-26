@@ -32,7 +32,7 @@ code, in source or object form.
 1. **Attribution (section 7(b)).** A work based on RemoHop must name the
    project and link to its source repository, as in this notice:
 
-   > Based on RemoHop (https://github.com/readori/RemoHop), © Readori,
+   > Based on RemoHop (https://github.com/readori/RemoHop), © RemoHop,
    > licensed under the AGPL-3.0.
 
    The notice must appear
@@ -45,9 +45,9 @@ code, in source or object form.
    Do not remove or hide existing copyright, license and attribution notices.
 2. **Modified versions (section 7(c)).** A modified version must be marked
    as changed, and must not claim to be the original RemoHop or suggest that
-   Readori made, endorses or supports it.
+   the RemoHop project made, endorses or supports it.
 3. **Names and logos (section 7(e)).** The AGPL-3.0 does not grant any right
-   to use the names "RemoHop" or "Readori", or their logos, as the name, logo
+   to use the name "RemoHop", or its logos, as the name, logo
    or branding of another product or service, apart from the attribution
    required in term 1. Give your work its own name.
 
@@ -62,7 +62,7 @@ RemoHop 的人，以及所有基于 RemoHop 的作品（分支、修改版，或
 代码的产品，无论源代码还是编译后的形式）。如有歧义，以上方英文为准。
 
 1. **署名（第 7(b) 条）。** 基于 RemoHop 的作品必须标明本项目名称和开源地址，
-   例如：“基于 RemoHop（https://github.com/readori/RemoHop），© Readori，
+   例如：“基于 RemoHop（https://github.com/readori/RemoHop），© RemoHop 项目，
    按 AGPL-3.0 授权。”这段说明必须出现在：
    - 源代码中：保留 [NOTICE](NOTICE) 文件，并写进 README 或同样醒目的文件；
    - 作品展示“适当法律声明”的地方（AGPL-3.0 第 0 条和第 5(d) 条），例如
@@ -70,8 +70,8 @@ RemoHop 的人，以及所有基于 RemoHop 的作品（分支、修改版，或
 
    不得删除或隐藏已有的版权、许可证和署名声明。
 2. **修改版（第 7(c) 条）。** 修改版必须标明已被修改，不得自称是原版 RemoHop，
-   也不得暗示由 Readori 制作、认可或提供支持。
-3. **名称和标志（第 7(e) 条）。** AGPL-3.0 不授予把“RemoHop”“Readori”名称或
+   也不得暗示由 RemoHop 项目制作、认可或提供支持。
+3. **名称和标志（第 7(e) 条）。** AGPL-3.0 不授予把“RemoHop”名称或
    其标志用作其他产品或服务的名称、标志或品牌的权利（第 1 条要求的署名除外）。
    请为你的作品另取名字。
 
@@ -84,7 +84,7 @@ If the AGPL-3.0 does not fit your use, for example to ship RemoHop inside a
 closed-source product, to run a modified server for others without publishing
 your changes, or to distribute it through a store whose terms conflict with
 the AGPL, a commercial license is available from the copyright holder,
-readori.
+the RemoHop project.
 
 For commercial licensing, write to <info@remohop.com> and describe how you
 plan to use RemoHop.

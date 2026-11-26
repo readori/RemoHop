@@ -52,14 +52,14 @@
 <div class="wrap prose">
 <h1>Privacy policy</h1>
 <p class="updated">Last updated: 2026-11-25</p>
-<p>This policy explains how the RemoHop software, the RemoHop apps for Android and iOS, this website, and servers operated by Readori handle data. The publisher is Readori. Contact: <a href="mailto:privacy@remohop.com">privacy@remohop.com</a>.</p>
+<p>This policy explains how the RemoHop software, the RemoHop apps for Android and iOS, this website, and servers operated by the RemoHop project handle data. The publisher is the RemoHop project. Contact: <a href="mailto:privacy@remohop.com">privacy@remohop.com</a>.</p>
 
 <h2 id="short">The short version</h2>
 <ul>
-<li>Your sessions (screen, keystrokes, files, clipboard, terminal content) are end-to-end encrypted between your two devices. Readori cannot see them, and neither can a relay server.</li>
-<li>The software and the apps contain no analytics, advertising or crash-reporting components and send no usage data to Readori.</li>
+<li>Your sessions (screen, keystrokes, files, clipboard, terminal content) are end-to-end encrypted between your two devices. RemoHop cannot see them, and neither can a relay server.</li>
+<li>The software and the apps contain no analytics, advertising or crash-reporting components and send no usage data to RemoHop.</li>
 <li>Identity keys, pairing tokens, the host passwords you chose to remember and settings are stored only on your own devices.</li>
-<li>When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. The desktop and mobile apps let you choose the official server operated by Readori, your own server, or no server (connecting by address); the command-line program has no built-in default server. Whoever operates that server is the one who processes the metadata.</li>
+<li>When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. The desktop and mobile apps let you choose the official server operated by the RemoHop project, your own server, or no server (connecting by address); the command-line program has no built-in default server. Whoever operates that server is the one who processes the metadata.</li>
 <li>Accounts are optional. A server with accounts enabled stores a hash of your email address and your device list.</li>
 <li>We do not sell data, and we do not use it for advertising or for tracking across apps.</li>
 </ul>
@@ -71,12 +71,12 @@
 <p>The owner of a host can see everything a client sends to it. That is what remote control means. Before you connect to someone else's machine, make sure you trust them.</p>
 
 <h2 id="apps">2. The Android and iOS apps</h2>
-<p>By default the apps are controllers. Each runs a gateway inside the app process that listens only on the device's own <code>127.0.0.1</code> and sets up the encrypted session directly with the computer you connect to. No Readori server is in between.</p>
+<p>By default the apps are controllers. Each runs a gateway inside the app process that listens only on the device's own <code>127.0.0.1</code> and sets up the encrypted session directly with the computer you connect to. No RemoHop server is in between.</p>
 <p><strong>Letting others reach this device (optional):</strong> only when you switch it on in the app. The device then registers with the rendezvous server you chose (which sees its ID and IP address, see <a href="#server">section 3</a>), every connection has to be allowed by you on the device, and by default it can only see the screen.</p>
 <ul>
 <li><strong>Android:</strong> after you allow a connection, the system asks you to confirm the screen capture. The other side can tap and type only if you turned on RemoHop's accessibility service and ticked "control" for that connection.</li>
 <li><strong>iPhone / iPad:</strong> screen sharing only, never control, and only while you run a screen broadcast, which you can stop at any time.</li>
-<li>The picture goes end-to-end encrypted, directly to the device you allowed; it does not pass through Readori and is not stored. No files, clipboard or terminal: the phone does not offer them.</li>
+<li>The picture goes end-to-end encrypted, directly to the device you allowed; it does not pass through RemoHop and is not stored. No files, clipboard or terminal: the phone does not offer them.</li>
 </ul>
 <h3>Data kept on the device</h3>
 <ul>
@@ -94,7 +94,7 @@
 <h3>System permissions</h3>
 <ul>
 <li><strong>Local network (iOS):</strong> to connect directly to computers on your LAN.</li>
-<li><strong>Camera and photos (iOS):</strong> accessed through the system picker, and only when you choose to upload a photo or video to a remote computer. The file goes to the computer you are connected to, not to Readori.</li>
+<li><strong>Camera and photos (iOS):</strong> accessed through the system picker, and only when you choose to upload a photo or video to a remote computer. The file goes to the computer you are connected to, not to RemoHop.</li>
 <li><strong>Clipboard:</strong> read or written only when you use the clipboard function in the app. The content goes to the computer you are connected to.</li>
 <li><strong>Internet access (Android):</strong> to make connections.</li>
 <li><strong>Notifications:</strong> on Android, the ongoing "Connected to …" notification that keeps a session alive in the background and lets you disconnect from it. With "let others reach this device" on, both platforms use notifications for connection requests, and Android shows an ongoing "Being viewed/controlled" notification with Stop.</li>
@@ -106,8 +106,8 @@
 <p>If you install through TestFlight or an app store, Apple or Google handle installation and diagnostic data under their own privacy policies, and may give the developer anonymous crash reports if you agreed to share them. That processing is outside this policy.</p>
 
 <h2 id="server">3. Rendezvous server and relay</h2>
-<p>The data below is processed only when you point a device at a rendezvous server. <strong>If that server is run by you or by a third party, that operator's notice applies</strong>, and Readori has no access to the data. When you connect by <code>host:port</code>, no server is involved at all.</p>
-<p>The rest of this section applies to the official rendezvous server operated by Readori, <code>signal.remohop.com</code> (and its websocket endpoint through Cloudflare). The desktop app, quick support and the mobile apps offer it as one choice during setup and use it only if you choose it; you can enter your own server instead, or use none. The command-line program <code>remohop</code> has no built-in default server and connects to a rendezvous server only after you set one with <code>remohop config set signal</code>.</p>
+<p>The data below is processed only when you point a device at a rendezvous server. <strong>If that server is run by you or by a third party, that operator's notice applies</strong>, and RemoHop has no access to the data. When you connect by <code>host:port</code>, no server is involved at all.</p>
+<p>The rest of this section applies to the official rendezvous server operated by the RemoHop project, <code>signal.remohop.com</code> (and its websocket endpoint through Cloudflare). The desktop app, quick support and the mobile apps offer it as one choice during setup and use it only if you choose it; you can enter your own server instead, or use none. The command-line program <code>remohop</code> has no built-in default server and connects to a rendezvous server only after you set one with <code>remohop config set signal</code>.</p>
 <h3>What the server cannot see</h3>
 <p>Connections between your devices are end-to-end encrypted. The server cannot read or change what you send, cannot see your screen or files, and cannot learn your passwords. This includes relayed connections: a relay forwards ciphertext.</p>
 <h3>What the server processes</h3>
@@ -184,7 +184,7 @@
 </ul>
 </div>
 </nav>
-<p class="legal">RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
+<p class="legal">RemoHop is an independent open-source project, published under the GNU AGPL-3.0, with a commercial license available. This website uses no cookies, no analytics and no third-party resources.</p>
 </div>
 </footer>
 </body>
