@@ -37,7 +37,7 @@
 
 ## 更新
 
-应用启动后不久以及之后每天一次，从 `https://remohop.com/version.json` 读取最新的版本号（请求不带任何标识）。有更新的版本时，标签栏下方会出现一条提示，带**下载**（打开下载页）、**更新内容**（发布说明）和 ×（跳过这个版本）。用 Homebrew、Scoop、winget 或 Snap 安装的，提示里给出对应的升级命令（`brew upgrade --cask remohop-quick`、`scoop update remohop`、`winget upgrade RemoHop.RemoHop`、`sudo snap refresh remohop`）；用 .deb 或 .rpm 安装的，请用系统的包管理器升级。应用不会自己下载或安装任何东西。
+应用启动后不久以及之后每天一次，从 `https://remohop.com/version.json` 读取最新的版本号（请求不带任何标识）。有更新的版本时，标签栏下方会出现一条提示，带**下载**（打开下载页）、**更新内容**（发布说明）和 ×（跳过这个版本）。用 Homebrew、Scoop、winget 或 Snap 安装的，提示里给出对应的升级命令（`brew upgrade --cask remohop-quick`、`scoop update remohop`、`winget upgrade RemoHop.RemoHop`、`sudo snap refresh remohop`）；用 .deb 或 .rpm 安装的，请用系统的包管理器升级。从官网下载、放在你有写权限的文件夹里的版本，还会有**立即升级**：应用从 GitHub 下载新版本，只有发布的签名校验和（用内置在 RemoHop 里的 Ed25519 公钥验证）与它一致、并且在 macOS 上由 RemoHop 开发者签名时才接受，然后替换自己并重启。有人连接着这台电脑时不会升级；不点这个按钮，应用不会下载或安装任何东西。
 
 **设置 > 更新**可以关闭每天的检查，也可以**立即检查**。管理员可以设置环境变量 `REMOHOP_NO_UPDATE_CHECK=1` 统一关闭。开着无人值守访问的电脑，升级后请把它关闭再打开一次，让服务运行新版程序。
 

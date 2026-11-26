@@ -243,6 +243,9 @@ func (s *Server) routes() {
 	})
 	post("/api/update/auto", func(_ *http.Request, q req) (any, error) { return nil, a.SetUpdateAuto(q.On) })
 	post("/api/update/skip", func(_ *http.Request, q req) (any, error) { return nil, a.SkipUpdate(q.Version) })
+	post("/api/update/install", func(_ *http.Request, _ req) (any, error) {
+		return nil, a.InstallUpdate(func() { s.shell().Quit() })
+	})
 	post("/api/update/open", func(_ *http.Request, q req) (any, error) {
 		u, err := a.UpdateLink(q.Target, q.Lang)
 		if err != nil {

@@ -53,7 +53,9 @@
       'about': 'RemoHop {v} · {e}', 'browser': 'browser window',
       'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
       'upd.how.cmd': 'You have {c}. Upgrade with:', 'upd.how.package': "You have {c}. Upgrade it with your system's package manager.",
-      'upd.how.nix': 'You have {c}. Upgrade it through Nix.', 'upd.get': 'Download', 'upd.notes': "What's new", 'upd.skip': 'Skip this version',
+      'upd.how.nix': 'You have {c}. Upgrade it through Nix.', 'upd.get': 'Download', 'upd.install': 'Upgrade now', 'upd.how.install': 'You have {c}. Upgrade in place: RemoHop restarts by itself.',
+      'upd.st.verifying': 'Checking the release signature…', 'upd.st.downloading': 'Downloading… {p}', 'upd.st.installing': 'Installing…', 'upd.st.restarting': 'Restarting…',
+      'upd.failed': 'The upgrade did not work: {m}', 'err.busy_sessions': 'Someone is connected to this computer. Disconnect them first, then upgrade.', 'upd.notes': "What's new", 'upd.skip': 'Skip this version',
       'upd.h': 'Updates', 'upd.auto': 'Check for updates automatically (once a day)', 'upd.now': 'Check now', 'upd.checking': 'Checking…',
       'upd.latest': 'Up to date ({v}) · checked {t}', 'upd.avail': '{v} is available · checked {t}', 'upd.never': 'Not checked yet',
       'upd.fail': 'Could not check (no connection to remohop.com?)', 'upd.managed': 'Switched off by the administrator ({e})',
@@ -109,7 +111,9 @@
       'about': 'RemoHop {v} · {e}', 'browser': '浏览器窗口',
       'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
       'upd.how.cmd': '当前是 {c}。用这条命令升级：', 'upd.how.package': '当前是 {c}。请用系统的包管理器升级。',
-      'upd.how.nix': '当前是 {c}。请通过 Nix 升级。', 'upd.get': '下载', 'upd.notes': '更新内容', 'upd.skip': '跳过这个版本',
+      'upd.how.nix': '当前是 {c}。请通过 Nix 升级。', 'upd.get': '下载', 'upd.install': '立即升级', 'upd.how.install': '当前是 {c}。可以直接升级，完成后 RemoHop 会自动重启。',
+      'upd.st.verifying': '正在校验发布签名…', 'upd.st.downloading': '正在下载… {p}', 'upd.st.installing': '正在安装…', 'upd.st.restarting': '正在重启…',
+      'upd.failed': '升级没有成功：{m}', 'err.busy_sessions': '有人正连接着这台电脑。请先断开，再升级。', 'upd.notes': '更新内容', 'upd.skip': '跳过这个版本',
       'upd.h': '更新', 'upd.auto': '自动检查更新（每天一次）', 'upd.now': '立即检查', 'upd.checking': '正在检查…',
       'upd.latest': '已是最新版本（{v}）· {t} 检查', 'upd.avail': '{v} 已发布 · {t} 检查', 'upd.never': '还没有检查过',
       'upd.fail': '检查失败（连不上 remohop.com？）', 'upd.managed': '已被管理员关闭（{e}）',
@@ -633,14 +637,21 @@
     if (!show) return;
     const m = u.method || {kind: 'download'};
     $('upd-title').textContent = t('upd.title', {v: u.latest});
-    const how = m.command ? 'cmd' : (m.kind === 'package' || m.kind === 'nix') ? m.kind : 'download';
-    $('upd-how').textContent = t('upd.how.' + how, {c: u.current});
+    const how = m.command ? 'cmd' : (m.kind === 'package' || m.kind === 'nix') ? m.kind : u.can_install ? 'install' : 'download';
+    if (u.stage) $('upd-how').textContent = t('upd.st.' + u.stage, {p: u.percent >= 0 ? u.percent + '%' : ''});
+    else if (u.install_error) $('upd-how').textContent = t('upd.failed', {m: u.install_error});
+    else $('upd-how').textContent = t('upd.how.' + how, {c: u.current});
     $('upd-cmd').hidden = $('upd-copy').hidden = !m.command;
     $('upd-cmd').textContent = m.command || '';
-    $('upd-get').hidden = how !== 'download';
+    $('upd-install').hidden = !u.can_install;
+    $('upd-install').disabled = !!u.stage;
+    $('upd-get').hidden = how !== 'download' && how !== 'install';
+    $('upd-get').className = u.can_install ? 'btn sm text' : 'btn sm';
+    $('upd-skip').disabled = !!u.stage;
   }
   $('upd-auto').addEventListener('change', ev => api('update/auto', {on: ev.target.checked}).catch(e => snack(errText(e))));
   $('upd-now').addEventListener('click', () => api('update/check').catch(e => snack(errText(e))));
+  $('upd-install').addEventListener('click', () => api('update/install').catch(e => snack(errText(e))));
   $('upd-get').addEventListener('click', () => api('update/open', {target: 'download', lang}).catch(e => snack(errText(e))));
   $('upd-notes').addEventListener('click', () => api('update/open', {target: 'notes', lang}).catch(e => snack(errText(e))));
   $('upd-skip').addEventListener('click', () => api('update/skip', {version: S.update.latest}).catch(e => snack(errText(e))));

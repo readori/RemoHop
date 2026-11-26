@@ -142,6 +142,27 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 sha256sum --ignore-missing -c SHA256SUMS
 ```
 
+## In-app upgrades (Ed25519)
+
+The desktop app's **Upgrade now** (internal/update) trusts a release only through
+`SHA256SUMS.ed25519`: an Ed25519 signature over `"remohop-update-v1\n" + tag + "\n" + SHA256SUMS`,
+made in the publish job with the repository secret `UPDATE_SIGNING_KEY`. Binding the tag stops an
+older release's files from being served as a newer one. The app accepts only the public keys in
+`internal/update/keys.go`; while that list is empty, upgrades stay off and the job only warns.
+
+Setting it up (once, on the owner's machine, never in CI or a chat):
+
+```bash
+go run ./scripts/updsign keygen DIR        # prints the public key; DIR/update-signing.key is the private key
+gh secret set UPDATE_SIGNING_KEY -R readori/RemoHop < DIR/update-signing.key
+go run ./scripts/updsign keygen SPARE      # the spare: keep SPARE/update-signing.key offline
+```
+
+Both public keys go into `TrustedKeys` (the release key first). Once they are there, a release
+without the secret fails instead of shipping unsigned. If the release key is lost or leaked, set the
+secret to the spare's private key, publish a release whose `keys.go` drops the old key and adds a new
+spare, and announce it; apps that upgraded to it no longer trust the old key.
+
 ## Windows signing (hook, not active)
 
 Windows binaries ship unsigned (SmartScreen warns). The hook is `scripts/sign-windows.sh`, called by the
