@@ -37,6 +37,7 @@
 		5D0E5D0E0000000000000125 /* VideoPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000106 /* VideoPolicy.swift */; };
 		5D0E5D0E0000000000000126 /* AnnexB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000107 /* AnnexB.swift */; };
 		5D0E5D0E0000000000000127 /* BroadcastStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000108 /* BroadcastStrings.swift */; };
+		5D0E5D0E0000000000000128 /* HostStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000112 /* HostStatus.swift */; };
 		5D0E5D0E0000000000000130 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000109 /* SampleHandler.swift */; };
 		5D0E5D0E0000000000000131 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010A /* H264Encoder.swift */; };
 		5D0E5D0E0000000000000132 /* BroadcastHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010B /* BroadcastHost.swift */; };
@@ -48,6 +49,7 @@
 		5D0E5D0E0000000000000138 /* VideoPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000106 /* VideoPolicy.swift */; };
 		5D0E5D0E0000000000000139 /* AnnexB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000107 /* AnnexB.swift */; };
 		5D0E5D0E000000000000013A /* BroadcastStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000108 /* BroadcastStrings.swift */; };
+		5D0E5D0E000000000000013E /* HostStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000112 /* HostStatus.swift */; };
 		5D0E5D0E000000000000013D /* BroadcastLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000111 /* BroadcastLogicTests.swift */; };
 		5D0E5D0E000000000000013B /* Remohopcore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000000E /* Remohopcore.xcframework */; };
 		5D0E5D0E000000000000013C /* RemoHopBroadcast.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000110 /* RemoHopBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -120,6 +122,7 @@
 		5D0E5D0E0000000000000106 /* VideoPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPolicy.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000107 /* AnnexB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnexB.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000108 /* BroadcastStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastStrings.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000112 /* HostStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostStatus.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000109 /* SampleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
 		5D0E5D0E000000000000010A /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
 		5D0E5D0E000000000000010B /* BroadcastHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastHost.swift; sourceTree = "<group>"; };
@@ -259,6 +262,7 @@
 				5D0E5D0E0000000000000106 /* VideoPolicy.swift */,
 				5D0E5D0E0000000000000107 /* AnnexB.swift */,
 				5D0E5D0E0000000000000108 /* BroadcastStrings.swift */,
+				5D0E5D0E0000000000000112 /* HostStatus.swift */,
 			);
 			path = RemoHopShared;
 			sourceTree = "<group>";
@@ -416,6 +420,7 @@
 				5D0E5D0E0000000000000125 /* VideoPolicy.swift in Sources */,
 				5D0E5D0E0000000000000126 /* AnnexB.swift in Sources */,
 				5D0E5D0E0000000000000127 /* BroadcastStrings.swift in Sources */,
+				5D0E5D0E0000000000000128 /* HostStatus.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -447,6 +452,7 @@
 				5D0E5D0E0000000000000138 /* VideoPolicy.swift in Sources */,
 				5D0E5D0E0000000000000139 /* AnnexB.swift in Sources */,
 				5D0E5D0E000000000000013A /* BroadcastStrings.swift in Sources */,
+				5D0E5D0E000000000000013E /* HostStatus.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -27,7 +27,6 @@ final class SampleHandler: RPBroadcastSampleHandler {
             let code = (error as? HostCoreError)?.code ?? "init"
             let message: String
             switch code {
-            case "core_unsupported": message = host.text("This version of RemoHop cannot share the screen yet. Update the app.")
             case "open_app": message = host.text("Open RemoHop once, then start sharing again.")
             default: message = host.text("RemoHop could not start sharing. Open RemoHop and try again.")
             }

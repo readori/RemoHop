@@ -1,61 +1,49 @@
 import Foundation
 import Remohopcore
 
-/// What the Go core's host mode reports.
-struct HostStatus: Equatable {
-    var id = ""
-    var password = ""
-    var addresses: [String] = []
-    var online = false
-    var requests: [CoreRequest] = []
-    var viewers: [BroadcastState.Viewer] = []
-}
-
-/// Calls from the core (on its own threads).
+/// Calls from the core (on its goroutines; they must return quickly).
 protocol HostCoreEvents: AnyObject {
-    /// A viewer needs a keyframe (it joined, or lost frames).
+    /// Someone watches: capture and encode with these limits (long edge,
+    /// frames per second, bits per second), or apply new ones.
+    func coreStartScreen(maxSize: Int, fps: Int, bitrate: Int64)
+    /// Nobody watches any more.
+    func coreStopScreen()
     func coreWantsKeyframe()
-    /// The flow control's bitrate for the encoder, in bits per second.
-    func coreWantsBitrate(_ bps: Int)
-    /// The frame rate the viewers can take.
-    func coreWantsFPS(_ fps: Int)
-    /// Requests, viewers, ID or password changed.
-    func coreStateChanged()
+    func coreWantsBitrate(_ bps: Int64)
+    /// Requests, viewers, ID or password changed (the new state document).
+    func coreStateChanged(_ json: String)
 }
 
-/// The Go core's host mode (an in-process hostd with the quick-support
-/// policy: every login asks, a temporary password, no pairing, view only)
-/// and its provided-stream screen source, as the extension uses them. This
-/// file is the only place that names those core functions.
+/// The Go core's host mode (internal/mobile/host.go: an in-process hostd
+/// with the quick-support policy: every login asks, temporary password
+/// only, no pairing; view only, since no input injector is set) and its
+/// provided screen (internal/svc/desktop/provided.go), which turns the
+/// H.264 this extension pushes into the desktop wire protocol, so every
+/// client works unchanged. This file is the only one that names those
+/// core functions.
 protocol HostCore: AnyObject {
-    /// Starts the host with the provided stream as its screen.
     func start(events: HostCoreEvents) throws
     func stop()
     func status() -> HostStatus
-    /// Answers login `n` (allowed logins see the screen only).
+    /// Answers request `n`: allowed logins only view.
     func decide(n: Int, allow: Bool)
     /// Ends viewer `id`; 0 ends every viewer.
     func disconnect(viewer id: Int)
-    /// The stream's format: the coded size and the parameter sets (raw NAL
-    /// units without start codes). Called before the first frame and
-    /// whenever the size changes (rotation, a lower resolution step).
-    func setFormat(width: Int, height: Int, sps: Data, pps: Data)
-    /// One access unit in Annex-B (start codes; a keyframe begins with SPS
-    /// and PPS), with its presentation time in microseconds. `data` is
-    /// only valid during the call: the core copies what it keeps.
-    func push(_ data: UnsafeRawBufferPointer, ptsMicros: Int64, keyframe: Bool)
+    /// The upright picture's size before scaling, and the rotation applied to it.
+    func setScreenInfo(width: Int, height: Int, rotation: Int)
+    /// One access unit in Annex-B (a keyframe carries SPS and PPS in
+    /// front); valid only during the call (the core copies it).
+    /// `captureMicros` is the capture time in Unix microseconds.
+    func push(_ data: UnsafeRawBufferPointer, captureMicros: Int64)
 }
 
 enum HostCoreError: LocalizedError {
-    /// The linked core has no host mode yet.
-    case unsupported
     /// The app has not moved its identity into the App Group yet.
     case openAppFirst
     case failed(String)
 
     var code: String {
         switch self {
-        case .unsupported: return "core_unsupported"
         case .openAppFirst: return "open_app"
         case .failed: return "host"
         }
@@ -63,7 +51,6 @@ enum HostCoreError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unsupported: return "the core has no host mode"
         case .openAppFirst: return "the app has not set up the App Group directory"
         case .failed(let s): return s
         }
@@ -71,19 +58,83 @@ enum HostCoreError: LocalizedError {
 }
 
 enum HostCoreFactory {
-    /// The core's host mode. Until the provided-stream source and the
-    /// mobile host-mode API are in the linked core, this is
-    /// UnavailableHostCore and a broadcast ends at once with a message.
-    static func make() -> HostCore { UnavailableHostCore() }
+    static func make() -> HostCore { GoHostCore() }
 }
 
-/// A core without host mode: starting fails with `.unsupported`.
-final class UnavailableHostCore: HostCore {
-    func start(events: HostCoreEvents) throws { throw HostCoreError.unsupported }
-    func stop() {}
-    func status() -> HostStatus { HostStatus() }
-    func decide(n: Int, allow: Bool) {}
-    func disconnect(viewer id: Int) {}
-    func setFormat(width: Int, height: Int, sps: Data, pps: Data) {}
-    func push(_ data: UnsafeRawBufferPointer, ptsMicros: Int64, keyframe: Bool) {}
+/// HostCore on the gomobile-bound core.
+final class GoHostCore: HostCore {
+    private var adapter: Adapter?
+
+    func start(events: HostCoreEvents) throws {
+        let a = Adapter(events)
+        adapter = a
+        RemohopcoreSetScreenSource(a)
+        RemohopcoreSetHostListener(a)
+        var err: NSError?
+        if !RemohopcoreStartHost(&err) {
+            RemohopcoreSetHostListener(nil)
+            RemohopcoreSetScreenSource(nil)
+            adapter = nil
+            throw HostCoreError.failed(err?.localizedDescription ?? "host mode did not start")
+        }
+    }
+
+    func stop() {
+        RemohopcoreStopHost()
+        RemohopcoreSetHostListener(nil)
+        RemohopcoreSetScreenSource(nil)
+        adapter = nil
+    }
+
+    func status() -> HostStatus {
+        var err: NSError?
+        let s = RemohopcoreHostStateJSON(&err)
+        return err == nil ? HostStatus(json: s) : HostStatus()
+    }
+
+    func decide(n: Int, allow: Bool) {
+        var err: NSError?
+        // Never control: iOS lets no app control the device.
+        if !RemohopcoreDecideHostRequest(n, allow, false, &err) {
+            ExtLog.log("request \(n) not answered: \(err?.localizedDescription ?? "?")")
+        }
+    }
+
+    func disconnect(viewer id: Int) {
+        var err: NSError?
+        if !RemohopcoreDisconnectHostSession(id, &err) {
+            ExtLog.log("disconnect \(id) failed: \(err?.localizedDescription ?? "?")")
+        }
+    }
+
+    func setScreenInfo(width: Int, height: Int, rotation: Int) {
+        RemohopcoreSetScreenInfo(width, height, rotation)
+    }
+
+    func push(_ data: UnsafeRawBufferPointer, captureMicros: Int64) {
+        guard let base = data.baseAddress, data.count > 0 else { return }
+        // No copy here: gomobile hands Go the bytes for the call, and the core copies them.
+        let d = NSData(bytesNoCopy: UnsafeMutableRawPointer(mutating: base), length: data.count, freeWhenDone: false)
+        var err: NSError?
+        if !RemohopcorePushScreenFrame(d as Data, captureMicros, &err), let err {
+            ExtLog.log("frame not taken: \(err.localizedDescription)")
+        }
+    }
+
+    /// The core's ScreenSource and HostListener, forwarding to the events.
+    private final class Adapter: NSObject, RemohopcoreScreenSourceProtocol, RemohopcoreHostListenerProtocol {
+        weak var events: HostCoreEvents?
+
+        init(_ events: HostCoreEvents) { self.events = events }
+
+        func startScreen(_ maxSize: Int, fps: Int, bitrate: Int64) throws {
+            events?.coreStartScreen(maxSize: maxSize, fps: fps, bitrate: bitrate)
+        }
+
+        func stopScreen() { events?.coreStopScreen() }
+        func requestKeyframe() { events?.coreWantsKeyframe() }
+        func setBitrate(_ bitrate: Int64) { events?.coreWantsBitrate(bitrate) }
+        func hostChanged(_ state: String?) { events?.coreStateChanged(state ?? "") }
+        func hostRequest(_ request: String?) {} // the next HostChanged lists it too
+    }
 }

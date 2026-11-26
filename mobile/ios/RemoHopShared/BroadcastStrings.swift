@@ -41,10 +41,10 @@ enum BroadcastStrings {
         "Refused in 1 minute if you do not answer.": "1 分钟内不回应将自动拒绝。",
         "Allow (view only)": "允许（仅查看）",
         "Deny": "拒绝",
-        "This version of RemoHop cannot share the screen yet. Update the app.": "此版本的 RemoHop 还不能共享屏幕，请更新应用。",
         "RemoHop could not start sharing. Open RemoHop and try again.": "RemoHop 无法开始共享。请打开 RemoHop 再试一次。",
         "You stopped screen sharing in RemoHop.": "你已在 RemoHop 中停止屏幕共享。",
         "Open RemoHop once, then start sharing again.": "请先打开一次 RemoHop，再重新开始共享。",
+        "Screen sharing stopped because of an error.": "屏幕共享因出错而停止。",
     ]
 
     /// The request category: Allow needs the phone unlocked (someone holding

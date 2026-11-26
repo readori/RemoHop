@@ -52,7 +52,7 @@ struct BroadcastState: Codable, Equatable {
     var password: String = ""
     /// Direct addresses (host:port), shown when there is no ID.
     var addresses: [String] = []
-    /// A short code when phase is failed ("core_unsupported", "init", "host", ...).
+    /// A short code when phase is failed ("host": host mode could not start or stopped).
     var error: String = ""
     var requests: [Request] = []
     var viewers: [Viewer] = []

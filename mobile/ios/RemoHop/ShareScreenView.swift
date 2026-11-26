@@ -99,7 +99,7 @@ struct ShareScreenView: View {
     private func statusText(_ s: BroadcastState, live: Bool) -> String {
         if !b.available { return L("Not available in this build") }
         if live { return s.phase == .ready ? L("Sharing") : L("Starting…") }
-        if s.phase == .failed { return s.error == "core_unsupported" ? L("Not available in this version") : L("Could not start") }
+        if s.phase == .failed { return L("Stopped because of an error") }
         return L("Not sharing")
     }
 
