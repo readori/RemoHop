@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>RemoHop：远程连上你的电脑</title>
 <meta name="description" content="RemoHop 是开源的点对点远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。">
-<link rel="stylesheet" href="/assets/site.css?v=58baeb3f48">
+<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -54,8 +54,8 @@
 <div class="wrap home-hero">
 <div class="hero-text">
 <p class="h-pill"><a href="/docs/desktop-app/"><span class="h-pill-tag">新</span>RemoHop 桌面应用：一个窗口，控制与被控</a></p>
-<h1 id="hero-h"><span class="glow-text">远程连上</span><br>你的每一台电脑</h1>
-<p class="lede">Windows、macOS、Linux 互相远程，也能用浏览器、手机或命令行操作：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，每次有人连接都先问你。</p>
+<h1 id="hero-h"><span class="glow-text">远程连上</span> <span class="h-line">你的每一台电脑</span></h1>
+<p class="lede"><span class="nobr">Windows、macOS、Linux</span> 互相远程，也能用浏览器、手机或命令行操作：看桌面、开终端、传文件、转发端口。两台机器之间直接建立端到端加密的连接，每次有人连接都先问你。</p>
 <div class="actions">
 <a class="btn primary glow" href="/download/">免费下载</a>
 <a class="btn ghost" href="/how-it-works/">看看它怎么工作</a>
@@ -151,8 +151,8 @@
 </figure>
 <ol class="h-steps">
 <li class="reveal"><b>1. 牵线</b><span>两边都连上汇合服务器，按 9 位 ID 找到对方，交换地址。</span></li>
-<li class="reveal"><b>2. 打洞</b><span>同时从两边向对方发包，穿过大多数家用和公司路由器，局域网里直接走内网。</span></li>
-<li class="reveal"><b>3. 直连</b><span>QUIC 加密通道建立后，服务器就退出了；打不通时约 1.5 秒内切到中继。</span></li>
+<li class="reveal"><b>2. 打洞</b><span>同时从两边向对方发包，穿过大多数家用和公司路由器；被控端还会请路由器映射端口，并预测对称型 NAT 的下一个端口。局域网里直接走内网。</span></li>
+<li class="reveal"><b>3. 直连</b><span>QUIC 加密通道建立后，服务器就退出了；打不通时约 1.5 秒内切到中继，之后一旦打通，会话就不中断地挪回直连。</span></li>
 </ol>
 <p class="links reveal"><a href="/how-it-works/">一张图看懂工作原理</a></p>
 </section>
@@ -169,7 +169,7 @@
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 12l3-3 2 2 4-4"/></svg>
 <h3>2K / 4K 高画质</h3>
-<p>Intel、NVIDIA、AMD 显卡直接从 GPU 编码，按显示器物理像素采集，文字锐利，码率随网络自动调整。</p>
+<p>Intel、NVIDIA、AMD 显卡直接从 GPU 编码，按显示器物理像素采集，文字锐利，码率随网络自动调整；可选原始分辨率，多显示器随时切换。</p>
 </article>
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
@@ -177,9 +177,24 @@
 <p>局域网 2K 实测约 60 ms、4K 约 114 ms；关键帧请求无缝切换编码器，锁屏和 UAC 只暂停不断开。</p>
 </article>
 <article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 13l4-4"/><circle cx="12" cy="13" r="1.2"/></svg>
+<h3>最高 144 fps</h3>
+<p>帧率可选 30 到 144 fps，“自动”按显示器的刷新率来（最高 120）。统计面板显示分辨率、码率、延迟，以及近 10 秒的丢帧数。</p>
+</article>
+<article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h9"/><path d="M5 9.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5" stroke-dasharray="2 2.5"/></svg>
 <h3>穿透各种网络</h3>
-<p>P2P 打洞、IPv6、NAT64、UDP 被封时自动改走 WebSocket；换网络、休眠唤醒后自动重连。</p>
+<p>P2P 打洞、路由器端口映射（PCP、NAT-PMP、UPnP）、对称型 NAT 端口预测、IPv6 和 NAT64，UDP 被封时改走 WebSocket。走了中继的会话，打通后自动挪回直连。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/><path d="M1.5 9.5a4 4 0 0 1 2.5-2.5M1.5 13.5a7 7 0 0 1 4-5"/></svg>
+<h3>手机也能被远程</h3>
+<p>Android 手机可以被观看，经你允许还能被控制；<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕，只能观看。允许过的设备断线后，在你设定的时间内重连不必再确认。</p>
+</article>
+<article class="h-feat reveal">
+<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11A8 8 0 0 0 5.7 6.1L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>
+<h3>断线自动恢复</h3>
+<p>换网络、休眠唤醒后自动重连。手机应用的会话一直保持到你断开，被系统结束后再打开也会自动连回来，终端接回原来的 shell。</p>
 </article>
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>
@@ -243,9 +258,9 @@
 </article>
 <article class="panel get reveal">
 <p class="chip">iOS 可以下载</p>
-<h3>手机控制端</h3>
+<h3>手机应用</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
-<p>在手机或平板上连接并操作你的电脑；Android 手机也可以被观看，经你允许后还能被控制。iOS 版已在 App Store 上架，Android 版即将上架 Google Play。</p>
+<p>在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许可被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕。iOS 版已在 App Store 上架，Android 版即将上架 Google Play。</p>
 <p class="links"><a href="/download/#mobile">下载</a><a href="/apps/">移动应用</a></p>
 </article>
 <article class="panel get reveal">
@@ -271,7 +286,7 @@ sh install.sh</code></pre>
 <h2 id="more-h">接着看</h2>
 <ul class="more-list">
 <li><a href="/features/">功能与限制</a><span>常用命令、连接怎么建立、平台支持、已知限制。</span></li>
-<li><a href="/how-it-works/">工作原理</a><span>一张图看懂汇合服务器、P2P 打洞、四种连接路径和端到端加密。</span></li>
+<li><a href="/how-it-works/">工作原理</a><span>一张图看懂汇合服务器、P2P 打洞、各条连接路径的先后顺序和端到端加密。</span></li>
 <li><a href="/security/">安全模型</a><span>保护什么、不保护什么，包括浏览器网关这个例外。</span></li>
 <li><a href="/self-hosting/">自建汇合服务器</a><span>端口、内存、中继，以及对公众提供中继时的限额。</span></li>
 <li><a href="/licensing/">许可证</a><span>AGPL-3.0，另有商业授权。</span></li>
