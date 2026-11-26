@@ -157,8 +157,8 @@
       <h3 data-t="set.theme">Theme</h3>
       <div class="seg" id="set-theme"><button data-theme="" data-t="auto">Auto</button><button data-theme="light" data-t="set.light">Light</button><button data-theme="dark" data-t="set.dark">Dark</button></div>
       <div id="autostart-box">
-        <h3 data-t="set.start">Start</h3>
-        <div class="card row"><div class="grow" data-t="set.autostart">Start RemoHop when I sign in</div><input type="checkbox" class="switch" id="autostart" role="switch"></div>
+        <h3 data-t="set.start">Start automatically</h3>
+        <div class="card row"><div class="grow" data-t="set.autostart">Start RemoHop when the computer starts (in the tray)</div><input type="checkbox" class="switch" id="autostart" role="switch"></div>
       </div>
       <h3 data-t="upd.h">Updates</h3>
       <div class="card">
@@ -169,6 +169,13 @@
       <h3><span data-t="diag.h">Diagnostic logs</span> <button class="info" data-help="h-diag" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
       <p class="help" id="h-diag" hidden data-t="diag.help">A text file with the app's version, the system, its state and its recent log, to send to support when something does not work. Passwords, tokens and keys are removed; IDs, names and addresses stay. It is saved in your Downloads folder and goes nowhere unless you send it.</p>
       <div class="card row"><div class="grow" data-t="diag.label">Save a diagnostic report</div><button class="btn sm tonal" id="diag-export" data-t="diag.export">Export</button></div>
+      <h3 data-t="about.h">About</h3>
+      <div class="card links">
+        <button class="btn block text" data-page="privacy" data-t="about.privacy">Privacy policy</button>
+        <button class="btn block text" data-page="terms" data-t="about.terms">Terms of use</button>
+        <button class="btn block text" data-page="licensing" data-t="about.licensing">Licenses</button>
+        <button class="btn block text" data-page="support" data-t="about.support">Help and support</button>
+      </div>
       <p class="muted small mt" id="about"></p>
     </div>
   </section>

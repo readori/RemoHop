@@ -41,7 +41,7 @@
       'un.sessions': 'Connections', 'un.change': 'Change password', 'un.none': 'Nobody is connected through unattended access.',
       'un.pwdone': 'Password changed', 'un.newpw': 'New password',
       'help.un': 'Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.',
-      'tr.title': 'Remembered devices', 'tr.forget': 'Forget', 'tr.control': 'control', 'tr.files': 'files', 'tr.view': 'view only',
+      'tr.title': 'Remembered devices', 'tr.rename': 'Rename this device', 'about.h': 'About', 'about.privacy': 'Privacy policy', 'about.terms': 'Terms of use', 'about.licensing': 'Licenses', 'about.support': 'Help and support', 'tr.forget': 'Forget', 'tr.control': 'control', 'tr.files': 'files', 'tr.view': 'view only',
       'help.tr': 'These devices connect without asking, with the access you chose, while incoming connections are on.',
       'req.title': '{d} wants to connect', 'req.title.access': '{d} asks for more', 'req.new': 'New device', 'req.known': 'Connected before',
       'req.scam': 'Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.',
@@ -49,7 +49,7 @@
       'req.remember': 'Remember this device', 'req.left': 'Refused in {n} s', 'req.device': 'Device', 'req.key': 'Key', 'req.from': 'From',
       'req.asks': 'Asks to:', 'req.input': 'control the mouse and keyboard', 'req.file': 'transfer files', 'req.clip': 'use the clipboard',
       'req.unknown': 'Unnamed device',
-      'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start', 'set.autostart': 'Start RemoHop when I sign in',
+      'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start automatically', 'set.autostart': 'Start RemoHop when the computer starts (in the tray)',
       'about': 'RemoHop {v} · {e}', 'browser': 'browser window',
       'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
       'upd.how.cmd': 'You have {c}. Upgrade with:', 'upd.how.package': "You have {c}. Upgrade it with your system's package manager.",
@@ -100,7 +100,7 @@
       'un.sessions': '连接', 'un.change': '修改密码', 'un.none': '没有人通过无人值守访问连接。',
       'un.pwdone': '密码已修改', 'un.newpw': '新密码',
       'help.un': '没人在电脑前也能连上，开机即可用，使用你设定的强密码。它作为后台服务运行。',
-      'tr.title': '已记住的设备', 'tr.forget': '移除', 'tr.control': '控制', 'tr.files': '文件', 'tr.view': '仅查看',
+      'tr.title': '已记住的设备', 'tr.rename': '重命名这台设备', 'about.h': '关于', 'about.privacy': '隐私政策', 'about.terms': '使用条款', 'about.licensing': '许可证', 'about.support': '帮助与支持', 'tr.forget': '移除', 'tr.control': '控制', 'tr.files': '文件', 'tr.view': '仅查看',
       'help.tr': '允许连接打开时，这些设备无需询问即可连接，权限为你当时的选择。',
       'req.title': '{d} 请求连接', 'req.title.access': '{d} 请求更多权限', 'req.new': '新设备', 'req.known': '以前连接过',
       'req.scam': '是不是有人打电话自称客服、银行或警察，让你安装这个软件？请拒绝，这是诈骗。',
@@ -108,7 +108,7 @@
       'req.remember': '记住这台设备', 'req.left': '{n} 秒后自动拒绝', 'req.device': '设备', 'req.key': '密钥', 'req.from': '来自',
       'req.asks': '请求：', 'req.input': '控制鼠标和键盘', 'req.file': '传输文件', 'req.clip': '使用剪贴板',
       'req.unknown': '未命名设备',
-      'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '启动', 'set.autostart': '登录时启动 RemoHop',
+      'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '开机自动启动', 'set.autostart': '开机后自动启动 RemoHop（在托盘中运行）',
       'about': 'RemoHop {v} · {e}', 'browser': '浏览器窗口',
       'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
       'upd.how.cmd': '当前是 {c}。用这条命令升级：', 'upd.how.package': '当前是 {c}。请用系统的包管理器升级。',
@@ -474,12 +474,25 @@
       const g = document.createElement('div'); g.className = 'grow';
       const a = document.createElement('div'); a.textContent = d.name || t('req.unknown');
       const b = document.createElement('div'); b.className = 'muted small';
-      const acc = [d.control ? t('tr.control') : '', d.files ? t('tr.files') : ''].filter(Boolean).join(', ') || t('tr.view');
-      b.textContent = acc + ' · ' + shortKey(d.identity);
+      b.textContent = shortKey(d.identity);
       g.append(a, b);
+      // The access it gets next time: the same chips as Connected now.
+      const chips = document.createElement('div'); chips.className = 'chips';
+      const view = document.createElement('span'); view.className = 'chip'; view.setAttribute('aria-pressed', 'true'); view.textContent = t('s.view');
+      chips.append(view);
+      for (const [k, on] of [['control', d.control], ['files', d.files]]) {
+        const c = document.createElement('button'); c.className = 'chip'; c.setAttribute('aria-pressed', String(on)); c.textContent = t('s.' + k);
+        c.addEventListener('click', () => api('edit-device', {identity: d.identity, alias: d.name || '', control: k === 'control' ? !d.control : d.control, files: k === 'files' ? !d.files : d.files}).catch(e => snack(errText(e))));
+        chips.append(c);
+      }
+      const rn = document.createElement('button'); rn.className = 'btn text sm'; rn.textContent = t('p.rename');
+      rn.addEventListener('click', async () => {
+        const v = await ask(t('tr.rename'), t('p.name'), d.name || '');
+        if (v !== null && v.trim()) api('edit-device', {identity: d.identity, alias: v.trim(), control: d.control, files: d.files}).catch(e => snack(errText(e)));
+      });
       const f = document.createElement('button'); f.className = 'btn text sm'; f.textContent = t('tr.forget');
       f.addEventListener('click', () => api('forget-device', {identity: d.identity}).catch(e => snack(errText(e))));
-      r.append(g, f); tr.append(r);
+      r.append(g, chips, rn, f); tr.append(r);
     }
   }
   function fmtDur(s) { const m = Math.floor(s / 60); return m < 60 ? m + ':' + String(s % 60).padStart(2, '0') : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); }
@@ -656,6 +669,7 @@
     try { const r = await api('diagnostics/export'); snack(t('diag.saved', {p: r.path})); }
     catch (e) { snack(errText(e)); } finally { $('diag-export').disabled = false; }
   });
+  for (const b of document.querySelectorAll('[data-page]')) b.addEventListener('click', () => api('open-page', {target: b.dataset.page, lang}).catch(e => snack(errText(e))));
   $('upd-auto').addEventListener('change', ev => api('update/auto', {on: ev.target.checked}).catch(e => snack(errText(e))));
   $('upd-now').addEventListener('click', () => api('update/check').catch(e => snack(errText(e))));
   $('upd-install').addEventListener('click', () => api('update/install').catch(e => snack(errText(e))));
