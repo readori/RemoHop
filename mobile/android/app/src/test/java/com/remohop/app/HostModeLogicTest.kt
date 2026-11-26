@@ -169,8 +169,9 @@ class HostModeLogicTest {
         // Spaces and dashes alone are no password (the core drops them).
         assertEquals(HostPasswordForm.Outcome.Empty, f.check(true, " - ", " - ", wasOwn = false))
         // The core's rule is told in the app's words; anything else as it is.
-        assertTrue(f.isRuleMessage("use at least two of: letters, digits, other characters"))
-        assertTrue(f.isRuleMessage("password too short: need at least 8 characters (not counting spaces and dashes)"))
+        assertTrue(f.isRuleMessage("weak_password: use at least two of: letters, digits, other characters"))
+        assertTrue(f.isRuleMessage("weak_password: password too short: need at least 8 characters (not counting spaces and dashes)"))
+        assertFalse(f.isRuleMessage("password too short"))
         assertFalse(f.isRuleMessage("open /data/host-password: permission denied"))
     }
 

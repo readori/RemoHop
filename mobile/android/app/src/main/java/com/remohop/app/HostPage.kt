@@ -369,8 +369,7 @@ object HostPasswordForm {
     }
 
     /** The core refused the password by its rule (shown in the app's own words then). */
-    fun isRuleMessage(msg: String): Boolean =
-        msg.startsWith("password too short") || msg.contains("at least two of")
+    fun isRuleMessage(msg: String): Boolean = msg.startsWith("weak_password")
 
     private fun normalized(s: String) = s.filterNot { it == '-' || it.isWhitespace() }
 }
