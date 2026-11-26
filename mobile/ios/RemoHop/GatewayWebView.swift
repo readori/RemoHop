@@ -14,6 +14,11 @@ import WebKit
 /// The page shows the app's language ("zh" or "en", see L10n): it is loaded
 /// with ?lang=, and a change of the setting is passed to the running page
 /// (remohopMobile.setLang) without reloading it, so the sessions stay.
+///
+/// The page is never left blank (see PageRecovery): a native cover (the
+/// logo, or "Try again") hides the web view until the page has loaded, and
+/// the page is loaded again when its content process died, a load failed or
+/// never finished, or a check on the return to the foreground finds it dead.
 struct GatewayWebView: UIViewRepresentable {
     let url: URL
     let loadID: UUID
@@ -41,6 +46,13 @@ struct GatewayWebView: UIViewRepresentable {
         private var loaded: (URL, UUID)?
         private var gatewayURL: URL?
         private var lang = "en"
+        private var recovery = PageRecovery()
+        /// A reload is under way after the page was lost (for the log).
+        private var recovering = false
+        /// The probe of the page waiting for its answer, if any, and what gets it.
+        private var pendingProbe: Int?
+        private var probeDone: (@MainActor (Bool) -> Void)?
+        private var probes = 0
 
         init(model: AppModel) { self.model = model }
 
@@ -71,6 +83,9 @@ struct GatewayWebView: UIViewRepresentable {
             #endif
             self.web = web
             model.runOnPage = { [weak web] js in web?.evaluateJavaScript(js, completionHandler: nil) }
+            model.onForeground = { [weak self] up in self?.foreground(gatewayUp: up) }
+            model.onBackground = { [weak self] in self?.background() }
+            model.retryPage = { [weak self] in self?.userRetry() }
             return web
         }
 
@@ -85,7 +100,143 @@ struct GatewayWebView: UIViewRepresentable {
             origin = o
             self.lang = lang
             bridge = Bridge(host: self, origin: o)
+            recovery.retryNow()
+            startLoad()
+        }
+
+        // ---- recovery: the page is never left blank ----
+
+        private var inBackground: Bool { UIApplication.shared.applicationState == .background }
+
+        /// Loads the gateway page, covered until it has finished; a load that
+        /// does not finish in time counts as failed.
+        private func startLoad() {
+            guard let web, let url = gatewayURL else { return }
+            recovery.loadStarted()
+            publishCover()
+            let gen = recovery.generation
             web.load(URLRequest(url: GatewayURLs.withLang(url, lang)))
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(PageRecovery.loadTimeout * 1_000_000_000))
+                guard let self else { return }
+                self.handle(self.recovery.loadTimedOut(generation: gen, inBackground: self.inBackground), "page load timed out")
+            }
+        }
+
+        /// Loads the page again after it was lost: first makes sure the
+        /// gateway answers (its listener may have been closed while the app
+        /// was suspended), unless that was just checked.
+        private func recover(_ reason: String, gatewayUp: Bool = false) {
+            Diag.log(reason)
+            recovering = true
+            publishCover()
+            if gatewayUp { startLoad(); return }
+            model.ensureGateway { [weak self] ok in
+                guard let self else { return }
+                // A new gateway URL is on its way to load(), which loads it.
+                guard self.model.gatewayURL == self.gatewayURL else { return }
+                if ok {
+                    self.startLoad()
+                } else {
+                    self.recovery.loadStarted()
+                    self.handle(self.recovery.loadFailed(inBackground: self.inBackground), "gateway did not answer")
+                }
+            }
+        }
+
+        /// What to do after a failed or timed-out load.
+        private func handle(_ after: PageRecovery.AfterFailure, _ what: String) {
+            switch after {
+            case .ignored:
+                return
+            case .waitForForeground:
+                Diag.log("\(what); reloading on return to the app")
+            case .retry(let seconds):
+                Diag.log("\(what); retry \(recovery.failures) of \(PageRecovery.maxRetries) in \(Int(seconds)) s")
+                let gen = recovery.generation
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                    // In the background the page stays dead: the return to the foreground reloads it.
+                    guard let self, self.recovery.retryDue(generation: gen), !self.inBackground else { return }
+                    self.recover("page load retry")
+                }
+            case .giveUp:
+                recovering = false
+                Diag.log("\(what); showing Try again")
+            }
+            publishCover()
+        }
+
+        /// Back in the foreground, after the gateway check (`gatewayUp`): a
+        /// dead page is loaded again, a shown one is asked whether it is alive.
+        private func foreground(gatewayUp: Bool) {
+            // A new gateway URL is on its way to load(), which loads it.
+            guard model.gatewayURL == gatewayURL else { return }
+            switch recovery.foregroundAction() {
+            case .nothing:
+                return
+            case .reload:
+                let failed = recovery.phase == .failed
+                recovery.retryNow()
+                recover(failed ? "foreground check: page failed to load, reloading" : "foreground check: page dead, reloading",
+                        gatewayUp: gatewayUp)
+            case .probe:
+                guard gatewayUp else {
+                    recovery.probeFailed(generation: recovery.generation)
+                    recover("foreground check: gateway did not answer, reloading")
+                    return
+                }
+                let gen = recovery.generation
+                probe { [weak self] alive in
+                    guard let self, !alive, self.recovery.probeFailed(generation: gen) else { return }
+                    self.recover("foreground check: page dead, reloading", gatewayUp: true)
+                }
+            }
+        }
+
+        private func background() {
+            recovery.enteredBackground()
+            publishCover()
+        }
+
+        /// "Try again" on the cover.
+        private func userRetry() {
+            recovery.retryNow()
+            recover("page reload requested (Try again)")
+        }
+
+        /// Asks the page whether it is alive; no answer in time counts as dead.
+        private func probe(_ done: @escaping @MainActor (Bool) -> Void) {
+            guard let web, let origin else { done(false); return }
+            probes += 1
+            let id = probes
+            pendingProbe = id
+            probeDone = done
+            web.evaluateJavaScript(PageRecovery.probeScript) { [weak self] result, _ in
+                self?.probeAnswered(id, alive: PageRecovery.probeOK(result as? String, origin: origin))
+            }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(PageRecovery.probeTimeout * 1_000_000_000))
+                self?.probeAnswered(id, alive: false)
+            }
+        }
+
+        /// The first answer to probe `id` (the page's, or the timeout's) counts.
+        private func probeAnswered(_ id: Int, alive: Bool) {
+            guard pendingProbe == id, let done = probeDone else { return }
+            pendingProbe = nil
+            probeDone = nil
+            done(alive)
+        }
+
+        /// Shows the recovery state on the native cover, outside the view
+        /// update that may have started a load.
+        private func publishCover() {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let cover = PageCover(self.recovery.phase)
+                if self.model.pageCover != cover { self.model.pageCover = cover }
+            }
         }
 
         /// Tells the loaded page about a new language.
@@ -136,13 +287,45 @@ struct GatewayWebView: UIViewRepresentable {
             decisionHandler(.allow)
         }
 
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            if recovering { Diag.log("page loaded again") }
+            recovering = false
+            recovery.loadFinished()
+            publishCover()
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            navigationFailed(error)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            navigationFailed(error)
+        }
+
+        /// The main frame did not load (only its errors come here): load it
+        /// again a few times, then show "Try again". The error's text is not
+        /// logged (it may name the URL).
+        private func navigationFailed(_ error: Error) {
+            let e = error as NSError
+            guard PageRecovery.isRealFailure(domain: e.domain, code: e.code) else { return }
+            handle(recovery.loadFailed(inBackground: inBackground), "page load failed (\(e.domain) \(e.code))")
+        }
+
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
             Diag.log("web content process terminated")
             // The page that asked for full screen and a screen kept on is
             // gone; the reloaded one starts in the normal layout.
             setState(keepScreenOn: false, fullscreen: false)
-            // The content process was killed (memory): load the page again.
-            if let url = gatewayURL { webView.load(URLRequest(url: GatewayURLs.withLang(url, lang))) }
+            // The content process was killed (memory, often while the app
+            // was suspended): load the page again now, or when the app is
+            // back in front. A load started in the background may never
+            // finish, and the gateway's listener is closed until then.
+            if recovery.processTerminated(inBackground: inBackground) {
+                recover("page reloaded after termination")
+            } else {
+                Diag.log("page will reload on return to the app")
+                publishCover()
+            }
         }
 
         @available(iOS 15.0, *)

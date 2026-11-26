@@ -27,6 +27,8 @@
 		5D0E5D0E0000000000000043 /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000042 /* Diagnostics.swift */; };
 		5D0E5D0E0000000000000045 /* AppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000044 /* AppInfo.swift */; };
 		5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000046 /* AppInfoTests.swift */; };
+		5D0E5D0E0000000000000049 /* PageRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000048 /* PageRecovery.swift */; };
+		5D0E5D0E000000000000004B /* PageRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000004A /* PageRecoveryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +66,8 @@
 		5D0E5D0E0000000000000042 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000044 /* AppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfo.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000046 /* AppInfoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfoTests.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000048 /* PageRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageRecovery.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000004A /* PageRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageRecoveryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +97,7 @@
 				5D0E5D0E0000000000000003 /* GatewayWebView.swift */,
 				5D0E5D0E0000000000000004 /* Bridge.swift */,
 				5D0E5D0E0000000000000005 /* GatewayURLs.swift */,
+				5D0E5D0E0000000000000048 /* PageRecovery.swift */,
 				5D0E5D0E0000000000000006 /* Core.swift */,
 				5D0E5D0E0000000000000007 /* SettingsView.swift */,
 				5D0E5D0E0000000000000008 /* DownloadSaver.swift */,
@@ -114,6 +119,7 @@
 				5D0E5D0E000000000000000C /* BridgeTests.swift */,
 				5D0E5D0E0000000000000038 /* GatewayE2ETests.swift */,
 				5D0E5D0E0000000000000046 /* AppInfoTests.swift */,
+				5D0E5D0E000000000000004A /* PageRecoveryTests.swift */,
 			);
 			path = RemoHopTests;
 			sourceTree = "<group>";
@@ -261,6 +267,7 @@
 				5D0E5D0E0000000000000013 /* GatewayWebView.swift in Sources */,
 				5D0E5D0E0000000000000014 /* Bridge.swift in Sources */,
 				5D0E5D0E0000000000000015 /* GatewayURLs.swift in Sources */,
+				5D0E5D0E0000000000000049 /* PageRecovery.swift in Sources */,
 				5D0E5D0E0000000000000016 /* Core.swift in Sources */,
 				5D0E5D0E0000000000000017 /* SettingsView.swift in Sources */,
 				5D0E5D0E0000000000000018 /* DownloadSaver.swift in Sources */,
@@ -279,6 +286,7 @@
 				5D0E5D0E000000000000001A /* BridgeTests.swift in Sources */,
 				5D0E5D0E0000000000000039 /* GatewayE2ETests.swift in Sources */,
 				5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */,
+				5D0E5D0E000000000000004B /* PageRecoveryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -107,6 +107,8 @@ enum L10n {
         // ContentView
         "RemoHop could not start: %@": "RemoHop 无法启动：%@",
         "Try again": "重试",
+        "The remote-control page could not be loaded.": "远程控制页面无法加载。",
+        "Loading": "正在加载",
         // SettingsView
         "Settings": "设置",
         "Done": "完成",
