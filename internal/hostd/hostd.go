@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -139,7 +140,7 @@ type Host struct {
 	wsSock   *nat.Socket
 	wsLn     *quic.Listener
 	auth     *auth.Server
-	fixed    string // fixed password given for this run, normalised
+	fixed    atomic.Pointer[string] // fixed password given for this run (SetFixedPassword), normalised; nil or "" for none
 	policies policyCache
 	audit    *auditLog
 
@@ -274,10 +275,11 @@ func New(cfg Config) (*Host, error) {
 	}
 	h.audit = &auditLog{path: filepath.Join(dir, AuditFile)}
 	if cfg.Password != "" {
-		h.fixed = auth.NormalizePassword(cfg.Password)
-		if err := auth.CheckPassword(h.fixed); err != nil {
+		fixed := auth.NormalizePassword(cfg.Password)
+		if err := auth.CheckPassword(fixed); err != nil {
 			return nil, err
 		}
+		h.fixed.Store(&fixed)
 	}
 	if h.temp, err = auth.GeneratePassword(); err != nil {
 		return nil, err
@@ -359,10 +361,26 @@ func (h *Host) Registered() <-chan struct{} { return h.registered }
 // fixedPassword is the fixed password in force: the one given for this run,
 // else the one in the config file.
 func (h *Host) fixedPassword() string {
-	if h.fixed != "" {
-		return h.fixed
+	if p := h.fixed.Load(); p != nil && *p != "" {
+		return *p
 	}
 	return h.policy().fixed
+}
+
+// SetFixedPassword changes the password given for this run (Config.Password)
+// while the host runs: the owner chose their own password in a front end, or
+// went back to the temporary one (""). Sessions already open stay; logins
+// from now on need the new password.
+func (h *Host) SetFixedPassword(pw string) error {
+	pw = auth.NormalizePassword(pw)
+	if pw != "" {
+		if err := auth.CheckPassword(pw); err != nil {
+			return err
+		}
+	}
+	h.fixed.Store(&pw)
+	h.notify()
+	return nil
 }
 
 // passwords returns the password(s) accepted right now. The temporary

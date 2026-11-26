@@ -55,6 +55,11 @@ type Settings struct {
 	UpdateCheck *bool `json:"update_check,omitempty"`
 	// SkipVersion is a release the user chose not to be told about again.
 	SkipVersion string `json:"skip_version,omitempty"`
+	// OwnPassword is the password the user chose for incoming connections
+	// instead of a new temporary one at every start (as typed; every
+	// connection still asks). Not the command line's host-password, which
+	// the app's host ignores, and not unattended access's.
+	OwnPassword string `json:"own_password,omitempty"`
 }
 
 // TrustedDevice is a remembered device.

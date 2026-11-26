@@ -697,3 +697,41 @@ func TestPairingFromKeyGoesWithKey(t *testing.T) {
 		t.Fatalf("entries left after revoking the key: %+v", toks)
 	}
 }
+
+// A front end's own fixed password (SetFixedPassword): it replaces the
+// temporary one while the host runs, and "" brings the temporary one back.
+// The config file's fixed password stays ignored with TempPasswordOnly.
+func TestSetFixedPassword(t *testing.T) {
+	h, _ := ownedHost(t, hostd.Config{Overrides: &hostd.Overrides{TempPasswordOnly: true}})
+	login := func(pw string) error {
+		conn, err := dialHost(t, h, pw)
+		if err == nil {
+			conn.Close()
+		}
+		return err
+	}
+	temp := h.Password()
+	if err := h.SetFixedPassword("short"); err == nil {
+		t.Fatal("a short password was accepted")
+	}
+	if err := h.SetFixedPassword("Garden-42-Ok"); err != nil {
+		t.Fatal(err)
+	}
+	if h.PasswordMode() != "fixed" || login("Garden-42-Ok") != nil {
+		t.Fatalf("fixed: mode %s", h.PasswordMode())
+	}
+	if login(temp) == nil {
+		t.Fatal("the temporary password still logs in next to the owner's own")
+	}
+	if err := h.SetFixedPassword(""); err != nil {
+		t.Fatal(err)
+	}
+	if h.PasswordMode() != "temporary" || login(h.Password()) != nil || login("Garden-42-Ok") == nil {
+		t.Fatalf("back to temporary: mode %s", h.PasswordMode())
+	}
+	for pw, ok := range map[string]bool{"abcdefgh": false, "12345678": false, "abcd1234": true, "Garden-42-Ok": true, "short1": false, "pass word!": true} {
+		if err := hostd.CheckOwnPassword(pw); (err == nil) != ok {
+			t.Errorf("CheckOwnPassword(%q) = %v", pw, err)
+		}
+	}
+}

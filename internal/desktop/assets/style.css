@@ -158,7 +158,7 @@ button.chip { cursor: pointer; }
 .cred { padding: 10px 12px; border-radius: 6px; background: var(--surface-3); min-width: 0; }
 .cred .v { font: 600 24px/32px var(--mono); letter-spacing: .02em; margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all; }
 .cred .v.pending { font: 400 14px/20px inherit; color: var(--on-surface-variant); user-select: none; }
-.cred .acts { display: flex; gap: 2px; margin-left: -8px; }
+.cred .acts { display: flex; flex-wrap: wrap; gap: 2px; margin-left: -8px; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 600; }
 .status .d { width: 8px; height: 8px; border-radius: 50%; background: var(--outline); }
 .status.ok { color: var(--ok); } .status.ok .d { background: var(--ok); }

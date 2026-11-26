@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -308,5 +310,43 @@ func TestInDir(t *testing.T) {
 		if inDir(dir, p) != want {
 			t.Errorf("inDir(%q) = %v", p, !want)
 		}
+	}
+}
+
+// The user's own password for incoming connections: refused when weak,
+// used at once by the running host and after a restart, shown in the
+// state as "fixed"; "" goes back to a temporary password.
+func TestOwnPassword(t *testing.T) {
+	a, _ := startApp(t, "")
+	if err := a.SetIncoming(true); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the host", func() bool { return a.State().Incoming.Password != "" })
+	if in := a.State().Incoming; in.PasswordMode != "temporary" {
+		t.Fatalf("mode %q", in.PasswordMode)
+	}
+	if e, ok := errors.AsType[*localui.Error](a.SetOwnPassword("password")); !ok || e.Code != "weak_own_password" {
+		t.Fatalf("a weak password: %v", e)
+	}
+	if err := a.SetOwnPassword("Garden-42-Ok"); err != nil {
+		t.Fatal(err)
+	}
+	h, _ := a.running()
+	if in := a.State().Incoming; in.PasswordMode != "fixed" || in.Password != "Garden-42-Ok" || h.PasswordMode() != "fixed" {
+		t.Fatalf("after setting: %+v, host %s", in, h.PasswordMode())
+	}
+	// A new run of the app's host keeps it.
+	a.SetIncoming(false)
+	a.SetIncoming(true)
+	waitFor(t, "the host again", func() bool { h, err := a.running(); return err == nil && h.PasswordMode() == "fixed" })
+	if b, _ := os.ReadFile(filepath.Join(a.dir, settingsFile)); !strings.Contains(string(b), "own_password") {
+		t.Fatal("not saved")
+	}
+	if err := a.SetOwnPassword(""); err != nil {
+		t.Fatal(err)
+	}
+	h, _ = a.running()
+	if in := a.State().Incoming; in.PasswordMode != "temporary" || h.PasswordMode() != "temporary" || in.Password == "" {
+		t.Fatalf("back to temporary: %+v", in)
 	}
 }
