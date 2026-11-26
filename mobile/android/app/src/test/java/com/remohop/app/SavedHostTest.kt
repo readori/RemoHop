@@ -23,6 +23,16 @@ class SavedHostTest {
         assertEquals(0L, SavedHost.parseTime("yesterday"))
     }
 
+    /** A host that does not pair, with its password saved: ready like a paired host. */
+    @Test fun savedPasswordHost() {
+        val h = SavedHost.of(JSONObject("""{"target":"10.0.0.3:21118","login":"saved_password","presence":"not_checked"}"""))
+        assertEquals(SavedHost.Kind.SAVED_PASSWORD, h.kind)
+        assertTrue(h.ready)
+        assertTrue(SavedHost.of(JSONObject("""{"target":"x:1","login":"pairing"}""")).ready)
+        assertTrue(SavedHost.of(JSONObject("""{"target":"x:1","login":"key"}""")).ready)
+        assertFalse(SavedHost.of(JSONObject("""{"target":"x:1","login":"password"}""")).ready)
+    }
+
     @Test fun rendezvousKeyOffer() {
         val ok = RendezvousCheck.parse(JSONObject("""{"ok":true,"code":"ok","server":"s:21116","key":"AAAA"}"""))
         assertEquals(RendezvousStatus.OK, ok.status)

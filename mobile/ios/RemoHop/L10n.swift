@@ -298,6 +298,19 @@ enum L10n {
         "Without the key, this device trusts whichever server answers at this address the first time it connects (trust on first use). Paste the key your server's administrator gave you, or use the one this server presented after comparing it.": "没有密钥时，本设备第一次连接会信任在这个地址上应答的服务器（首次使用即信任）。请粘贴服务器管理员给你的密钥，或在核对后使用这台服务器提供的密钥。",
         "Use this key": "使用此密钥",
         "Privacy questions": "隐私问题",
+        // Saved password (a host that does not pair)
+        "Password saved · connects without a password": "已保存密码 · 免密码连接",
+        "Password saved: connects without typing a password": "已保存密码：连接时无需输入密码",
+        "Saved password": "保存的密码",
+        "Show password": "显示密码",
+        "Hide password": "隐藏密码",
+        "Delete saved password": "删除保存的密码",
+        "Delete the saved password?": "删除保存的密码？",
+        "%@ stays in Saved hosts. To connect to it again you will need its password.": "%@ 仍会保留在已保存的被控端中。以后连接它时需要再次输入密码。",
+        "The saved password could not be read.": "无法读取保存的密码。",
+        "The saved password could not be deleted.": "无法删除保存的密码。",
+        "This computer does not pair, so when you chose to remember it, RemoHop saved the password you typed. It stays on this device only and is used when you connect. Delete it and the computer needs its password again.":
+            "这台电脑不接受配对，所以你选择记住它时，RemoHop 保存了你输入的密码。密码只保存在本设备上，连接时自动使用。删除后，连接这台电脑需要再次输入密码。",
     ]
 
     /// The English keys of the settings screens, for the test that each has
@@ -414,6 +427,17 @@ enum L10n {
         "Downloading %@ · %d%%",
         "Download canceled.",
         "Another download is still running. Wait for it, or cancel it.",
+        "Password saved · connects without a password",
+        "Password saved: connects without typing a password",
+        "Saved password",
+        "Show password",
+        "Hide password",
+        "Delete saved password",
+        "Delete the saved password?",
+        "%@ stays in Saved hosts. To connect to it again you will need its password.",
+        "The saved password could not be read.",
+        "The saved password could not be deleted.",
+        "This computer does not pair, so when you chose to remember it, RemoHop saved the password you typed. It stays on this device only and is used when you connect. Delete it and the computer needs its password again.",
     ]
 }
 

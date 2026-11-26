@@ -80,6 +80,8 @@ class SettingsActivity : AppCompatActivity() {
     /** The key the saved server presented in the last check (offered when none is saved). */
     private var rendezvousKey = ""
     private var diagFormat = "txt"
+    /** Masks a saved password the host page shows (set while that page is built, cleared by [show]). */
+    private var hidePassword: (() -> Unit)? = null
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(Lang.wrap(newBase))
@@ -152,6 +154,11 @@ class SettingsActivity : AppCompatActivity() {
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
         out.putStringArrayList(STATE_STACK, stack)
+    }
+
+    override fun onStop() {
+        hidePassword?.invoke() // a shown saved password is masked again when the screen is left
+        super.onStop()
     }
 
     override fun onDestroy() {
@@ -243,6 +250,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun show() {
         info = null
+        hidePassword = null
         // What the user typed into the page being built again (the settings
         // were read, a save finished, the activity was recreated) stays.
         val page = stack.lastOrNull()
@@ -571,6 +579,7 @@ class SettingsActivity : AppCompatActivity() {
         "pairing" -> getString(R.string.login_pairing)
         "key" -> getString(R.string.login_key)
         "password" -> getString(R.string.login_password)
+        "saved_password" -> getString(R.string.login_saved_password)
         else -> l
     }
 
@@ -579,18 +588,20 @@ class SettingsActivity : AppCompatActivity() {
     private fun kindSub(h: SavedHost) = getString(when (h.kind) {
         SavedHost.Kind.PAIRED -> R.string.host_paired_sub
         SavedHost.Kind.KEY -> R.string.host_key_sub
+        SavedHost.Kind.SAVED_PASSWORD -> R.string.host_savedpw_sub
         SavedHost.Kind.RECENT -> R.string.host_recent_sub
     })
 
-    /** The host's login as a badge: paired or key (no password), or needs the password. */
+    /** The host's login as a badge: paired, key or saved password (no password to type), or needs the password. */
     private fun kindBadge(h: SavedHost) = when (h.kind) {
         SavedHost.Kind.PAIRED -> ui.badge(getString(R.string.badge_paired), SettingsUi.Tone.PRIMARY)
         SavedHost.Kind.KEY -> ui.badge(getString(R.string.badge_key), SettingsUi.Tone.PRIMARY)
+        SavedHost.Kind.SAVED_PASSWORD -> ui.badge(getString(R.string.badge_saved_password), SettingsUi.Tone.PRIMARY)
         SavedHost.Kind.RECENT -> ui.badge(getString(R.string.badge_needs_password), SettingsUi.Tone.NEUTRAL)
     }
 
-    /** Paired and key hosts in the primary role, the others neutral. */
-    private fun hostTone(h: SavedHost) = if (h.kind == SavedHost.Kind.RECENT) SettingsUi.Tone.NEUTRAL else SettingsUi.Tone.PRIMARY
+    /** Hosts that connect without a typed password in the primary role, the others neutral. */
+    private fun hostTone(h: SavedHost) = if (h.ready) SettingsUi.Tone.PRIMARY else SettingsUi.Tone.NEUTRAL
 
     /** "5 min. ago", "3 days ago" in the app's language (not the system's); a date after a week. */
     private fun lastSeen(h: SavedHost): String {
@@ -661,7 +672,8 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
         pageTitle(h.label)
-        info = h.label to listOf(getString(R.string.pair_alias) to getString(R.string.info_host_name),
+        info = h.label to listOfNotNull(getString(R.string.pair_alias) to getString(R.string.info_host_name),
+            (getString(R.string.savedpw_heading) to getString(R.string.info_host_savedpw)).takeIf { h.kind == SavedHost.Kind.SAVED_PASSWORD },
             getString(R.string.host_forget) to getString(R.string.info_host_forget))
         // Who it is at a glance, and the main action: Connect.
         val badges = listOfNotNull(kindBadge(h), h.presence.takeIf { it == "online" || it == "offline" }?.let {
@@ -712,6 +724,7 @@ class SettingsActivity : AppCompatActivity() {
         ui.row(d, getString(R.string.host_status), summary = getString(when (h.kind) {
             SavedHost.Kind.PAIRED -> R.string.host_status_paired
             SavedHost.Kind.KEY -> R.string.host_status_key
+            SavedHost.Kind.SAVED_PASSWORD -> R.string.host_status_savedpw
             SavedHost.Kind.RECENT -> R.string.host_status_recent
         }), icon = R.drawable.ic_s_key)
         if (h.lastSeen > 0) {
@@ -722,8 +735,95 @@ class SettingsActivity : AppCompatActivity() {
         if (h.presence.isNotEmpty() && h.presence !in setOf("not_checked", "online", "offline")) {
             ui.row(d, getString(R.string.host_online), summary = presence(h.presence), icon = R.drawable.ic_s_network)
         }
+        if (h.kind == SavedHost.Kind.SAVED_PASSWORD) savedPassword(col, h)
         val a = ui.section(col, null)
         ui.row(a, getString(R.string.host_forget), icon = R.drawable.ic_delete, danger = true) { forget(target, h.label) }
+    }
+
+    /**
+     * The password saved for a host that does not pair: masked, with an eye
+     * to show it (monospaced) and hide it again, Copy, and Delete. It is read
+     * from the core only on a tap, lives only in this page's views, is
+     * hidden again when the app leaves the screen ([hidePassword]) and is
+     * never logged.
+     */
+    private fun savedPassword(col: LinearLayout, h: SavedHost) {
+        val s = ui.section(col, getString(R.string.savedpw_heading))
+        val eye = android.widget.ImageButton(this).apply {
+            setImageResource(R.drawable.ic_eye)
+            imageTintList = android.content.res.ColorStateList.valueOf(ui.color(M.attr.colorOnSurfaceVariant))
+            val ripple = android.util.TypedValue()
+            theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true)
+            setBackgroundResource(ripple.resourceId)
+            contentDescription = getString(R.string.savedpw_show)
+            minimumWidth = ui.dp(48)
+            minimumHeight = ui.dp(48)
+        }
+        val row = ui.row(s, MASKED_PASSWORD, icon = R.drawable.ic_s_key, trailing = eye)
+        var shown = false
+        val hide = {
+            shown = false
+            row.title.text = MASKED_PASSWORD
+            row.title.contentDescription = getString(R.string.savedpw_heading)
+            row.title.typeface = android.graphics.Typeface.DEFAULT
+            row.title.setTextIsSelectable(false)
+            eye.setImageResource(R.drawable.ic_eye)
+            eye.contentDescription = getString(R.string.savedpw_show)
+        }
+        hide()
+        hidePassword = hide
+        eye.setOnClickListener {
+            if (shown) { hide(); return@setOnClickListener }
+            readSavedPassword(h.target) { pw ->
+                if (hidePassword !== hide) return@readSavedPassword // the page was built again meanwhile
+                shown = true
+                row.title.text = pw
+                row.title.contentDescription = null
+                row.title.typeface = android.graphics.Typeface.MONOSPACE
+                row.title.setTextIsSelectable(true)
+                eye.setImageResource(R.drawable.ic_eye_off)
+                eye.contentDescription = getString(R.string.savedpw_hide)
+            }
+        }
+        ui.row(s, getString(R.string.savedpw_copy), icon = R.drawable.ic_copy) {
+            readSavedPassword(h.target) { pw ->
+                val clip = ClipData.newPlainText(getString(R.string.savedpw_heading), pw)
+                // Android 13+ keeps it out of the clipboard preview.
+                clip.description.extras = android.os.PersistableBundle().apply { putBoolean(EXTRA_IS_SENSITIVE, true) }
+                getSystemService(ClipboardManager::class.java)?.setPrimaryClip(clip)
+                if (Build.VERSION.SDK_INT < 33) snack(R.string.copied)
+            }
+        }
+        ui.row(s, getString(R.string.savedpw_delete), icon = R.drawable.ic_delete, danger = true) { forgetSavedPassword(h.target, h.label) }
+    }
+
+    /** Reads the saved password off the UI thread; [use] gets it while this page is still shown. */
+    private fun readSavedPassword(target: String, use: (String) -> Unit) = bg.execute {
+        val pw = runCatching { Remohopcore.savedPassword(target) }
+        ui {
+            if (stack.lastOrNull() != PAGE_HOST + target) return@ui
+            pw.onSuccess(use).onFailure { Diag.log("saved password not read"); snack(R.string.savedpw_read_failed) }
+        }
+    }
+
+    private fun forgetSavedPassword(target: String, label: String) {
+        val d = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.savedpw_delete_title)
+            .setMessage(getString(R.string.savedpw_delete_msg, label))
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.savedpw_delete_button) { _, _ ->
+                bg.execute {
+                    val ok = runCatching { Remohopcore.forgetSavedPassword(target) }.isSuccess
+                    ui {
+                        Diag.log(if (ok) "saved password deleted" else "saved password not deleted")
+                        snack(if (ok) R.string.savedpw_deleted else R.string.savedpw_delete_failed)
+                        PendingPage.peersChanged()
+                        refreshHosts(false)
+                    }
+                }
+            }.show()
+        // Destructive: the confirming text button in the error colour (M3).
+        d.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.setTextColor(ui.color(M.attr.colorError))
     }
 
     private fun forget(target: String, label: String) {
@@ -949,6 +1049,9 @@ class SettingsActivity : AppCompatActivity() {
         private const val STATE_STACK = "pages"
         private const val MENU_INFO = 1
         private const val MENU_REFRESH = 2
+        private const val MASKED_PASSWORD = "••••••••"
+        /** ClipDescription.EXTRA_IS_SENSITIVE (Android 13+; older versions ignore it). */
+        private const val EXTRA_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE"
         const val PAGE_RENDEZVOUS = "rendezvous"
         const val PAGE_NAME = "deviceName"
         const val PAGE_IDENTITY = "identity"
