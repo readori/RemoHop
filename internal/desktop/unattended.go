@@ -382,7 +382,8 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		// once ("no rendezvous server configured") and Windows restarts it
 		// over and over.
 		logFrom := fileSize(filepath.Join(dir, "service.log")) // an earlier attempt's lines are not this one's
-		if err := runService(ctx, append([]string{"install", "--unattended"}, serviceSignalArgs()...)...); err != nil {
+		sigArgs := serviceSignalArgs()
+		if err := runService(ctx, append([]string{"install", "--unattended"}, sigArgs...)...); err != nil {
 			return err
 		}
 		// The service's own settings: point this process at them.
@@ -392,7 +393,7 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		if err := config.Set(hostd.SettingPassword, strings.TrimSpace(string(pw))); err != nil {
 			return err
 		}
-		id, err := waitServiceID(ctx, dir, logFrom, 30*time.Second)
+		id, err := waitServiceID(ctx, dir, logFrom, sigArgs[0] == "--no-signal", 30*time.Second)
 		if err != nil {
 			// A service that cannot run must not stay behind, restarting.
 			runService(ctx, "uninstall")
@@ -430,10 +431,12 @@ func serviceSignalArgs() []string {
 // returns its ID. A service that registers late (a slow network) is not a
 // failure: "" and no error, the ID shows later. A service whose host
 // stopped is: the error is the host's last complaint from its log.
-func waitServiceID(ctx context.Context, dir string, logFrom int64, wait time.Duration) (string, error) {
+// Without a rendezvous server (noID) there is no ID to wait for: the host
+// being up is enough.
+func waitServiceID(ctx context.Context, dir string, logFrom int64, noID bool, wait time.Duration) (string, error) {
 	deadline := time.Now().Add(wait)
 	for {
-		if st, _ := hostd.ReadStatus(dir); st != nil && st.ID != "" {
+		if st, _ := hostd.ReadStatus(dir); st != nil && (st.ID != "" || noID) {
 			return st.ID, nil
 		}
 		if why := hostFailure(dir, logFrom); why != "" {
