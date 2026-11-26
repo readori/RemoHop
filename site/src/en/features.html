@@ -59,7 +59,7 @@ Linux x86_64
 <h3>Not a fit yet</h3>
 <ul>
 <li>You want a graphical installer that works after one download. Today there is a command line<!--norel--><!--src--> that you compile until the first release is out<!--/src--><!--nosrc-->, and it is not released yet<!--/nosrc--><!--/norel--><!--rel--> and the quick-support window, without an installer<!--/rel-->.</li>
-<li>You want to control a phone or tablet. The mobile apps are controllers; a phone cannot be a host.</li>
+<li>You want to control an iPhone or iPad. iOS devices cannot be hosts yet (Android phones can).</li>
 <li>You need a product with a third-party audit. RemoHop has not had one.</li>
 <li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
 </ul>
@@ -298,6 +298,6 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 <li>Serial ports were verified with pseudo-terminals and picocom, not a real UART. USB/IP was verified with the real kernel on a hosted runner, not on physical USB hardware.</li>
 <li>The phone apps are coming to the App Store and Google Play (submitted for review); until then they are built from source.</li>
 <li>Shell sessions do not survive a restart of the host.</li>
-<li>Using a mobile device as a host is not implemented.</li>
+<li>An Android phone can be a host; an iPhone or iPad cannot yet. Screen capture and control on a real Android phone are not tested yet.</li>
 </ul>
 <p>This list follows the <a href="{{L:docs/platforms}}">platform support and limitations</a> page of the documentation, which is the authoritative version. If something goes wrong, see <a href="{{L:support}}">Support</a>.</p>

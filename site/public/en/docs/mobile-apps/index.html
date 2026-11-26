@@ -52,9 +52,9 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/en/docs/#more">Docs</a></p>
 <h1 id="mobile-apps">Mobile apps</h1>
-<p>The repository has two mobile apps: <code>mobile/android</code> and <code>mobile/ios</code>. Both are <strong>controllers</strong>: a native shell plus a WebView that shows an in-process <code>remohop web</code> gateway (the Go core is bound with gomobile).</p>
+<p>The repository has two mobile apps: <code>mobile/android</code> and <code>mobile/ios</code>. Both are <strong>controllers</strong>: a native shell plus a WebView that shows an in-process <code>remohop web</code> gateway (the Go core is bound with gomobile). The Android app can also let the phone itself be viewed and, if you allow it, controlled from another RemoHop device: see <a href="#this-phone-as-a-host-android">This phone as a host</a>.</p>
 <ul>
-<li>Controller only. Running an Android or iOS device as a controlled host is not implemented.</li>
+<li>On iOS the app is a controller only for now: an iPhone or iPad cannot be viewed or controlled yet.</li>
 <li>Get the iOS app from the <a href="https://apps.apple.com/app/id6838609056">App Store</a>. The Android app has been submitted to Google Play for review; until it is approved, build it yourself.</li>
 <li>Android: run <code>mobile/android/build.sh</code> (needs Go, JDK 17+, the Android SDK and an NDK, with <code>ANDROID_HOME</code> set). By default it builds a debug APK and runs the JVM unit tests.</li>
 <li>iOS: on macOS, run <code>mobile/ios/build-xcframework.sh</code> to produce <code>Remohopcore.xcframework</code>, then build <code>mobile/ios/RemoHop.xcodeproj</code> in Xcode.</li>
@@ -65,6 +65,16 @@
 <li>A rendezvous server address that turns out to be a RemoHop host is reported as such (code <code>signal_is_host</code>): connect to the host by that address instead.</li>
 <li>The mobile apps do not support account login yet.</li>
 <li>Language: English or Simplified Chinese, for the native screens and the page alike. The default follows the system (Chinese for any Chinese system language, otherwise English); Settings → Language switches it at once, without dropping the sessions. On Android 13 and later the system's per-app language setting is the same choice.</li>
+</ul>
+<h2 id="this-phone-as-a-host-android">This phone as a host (Android)</h2>
+<p>Settings → This device → <strong>Allow remote connection</strong> lets other RemoHop devices (the desktop app, the browser console, <code>remohop &lt;ID&gt; desktop</code>, another phone) connect to the phone. The page shows the phone's ID (or, without a rendezvous server, its address on the local network), the temporary password with Copy and New password, the status and who is connected. The explanations are behind the page's ⓘ button.</p>
+<ul>
+<li>Every request asks you on the phone, with a dialog (or a notification when the app is in the background) that shows the device's name, key fingerprint and address, whether it is new, and the scam warning. Nobody answering within 60 seconds means no.</li>
+<li>A device you allow sees the screen. It can also control the phone only if you tick <strong>Control</strong>, which needs RemoHop's accessibility service: the app explains what the service does before it opens the system's accessibility settings, and you can switch it off there at any time. Without it, sessions are view-only.</li>
+<li>Only the temporary password works, no pairing is issued, and nothing but the screen (and basic system information) is offered: no files, clipboard or terminal.</li>
+<li>Android asks before your screen is shared, for every sharing. While someone is connected, a notification says who views or controls the phone, with Stop. The sharing ends when the last device disconnects, when you tap Stop or Disconnect, or from Android's screen sharing indicator. Host mode is off again whenever the app restarts.</li>
+<li>Control from the viewer: click to tap, hold to long press, drag to swipe, the wheel scrolls (Ctrl + wheel pinches). Right click or Esc is Back, middle click or Home is Home, the Menu key is Recents, F1 opens the notifications. Typed text goes into the focused field.</li>
+<li>The screen is encoded on the phone (H.264, hardware), at most 1920 pixels on the long edge and 60 fps, and follows rotation.</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/mobile-apps.md">Source file (GitHub)</a></p>
 </div>

@@ -380,7 +380,7 @@ The viewer decodes with WebCodecs and needs a browser that supports it.
 
 ## Mobile apps
 
-- The Android and iOS apps are controllers only. A phone cannot be controlled with them.
+- The iOS app is a controller only: an iPhone or iPad cannot be viewed or controlled yet. An Android phone can be, with Settings → This device in the app ([mobile apps](en/mobile-apps.md#this-phone-as-a-host-android)).
 - Both apps are coming to the App Store and Google Play (submitted for review). Until then, see [Mobile apps](en/mobile-apps.md): build Android with `mobile/android/build.sh` (Go, JDK 17+, `ANDROID_HOME`, an NDK) and iOS with `mobile/ios/build-xcframework.sh` on macOS, then Xcode.
 - "No rendezvous server is set" when you enter a 9-digit ID: IDs are looked up on a rendezvous server, and the apps have no default one. Tap **Set up** (or open Settings → Rendezvous server) and enter your server's address, or connect by the host's address (`host:port`) instead, which needs no server.
 - Please report what goes wrong on your device, with a diagnostic log (Settings → Diagnostic logs) if you can.

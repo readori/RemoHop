@@ -342,7 +342,7 @@ remohop stop --all</code></pre>
 </ul>
 <h2 id="mobile-apps">Mobile apps</h2>
 <ul>
-<li>The Android and iOS apps are controllers only. A phone cannot be controlled with them.</li>
+<li>The iOS app is a controller only: an iPhone or iPad cannot be viewed or controlled yet. An Android phone can be, with Settings → This device in the app (<a href="/en/docs/mobile-apps/#this-phone-as-a-host-android">mobile apps</a>).</li>
 <li>Both apps are coming to the App Store and Google Play (submitted for review). Until then, see <a href="/en/docs/mobile-apps/">Mobile apps</a>: build Android with <code>mobile/android/build.sh</code> (Go, JDK 17+, <code>ANDROID_HOME</code>, an NDK) and iOS with <code>mobile/ios/build-xcframework.sh</code> on macOS, then Xcode.</li>
 <li>"No rendezvous server is set" when you enter a 9-digit ID: IDs are looked up on a rendezvous server, and the apps have no default one. Tap <strong>Set up</strong> (or open Settings → Rendezvous server) and enter your server's address, or connect by the host's address (<code>host:port</code>) instead, which needs no server.</li>
 <li>Please report what goes wrong on your device, with a diagnostic log (Settings → Diagnostic logs) if you can.</li>
