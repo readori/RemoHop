@@ -4,6 +4,7 @@ import UIKit
 
 @main
 struct RemoHopApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -85,7 +86,16 @@ final class AppModel: ObservableObject {
             Task { @MainActor in self?.networkChanged(desc) }
         }
         pathMonitor.start(queue: DispatchQueue(label: "com.remohop.path"))
+        // A screen-sharing request notification was tapped: its page.
+        sharePageObserver = NotificationCenter.default.addObserver(forName: BroadcastApprovals.openSharePage, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.settingsPage = .shareScreen
+                self?.showSettings = true
+            }
+        }
     }
+
+    private var sharePageObserver: NSObjectProtocol?
 
     private func networkChanged(_ desc: String) {
         defer { lastPath = desc }

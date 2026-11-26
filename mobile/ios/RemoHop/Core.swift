@@ -15,25 +15,61 @@ enum Core {
     nonisolated(unsafe) private static var initialized = false
     nonisolated(unsafe) private static var url: URL?
 
-    /// Points the core at the app's private directory (Application Support,
-    /// excluded from backups: it holds the identity key and pairing tokens).
+    /// Points the core at its configuration directory (excluded from
+    /// backups: it holds the identity key and pairing tokens): the App
+    /// Group's, shared with the broadcast extension so that the shared
+    /// screen has this device's identity and ID (see configDirectory).
     static func initialize(deviceName: String, appVersion: String) throws {
         lock.lock()
         defer { lock.unlock() }
         if initialized { return }
-        let fm = FileManager.default
-        var dir = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-            .appendingPathComponent("remohop", isDirectory: true)
-        try fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        var dir = try configDirectory()
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? dir.setResourceValues(values)
+        let fm = FileManager.default
         let tmp = fm.temporaryDirectory.appendingPathComponent("go-tmp", isDirectory: true)
         var err: NSError?
         if !RemohopcoreInit(dir.path, tmp.path, &err) { throw err ?? Failure(message: "init failed") }
         RemohopcoreSetAppVersion("\(appVersion) (iOS)")
         RemohopcoreSetDeviceName(deviceName)
         initialized = true
+    }
+
+    /// The core's configuration directory. Up to 1.0.3 it was the app's
+    /// private Application Support/remohop; now it is the App Group's
+    /// (`AppGroup.configDirectory`), so that the broadcast extension uses
+    /// the same identity. The first launch with the App Group copies the old
+    /// directory there (the old one stays, unused, as a fallback). Without
+    /// the App Group entitlement (an unsigned simulator build) it stays in
+    /// the old place, where the broadcast extension cannot reach it.
+    static func configDirectory() throws -> URL {
+        let fm = FileManager.default
+        let legacy = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            .appendingPathComponent("remohop", isDirectory: true)
+        guard let shared = AppGroup.configDirectory else {
+            try fm.createDirectory(at: legacy, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            return legacy
+        }
+        let marker = shared.appendingPathComponent(AppGroup.readyMarker)
+        if fm.fileExists(atPath: marker.path) { return shared }
+        do {
+            try fm.createDirectory(at: shared.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: legacy.path) {
+                // Nothing in the group directory can be newer than the app's
+                // own: the extension does not start before the marker exists.
+                try? fm.removeItem(at: shared)
+                try fm.copyItem(at: legacy, to: shared)
+            } else {
+                try fm.createDirectory(at: shared, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            }
+            try Data().write(to: marker)
+            return shared
+        } catch {
+            // Keep working with the old directory; sharing reports it cannot start.
+            try fm.createDirectory(at: legacy, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            return legacy
+        }
     }
 
     /// The URL (with its token) of a gateway that has just answered a
