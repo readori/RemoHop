@@ -239,6 +239,8 @@ type encExit struct {
 	shared bool
 	// gpu: the encoder was fed by the capture's GPU chain.
 	gpu bool
+	// kf: the encoder ran with the filters for key frames on demand.
+	kf bool
 }
 
 // encProc is one running ffmpeg.
@@ -255,6 +257,8 @@ type encProc struct {
 	release func()
 	shared  bool
 	gpu     bool
+	// kf asks the encoder for key frames (nil: it takes a restart).
+	kf *keyForcer
 
 	mu     sync.Mutex
 	reaped bool
@@ -270,6 +274,9 @@ func (p *encProc) kill() {
 		killGroup(p.cmd)
 	}
 	p.release()
+	if p.kf != nil {
+		p.kf.close()
+	}
 }
 
 // reap kills and waits for the encoder. Holding mu across Wait is fine: the
@@ -281,6 +288,9 @@ func (p *encProc) reap() {
 	p.cmd.Wait()
 	p.reaped = true
 	p.release()
+	if p.kf != nil {
+		p.kf.close()
+	}
 	close(p.done)
 }
 
@@ -384,6 +394,15 @@ type hostSession struct {
 	encWarn  string
 	// lastKeyRestart is when a restart was last made to get a key frame.
 	lastKeyRestart time.Time
+	// Key frames on demand (keyforce.go): kfOK if ffmpeg can force them,
+	// kfOff once they failed in this session; forceAsked is when the
+	// running encoder was asked for one that has not come yet (request
+	// forceSeq of its forcer), kfArgs the forcer of the encoder whose
+	// arguments are being built.
+	kfOK, kfOff bool
+	forceAsked  time.Time
+	forceSeq    int64
+	kfArgs      *keyForcer
 	// gpuChain: the next encoder is fed by the capture's GPU chain
 	// (captureSpec.gpu); noGPU: that chain failed in this session.
 	gpuChain, noGPU bool
@@ -405,6 +424,7 @@ type hostSession struct {
 	sentBytes   int64
 	dropped     uint64
 	restarts    int
+	forcedKeys  int
 	pipelineEW  float64
 	lastStatsAt time.Time
 }
@@ -439,6 +459,7 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, f
 		return nil, err
 	}
 	h.enc = preferGPUChain(ctx, ffmpeg, spec, h.enc, req)
+	h.kfOK = !forceKeyOff() && keyForceWorks(ctx, ffmpeg)
 	h.ctx, h.cancel = context.WithCancel(ctx)
 	h.bitrate = h.targetBitrate()
 	// Room for a full window of video at the highest frame rate a config
@@ -582,8 +603,9 @@ func (h *hostSession) windowFrames() int {
 func (h *hostSession) framePeriod() time.Duration { return time.Second / time.Duration(max(h.fps, 1)) }
 
 // gopFrames is the interval of the encoder's own key frames. They are only
-// a fallback: a viewer that needs one asks, and gets it from a replacement
-// encoder without a gap (startEncoder). Hardware encoders get a long one,
+// a fallback: a viewer that needs one asks, and gets it from the running
+// encoder (keyforce.go) or from a replacement encoder without a gap
+// (startEncoder). Hardware encoders get a long one,
 // because with the small rate-control buffer they run with off a fast path
 // every key frame softens a still screen for a quarter of a second
 // (measured with x264 standing in, 1080p60 text at 7.5 Mbit/s and a tenth
@@ -631,6 +653,11 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	}
 	args = append(args, spec.input...)
 	var chain []string
+	if h.kfArgs != nil {
+		// Passthrough filters: they go ahead of everything, the GPU chain
+		// included.
+		chain = append(chain, h.kfArgs.filters())
+	}
 	if spec.filter != "" {
 		chain = append(chain, spec.filter)
 	}
@@ -647,8 +674,11 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	if spec.gpu != nil && !h.noGPU && (sw > 0 || h.scaleFactor() >= 1) {
 		if c, ok := spec.gpu(h.enc, sw, sh); ok {
 			h.gpuChain, chain, color = true, nil, gpuColor(h.enc)
+			if h.kfArgs != nil {
+				chain = append(chain, h.kfArgs.filters())
+			}
 			if c != "" {
-				chain = []string{c}
+				chain = append(chain, c)
 			}
 		}
 	}
@@ -662,6 +692,9 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	args = append(args, "-copyts", "-fps_mode", "passthrough", "-enc_time_base", "1:1000")
 	args = append(args, h.enc.args(encParams{fps: h.fps, bitrate: h.bitrate, gop: h.gopFrames(), pixels: h.outputPixels(), fast: h.fast})...)
 	args = append(args, color.encArgs()...)
+	if h.kfArgs != nil {
+		args = append(args, "-force_key_frames", kfExpr)
+	}
 	args = append(args, "-flush_packets", "1")
 	if h.enc.codec == codecH264 {
 		args = append(args, "-flvflags", "no_duration_filesize", "-f", "flv", "pipe:1")
@@ -673,8 +706,9 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 
 // startEncoder launches a new ffmpeg generation, replacing the running one.
 //
-// A restart (for a key frame, another bitrate or frame rate, another
-// monitor) is made before break: the new encoder starts while the old one
+// A restart (for another bitrate or frame rate, another monitor, or a key
+// frame where the encoder cannot be asked for one, see keyforce.go) is made
+// before break: the new encoder starts while the old one
 // keeps streaming, and takes over when it delivers its first frame, a key
 // frame (onNextFrame). The viewer sees no gap: stopping first left it
 // without a frame for the new encoder's start-up, measured at 110-200 ms
@@ -695,8 +729,24 @@ func (h *hostSession) startEncoder() error {
 		h.stopEncoder()
 		old.wait(time.Second)
 	}
+	var kf *keyForcer
+	if h.kfUsable() {
+		var err error
+		if kf, err = newKeyForcer(); err != nil {
+			slog.Debug("desktop: no key frames on demand for this encoder", "err", err)
+			kf = nil
+		}
+	}
+	closeKF := func() {
+		if kf != nil {
+			kf.close()
+		}
+	}
+	h.kfArgs = kf
 	args, spec, err := h.ffmpegArgs()
+	h.kfArgs = nil
 	if err != nil {
+		closeKF()
 		return err
 	}
 	if spec.x != h.spec.x || spec.y != h.spec.y || spec.width != h.spec.width || spec.height != h.spec.height {
@@ -714,6 +764,7 @@ func (h *hostSession) startEncoder() error {
 		// The screen comes from a capture shared between sessions.
 		stdin, rel, err := spec.attach(h.fps)
 		if err != nil {
+			closeKF()
 			return err
 		}
 		defer stdin.Close()
@@ -723,15 +774,20 @@ func (h *hostSession) startEncoder() error {
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		release()
+		closeKF()
 		return err
 	}
 	tail := &tailBuffer{max: 8 << 10}
 	cmd.Stderr = tail
 	if err := startGroup(cmd); err != nil {
 		release()
+		closeKF()
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
-	p := &encProc{gen: gen, cmd: cmd, done: make(chan struct{}), stderr: tail, bitrate: h.bitrate, fps: h.fps, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain}
+	if kf != nil {
+		kf.start()
+	}
+	p := &encProc{gen: gen, cmd: cmd, done: make(chan struct{}), stderr: tail, bitrate: h.bitrate, fps: h.fps, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain, kf: kf}
 	h.lastRestart = time.Now()
 	h.restartAt, h.keyOnly = time.Time{}, false
 	if overlap {
@@ -739,7 +795,7 @@ func (h *hostSession) startEncoder() error {
 	} else {
 		h.adopt(p)
 	}
-	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast, "overlap", overlap)
+	slog.Debug("desktop: encoder started", "gen", p.gen, "encoder", h.enc.name, "fps", h.fps, "bitrate", h.bitrate, "gpu_chain", p.gpu, "fast_path", h.fast, "overlap", overlap, "key_frames_on_demand", kf != nil)
 	go h.readEncoder(p, stdout)
 	return nil
 }
@@ -759,6 +815,7 @@ func (h *hostSession) setSpec(spec captureSpec) {
 // adopt makes p the session's encoder.
 func (h *hostSession) adopt(p *encProc) {
 	h.proc, h.gen = p, p.gen
+	h.forceAsked = time.Time{} // the new encoder starts with a key frame
 	h.encWinStart, h.encWinFrames, h.encWinPipe, h.encWinPipeN, h.slowSince = time.Now(), 0, 0, 0, time.Time{}
 }
 
@@ -886,7 +943,7 @@ func (h *hostSession) readEncoder(p *encProc, stdout io.Reader) {
 		err = errors.New("ffmpeg exited")
 	}
 	select {
-	case h.exits <- encExit{gen: p.gen, err: err, frames: n, shared: p.shared, gpu: p.gpu}:
+	case h.exits <- encExit{gen: p.gen, err: err, frames: n, shared: p.shared, gpu: p.gpu, kf: p.kf != nil}:
 	case <-h.ctx.Done():
 	}
 }
@@ -968,6 +1025,7 @@ func (h *hostSession) run() error {
 				return err
 			}
 		case now := <-tick.C:
+			h.checkForced(now)
 			h.fitRate(now)
 			h.adapt(now)
 			// After adapt, so that a restart it asks for now goes now.
@@ -1076,6 +1134,7 @@ func (h *hostSession) onFrame(f encFrame) {
 	}
 	if key {
 		h.lastKey = f.readAt
+		h.forceAsked = time.Time{}
 	}
 	h.encWinFrames++
 	capture := int64(0)
@@ -1367,22 +1426,44 @@ func (h *hostSession) sizeText() string {
 	return fmt.Sprintf("%dx%d", int(float64(h.spec.width)*k)&^1, int(float64(h.spec.height)*k)&^1)
 }
 
-// requestKeyframe gets a key frame out soon: from the encoder's own schedule
-// if one is due anyway, otherwise by starting a replacement encoder (ffmpeg
-// cannot be told to emit one on demand; the replacement starts with one and
-// the old encoder streams until it does, see startEncoder). Restarts for
-// key frames are spaced out (keyRestartGap): each one costs an encoder
-// start and a large key frame, which on an overloaded machine would feed
-// the very backlog that caused the request. A second request soon after is
-// served once the gap has passed, unless a key frame comes first; it is
-// never dropped, which left the viewer frozen until the scheduled key
-// frame. Restarting also applies any pending bitrate change.
+// requestKeyframe gets a key frame out soon. The running encoder is asked
+// for one where it can be (keyforce.go: about a frame later), unless a
+// restart or the encoder's own schedule brings one about as soon.
+// Otherwise it comes from the encoder's own schedule if one is due anyway,
+// or from a replacement encoder (it starts with one and the old encoder
+// streams until it does, see startEncoder). Restarts for key frames are
+// spaced out (keyRestartGap): each one costs an encoder start and a large
+// key frame, which on an overloaded machine would feed the very backlog
+// that caused the request. A second request soon after is served once the
+// gap has passed, unless a key frame comes first; it is never dropped,
+// which left the viewer frozen until the scheduled key frame. Restarting
+// also applies any pending bitrate change, which is why a request made
+// while the bitrate is to change takes a restart.
 func (h *hostSession) requestKeyframe(now time.Time) {
 	gop := time.Duration(h.gopFrames()) * time.Second / time.Duration(h.fps)
-	if h.helloGen != h.gen || !h.restartAt.IsZero() || h.next != nil {
+	if h.helloGen != h.gen || h.next != nil {
 		return // a key frame is already on its way
 	}
 	sameRate := h.proc != nil && h.proc.bitrate == h.bitrate
+	if sameRate && h.canForce() {
+		soon := 2 * h.framePeriod()
+		sinceKey := now.Sub(h.lastKey)
+		switch {
+		case !h.forceAsked.IsZero():
+			// Asked for already.
+		case !h.restartAt.IsZero() && h.restartAt.Sub(now) < soon:
+		case !h.lastKey.IsZero() && sinceKey > gop-soon && sinceKey < gop+soon:
+			// The encoder's own is due.
+		default:
+			h.forceAsked = now
+			h.forcedKeys++
+			h.forceSeq = h.proc.kf.request()
+		}
+		return
+	}
+	if !h.restartAt.IsZero() {
+		return // a key frame is already on its way
+	}
 	if sameRate && !h.lastKey.IsZero() && now.Sub(h.lastKey) > gop-keyframeSlack {
 		return
 	}
@@ -1393,6 +1474,56 @@ func (h *hostSession) requestKeyframe(now time.Time) {
 	h.lastKeyRestart = at
 	h.scheduleRestartAt(now, at)
 	h.keyOnly = sameRate
+}
+
+// kfUsable reports whether the next encoder is to run with the filters for
+// key frames on demand.
+func (h *hostSession) kfUsable() bool {
+	if !h.kfOK || h.kfOff {
+		return false
+	}
+	_, refused := kfRefused.Load(kfRefusedKey(h.ffmpeg, h.enc.name))
+	return !refused
+}
+
+// canForce reports whether the running encoder can be asked for a key
+// frame. Its forcer is connected well before the first frame comes out
+// (ffmpeg opens the socket as it sets up its filters, and the forcer tries
+// every few milliseconds); one that is not, or no longer, is no use.
+func (h *hostSession) canForce() bool {
+	if h.proc == nil || h.proc.kf == nil {
+		return false
+	}
+	kf := h.proc.kf
+	return kf.connected.Load() && !kf.broken.Load()
+}
+
+// checkForced runs periodically: a forced key frame that does not come
+// (the encoder ignores forced key frames, or its socket is gone) is got
+// with a restart instead, and an encoder that ignored one is not asked
+// again, in this session or the next.
+func (h *hostSession) checkForced(now time.Time) {
+	if h.forceAsked.IsZero() || h.proc == nil || h.proc.kf == nil {
+		return
+	}
+	kf := h.proc.kf
+	applied, ok := kf.applied(h.forceSeq)
+	switch {
+	case kf.broken.Load():
+	case ok && now.Sub(applied) > keyForceTimeout:
+		slog.Debug("desktop: the encoder ignored a forced key frame; restarting it for key frames instead", "encoder", h.enc.name)
+		kfRefused.Store(kfRefusedKey(h.ffmpeg, h.enc.name), true)
+		h.kfOff = true
+		kf.broken.Store(true)
+	case now.Sub(h.forceAsked) > keyForceStall:
+		slog.Debug("desktop: a forced key frame is late; restarting the encoder for key frames instead")
+		h.kfOff = true
+		kf.broken.Store(true)
+	default:
+		return
+	}
+	h.forceAsked = time.Time{}
+	h.requestKeyframe(now)
 }
 
 func later(a, b time.Time) time.Time {
@@ -1440,6 +1571,14 @@ func (h *hostSession) onEncoderExit(e encExit) error {
 		// a capture failing on both says nothing against the GPU.
 		slog.Debug("desktop: encoder failed on the GPU chain; using the default one", "err", e.err)
 		h.noGPU, h.gpuSuspect = true, true
+		h.scheduleRestart(now)
+		return nil
+	}
+	if e.kf && e.frames == 0 && !h.delivered {
+		// Nothing came out of the session's first encoder, which ran
+		// with the filters for key frames on demand: try once without.
+		slog.Debug("desktop: encoder failed with key frames on demand; trying without them", "err", e.err)
+		h.kfOff = true
 		h.scheduleRestart(now)
 		return nil
 	}
@@ -1608,6 +1747,7 @@ func (h *hostSession) sendStats(now time.Time) {
 		InFlight:   int(h.seq - h.acked),
 		PipelineMS: h.pipelineEW,
 		Restarts:   h.restarts,
+		ForcedKeys: h.forcedKeys,
 		Paused:     h.paused,
 		AckMS:      float64(h.acks.srtt.Microseconds()) / 1000,
 		WindowMS:   float64(h.acks.window(now).Milliseconds()),

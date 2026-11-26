@@ -290,6 +290,9 @@ type HostStats struct {
 	InFlight   int     `json:"in_flight"`   // unacknowledged frames
 	PipelineMS float64 `json:"pipeline_ms"` // capture -> encoded, when known
 	Restarts   int     `json:"restarts"`    // encoder restarts so far
+	// ForcedKeys counts the key frames the running encoder was asked for
+	// (served without a restart, see keyforce.go).
+	ForcedKeys int `json:"forced_keys,omitempty"`
 	// AckMS is the smoothed time from sending a frame to its ack (round
 	// trip plus the viewer's decode), WindowMS how much video may be
 	// unacknowledged (see flow.go).
