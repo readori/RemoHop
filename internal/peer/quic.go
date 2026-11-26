@@ -58,6 +58,15 @@ func QUICConfig() *quic.Config {
 // QUICMux adapts an established QUIC connection to Mux.
 func QUICMux(q *quic.Conn) Mux { return &quicMux{q: q} }
 
+// QUICClientMux is QUICMux for a client connection that may move to another
+// path while it runs (internal/dial moves a relayed session to a direct
+// path). quic-go replaces a client connection's send path on a switch
+// without synchronising that with LocalAddr and RemoteAddr, so this mux
+// takes both once, now, and keeps answering with them.
+func QUICClientMux(q *quic.Conn) Mux {
+	return &quicMux{q: q, local: q.LocalAddr(), remote: q.RemoteAddr()}
+}
+
 // QUICConn returns the QUIC connection underneath c, or nil if c does not run
 // directly on QUIC. It is for features that need datagrams or path stats.
 func QUICConn(c *Conn) *quic.Conn {
@@ -80,7 +89,11 @@ func ClosedByPeer(c *Conn) (reason string, ok bool) {
 	return "", false
 }
 
-type quicMux struct{ q *quic.Conn }
+type quicMux struct {
+	q *quic.Conn
+	// local and remote, when set, are answered instead of asking q.
+	local, remote net.Addr
+}
 
 func (m *quicMux) OpenStream(ctx context.Context) (Stream, error) {
 	s, err := m.q.OpenStreamSync(ctx)
@@ -100,8 +113,20 @@ func (m *quicMux) AcceptStream(ctx context.Context) (Stream, error) {
 
 func (m *quicMux) Close(reason string) error { return m.q.CloseWithError(0, reason) }
 func (m *quicMux) Context() context.Context  { return m.q.Context() }
-func (m *quicMux) LocalAddr() net.Addr       { return m.q.LocalAddr() }
-func (m *quicMux) RemoteAddr() net.Addr      { return m.q.RemoteAddr() }
+
+func (m *quicMux) LocalAddr() net.Addr {
+	if m.local != nil {
+		return m.local
+	}
+	return m.q.LocalAddr()
+}
+
+func (m *quicMux) RemoteAddr() net.Addr {
+	if m.remote != nil {
+		return m.remote
+	}
+	return m.q.RemoteAddr()
+}
 
 type quicStream struct{ *quic.Stream }
 
