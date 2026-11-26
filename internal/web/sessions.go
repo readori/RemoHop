@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/svc/fs"
 )
@@ -65,10 +66,16 @@ func (p *pooled) current() *peer.Conn {
 	return p.conn
 }
 
-// snapshot is the session as the page sees it.
+// snapshot is the session as the page sees it. How the session travels is
+// read afresh: a relayed session can move to a direct path while it runs.
 func (p *pooled) snapshot() connInfo {
 	p.cmu.Lock()
 	defer p.cmu.Unlock()
+	if p.conn != nil && p.info.State == stateConnected {
+		if info := dial.InfoOf(p.conn); info != nil {
+			p.info.Path, p.info.Relayed, p.info.Remote = string(info.Path), info.Path == dial.PathRelayed, info.Remote.String()
+		}
+	}
 	return p.info
 }
 

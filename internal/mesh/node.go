@@ -712,7 +712,7 @@ func (n *Node) pathOf(c *peer.Conn) string {
 		return string(info.Path)
 	}
 	if s := hostd.SessionOf(c); s != nil {
-		return s.Path
+		return s.Path()
 	}
 	return ""
 }

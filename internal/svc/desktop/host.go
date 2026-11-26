@@ -135,7 +135,7 @@ var fastPath = func(c *peer.Conn) bool {
 	if c == nil {
 		return false
 	}
-	if s := hostd.SessionOf(c); s != nil && s.Path == "relayed" {
+	if s := hostd.SessionOf(c); s != nil && s.Path() == "relayed" {
 		return false
 	}
 	q := peer.QUICConn(c)

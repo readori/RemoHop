@@ -121,7 +121,7 @@ func (h *Host) Status() Status {
 			peer = "key " + auth.Fingerprint(s.Auth.ClientKey)
 		}
 		st.Clients = append(st.Clients, SessionStatus{Peer: peer, Identity: auth.Fingerprint(s.Auth.ClientKey),
-			Device: s.Auth.ClientName, From: s.Remote.String(), Path: s.Path, Auth: s.Auth.Kind, Since: s.Started, Grant: s.grant})
+			Device: s.Auth.ClientName, From: s.Remote.String(), Path: s.path, Auth: s.Auth.Kind, Since: s.Started, Grant: s.grant})
 	}
 	sort.Slice(st.Clients, func(i, j int) bool { return st.Clients[i].Since.Before(st.Clients[j].Since) })
 	return st
