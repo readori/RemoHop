@@ -116,7 +116,7 @@ func TestKeyframeWithoutGapXvfb(t *testing.T) {
 	defer sess.Close()
 	start := time.Now()
 	var last, requested time.Time
-	var gaps []time.Duration
+	var gaps, waits []time.Duration
 	var maxGap time.Duration
 	nextReq := start.Add(4 * time.Second)
 	for time.Since(start) < 16*time.Second {
@@ -132,6 +132,7 @@ func TestKeyframeWithoutGapXvfb(t *testing.T) {
 			maxGap = max(maxGap, f.Received.Sub(last))
 			if f.Key {
 				gaps = append(gaps, maxGap)
+				waits = append(waits, f.Received.Sub(requested))
 				requested = time.Time{}
 				nextReq = f.Received.Add(2500 * time.Millisecond)
 			}
@@ -142,7 +143,7 @@ func TestKeyframeWithoutGapXvfb(t *testing.T) {
 		}
 		last = f.Received
 	}
-	t.Logf("longest gap around each requested key frame: %v", gaps)
+	t.Logf("longest gap around each requested key frame: %v; request to key frame: %v", gaps, waits)
 	if len(gaps) < 3 {
 		t.Fatalf("only %d of the requested key frames came", len(gaps))
 	}
