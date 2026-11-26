@@ -774,6 +774,11 @@ func ownHostPassword(dir string) string {
 	return strings.TrimSpace(string(b)) // as typed; the host normalises
 }
 
+// WeakPasswordPrefix starts SetHostFixedPassword's refusal of a password
+// that breaks the rule, so the apps can tell it apart (and say the rule in
+// their own words) without matching English text.
+const WeakPasswordPrefix = "weak_password"
+
 // SetHostFixedPassword sets the owner's own password for host mode, kept
 // across starts, instead of a new temporary one at every start; "" goes
 // back to temporary passwords. Every login still waits for the owner's
@@ -796,7 +801,7 @@ func SetHostFixedPassword(password string) error {
 		}
 	} else {
 		if err := hostd.CheckOwnPassword(pw); err != nil {
-			return err
+			return fmt.Errorf("%s: %w", WeakPasswordPrefix, err)
 		}
 		if err := config.WriteFileAtomic(path, []byte(pw), 0o600); err != nil {
 			return err
