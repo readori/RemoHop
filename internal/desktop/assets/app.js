@@ -56,7 +56,8 @@
       'upd.how.nix': 'You have {c}. Upgrade it through Nix.', 'upd.get': 'Download', 'upd.install': 'Upgrade now', 'upd.how.install': 'You have {c}. Upgrade in place: RemoHop restarts by itself.',
       'upd.st.verifying': 'Checking the release signature…', 'upd.st.downloading': 'Downloading… {p}', 'upd.st.installing': 'Installing…', 'upd.st.restarting': 'Restarting…',
       'upd.failed': 'The upgrade did not work: {m}', 'err.busy_sessions': 'Someone is connected to this computer. Disconnect them first, then upgrade.', 'upd.notes': "What's new", 'upd.skip': 'Skip this version',
-      'upd.h': 'Updates', 'upd.auto': 'Check for updates automatically (once a day)', 'upd.now': 'Check now', 'upd.checking': 'Checking…',
+      'upd.h': 'Updates', 'diag.h': 'Diagnostic logs', 'diag.label': 'Save a diagnostic report', 'diag.export': 'Export', 'diag.saved': 'Saved: {p}',
+      'diag.help': 'A text file with the app\'s version, the system, its state and its recent log, to send to support when something does not work. Passwords, tokens and keys are removed; IDs, names and addresses stay. It is saved in your Downloads folder and goes nowhere unless you send it.', 'upd.auto': 'Check for updates automatically (once a day)', 'upd.now': 'Check now', 'upd.checking': 'Checking…',
       'upd.latest': 'Up to date ({v}) · checked {t}', 'upd.avail': '{v} is available · checked {t}', 'upd.never': 'Not checked yet',
       'upd.fail': 'Could not check (no connection to remohop.com?)', 'upd.managed': 'Switched off by the administrator ({e})',
       'upd.dev': 'Development build ({v}): not compared with releases',
@@ -114,7 +115,8 @@
       'upd.how.nix': '当前是 {c}。请通过 Nix 升级。', 'upd.get': '下载', 'upd.install': '立即升级', 'upd.how.install': '当前是 {c}。可以直接升级，完成后 RemoHop 会自动重启。',
       'upd.st.verifying': '正在校验发布签名…', 'upd.st.downloading': '正在下载… {p}', 'upd.st.installing': '正在安装…', 'upd.st.restarting': '正在重启…',
       'upd.failed': '升级没有成功：{m}', 'err.busy_sessions': '有人正连接着这台电脑。请先断开，再升级。', 'upd.notes': '更新内容', 'upd.skip': '跳过这个版本',
-      'upd.h': '更新', 'upd.auto': '自动检查更新（每天一次）', 'upd.now': '立即检查', 'upd.checking': '正在检查…',
+      'upd.h': '更新', 'diag.h': '诊断日志', 'diag.label': '保存诊断报告', 'diag.export': '导出', 'diag.saved': '已保存：{p}',
+      'diag.help': '一个文本文件，包含应用版本、系统、运行状态和最近的日志，遇到问题时发给支持团队。密码、令牌和密钥会被去掉，ID、名称和地址会保留。文件保存在“下载”文件夹里，你不发送就不会离开这台电脑。', 'upd.auto': '自动检查更新（每天一次）', 'upd.now': '立即检查', 'upd.checking': '正在检查…',
       'upd.latest': '已是最新版本（{v}）· {t} 检查', 'upd.avail': '{v} 已发布 · {t} 检查', 'upd.never': '还没有检查过',
       'upd.fail': '检查失败（连不上 remohop.com？）', 'upd.managed': '已被管理员关闭（{e}）',
       'upd.dev': '开发版本（{v}），不与正式版比较',
@@ -649,6 +651,11 @@
     $('upd-get').className = u.can_install ? 'btn sm text' : 'btn sm';
     $('upd-skip').disabled = !!u.stage;
   }
+  $('diag-export').addEventListener('click', async () => {
+    $('diag-export').disabled = true;
+    try { const r = await api('diagnostics/export'); snack(t('diag.saved', {p: r.path})); }
+    catch (e) { snack(errText(e)); } finally { $('diag-export').disabled = false; }
+  });
   $('upd-auto').addEventListener('change', ev => api('update/auto', {on: ev.target.checked}).catch(e => snack(errText(e))));
   $('upd-now').addEventListener('click', () => api('update/check').catch(e => snack(errText(e))));
   $('upd-install').addEventListener('click', () => api('update/install').catch(e => snack(errText(e))));
