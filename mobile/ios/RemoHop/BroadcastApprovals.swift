@@ -77,6 +77,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 final class BroadcastModel: ObservableObject {
     @Published private(set) var state = BroadcastState.idle()
     @Published private(set) var notificationsAllowed = true
+    /// The password setting: the owner's own (else a new temporary one at
+    /// every start). What is in force while sharing is `state.passwordFixed`.
+    @Published private(set) var passwordFixed = false
     /// Whether the App Group is there (a build without it cannot share).
     let available = AppGroup.containerURL != nil
     private var note: DarwinNote.Observation?
@@ -84,6 +87,7 @@ final class BroadcastModel: ObservableObject {
 
     func appear() {
         reload()
+        loadPasswordSetting()
         note = DarwinNote.observe(DarwinNote.state) { [weak self] in
             Task { @MainActor in self?.reload() }
         }
@@ -123,5 +127,51 @@ final class BroadcastModel: ObservableObject {
     func stop() {
         Diag.log("screen sharing: stop from the app")
         BroadcastStore.send(BroadcastCommand(kind: .stop))
+    }
+
+    // MARK: the password setting
+
+    func loadPasswordSetting() {
+        let device = UIDevice.current.model
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        Task.detached {
+            try? Core.initialize(deviceName: device, appVersion: version)
+            let fixed = Core.sharePasswordFixed
+            await MainActor.run { self.passwordFixed = fixed }
+        }
+    }
+
+    /// Saves the owner's own password (`password`), or with "" goes back to
+    /// a new temporary password at every start. The core keeps it in the
+    /// configuration directory shared with the broadcast extension, which
+    /// reads it when sharing starts; while sharing, the command ping makes
+    /// the extension apply it at once (BroadcastHost's tick). `done` gets
+    /// nil when saved, else the text to show.
+    func savePassword(_ password: String, done: @escaping @MainActor (String?) -> Void) {
+        let device = UIDevice.current.model
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        Task.detached {
+            var failure: String?
+            do {
+                try Core.initialize(deviceName: device, appVersion: version)
+                try Core.setSharePassword(password)
+            } catch {
+                // The core's own text is English: the app's words instead.
+                failure = !password.isEmpty && !OwnPassword.isStrong(password)
+                    ? L("Use at least 8 characters, with at least two of: letters, digits, other characters.")
+                    : L("The password could not be saved.")
+            }
+            let fixed = Core.sharePasswordFixed
+            await MainActor.run {
+                self.passwordFixed = fixed
+                if failure == nil {
+                    Diag.log(password.isEmpty ? "screen sharing: back to a temporary password" : "screen sharing: own password set")
+                    DarwinNote.post(DarwinNote.command)
+                } else {
+                    Diag.log("screen sharing: password setting not saved")
+                }
+                done(failure)
+            }
+        }
     }
 }

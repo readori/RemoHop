@@ -44,6 +44,13 @@ enum L10n {
         lang == "zh" ? (zh[english] ?? english) : english
     }
 
+    /// An English text whose Chinese depends on where it is shown: looked
+    /// up as "context|English" first (the own password's label is 固定密码,
+    /// the choice in Password settings 我自己的固定密码).
+    static func text(_ english: String, context: String, lang: String = effective) -> String {
+        lang == "zh" ? (zh[context + "|" + english] ?? zh[english] ?? english) : english
+    }
+
     /// A pairing failure in the app's words, in either language (a code the
     /// app does not know yet gets a general sentence). The core's own text
     /// is English and may name CLI commands: it goes to the diagnostic log
@@ -338,13 +345,30 @@ enum L10n {
         "Start and stop": "开始和停止",
         "Sharing starts only when you tap Start sharing and then Start Broadcast. Stop it any time from the red status bar or Control Center, or with Stop sharing here.": "只有在你轻点“开始共享”、再轻点“开始直播”后才会开始共享。你可以随时通过红色状态栏或控制中心停止，也可以在这里轻点“停止共享”。",
         "Who can connect": "谁能连接",
-        "Someone with the ID and the temporary password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts.": "知道这里显示的 ID 和临时密码的人。每次连接都会先询问你（通过通知，也显示在本页）；一分钟内不回应的请求会被自动拒绝。每次开始共享时密码都会更换。",
+        "Someone with the ID and the password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts, unless you set your own in Password settings.": "知道这里显示的 ID 和密码的人。每次连接都会先询问你（通过通知，也显示在本页）；一分钟内不回应的请求会被自动拒绝。每次开始共享时密码都会更换，除非你在“密码设置”中设了自己的固定密码。",
         "What viewers see": "对方能看到什么",
         "Everything on the screen while sharing, including notifications that appear. Close anything private first.": "共享期间屏幕上的一切，包括弹出的通知。请先关闭涉及隐私的内容。",
         "When it ends": "何时结束",
         "When you stop it, when the phone restarts, or when the system ends it, for example when memory runs short. Viewers are disconnected at once.": "你停止共享、手机重启，或系统结束共享（例如内存不足）时。对方会立即断开。",
         "Scams": "防范诈骗",
         "Did someone call you saying they are from support, your bank or the police, and ask you to install this or share your screen? Do not share. That is a scam.": "是不是有人打电话自称客服、银行或警察，让你安装这个软件或共享屏幕？请不要共享，这是诈骗。",
+        // Share this screen: Password settings
+        "Password settings": "密码设置",
+        "Random": "随机密码",
+        "My own": "固定密码",
+        "Password for incoming connections": "连接密码",
+        "A new random password": "随机密码",
+        "My own password": "我自己的固定密码",
+        "Made each time sharing starts.": "每次开始共享时自动生成。",
+        "Stays the same until you change it; at least 8 characters, with letters and digits.": "一直不变，直到你修改；至少 8 位，包含字母和数字。",
+        "While sharing": "共享时",
+        "A change applies at once, also while sharing; viewers already connected stay connected.": "修改立即生效，正在共享时也一样；已经连接的人不会被断开。",
+        "Either way, every connection still asks you first.": "无论哪种，每次有人连接都会先问你。",
+        "Repeat password": "再输入一次",
+        "The two passwords do not match.": "两次输入的密码不一致。",
+        "Use at least 8 characters, with at least two of: letters, digits, other characters.": "至少 8 位，且包含字母、数字、其他字符中的两种。",
+        "The password could not be saved.": "无法保存密码。",
+        "label|My own password": "固定密码",
     ]
 
     /// The English keys of the screen-sharing page, for the test that each
@@ -377,7 +401,7 @@ enum L10n {
         "Start and stop",
         "Sharing starts only when you tap Start sharing and then Start Broadcast. Stop it any time from the red status bar or Control Center, or with Stop sharing here.",
         "Who can connect",
-        "Someone with the ID and the temporary password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts.",
+        "Someone with the ID and the password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts, unless you set your own in Password settings.",
         "What viewers see",
         "Everything on the screen while sharing, including notifications that appear. Close anything private first.",
         "When it ends",
@@ -388,6 +412,25 @@ enum L10n {
         "ID",
         "Copy",
         "Status",
+        "Password settings",
+        "Random",
+        "My own",
+        "Password for incoming connections",
+        "A new random password",
+        "My own password",
+        "Made each time sharing starts.",
+        "Stays the same until you change it; at least 8 characters, with letters and digits.",
+        "While sharing",
+        "A change applies at once, also while sharing; viewers already connected stay connected.",
+        "Either way, every connection still asks you first.",
+        "Repeat password",
+        "The two passwords do not match.",
+        "Use at least 8 characters, with at least two of: letters, digits, other characters.",
+        "The password could not be saved.",
+        "Save",
+        "Cancel",
+        "Show password",
+        "Hide password",
     ]
 
     /// The English keys of the settings screens, for the test that each has
@@ -519,6 +562,9 @@ enum L10n {
 
 /// `L("…")`: the English text, or its translation in the app's language.
 func L(_ english: String) -> String { L10n.text(english) }
+
+/// `L("…", context: "…")`: the same, for a text translated differently in that place.
+func L(_ english: String, context: String) -> String { L10n.text(english, context: context) }
 
 /// `L("… %@ …", value)`: the same with printf-style arguments.
 func L(_ english: String, _ args: CVarArg...) -> String {

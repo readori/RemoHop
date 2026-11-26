@@ -1,17 +1,25 @@
 import ReplayKit
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// Settings → Share this screen: view-only screen sharing through the
 /// broadcast extension. Only the essentials are on the page (status, the
-/// start button, ID and password with Copy, requests, viewers); every
-/// explanation, the scam warning included, is behind the ⓘ. Each request
-/// keeps a short scam reminder of its own.
+/// start button, ID and password with Copy, Password settings, requests,
+/// viewers); every explanation, the scam warning included, is behind the ⓘ.
+/// Each request keeps a short scam reminder of its own.
+///
+/// The password is a new temporary one at every start, or the owner's own
+/// (Password settings): that one is shown as dots until the eye is tapped,
+/// and hidden again when the app leaves the foreground.
 @MainActor
 struct ShareScreenView: View {
     @StateObject private var b = BroadcastModel()
     @State private var copied: String?
     @State private var confirmStop = false
+    @State private var passwordSettings = false
+    @State private var revealed = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         let s = b.state
@@ -30,11 +38,21 @@ struct ShareScreenView: View {
                     }
                 }
             }
-            if live {
+            if live || b.available {
                 Section {
-                    if !s.id.isEmpty { copyRow(L("ID"), s.id, mono: true) }
-                    ForEach(s.id.isEmpty ? s.addresses : [], id: \.self) { a in copyRow(L("Address"), a, mono: true) }
-                    if !s.password.isEmpty { copyRow(L("Password"), s.password, mono: true) }
+                    if live {
+                        if !s.id.isEmpty { copyRow(L("ID"), s.id, mono: true) }
+                        ForEach(s.id.isEmpty ? s.addresses : [], id: \.self) { a in copyRow(L("Address"), a, mono: true) }
+                        if !s.password.isEmpty {
+                            if s.passwordFixed { ownPasswordRow(s.password) } else { copyRow(L("Password"), s.password, mono: true) }
+                        }
+                    }
+                    Button { passwordSettings = true } label: {
+                        LabeledContent(L("Password settings")) {
+                            Text(b.passwordFixed ? L("My own") : L("Random"))
+                        }
+                        .foregroundStyle(.primary)
+                    }
                 }
             }
             if !b.notificationsAllowed {
@@ -80,8 +98,17 @@ struct ShareScreenView: View {
         .confirmationDialog(L("Stop sharing"), isPresented: $confirmStop, titleVisibility: .hidden) {
             Button(L("Stop sharing"), role: .destructive) { b.stop() }
         }
+        .sheet(isPresented: $passwordSettings) {
+            SharePasswordSheet(fixedNow: b.passwordFixed) { pw, done in
+                b.savePassword(pw) { failure in
+                    if failure == nil { revealed = false }
+                    done(failure)
+                }
+            }
+        }
         .onAppear { b.appear() }
-        .onDisappear { b.disappear() }
+        .onDisappear { b.disappear(); revealed = false }
+        .onChange(of: scenePhase) { p in if p != .active { revealed = false } }
     }
 
     /// The ⓘ: what sharing is, how it starts and ends, what viewers see, and the scam warning.
@@ -89,7 +116,7 @@ struct ShareScreenView: View {
         [
             InfoItem(title: L("View only"), text: L("Viewers see this screen and nothing else. They cannot tap, type or open anything on this device, and no sound is shared.")),
             InfoItem(title: L("Start and stop"), text: L("Sharing starts only when you tap Start sharing and then Start Broadcast. Stop it any time from the red status bar or Control Center, or with Stop sharing here.")),
-            InfoItem(title: L("Who can connect"), text: L("Someone with the ID and the temporary password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts.")),
+            InfoItem(title: L("Who can connect"), text: L("Someone with the ID and the password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts, unless you set your own in Password settings.")),
             InfoItem(title: L("What viewers see"), text: L("Everything on the screen while sharing, including notifications that appear. Close anything private first.")),
             InfoItem(title: L("When it ends"), text: L("When you stop it, when the phone restarts, or when the system ends it, for example when memory runs short. Viewers are disconnected at once.")),
             InfoItem(title: L("Scams"), text: L("Did someone call you saying they are from support, your bank or the police, and ask you to install this or share your screen? Do not share. That is a scam.")),
@@ -119,6 +146,240 @@ struct ShareScreenView: View {
         }
         .accessibilityLabel("\(title) \(value)")
         .accessibilityHint(L("Copy"))
+    }
+
+    /// The owner's own password: dots until the eye is tapped; Copy copies
+    /// the password itself, to this device only and for two minutes (unlike
+    /// a temporary one, it does not change by itself). No "new password"
+    /// here: only Password settings changes it.
+    private func ownPasswordRow(_ value: String) -> some View {
+        let title = L("My own password", context: "label")
+        return HStack {
+            Text(title)
+            Spacer()
+            if revealed {
+                Text(verbatim: value).font(.system(.body, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+            } else {
+                Text(verbatim: "••••••••").accessibilityLabel(title)
+            }
+            Button { revealed.toggle() } label: {
+                Image(systemName: revealed ? "eye.slash" : "eye")
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(revealed ? L("Hide password") : L("Show password"))
+            Button {
+                UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: value]],
+                                              options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)])
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                copied = title
+            } label: {
+                Image(systemName: copied == title ? "checkmark" : "doc.on.doc")
+                    .foregroundStyle(copied == title ? Color.green : Color.accentColor)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(L("Copy"))
+        }
+    }
+}
+
+/// The owner's own password, by the core's rule (hostd.CheckOwnPassword,
+/// behind SetHostFixedPassword), so that the sheet says what is wrong
+/// before saving; the core checks again when it saves.
+enum OwnPassword {
+    enum Problem: Equatable {
+        /// The two entries differ.
+        case mismatch
+        /// Too short, too long, or fewer than two kinds of characters.
+        case weak
+    }
+
+    enum Outcome: Equatable {
+        /// Save this (trimmed, otherwise as typed).
+        case save(String)
+        /// Both entries empty while an own password is set: keep it.
+        case unchanged
+        case problem(Problem)
+    }
+
+    /// Without spaces and dashes, as the core compares passwords
+    /// (auth.NormalizePassword).
+    static func normalized(_ s: String) -> String {
+        var out = String.UnicodeScalarView()
+        for u in s.unicodeScalars where u != "-" && !u.properties.isWhitespace { out.append(u) }
+        return String(out)
+    }
+
+    /// Normalized: at least 8 and at most 256 bytes of UTF-8 (the core
+    /// counts bytes), with at least two of: letters, digits, other
+    /// characters.
+    static func isStrong(_ password: String) -> Bool {
+        let n = normalized(password)
+        guard n.utf8.count >= 8, n.utf8.count <= 256 else { return false }
+        var letters = false, digits = false, other = false
+        for u in n.unicodeScalars {
+            switch u.properties.generalCategory {
+            case .uppercaseLetter, .lowercaseLetter, .titlecaseLetter, .modifierLetter, .otherLetter: letters = true
+            case .decimalNumber: digits = true
+            default: other = true
+            }
+        }
+        return [letters, digits, other].filter { $0 }.count >= 2
+    }
+
+    /// What Save does with the two entries of "My own password".
+    static func check(_ first: String, _ second: String, alreadyFixed: Bool) -> Outcome {
+        if normalized(first).isEmpty && normalized(second).isEmpty {
+            return alreadyFixed ? .unchanged : .problem(.weak)
+        }
+        if first != second { return .problem(.mismatch) }
+        if !isStrong(first) { return .problem(.weak) }
+        return .save(first.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+}
+
+/// Password settings: a new random password at every start, or the
+/// owner's own (typed twice, with an eye to show what was typed). The core
+/// saves it in the configuration directory shared with the broadcast
+/// extension: used from the next start, and at once while sharing.
+/// Explanations are behind the ⓘ.
+@MainActor
+struct SharePasswordSheet: View {
+    enum Mode { case temporary, fixed }
+    enum Field { case first, second }
+
+    let fixedNow: Bool
+    /// Saves ("" = temporary); the callback gets nil, or the text to show.
+    let save: @MainActor (String, @escaping @MainActor (String?) -> Void) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var mode: Mode
+    @State private var first = ""
+    @State private var second = ""
+    @State private var shown = false
+    @State private var error = ""
+    @State private var saving = false
+    @FocusState private var focus: Field?
+
+    init(fixedNow: Bool, save: @escaping @MainActor (String, @escaping @MainActor (String?) -> Void) -> Void) {
+        self.fixedNow = fixedNow
+        self.save = save
+        _mode = State(initialValue: fixedNow ? .fixed : .temporary)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    choice(.temporary, L("A new random password"))
+                    choice(.fixed, L("My own password"))
+                } footer: {
+                    if mode == .temporary && !error.isEmpty { Text(error).foregroundStyle(.red) }
+                }
+                if mode == .fixed {
+                    Section {
+                        HStack {
+                            field(L("Password"), $first, .first)
+                            Button { shown.toggle() } label: {
+                                Image(systemName: shown ? "eye.slash" : "eye")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel(shown ? L("Hide password") : L("Show password"))
+                        }
+                        field(L("Repeat password"), $second, .second)
+                    } footer: {
+                        if !error.isEmpty { Text(error).foregroundStyle(.red) }
+                    }
+                }
+            }
+            .navigationTitle(L("Password for incoming connections"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L("Cancel")) { dismiss() }
+                }
+                ToolbarItemGroup(placement: .confirmationAction) {
+                    InfoButton(title: L("Password settings"), items: Self.info)
+                    if saving {
+                        ProgressView()
+                    } else {
+                        Button(L("Save")) { submit() }
+                    }
+                }
+            }
+            .interactiveDismissDisabled(saving)
+            .onChange(of: first) { _ in error = "" }
+            .onChange(of: second) { _ in error = "" }
+        }
+    }
+
+    static var info: [InfoItem] {
+        [
+            InfoItem(title: L("A new random password"), text: L("Made each time sharing starts.")),
+            InfoItem(title: L("My own password"), text: L("Stays the same until you change it; at least 8 characters, with letters and digits.")),
+            InfoItem(title: L("While sharing"), text: L("A change applies at once, also while sharing; viewers already connected stay connected.")),
+            InfoItem(title: "", text: L("Either way, every connection still asks you first.")),
+        ]
+    }
+
+    private func choice(_ m: Mode, _ title: String) -> some View {
+        Button {
+            mode = m
+            error = ""
+            // The fields appear with this choice: focus once they are there.
+            if m == .fixed && !fixedNow { DispatchQueue.main.async { focus = .first } }
+        } label: {
+            HStack {
+                Text(title).foregroundStyle(.primary)
+                Spacer()
+                if mode == m { Image(systemName: "checkmark").foregroundStyle(Color.accentColor) }
+            }
+        }
+        .accessibilityAddTraits(mode == m ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func field(_ title: String, _ text: Binding<String>, _ f: Field) -> some View {
+        Group {
+            if shown {
+                TextField(title, text: text).font(.body.monospaced())
+            } else {
+                SecureField(title, text: text)
+            }
+        }
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($focus, equals: f)
+        .submitLabel(f == .first ? .next : .done)
+        .onSubmit { if f == .first { focus = .second } else { submit() } }
+    }
+
+    private func submit() {
+        guard !saving else { return }
+        error = ""
+        switch mode {
+        case .temporary:
+            if fixedNow { run("") } else { dismiss() }
+        case .fixed:
+            switch OwnPassword.check(first, second, alreadyFixed: fixedNow) {
+            case .unchanged: dismiss()
+            case .problem(.mismatch): error = L("The two passwords do not match.")
+            case .problem(.weak): error = L("Use at least 8 characters, with at least two of: letters, digits, other characters.")
+            case .save(let pw): run(pw)
+            }
+        }
+    }
+
+    private func run(_ password: String) {
+        saving = true
+        save(password) { failure in
+            saving = false
+            if let failure {
+                error = failure
+            } else {
+                first = ""
+                second = ""
+                dismiss()
+            }
+        }
     }
 }
 

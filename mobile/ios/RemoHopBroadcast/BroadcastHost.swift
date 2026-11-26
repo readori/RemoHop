@@ -13,6 +13,11 @@ import UserNotifications
 /// command file plus a Darwin notification; this side reads the commands
 /// on the notification and on every one-second tick, so a lost ping only
 /// delays an answer. A request nobody answers is denied after a minute.
+///
+/// The owner's own password (Password settings in the app) is a file in
+/// the shared configuration directory: the host reads it when it starts,
+/// and every tick applies a change the app made meanwhile (the app pings
+/// `DarwinNote.command` after saving, so that tick comes at once).
 /// Its state is used on `queue` only, hence @unchecked Sendable.
 final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendable {
     private let core: HostCore
@@ -153,6 +158,7 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
             }
         }
         perform(book.expire(now: now))
+        core.reloadPassword()
         refresh()
         watchMemory(now: now)
         if now.timeIntervalSince(lastStatsLog) >= 30 {
@@ -178,6 +184,7 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
         var s = state
         s.id = st.id
         s.password = st.password
+        s.passwordFixed = st.passwordFixed
         s.addresses = st.addresses
         s.requests = book.open
         for v in st.viewers where viewerSince[v.id] == nil { viewerSince[v.id] = now }
