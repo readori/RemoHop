@@ -24,6 +24,8 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
     private var pressure: DispatchSourceMemoryPressure?
     private var commandNote: DarwinNote.Observation?
     private var governor = MemoryGovernor()
+    /// When each viewer was first seen (the core reports seconds connected).
+    private var viewerSince: [Int: Date] = [:]
     private var lastStatsLog = Date()
     private var started = Date()
     private var running = false
@@ -115,7 +117,8 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
         guard wasRunning else { return }
         encoder?.stop()
         core.stop()
-        state = BroadcastState(phase: .stopped, updated: Date())
+        // Without the password and requests; an error stays for the app to show.
+        state = BroadcastState(phase: state.phase == .failed ? .failed : .stopped, error: state.error, updated: Date())
         BroadcastStore.writeState(state)
         BroadcastStore.clearCommands()
         removeRequestNotifications()
@@ -159,20 +162,40 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
         }
     }
 
-    /// Reads the core's status, reconciles the approvals and writes the state file.
-    private func refresh() {
+    /// Reads the core's status (or takes the one it just sent), reconciles
+    /// the approvals and writes the state file.
+    private func refresh(_ json: String? = nil) {
         guard running else { return }
-        let st = core.status()
+        let st = json.map { HostStatus(json: $0) } ?? core.status()
         let now = Date()
+        for n in st.accessRequests {
+            // A viewer asking for control: this device cannot be controlled.
+            ExtLog.log("request \(n) for control refused: view only")
+            core.decide(n: n, allow: false)
+        }
         perform(book.sync(st.requests, now: now))
         var s = state
-        s.id = Self.formatID(st.id)
+        s.id = st.id
         s.password = st.password
         s.addresses = st.addresses
         s.requests = book.open
-        s.viewers = st.viewers
-        s.phase = (!s.id.isEmpty || !s.addresses.isEmpty) ? .ready : .starting
-        s.error = ""
+        for v in st.viewers where viewerSince[v.id] == nil { viewerSince[v.id] = now }
+        viewerSince = viewerSince.filter { id, _ in st.viewers.contains { $0.id == id } }
+        s.viewers = st.viewers.map { BroadcastState.Viewer(id: $0.id, label: $0.label, from: $0.from, since: viewerSince[$0.id] ?? now) }
+        switch st.phase {
+        case "ready", "no_server": s.phase = .ready
+        case "error":
+            s.phase = .failed
+            s.error = "host"
+        default: s.phase = .starting
+        }
+        if s.phase != .failed { s.error = "" }
+        if st.phase == "error" && lastWritten?.phase != .failed {
+            // The host stopped by itself: sharing the screen has no point any more.
+            ExtLog.log("host mode stopped: \(st.error)")
+            let msg = text("Screen sharing stopped because of an error.")
+            DispatchQueue.main.async { self.onFinish?(msg) }
+        }
         s.footprintMB = (Memory.footprintMB() * 10).rounded() / 10
         let changed: Bool = {
             guard let l = lastWritten else { return true }
@@ -193,13 +216,6 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
             lastWritten = s
         }
         state = s
-    }
-
-    /// "123456789" -> "123 456 789"; anything else as it is.
-    static func formatID(_ id: String) -> String {
-        guard id.count == 9, id.allSatisfy(\.isNumber) else { return id }
-        let c = Array(id)
-        return String(c[0..<3]) + " " + String(c[3..<6]) + " " + String(c[6..<9])
     }
 
     private func perform(_ actions: [ApprovalBook.Action]) {
@@ -225,7 +241,7 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
         switch governor.observe(availableMB: Memory.availableMB(), footprintMB: Memory.footprintMB(), now: now) {
         case .none: break
         case .stepDown(let edge):
-            encoder.setMaxLongEdge(edge)
+            encoder.setMemoryLongEdge(edge)
             RemohopcoreFreeOSMemory()
             ExtLog.memory("low, long edge -> \(edge)")
         case .freeMemory:
@@ -237,7 +253,7 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
     private func memoryWarning(critical: Bool) {
         RemohopcoreFreeOSMemory()
         if critical, case .stepDown(let edge) = governor.observe(availableMB: 1, footprintMB: 0, now: Date()) {
-            encoder.setMaxLongEdge(edge)
+            encoder.setMemoryLongEdge(edge)
         }
         ExtLog.memory(critical ? "critical warning" : "warning")
     }
@@ -267,19 +283,22 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
 
     // MARK: HostCoreEvents (core threads)
 
-    func coreWantsKeyframe() { encoder?.requestKeyframe() }
-    func coreWantsBitrate(_ bps: Int) { encoder?.requestBitrate(bps) }
-    func coreWantsFPS(_ fps: Int) { encoder?.requestFPS(fps) }
-    func coreStateChanged() { queue.async { self.refresh() } }
-
-    // MARK: H264EncoderOutput (VideoToolbox's thread)
-
-    func encoderFormat(width: Int, height: Int, sps: Data, pps: Data) {
-        ExtLog.log("stream format \(width)x\(height)")
-        core.setFormat(width: width, height: height, sps: sps, pps: pps)
+    func coreStartScreen(maxSize: Int, fps: Int, bitrate: Int64) {
+        encoder?.start(maxSize: maxSize, fps: fps, bitrate: bitrate)
     }
 
-    func encoderFrame(_ data: UnsafeRawBufferPointer, ptsMicros: Int64, keyframe: Bool) {
-        core.push(data, ptsMicros: ptsMicros, keyframe: keyframe)
+    func coreStopScreen() { encoder?.stopEncoding() }
+    func coreWantsKeyframe() { encoder?.requestKeyframe() }
+    func coreWantsBitrate(_ bps: Int64) { encoder?.requestBitrate(bps) }
+    func coreStateChanged(_ json: String) { queue.async { self.refresh(json.isEmpty ? nil : json) } }
+
+    // MARK: H264EncoderOutput
+
+    func encoderScreen(width: Int, height: Int, rotation: Int) {
+        core.setScreenInfo(width: width, height: height, rotation: rotation)
+    }
+
+    func encoderFrame(_ data: UnsafeRawBufferPointer, captureMicros: Int64, keyframe: Bool) {
+        core.push(data, captureMicros: captureMicros)
     }
 }

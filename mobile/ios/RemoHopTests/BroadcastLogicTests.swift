@@ -220,6 +220,40 @@ final class BroadcastLogicTests: XCTestCase {
         XCTAssertTrue(b.open.isEmpty)
     }
 
+    func testApprovalTakesTheCoresSoonerDeadline() {
+        var b = book()
+        let t0 = Date(timeIntervalSince1970: 100)
+        var r = req(1)
+        r.left = 12 // the core started counting before the extension saw it
+        _ = b.sync([r], now: t0)
+        XCTAssertEqual(b.nextDeadline, t0.addingTimeInterval(12))
+        var later = req(2)
+        later.left = 600
+        _ = b.sync([r, later], now: t0)
+        XCTAssertEqual(b.open.last?.deadline, t0.addingTimeInterval(60))
+    }
+
+    func testHostStatusFromTheCore() {
+        let json = """
+        {"on":true,"phase":"ready","id":"123 456 789","password":"pw-1","online":true,"viewers":1,
+         "requests":[{"n":4,"name":"laptop","device":"","identity":"ab12:cd34","from":"203.0.113.9","auth":"password","left":42,"first_seen":true},
+                     {"n":5,"device":"Mac","identity":"ee:ff","auth":"session","left":50,"first_seen":false,"access":["input"],"session":2}],
+         "sessions":[{"id":2,"label":"Mac","identity":"ee:ff","from":"198.51.100.2","path":"direct","seconds":30,"control":false}]}
+        """
+        let s = HostStatus(json: json)
+        XCTAssertEqual(s.phase, "ready")
+        XCTAssertEqual(s.id, "123 456 789")
+        XCTAssertEqual(s.password, "pw-1")
+        XCTAssertTrue(s.online)
+        XCTAssertEqual(s.requests, [CoreRequest(n: 4, device: "laptop", identity: "ab12:cd34", from: "203.0.113.9", firstSeen: true, left: 42)])
+        XCTAssertEqual(s.accessRequests, [5])
+        XCTAssertEqual(s.viewers, [HostStatus.Viewer(id: 2, label: "Mac", from: "198.51.100.2")])
+        let off = HostStatus(json: #"{"on":false,"phase":"no_server","addresses":["192.168.1.5:21118"],"requests":[],"sessions":[]}"#)
+        XCTAssertEqual(off.phase, "no_server")
+        XCTAssertEqual(off.addresses, ["192.168.1.5:21118"])
+        XCTAssertEqual(HostStatus(json: "not json"), HostStatus())
+    }
+
     func testRealKeysAreUnique() {
         var b = ApprovalBook()
         let a = b.sync([req(1), req(2)], now: Date())
@@ -242,7 +276,7 @@ final class BroadcastLogicTests: XCTestCase {
         XCTAssertEqual(gone.password, "")
         XCTAssertTrue(gone.viewers.isEmpty)
         XCTAssertEqual(s.effective(now: t0.addingTimeInterval(1)), s)
-        let failed = BroadcastState(phase: .failed, error: "core_unsupported", updated: t0)
+        let failed = BroadcastState(phase: .failed, error: "host", updated: t0)
         XCTAssertEqual(failed.effective(now: t0.addingTimeInterval(999)), failed)
 
         let data = try BroadcastStore.encoder.encode(s)

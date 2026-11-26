@@ -3,18 +3,22 @@ import CoreVideo
 import Foundation
 import VideoToolbox
 
-/// Where the encoder's output goes (the core's provided stream).
+/// Where the encoder's output goes (the core's provided screen).
 protocol H264EncoderOutput: AnyObject {
-    func encoderFormat(width: Int, height: Int, sps: Data, pps: Data)
-    /// `data` is Annex-B and valid only during the call.
-    func encoderFrame(_ data: UnsafeRawBufferPointer, ptsMicros: Int64, keyframe: Bool)
+    /// The upright screen's size (before scaling) and the rotation that
+    /// made it upright changed (the device turned).
+    func encoderScreen(width: Int, height: Int, rotation: Int)
+    /// One access unit, Annex-B, valid only during the call; a keyframe
+    /// starts with SPS and PPS. `captureMicros`: Unix microseconds.
+    func encoderFrame(_ data: UnsafeRawBufferPointer, captureMicros: Int64, keyframe: Bool)
 }
 
 /// Hardware H.264 for the shared screen: VideoToolbox in real-time,
 /// low-latency mode (no B-frames, no frame reordering), a keyframe when a
 /// viewer asks, the bitrate the core's flow control asks for, at most 30
-/// frames a second, the long edge at most 1920 (lower under memory
-/// pressure).
+/// frames a second, the long edge at most 1920 (lower when the viewers
+/// want less, or under memory pressure). It encodes only while the core
+/// says someone watches (`start` / `stopEncoding`).
 ///
 /// Orientation: ReplayKit hands over the screen in its portrait buffer and
 /// says how the picture lies (RPVideoSampleOrientationKey). An upright
@@ -51,11 +55,12 @@ final class H264Encoder {
     private var bitrate: BitrateController
     private var wantKeyframe = true
     private var inFlight = 0
-    /// The format last handed to the core; used on VideoToolbox's thread,
-    /// so under its own lock (never `queue.sync` there: teardown waits for
-    /// the encoder's last frames on `queue`).
-    private var lastFormat: (FrameSize, Data, Data)?
-    private let formatLock = NSLock()
+    /// Someone watches (the core called StartScreen and not StopScreen).
+    private var active = false
+    /// The long edge the viewers want (StartScreen's maxSize) and the memory cap.
+    private var wantedLongEdge = 1920
+    private var memoryLongEdge = 1920
+    private var screen: (FrameSize, VideoRotation)?
     private var last: (buffer: CVPixelBuffer, orientation: UInt32)?
     private var lastEncodedAt = Date.distantPast
     private(set) var stats = Stats()
@@ -63,9 +68,12 @@ final class H264Encoder {
     /// At most this many frames wait in the encoder; more are dropped (latency and memory).
     private static let maxInFlight = 2
 
-    init(output: H264EncoderOutput, maxLongEdge: Int = 1920, fps: Int = 30) {
+    static let maxFPS = 30
+    static let maxLongEdge = 1920
+
+    init(output: H264EncoderOutput, fps: Int = H264Encoder.maxFPS) {
         self.output = output
-        self.maxLongEdge = maxLongEdge
+        self.maxLongEdge = Self.maxLongEdge
         throttle = FrameThrottle(fps: fps)
         bitrate = BitrateController(size: FrameSize(width: 1080, height: 1920), fps: fps)
     }
@@ -77,58 +85,104 @@ final class H264Encoder {
     func encode(_ buffer: CVPixelBuffer, pts: CMTime, orientation: UInt32) {
         queue.sync {
             stats.received += 1
-            guard throttle.admit(pts.seconds) else { return }
+            noteScreen(buffer, orientation: orientation)
+            // Kept even while nobody watches: a viewer that joins a still
+            // screen gets it as its first keyframe.
+            last = (buffer, orientation)
+            guard active, throttle.admit(pts.seconds) else { return }
             guard inFlight < Self.maxInFlight else {
                 stats.dropped += 1
                 return
             }
-            last = (buffer, orientation)
             submit(buffer, pts: pts, orientation: orientation)
         }
+    }
+
+    /// Someone watches: encode with these limits (0: no limit), starting
+    /// with a keyframe. Called again with new limits while running.
+    func start(maxSize: Int, fps: Int, bitrate bps: Int64) {
+        queue.async {
+            self.wantedLongEdge = maxSize > 0 ? min(maxSize, Self.maxLongEdge) : Self.maxLongEdge
+            self.updateLongEdge()
+            let f = max(1, min(fps > 0 ? fps : Self.maxFPS, Self.maxFPS))
+            if f != self.throttle.fps {
+                self.throttle.setFPS(f)
+                if let s = self.session { VTSessionSetProperty(s, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: f as CFNumber) }
+                _ = self.bitrate.resize(self.sessionSize.width > 0 ? self.sessionSize : FrameSize(width: 1080, height: 1920), fps: f)
+            }
+            if bps > 0, let v = self.bitrate.request(Int(clamping: bps), now: Date()) { self.applyBitrate(v) }
+            if !self.active {
+                self.active = true
+                ExtLog.log("encoder: started for viewers (max \(maxSize), \(fps) fps, \(bps / 1000) kbit/s asked)")
+            }
+            self.keyframeSoon()
+        }
+    }
+
+    /// Nobody watches: the session ends (its buffers go), frames are only kept.
+    func stopEncoding() {
+        queue.async {
+            guard self.active else { return }
+            self.active = false
+            self.teardown()
+            ExtLog.log("encoder: stopped, nobody watches")
+        }
+    }
+
+    /// The upright screen size and rotation, reported when they change.
+    private func noteScreen(_ buffer: CVPixelBuffer, orientation: UInt32) {
+        let rotation = StreamGeometry.rotation(orientation: orientation)
+        let w = CVPixelBufferGetWidth(buffer), h = CVPixelBufferGetHeight(buffer)
+        let upright = rotation.swapsSides ? FrameSize(width: h, height: w) : FrameSize(width: w, height: h)
+        if let s = screen, s.0 == upright, s.1 == rotation { return }
+        screen = (upright, rotation)
+        ExtLog.log("screen \(upright), turned \(rotation.rawValue) degrees")
+        output?.encoderScreen(width: upright.width, height: upright.height, rotation: rotation.rawValue)
+    }
+
+    private func updateLongEdge() {
+        let v = min(wantedLongEdge, memoryLongEdge)
+        guard v != maxLongEdge else { return }
+        maxLongEdge = v
+        scaledPool = nil
     }
 
     /// A viewer needs a keyframe: the next frame is one. If the screen
     /// does not change (no frame comes), the last frame is sent again as one.
     func requestKeyframe() {
-        queue.async {
-            self.wantKeyframe = true
-            let asked = Date()
-            self.queue.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-                guard let self, self.wantKeyframe, self.lastEncodedAt < asked, let l = self.last, self.inFlight == 0 else { return }
-                self.submit(l.buffer, pts: CMClockGetTime(CMClockGetHostTimeClock()), orientation: l.orientation)
-            }
+        queue.async { self.keyframeSoon() }
+    }
+
+    /// (On queue.) The next frame is a keyframe; if none comes soon (a
+    /// still screen), the last frame is encoded again as one.
+    private func keyframeSoon() {
+        wantKeyframe = true
+        let asked = Date()
+        queue.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            guard let self, self.active, self.wantKeyframe, self.lastEncodedAt < asked, let l = self.last, self.inFlight == 0 else { return }
+            self.submit(l.buffer, pts: CMClockGetTime(CMClockGetHostTimeClock()), orientation: l.orientation)
         }
     }
 
-    func requestBitrate(_ bps: Int) {
+    func requestBitrate(_ bps: Int64) {
         queue.async {
-            guard let v = self.bitrate.request(bps, now: Date()) else { return }
+            guard let v = self.bitrate.request(Int(clamping: bps), now: Date()) else { return }
             self.applyBitrate(v)
         }
     }
 
-    func requestFPS(_ fps: Int) {
-        queue.async {
-            let v = max(1, min(fps, 30))
-            guard v != self.throttle.fps else { return }
-            self.throttle.setFPS(v)
-            if let s = self.session { VTSessionSetProperty(s, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: v as CFNumber) }
-            if let b = self.bitrate.resize(self.sessionSize, fps: v) { self.applyBitrate(b) }
-        }
-    }
-
     /// Memory pressure: encode smaller from the next frame on.
-    func setMaxLongEdge(_ v: Int) {
+    func setMemoryLongEdge(_ v: Int) {
         queue.async {
-            guard v != self.maxLongEdge else { return }
-            self.maxLongEdge = v
-            self.scaledPool = nil
+            self.memoryLongEdge = v
+            self.updateLongEdge()
         }
     }
 
     /// Ends the session and lets every buffer go.
     func stop() {
         queue.sync {
+            active = false
             teardown()
             last = nil
         }
@@ -187,7 +241,7 @@ final class H264Encoder {
         }
         if rotator == nil || rotatorAngle != rotation {
             var r: VTPixelRotationSession?
-            guard VTPixelRotationSessionCreate(allocator: nil, pixelRotationSessionOut: &r) == noErr, let r else { return nil }
+            guard VTPixelRotationSessionCreate(nil, &r) == noErr, let r else { return nil }
             let angle: CFString
             switch rotation {
             case .cw90: angle = kVTRotation_CW90
@@ -213,7 +267,7 @@ final class H264Encoder {
               VTPixelTransferSessionTransferImage(transfer, from: src, to: mid) == noErr else { return nil }
         var out: CVPixelBuffer?
         guard CVPixelBufferPoolCreatePixelBuffer(nil, encoderPool, &out) == kCVReturnSuccess, let out,
-              VTPixelRotationSessionRotateImage(rotator, from: mid, to: out) == noErr else { return nil }
+              VTPixelRotationSessionRotateImage(rotator, mid, out) == noErr else { return nil }
         return out
     }
 
@@ -302,9 +356,6 @@ final class H264Encoder {
         scaledPool = nil
         sessionSize = FrameSize(width: 0, height: 0)
         inFlight = 0
-        formatLock.lock()
-        lastFormat = nil
-        formatLock.unlock()
     }
 
     // MARK: output (VideoToolbox's thread)
@@ -319,19 +370,14 @@ final class H264Encoder {
         }
         let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: false) as? [[CFString: Any]]
         let keyframe = !((attachments?.first?[kCMSampleAttachmentKey_NotSync] as? Bool) ?? false)
-        let pts = CMTimeConvertScale(CMSampleBufferGetPresentationTimeStamp(sample), timescale: 1_000_000, method: .roundHalfAwayFromZero).value
+        // ReplayKit's times are on the host clock; the core wants Unix time.
+        let age = CMTimeSubtract(CMClockGetTime(CMClockGetHostTimeClock()), CMSampleBufferGetPresentationTimeStamp(sample)).seconds
+        let capture = Int64((Date().timeIntervalSince1970 - max(0, age.isFinite ? age : 0)) * 1_000_000)
 
         var paramSets: (Data, Data)?
         if keyframe {
             guard let ps = Self.parameterSets(fmt) else { return }
             paramSets = ps
-            let dims = CMVideoFormatDescriptionGetDimensions(fmt)
-            let size = FrameSize(width: Int(dims.width), height: Int(dims.height))
-            formatLock.lock()
-            let changed = !(lastFormat.map { $0.0 == size && $0.1 == ps.0 && $0.2 == ps.1 } ?? false)
-            if changed { lastFormat = (size, ps.0, ps.1) }
-            formatLock.unlock()
-            if changed { output?.encoderFormat(width: size.width, height: size.height, sps: ps.0, pps: ps.1) }
         }
 
         // The frame's bytes, made contiguous only if VideoToolbox split them.
@@ -355,9 +401,9 @@ final class H264Encoder {
             // A keyframe carries its parameter sets in front (the only copy, once per keyframe).
             var d = AnnexB.parameterSets(sps: ps.0, pps: ps.1)
             d.append(UnsafeRawPointer(ptr).assumingMemoryBound(to: UInt8.self), count: total)
-            d.withUnsafeBytes { self.output?.encoderFrame($0, ptsMicros: pts, keyframe: true) }
+            d.withUnsafeBytes { self.output?.encoderFrame($0, captureMicros: capture, keyframe: true) }
         } else {
-            output?.encoderFrame(UnsafeRawBufferPointer(frame), ptsMicros: pts, keyframe: false)
+            output?.encoderFrame(UnsafeRawBufferPointer(frame), captureMicros: capture, keyframe: false)
         }
         queue.async {
             self.stats.encoded += 1

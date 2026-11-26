@@ -7,6 +7,8 @@ struct CoreRequest: Equatable {
     var identity: String
     var from: String
     var firstSeen: Bool
+    /// Seconds before the core refuses it by itself, if it says.
+    var left: Int? = nil
 }
 
 /// The approval handoff's state machine, run by the broadcast extension.
@@ -20,7 +22,7 @@ struct CoreRequest: Equatable {
 /// core. This type decides what each event means:
 ///
 ///   - `sync` with the core's pending list: a new login gets a random key
-///     and a deadline (notify); one that left the list (the core timed it
+///     and a deadline, the core's own if it is sooner (notify); one that left the list (the core timed it
 ///     out, the viewer gave up) is withdrawn.
 ///   - `decide`: the first answer for a key that is still open and not past
 ///     its deadline goes to the core; any later, duplicate, unknown or late
@@ -64,7 +66,7 @@ struct ApprovalBook {
         let known = Set(open.map(\.n))
         for c in core where !known.contains(c.n) {
             let r = BroadcastState.Request(key: makeKey(), n: c.n, device: c.device, identity: c.identity, from: c.from,
-                                           firstSeen: c.firstSeen, deadline: now.addingTimeInterval(timeout))
+                                           firstSeen: c.firstSeen, deadline: now.addingTimeInterval(min(timeout, TimeInterval(c.left ?? Int(timeout)))))
             open.append(r)
             actions.append(.notify(r))
         }
