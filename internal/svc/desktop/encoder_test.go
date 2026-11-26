@@ -144,3 +144,20 @@ func TestSelectCodec(t *testing.T) {
 		})
 	}
 }
+
+// Above 60 fps each further frame counts half.
+func TestAutoBitrateHighFrameRate(t *testing.T) {
+	px := 1920 * 1080
+	if got, want := autoBitrate(px, 60, true), int64(float64(px)*60*0.12); got != want {
+		t.Fatalf("1080p60 fast: %d, want %d", got, want)
+	}
+	if got, want := autoBitrate(px, 120, true), int64(float64(px)*90*0.12); got != want {
+		t.Fatalf("1080p120 fast: %d, want %d", got, want)
+	}
+	if a, b := autoBitrate(px, 120, false), autoBitrate(px, 144, false); b <= a {
+		t.Fatalf("144 fps (%d) not above 120 fps (%d)", b, a)
+	}
+	if got := autoBitrate(3840*2160, 144, true); got != maxAutoBitrate {
+		t.Fatalf("4K144 fast: %d, want the cap", got)
+	}
+}
