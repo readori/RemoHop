@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Android and iOS controller apps | RemoHop</title>
 <meta name="description" content="The RemoHop mobile apps are controllers only: connect to and operate your computers from a phone. TestFlight for iOS is in preparation; neither platform has a store release yet.">
-<link rel="stylesheet" href="/assets/site.css?v=bb42435348">
+<link rel="stylesheet" href="/assets/site.css?v=58baeb3f48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -51,7 +51,7 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Android and iOS apps</h1>
-<p>The mobile apps let you connect to and operate your computers from a phone or tablet. The Android app can also let the phone itself be viewed and, if you allow it, controlled from another RemoHop device.</p>
+<p>The mobile apps let you connect to and operate your computers from a phone or tablet. The phone itself can be viewed from another RemoHop device too: an Android phone can also be controlled if you allow it; an iPhone or iPad can only be viewed, because iOS does not let any app control the device.</p>
 
 <div class="note">
 <p><strong>Get the iOS app:</strong> <a href="https://apps.apple.com/app/id6838609056">App Store</a> (iPhone and iPad). The Android app has been submitted to Google Play for review; until it is approved, you can build it from source.</p>
@@ -66,15 +66,16 @@
 <li><strong>Clipboard:</strong> move text between the phone and the computer.</li>
 <li><strong>System information and screenshots.</strong></li>
 <li><strong>This phone as a host (Android):</strong> Settings → This device lets other RemoHop devices view the phone's screen. Every request asks you first, with the scam warning; control needs your tick in the request and RemoHop's accessibility service. Only a temporary password works, and the sharing ends when the last device leaves or you tap Stop.</li>
+<li><strong>Share this screen (iOS):</strong> Settings → This device → Share this screen lets other RemoHop devices view the iPhone's or iPad's screen. View only; every request asks you first and only a temporary password works. Stop at any time from Control Center or the page.</li>
 <li><strong>Languages:</strong> the app and its pages are in English and Simplified Chinese. They follow the system by default; choose the language in Settings.</li>
 <li><strong>Settings (native):</strong> the language, the rendezvous server's address and key, whether relaying is allowed, the device name, this device's identity fingerprint, pairing by password, and saved hosts.</li>
 </ul>
 
 <h2 id="limits">Current limits</h2>
 <ul>
-<li>On iOS the app is a controller only for now: an iPhone or iPad cannot be viewed or controlled yet.</li>
-<li>No built-in server. Enter your own rendezvous server in the settings, or connect by <code>host:port</code>.</li>
-<li>No account login.</li>
+<li>An iPhone or iPad can be viewed but not controlled: iOS does not let any app control the device.</li>
+<li>A phone that shares its screen offers only the picture: no files, clipboard, terminal or sound.</li>
+<li>No account login yet.</li>
 <li>Both apps are tested in CI on every change: the iOS app in the iOS Simulator, where an in-app test connects to a <code>remohop host</code> by address and password, runs a command in the terminal and lists a directory in Files; the Android app on an emulator, where it pairs with a real host and uses the terminal, files, downloads, the clipboard and the desktop. Tell us about anything that goes wrong on your device.</li>
 </ul>
 
