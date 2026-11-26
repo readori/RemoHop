@@ -325,9 +325,12 @@
   setInterval(() => {
     const t = performance.now(), dt = (t - stats.ws) / 1000;
     if (dt >= 0.5) { stats.fps = stats.wf / dt; stats.mbps = stats.wb * 8 / dt / 1e6; stats.wf = 0; stats.wb = 0; stats.ws = t; }
-    if (!hello || $('d-hud').hidden) return;
+    if (!hello) return;
     const h = stats.host || {}, tr = SD.t;
+    // Sampled while the HUD is hidden too, so that opening it shows the
+    // last 10 s rather than everything since it was last open.
     const recent = recentDeltas(t, h.dropped, stats.skipped);
+    if ($('d-hud').hidden) return;
     $('d-hud').textContent = `${hello.width}×${hello.height} ${hello.codec}\n${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'} ${((h.bitrate || hello.bitrate || 0) / 1e6).toFixed(0)} Mbit/s\n` +
       `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s` + (h.pipeline_ms ? ` (${tr('d.hud.encode')} ${h.pipeline_ms.toFixed(0)} ms)` : '') + `\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
       tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), total: num(h.dropped), recent: recent.dropped}) + (h.restarts ? ' ' + tr('d.hud.restarts', {n: h.restarts}) : '') +
