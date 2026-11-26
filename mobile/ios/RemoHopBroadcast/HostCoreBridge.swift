@@ -68,6 +68,9 @@ final class GoHostCore: HostCore {
     func start(events: HostCoreEvents) throws {
         let a = Adapter(events)
         adapter = a
+        // VideoToolbox at 30 fps (the extension's encoder); no input
+        // injector is set, so the core offers viewing only.
+        RemohopcoreSetScreenOptions("videotoolbox", 30)
         RemohopcoreSetScreenSource(a)
         RemohopcoreSetHostListener(a)
         var err: NSError?
