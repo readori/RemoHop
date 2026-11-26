@@ -111,7 +111,7 @@ func discoverCapture(display, fps int) (captureSpec, error) {
 
 // x11Monitors lists monitors left to right, top to bottom, using RandR 1.5.
 func x11Monitors(c *xgb.Conn, root xproto.Window) ([]randr.MonitorInfo, error) {
-	if err := randr.Init(c); err != nil {
+	if err := x11disp.EnableRandR(c); err != nil {
 		return nil, fmt.Errorf("X server has no RandR extension, cannot select a monitor: %w", err)
 	}
 	rep, err := randr.GetMonitors(c, root, true).Reply()
