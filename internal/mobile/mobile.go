@@ -50,7 +50,7 @@ import (
 
 // Settings the app may read and change. Everything else in config.json is
 // left alone.
-var appSettings = []string{signal.SettingAddr, signal.SettingPin, signal.SettingRelay, hostd.SettingName}
+var appSettings = []string{signal.SettingAddr, signal.SettingPin, signal.SettingRelay, dial.SettingOutcomes, hostd.SettingName}
 
 var (
 	mu       sync.Mutex
@@ -562,8 +562,9 @@ func GatewayRunning() bool {
 
 // GetSetting returns one of the settings the app manages: "signal" (the
 // rendezvous server, HOST[:PORT]), "signal-pin" (its public key), "relay"
-// (on/off) and "name" (this device's name shown to peers). Unset values are
-// returned as "".
+// (on/off), "outcomes" (on/off: connection outcome reports to the server,
+// see internal/dial) and "name" (this device's name shown to peers). Unset
+// values are returned as "".
 func GetSetting(key string) (string, error) {
 	if _, err := configDir(); err != nil {
 		return "", err
@@ -629,7 +630,7 @@ func allowedSetting(key string) bool {
 }
 
 // SettingsJSON returns the managed settings and this device's identity as
-// one JSON object: {"signal","signal-pin","relay","name","fingerprint"}.
+// one JSON object: {"signal","signal-pin","relay","outcomes","name","fingerprint"}.
 func SettingsJSON() (string, error) {
 	d, err := configDir()
 	if err != nil {
@@ -643,8 +644,10 @@ func SettingsJSON() (string, error) {
 	for _, k := range appSettings {
 		out[k] = all[k]
 	}
-	if out[signal.SettingRelay] == "" {
-		out[signal.SettingRelay] = "on"
+	for _, k := range []string{signal.SettingRelay, dial.SettingOutcomes} {
+		if out[k] == "" {
+			out[k] = "on"
+		}
 	}
 	out["fingerprint"] = fingerprint(d)
 	b, err := json.Marshal(out)

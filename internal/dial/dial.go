@@ -295,6 +295,14 @@ type dialer struct {
 	// signalAddr and sopts are the rendezvous server, resolved once.
 	signalAddr string
 	sopts      signal.Options
+
+	// connectStart is when the dial's first connect request went out, for
+	// outcome reports (outcome.go); send sends them, and reports are those
+	// still on their way.
+	connectStart time.Time
+	send         func(context.Context, *signal.Client, signal.Outcome) error
+	reportsMu    sync.Mutex
+	reports      []chan struct{}
 }
 
 // errUseWS is what establish returns when the rendezvous server did not
@@ -376,7 +384,7 @@ func (d *dialer) mayRetryPunch(local, remote nat.Type) bool {
 }
 
 func newDialer(opts Options) (*dialer, error) {
-	d := &dialer{opts: opts, log: opts.Logger, dir: opts.Dir}
+	d := &dialer{opts: opts, log: opts.Logger, dir: opts.Dir, send: sendOutcome}
 	if d.log == nil {
 		d.log = slog.Default()
 	}
@@ -529,6 +537,10 @@ type route struct {
 	remote netip.AddrPort
 	path   Path
 	nonce  []byte // of the relay session, for releasing it
+	// outcome is the path's kind for the outcome report (a signal.Path...
+	// value), win what the punch found for a punched route.
+	outcome string
+	win     nat.Punched
 }
 
 func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) {
@@ -575,7 +587,8 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 	ok := false
 	defer func() {
 		if !ok {
-			sock.Close()
+			// Once an outcome report on it is done (outcome.go).
+			d.closeSocket(sock)
 		}
 	}()
 
@@ -585,7 +598,7 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 		// down): go through its websocket bridge instead, which can only
 		// end in a relayed session.
 		d.log.Debug("rendezvous server not reachable over UDP; trying its websocket bridge", "err", useWS.err)
-		sock.Close()
+		d.closeSocket(sock)
 		d.onWS = true
 		if sock, err = d.newSocket(); err != nil {
 			return nil, err
@@ -608,7 +621,7 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 		// first one for it, and on a fresh introduction, so the host
 		// primes its NAT again.
 		d.log.Debug("hole punching failed although both NATs look punchable; trying once more", "target", t.canonical, "err", retry.err)
-		sock.Close()
+		d.closeSocket(sock)
 		if sock, err = d.newSocket(); err != nil {
 			return nil, err
 		}
@@ -779,7 +792,7 @@ func (d *dialer) clientTLS() (*tls.Config, error) { return d.identity.ClientTLS(
 
 // establish finds a path to the host and returns the first QUIC connection
 // over it.
-func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*quic.Conn, route, error) {
+func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (_ *quic.Conn, found route, err error) {
 	tlsConf, err := d.clientTLS()
 	if err != nil {
 		return nil, route{}, err
@@ -829,9 +842,11 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		}
 		return nil, route{}, err
 	}
-	// The server's part ends with the introduction; it is not kept around
-	// for the session.
-	defer sc.Close()
+	// The server's part ends with the introduction (and the relay, if one
+	// is needed); it is not kept around for the session, only, in the
+	// background, for the report of how the attempt ended (outcome.go).
+	var intro *signal.Introduction
+	defer func() { d.finishSignal(ctx, sc, intro, found, err) }()
 	// Our NAT type was measured while the rendezvous connection came up.
 	// It goes to the host with the request, decides how long punching is
 	// worth trying, and explains a failure. Only the first measurement on
@@ -847,8 +862,12 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		}
 	}
 	natType := d.natType
-	intro, err := sc.Connect(sctx, t.id, sock.Candidates(), natType)
+	if d.connectStart.IsZero() {
+		d.connectStart = time.Now()
+	}
+	intro, err = sc.Connect(sctx, t.id, sock.Candidates(), natType)
 	if err != nil {
+		intro = nil
 		if ctx.Err() != nil {
 			return nil, route{}, ctx.Err()
 		}
@@ -891,7 +910,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 			how = "(the host is on its websocket bridge)"
 		}
 		d.notify("connected to " + t.display + " through the rendezvous server's relay " + how + " (still end-to-end encrypted, but slower)")
-		return q, route{remote: relay, path: PathRelayed, nonce: intro.Nonce}, nil
+		return q, route{remote: relay, path: PathRelayed, nonce: intro.Nonce, outcome: signal.PathBridged}, nil
 	}
 
 	// Both machines on the same tailnet: the host's tailnet address is a
@@ -956,7 +975,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		Logger:    d.log,
 	}
 	var q *quic.Conn
-	var remote netip.AddrPort
+	var win nat.Punched
 	if relayOK && !retryable {
 		// The last attempt, and a relay to fall back on: start it early
 		// rather than after the punch has given up (at once with a hint).
@@ -979,9 +998,9 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 			setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, true)
 			return q, rt, nil
 		}
-		remote = rt.remote
+		win = rt.win
 	} else {
-		q, remote, err = sock.Connect(ctx, cfg)
+		q, win, err = sock.Connect(ctx, cfg)
 	}
 	if err != nil {
 		if !errors.Is(err, nat.ErrNoPath) {
@@ -1012,14 +1031,15 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		}
 		d.notify("no direct path to " + t.display + ": connected through the rendezvous server's relay (still end-to-end encrypted, but slower)")
 		setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, true)
-		return q, route{remote: relay, path: PathRelayed, nonce: intro.Nonce}, nil
+		return q, relayed(relay, intro.Nonce), nil
 	}
 	setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, false)
+	remote := win.Remote
 	path := classify(remote, intro.Peer)
 	if prefer != nil && prefer(remote) {
 		path = PathTailnet
 	}
-	return q, route{remote: remote, path: path}, nil
+	return q, route{remote: remote, path: path, outcome: outcomePath(path, win, intro.Peer), win: win}, nil
 }
 
 // tailnetPunchTime is the least time a punch gets when the host offers a
@@ -1057,9 +1077,9 @@ func (e *relayRaceError) Unwrap() error { return e.punchErr }
 func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.Client, intro *signal.Introduction,
 	tlsConf *tls.Config, cfg nat.ConnectConfig, wait time.Duration) (*quic.Conn, route, error) {
 	type punchResult struct {
-		q      *quic.Conn
-		remote netip.AddrPort
-		err    error
+		q   *quic.Conn
+		win nat.Punched
+		err error
 	}
 	type relayResult struct {
 		q     *quic.Conn
@@ -1076,8 +1096,8 @@ func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.
 	cfg.OnPath = func() { answeredOnce.Do(func() { close(answered) }) }
 	punchCh := make(chan punchResult, 1)
 	go func() {
-		q, remote, err := sock.Connect(pctx, cfg)
-		punchCh <- punchResult{q, remote, err}
+		q, win, err := sock.Connect(pctx, cfg)
+		punchCh <- punchResult{q, win, err}
 	}()
 
 	var relayCh chan relayResult
@@ -1140,10 +1160,10 @@ func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.
 				if ready != nil {
 					dropRelay(*ready)
 				}
-				return r.q, route{remote: r.remote, path: classify(r.remote, intro.Peer)}, nil
+				return r.q, route{remote: r.win.Remote, path: classify(r.win.Remote, intro.Peer), win: r.win}, nil
 			}
 			if ready != nil {
-				return ready.q, route{remote: ready.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+				return ready.q, relayed(ready.relay, intro.Nonce), nil
 			}
 			if !errors.Is(r.err, nat.ErrNoPath) || ctx.Err() != nil {
 				return nil, route{}, r.err
@@ -1164,7 +1184,7 @@ func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.
 				dropRelay(rr)
 				return nil, route{}, &relayRaceError{r.err, rr.err}
 			}
-			return rr.q, route{remote: rr.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+			return rr.q, relayed(rr.relay, intro.Nonce), nil
 		case rr := <-relayCh:
 			relayPending, relayCh = false, nil
 			if rr.err != nil {
@@ -1187,9 +1207,9 @@ func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.
 			default:
 			}
 			d.log.Debug("the relay is ready and no path has answered; using the relay", "after", time.Since(start).Round(time.Millisecond).String())
-			return rr.q, route{remote: rr.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+			return rr.q, relayed(rr.relay, intro.Nonce), nil
 		case <-grace:
-			return ready.q, route{remote: ready.relay, path: PathRelayed, nonce: intro.Nonce}, nil
+			return ready.q, relayed(ready.relay, intro.Nonce), nil
 		case <-ctx.Done():
 			if ready != nil {
 				dropRelay(*ready)
@@ -1197,6 +1217,11 @@ func (d *dialer) punchOrRelay(ctx context.Context, sock *nat.Socket, sc *signal.
 			return nil, route{}, ctx.Err()
 		}
 	}
+}
+
+// relayed is the route of a relay session that won.
+func relayed(relay netip.AddrPort, nonce []byte) route {
+	return route{remote: relay, path: PathRelayed, nonce: nonce, outcome: signal.PathRelayed}
 }
 
 // viaRelay connects to the host through a relay session on the rendezvous
@@ -1269,6 +1294,7 @@ func (d *dialer) redial(ctx context.Context, sock *nat.Socket, t *target, rt *ro
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
+	d.connectStart = time.Time{} // a new attempt, timed on its own
 	q, fresh, err := d.establish(ctx, sock, t)
 	if err != nil {
 		return nil, err

@@ -518,12 +518,21 @@ const DefaultPreferWait = time.Second
 // until it timed out (10 s, more with hedges). A variable for tests.
 var preferHold = 2500 * time.Millisecond
 
+// Punched is the path Connect found.
+type Punched struct {
+	// Remote is the host address the connection runs to.
+	Remote netip.AddrPort
+	// Predicted reports that Remote is one of the host's predicted ports
+	// this side probed (ConnectConfig.Predicted), adopted when it answered.
+	Predicted bool
+}
+
 // Connect punches towards the host and establishes QUIC over the first
-// path that works, returning the connection and the host address it runs
-// to. When several candidates answer, their handshakes race and the losers
-// are cancelled. It returns an error wrapping ErrNoPath when no candidate
+// path that works, returning the connection and the path it runs on. When
+// several candidates answer, their handshakes race and the losers are
+// cancelled. It returns an error wrapping ErrNoPath when no candidate
 // answers within the punch time.
-func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, netip.AddrPort, error) {
+func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, Punched, error) {
 	punchTime := cfg.PunchTime
 	if punchTime == 0 {
 		punchTime = DefaultPunchTime
@@ -533,7 +542,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 	sess, err := s.PunchWith(PunchConfig{Nonce: cfg.Nonce, Role: RoleClient, Remote: cfg.Remote,
 		Lifetime: punchTime + 5*time.Second, Predicted: cfg.Predicted})
 	if err != nil {
-		return nil, netip.AddrPort{}, err
+		return nil, Punched{}, err
 	}
 	defer sess.Close()
 
@@ -623,9 +632,9 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 	for {
 		if expired && active == 0 {
 			if lastErr != nil {
-				return nil, netip.AddrPort{}, fmt.Errorf("%w: %v", ErrNoPath, lastErr)
+				return nil, Punched{}, fmt.Errorf("%w: %v", ErrNoPath, lastErr)
 			}
-			return nil, netip.AddrPort{}, ErrNoPath
+			return nil, Punched{}, ErrNoPath
 		}
 		select {
 		case h := <-hedge:
@@ -694,7 +703,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 					}
 				}
 			}(active)
-			return r.q, r.addr, nil
+			return r.q, Punched{Remote: r.addr, Predicted: sess.predicted[r.addr]}, nil
 		case <-deadline.C:
 			expired, holdOver = true, true
 			release()
@@ -707,7 +716,7 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 					}
 				}
 			}(active)
-			return nil, netip.AddrPort{}, ctx.Err()
+			return nil, Punched{}, ctx.Err()
 		}
 	}
 }

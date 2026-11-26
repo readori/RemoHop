@@ -123,6 +123,8 @@ func TestSetSettingJSON(t *testing.T) {
 		{"name", strings.Repeat("x", 65), "bad_name"},
 		{"name", "Phone", ""},
 		{"relay", "maybe", "bad_value"},
+		{"outcomes", "maybe", "bad_value"},
+		{"outcomes", "off", ""},
 		{"password", "x", "error"},
 	}
 	for _, c := range cases {

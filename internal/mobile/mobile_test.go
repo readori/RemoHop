@@ -150,7 +150,7 @@ func TestSettings(t *testing.T) {
 	if err := json.Unmarshal([]byte(js), &m); err != nil {
 		t.Fatal(err)
 	}
-	if m["signal"] != "other.example.net:21116" || m["relay"] != "on" || m["name"] != "Pixel 9" || m["fingerprint"] != fp {
+	if m["signal"] != "other.example.net:21116" || m["relay"] != "on" || m["outcomes"] != "on" || m["name"] != "Pixel 9" || m["fingerprint"] != fp {
 		t.Fatalf("settings %v", m)
 	}
 	if line, err := PublicKeyLine(); err != nil || !strings.Contains(line, "Pixel 9") {

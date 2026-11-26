@@ -163,6 +163,13 @@ func connect(t *testing.T, client, host *peer, punchTime time.Duration) (netip.A
 // it does in reality: the rendezvous server tells the host first.
 func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duration) (netip.AddrPort, error) {
 	t.Helper()
+	p, err := connectPunched(t, client, host, punchTime, lead)
+	return p.Remote, err
+}
+
+// connectPunched is connectAfter, returning the whole path Connect found.
+func connectPunched(t *testing.T, client, host *peer, punchTime, lead time.Duration) (nat.Punched, error) {
+	t.Helper()
 	nonce := newNonce()
 	hs, err := host.sock.PunchWith(nat.PunchConfig{Nonce: nonce, Role: nat.RoleHost, Remote: client.candidates,
 		Lifetime: punchTime + time.Second, Predicted: client.predicted})
@@ -179,7 +186,7 @@ func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duratio
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	q, addr, err := client.sock.Connect(ctx, nat.ConnectConfig{
+	q, path, err := client.sock.Connect(ctx, nat.ConnectConfig{
 		Nonce:     nonce,
 		Remote:    host.candidates,
 		TLS:       tlsConf,
@@ -188,8 +195,9 @@ func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duratio
 		Predicted: host.predicted,
 	})
 	if err != nil {
-		return netip.AddrPort{}, err
+		return nat.Punched{}, err
 	}
+	addr := path.Remote
 	defer q.CloseWithError(0, "done")
 
 	s, err := q.OpenStreamSync(ctx)
@@ -208,7 +216,7 @@ func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duratio
 	if ra, _ := netip.ParseAddrPort(q.RemoteAddr().String()); ra != addr {
 		t.Fatalf("Connect reported path %s but the connection runs to %s", addr, q.RemoteAddr())
 	}
-	return addr, nil
+	return path, nil
 }
 
 // Symmetric NAT options for the matrix.
@@ -302,7 +310,8 @@ func TestPunchMatrix(t *testing.T) {
 				punchTime = 1200 * time.Millisecond
 			}
 			start := time.Now()
-			addr, err := connect(t, client, host, punchTime)
+			path, err := connectPunched(t, client, host, punchTime, 0)
+			addr := path.Remote
 			took := time.Since(start)
 
 			if !tc.ok {
@@ -334,6 +343,11 @@ func TestPunchMatrix(t *testing.T) {
 			}
 			if tc.peerReflexive == advertised {
 				t.Errorf("path %s: advertised=%v, want peer-reflexive=%v (host candidates %v)", addr, advertised, tc.peerReflexive, host.candidates)
+			}
+			// Every peer-reflexive path here is a symmetric host's port
+			// that the client found in its predicted window.
+			if path.Predicted != tc.peerReflexive {
+				t.Errorf("path %s: predicted=%v, want %v", addr, path.Predicted, tc.peerReflexive)
 			}
 			if addr.Addr() != netip.MustParseAddr("203.0.113.20") {
 				t.Errorf("path %s does not lead to the host's NAT", addr)
@@ -949,10 +963,11 @@ func connectPrefer(t *testing.T, client, host *peer, remote []netip.AddrPort, pr
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	start := time.Now()
-	q, addr, err := client.sock.Connect(ctx, nat.ConnectConfig{
+	q, path, err := client.sock.Connect(ctx, nat.ConnectConfig{
 		Nonce: nonce, Remote: remote, TLS: tlsConf, QUIC: quicConf(), PunchTime: 5 * time.Second,
 		Prefer: prefer, PreferWait: wait,
 	})
+	addr := path.Remote
 	took := time.Since(start)
 	if err != nil {
 		t.Fatalf("connect: %v", err)

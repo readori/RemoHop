@@ -114,7 +114,7 @@ func checkTarget(d, target string) error {
 //	bad_address  "signal" is not HOST or HOST:PORT
 //	bad_key      "signal-pin" is not a server public key
 //	bad_name     "name" is too long or has control characters
-//	bad_value    "relay" is not on or off
+//	bad_value    "relay" or "outcomes" is not on or off
 //	error        anything else (the text says what)
 //
 // The returned error is reserved for calling it before Init.
@@ -151,7 +151,7 @@ func settingCode(key, value string, err error) string {
 		return "bad_address"
 	case signal.SettingPin:
 		return "bad_key"
-	case signal.SettingRelay:
+	case signal.SettingRelay, dial.SettingOutcomes:
 		return "bad_value"
 	default:
 		return "bad_name"

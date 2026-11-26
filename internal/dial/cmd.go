@@ -141,7 +141,7 @@ const configUsage = `Usage: remohop config [--json]
        remohop config set KEY VALUE
        remohop config unset KEY
        remohop config feature NAME on|off
-       remohop config ask|ask-paired|otp|relay|portmap|account-trust on|off
+       remohop config ask|ask-paired|otp|relay|portmap|outcomes|account-trust on|off
 
 Read and change settings in the remohop config file (config.json in the config
 directory, $REMOHOP_CONFIG_DIR or the platform default). Without arguments all
@@ -164,6 +164,12 @@ sessions that are already connected):
 On a client or a host:
   relay on|off          accept a relayed connection when no direct one is
                         possible and the rendezvous server offers it
+On a client:
+  outcomes on|off       after each connection by ID, tell the rendezvous
+                        server which kind of path it took (LAN, punched,
+                        relayed, ...), how long it took and the two NAT
+                        types, with no ID or address, for its aggregate
+                        counts; default on (REMOHOP_OUTCOMES=0 turns it off)
 
 Examples:
   remohop config feature input off
@@ -751,7 +757,7 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 			return cli.ExitUsage
 		}
 		return onOff(hostd.FeatureSetting(perm.Feature(args[0])), args[1:], "feature "+args[0])
-	case hostd.SettingAsk, hostd.SettingAskPaired, hostd.SettingOTP, signal.SettingRelay, portmap.Setting, account.SettingTrust:
+	case hostd.SettingAsk, hostd.SettingAskPaired, hostd.SettingOTP, signal.SettingRelay, portmap.Setting, SettingOutcomes, account.SettingTrust:
 		return onOff(sub, args, sub)
 	case "":
 		fs := newFlags(env, "config", configUsage)

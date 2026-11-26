@@ -209,6 +209,30 @@ type NAT struct {
 	nextPort uint16
 	step     int  // stride between ports handed out in sequence
 	random   bool // hand out ports at random instead
+	forwards map[uint16]*forward
+}
+
+// forward is a static port forward; see Forward.
+type forward struct {
+	inside netip.AddrPort
+	// peers are the remote addresses that have sent in through the
+	// forward: the inside socket's packets to them leave from its port.
+	peers map[netip.AddrPort]bool
+}
+
+// Forward forwards the NAT's public port to the inside address, as a
+// router's port forward (or one set up by PCP, NAT-PMP or UPnP) does:
+// whatever arrives at the port is let in, whatever the NAT kind, and the
+// inside socket's replies to those senders leave from the port. Its other
+// traffic is translated as before. It returns the public address.
+func (b *NAT) Forward(port uint16, inside netip.AddrPort) netip.AddrPort {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.forwards == nil {
+		b.forwards = map[uint16]*forward{}
+	}
+	b.forwards[port] = &forward{inside: inside, peers: map[netip.AddrPort]bool{}}
+	return netip.AddrPortFrom(b.pub, port)
 }
 
 // strayKey identifies an unsolicited inbound flow: a remote address that
@@ -314,7 +338,7 @@ func (b *NAT) allocLocked() uint16 {
 			p = b.nextPort
 			b.nextPort = uint16(int(b.nextPort) + b.step)
 		}
-		if p != 0 && b.byPort[p] == nil {
+		if p != 0 && b.byPort[p] == nil && b.forwards[p] == nil {
 			return p
 		}
 	}
@@ -336,6 +360,13 @@ func (b *NAT) outbound(src, dst netip.AddrPort, data []byte, ttl int) {
 	}
 	ttl--
 	b.mu.Lock()
+	for port, f := range b.forwards {
+		if f.inside == src && f.peers[dst] {
+			b.mu.Unlock()
+			b.net.route(netip.AddrPortFrom(b.pub, port), dst, data, ttl)
+			return
+		}
+	}
 	key := mapKey{inside: src}
 	if b.kind == Symmetric {
 		key.dst = dst
@@ -370,6 +401,15 @@ func (b *NAT) outbound(src, dst netip.AddrPort, data []byte, ttl int) {
 // inbound filters and forwards a packet arriving at the public address.
 func (b *NAT) inbound(src netip.AddrPort, port uint16, data []byte) {
 	b.mu.Lock()
+	if f := b.forwards[port]; f != nil {
+		f.peers[src] = true
+		host := b.lan[f.inside.Addr()]
+		b.mu.Unlock()
+		if host != nil {
+			host.deliver(src, f.inside.Port(), data)
+		}
+		return
+	}
 	m := b.byPort[port]
 	var host *Host
 	if m != nil {
