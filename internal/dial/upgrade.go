@@ -179,7 +179,14 @@ func (u *upgrader) attempt(ctx context.Context) (done bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	defer sc.Close()
+	// The server's part is done with the introduction. The connection is
+	// kept only for reporting a move (outcome.go), if reports go to it.
+	report, reported := d.reportsTo(sc), false
+	defer func() {
+		if !reported {
+			sc.Close()
+		}
+	}()
 	natType := d.natType
 	if natType == "" || natType == nat.TypeUnknown {
 		natType = sc.NATType()
@@ -188,7 +195,9 @@ func (u *upgrader) attempt(ctx context.Context) (done bool, err error) {
 	if err != nil {
 		return false, err
 	}
-	sc.Close() // the server's part is done
+	if !report {
+		sc.Close()
+	}
 	if sc.Bridged() || intro.Peer.Bridged {
 		return false, errors.New("a websocket bridge is in the way")
 	}
@@ -224,6 +233,11 @@ func (u *upgrader) attempt(ctx context.Context) (done bool, err error) {
 				continue
 			}
 			u.moved(intro, addr)
+			if report {
+				reported = true
+				d.report(sc, signal.Outcome{Path: signal.PathUpgraded, MS: min(time.Since(u.start).Milliseconds(), signal.MaxOutcomeMS),
+					NAT: string(natType), PeerNAT: string(intro.Peer.NAT)})
+			}
 			return true, nil
 		case <-deadline.C:
 			if lastErr != nil {

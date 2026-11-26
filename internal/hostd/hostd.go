@@ -124,9 +124,12 @@ type Config struct {
 
 	// PacketConn, if set, is used instead of opening a socket on Listen,
 	// and Locals replaces interface enumeration. Tests on a virtual
-	// network use both.
+	// network use both. Mapped, if set, replaces the router port mapping
+	// as the source of the address offered for a forwarded port (see
+	// nat.Socket.Mapped); tests give the address of a forward they set up.
 	PacketConn net.PacketConn
 	Locals     func() []netip.Addr
+	Mapped     func() netip.AddrPort
 }
 
 // Host is a running (or ready to run) host daemon.
@@ -329,6 +332,9 @@ func New(cfg Config) (*Host, error) {
 		h.sock.Locals = cfg.Locals
 	}
 	h.sock.Mapped = h.mappedAddr
+	if cfg.Mapped != nil {
+		h.sock.Mapped = cfg.Mapped
+	}
 	tlsConf, err := h.identity.ServerTLS(peer.ALPN, true)
 	if err != nil {
 		h.sock.Close()
