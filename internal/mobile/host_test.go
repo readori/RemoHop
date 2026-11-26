@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/peer"
@@ -516,5 +517,52 @@ func TestHostModeNoInjectorAndScreenOptions(t *testing.T) {
 	SetInputInjector(&fakeInjector{})
 	if d := hostDocNow(t); !d.Offered {
 		t.Fatalf("state %+v", d)
+	}
+}
+
+// The owner's own password for host mode: refused when weak, kept across
+// starts, shown in the state, the only one that logs in; "" goes back to a
+// temporary password.
+func TestHostModeOwnPassword(t *testing.T) {
+	_, _, l, addr := startPhoneHost(t)
+	if d := hostDocNow(t); d.PasswordMode != "temporary" {
+		t.Fatalf("mode %q", d.PasswordMode)
+	}
+	temp := hostDocNow(t).Password
+	if err := SetHostFixedPassword("password"); err == nil {
+		t.Fatal("a weak password was accepted")
+	}
+	if err := SetHostFixedPassword("Garden-42-Ok"); err != nil {
+		t.Fatal(err)
+	}
+	d := hostDocNow(t)
+	if d.PasswordMode != "fixed" || d.Password != "Garden-42-Ok" {
+		t.Fatalf("after setting: %+v", d)
+	}
+	req, out := login(t, l, addr, "Garden-42-Ok", t.TempDir())
+	if err := DecideHostRequest(req.N, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if r := <-out; r.err != nil {
+		t.Fatalf("the own password: %v", r.err)
+	} else {
+		r.conn.Close()
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := dial.Dial(ctx, addr, dial.Options{Password: temp, Dir: t.TempDir()}); err == nil {
+		t.Fatal("the old temporary password still logs in")
+	}
+	// Kept across a restart of host mode.
+	StopHost()
+	if err := StartHost(); err != nil {
+		t.Fatal(err)
+	}
+	waitDoc(t, "the host again", func(d hostDoc) bool { return d.On && d.PasswordMode == "fixed" && d.Password != "" })
+	if err := SetHostFixedPassword(""); err != nil {
+		t.Fatal(err)
+	}
+	if d := hostDocNow(t); d.PasswordMode != "temporary" || d.Password == "" || auth.NormalizePassword(d.Password) == auth.NormalizePassword("Garden-42-Ok") {
+		t.Fatalf("back to temporary: %+v", d)
 	}
 }

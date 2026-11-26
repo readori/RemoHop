@@ -26,7 +26,7 @@
       'p.rename': 'Rename', 'p.wake': 'Wake up', 'p.mac': 'Wake-on-LAN address', 'p.forget': 'Forget', 'p.woke': 'Wake-up packet sent',
       'p.rename.t': 'Name for {t}', 'p.name': 'Name', 'p.mac.t': 'Wake-on-LAN for {t}', 'p.mac.l': 'MAC address (empty removes it)',
       'p.forget.q': 'Forget {t}? Its pairing is deleted.',
-      'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New',
+      'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New', 'in.pwfixed': 'My own password', 'in.setpw': 'Password settings', 'pwm.title': 'Password for incoming connections', 'pwm.temp': 'A new random password', 'pwm.temp.sub': 'Made each time RemoHop starts; "New" replaces it whenever you like', 'pwm.fixed': 'My own password', 'pwm.fixed.sub': 'Stays the same until you change it; at least 8 characters, with letters and digits', 'pwm.note': 'Either way, every connection still asks you first.', 'pwm.saved': 'Password settings saved',
       'in.off': 'Off: nobody can connect', 'in.starting': 'Connecting to the server…', 'in.ready': 'Ready: every connection asks you',
       'in.offline': 'Offline: trying again…', 'in.noserver': 'No server: reachable by address on this network',
       'in.elsewhere': 'Served by the RemoHop service (ID {id})', 'in.error': 'Could not start',
@@ -64,7 +64,7 @@
       'upd.privacy': 'Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.',
       'h.closeq': 'Disconnect from {t}?', 'h.popout': 'Open in a window', 'h.close': 'Disconnect and close',
       'err.no_server': 'Enter the server address.', 'err.bad_server': 'That is not a server address (like signal.example.com:21116).',
-      'err.weak_password': 'Use at least 12 characters with three of: lower case, upper case, digits, symbols.',
+      'err.weak_password': 'Use at least 12 characters with three of: lower case, upper case, digits, symbols.', 'err.weak_own_password': 'Use at least 8 characters, with at least two of: letters, digits, other characters.', 'in.show': 'Show', 'in.hide': 'Hide',
       'err.elevation_cancelled': 'The administrator prompt was cancelled.', 'err.bad_target': 'That is not an ID or an address.',
       'err.wake_name': 'Give this computer a short name first.', 'err.bad_mac': 'That is not a MAC address.',
       'err.gone': 'That is no longer there.', 'err.failed': 'Something went wrong: {m}', 'err.offline': 'The app is not answering.'
@@ -85,7 +85,7 @@
       'p.rename': '重命名', 'p.wake': '唤醒', 'p.mac': '网络唤醒地址', 'p.forget': '移除', 'p.woke': '已发送唤醒包',
       'p.rename.t': '为 {t} 命名', 'p.name': '名称', 'p.mac.t': '{t} 的网络唤醒', 'p.mac.l': 'MAC 地址（留空则删除）',
       'p.forget.q': '移除 {t}？它的配对会被删除。',
-      'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个',
+      'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个', 'in.pwfixed': '固定密码', 'in.setpw': '密码设置', 'pwm.title': '连接密码', 'pwm.temp': '随机密码', 'pwm.temp.sub': '每次启动 RemoHop 时自动生成，随时可点“换一个”', 'pwm.fixed': '我自己的固定密码', 'pwm.fixed.sub': '一直不变，直到你修改；至少 8 位，包含字母和数字', 'pwm.note': '无论哪种，每次有人连接都会先问你。', 'pwm.saved': '密码设置已保存',
       'in.off': '已关闭：谁都连不上', 'in.starting': '正在连接服务器…', 'in.ready': '已就绪：每次连接都会先问你',
       'in.offline': '离线：正在重试…', 'in.noserver': '没有服务器：同一网络内可按地址连接',
       'in.elsewhere': '由 RemoHop 服务提供（ID {id}）', 'in.error': '无法启动',
@@ -123,7 +123,7 @@
       'upd.privacy': '只从 remohop.com 读取最新的版本号，不发送这台电脑的任何信息，也不会在你不知情时安装任何东西。',
       'h.closeq': '断开与 {t} 的连接？', 'h.popout': '在新窗口中打开', 'h.close': '断开并关闭',
       'err.no_server': '请输入服务器地址。', 'err.bad_server': '这不是服务器地址（例如 signal.example.com:21116）。',
-      'err.weak_password': '至少 12 个字符，并包含小写、大写、数字、符号中的三种。',
+      'err.weak_password': '至少 12 个字符，并包含小写、大写、数字、符号中的三种。', 'err.weak_own_password': '至少 8 位，且包含字母、数字、其他字符中的两种。', 'in.show': '显示', 'in.hide': '隐藏',
       'err.elevation_cancelled': '管理员授权已取消。', 'err.bad_target': '这不是 ID 或地址。',
       'err.wake_name': '请先给这台电脑起个短名称。', 'err.bad_mac': '这不是 MAC 地址。',
       'err.gone': '它已经不在了。', 'err.failed': '出错了：{m}', 'err.offline': '应用没有响应。'
@@ -428,7 +428,13 @@
     $('creds').hidden = !showCreds;
     const id = $('in-id');
     id.textContent = i.id || (i.phase === 'no_server' ? '—' : '…'); id.classList.toggle('pending', !i.id);
-    $('in-pw').textContent = i.password || '…';
+    const fixed = i.password_mode === 'fixed';
+    $('in-pw-l').textContent = t(fixed ? 'in.pwfixed' : 'in.pw');
+    $('in-pw').dataset.value = i.password || '';
+    $('in-pw').textContent = !i.password ? '…' : fixed && !pwShown ? '••••••••' : i.password;
+    $('regen').hidden = fixed; $('pw-reveal').hidden = !fixed;
+    $('pw-reveal').setAttribute('aria-pressed', String(pwShown));
+    $('pw-reveal').querySelector('span').textContent = t(pwShown ? 'in.hide' : 'in.show');
     $('in-addr').hidden = !(i.addresses && i.addresses.length);
     if (i.addresses) $('in-addr').textContent = t('in.addr', {a: i.addresses.slice(0, 3).join(', ')});
     $('in-err').textContent = i.phase === 'error' ? (i.error || '') : '';
@@ -486,9 +492,28 @@
   function shortKey(k) { return (k || '').slice(0, 16); }
   $('incoming').addEventListener('change', ev => api('incoming', {on: ev.target.checked}).catch(e => { snack(errText(e)); }));
   $('regen').addEventListener('click', () => api('regenerate').catch(e => snack(errText(e))));
+  // The user's own password shows as dots until "Show password".
+  let pwShown = false;
+  $('pw-reveal').addEventListener('click', () => { pwShown = !pwShown; if (S) render(S); });
+  $('pw-set').addEventListener('click', () => {
+    const fixed = S.incoming.password_mode === 'fixed';
+    for (const r of document.querySelectorAll('input[name=pwmode]')) r.checked = r.value === (fixed ? 'fixed' : 'temporary');
+    $('pw-1').value = $('pw-2').value = ''; $('pw-err').textContent = '';
+    $('dlg-pw').showModal();
+  });
+  for (const id of ['pw-1', 'pw-2']) $(id).addEventListener('focus', () => { document.querySelector('input[name=pwmode][value=fixed]').checked = true; });
+  $('pw-form').addEventListener('submit', async ev => {
+    if (ev.submitter && ev.submitter.value !== 'ok') return;
+    ev.preventDefault();
+    const fixed = document.querySelector('input[name=pwmode]:checked').value === 'fixed';
+    if (fixed && $('pw-1').value !== $('pw-2').value) { $('pw-err').textContent = t('un.mismatch'); return; }
+    if (fixed && !$('pw-1').value && S.incoming.password_mode === 'fixed') { $('dlg-pw').close(); return; } // unchanged
+    try { await api('own-password', {password: fixed ? $('pw-1').value : ''}); $('dlg-pw').close(); pwShown = false; snack(t('pwm.saved')); }
+    catch (e) { $('pw-err').textContent = errText(e); }
+  });
   $('disc-all').addEventListener('click', () => api('disconnect', {id: 0}).catch(e => snack(errText(e))));
   for (const b of document.querySelectorAll('[data-copy]')) b.addEventListener('click', async () => {
-    const v = $(b.dataset.copy).textContent.trim();
+    const src = $(b.dataset.copy), v = (src.dataset.value || src.textContent).trim();
     try { await navigator.clipboard.writeText(v); } catch (e) {
       const ta = document.createElement('textarea'); ta.value = v; document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
     }

@@ -159,6 +159,7 @@ func (s *Server) routes() {
 	}
 	post("/api/incoming", func(_ *http.Request, q req) (any, error) { return nil, a.SetIncoming(q.On) })
 	post("/api/regenerate", func(*http.Request, req) (any, error) { return nil, a.Regenerate() })
+	post("/api/own-password", func(_ *http.Request, q req) (any, error) { return nil, a.SetOwnPassword(q.Password) })
 	post("/api/decide", func(_ *http.Request, q req) (any, error) {
 		return nil, a.Decide(q.N, q.Allow, q.Control, q.Files, q.Remember)
 	})

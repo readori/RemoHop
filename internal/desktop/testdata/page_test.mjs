@@ -192,6 +192,21 @@ try {
   await p.eval(`document.getElementById('tab-computer').click()`);
   check(await p.waitFor(`document.getElementById('sessions-box').hidden`, 10000), 'closing the tab ends the session');
 
+  // The password: the user's own instead of a temporary one, and back.
+  await p.eval(`document.getElementById('pw-set').click()`);
+  check(await p.waitFor(`document.getElementById('dlg-pw').open && document.querySelector('input[name=pwmode][value=temporary]').checked`), 'the password dialog opens on "temporary"');
+  await p.eval(`document.getElementById('pw-1').focus(); document.getElementById('pw-1').value = 'password'; document.getElementById('pw-2').value = 'password'; document.getElementById('pw-ok').click()`);
+  check(await p.waitFor(`document.getElementById('pw-err').textContent !== ''`), 'a weak own password is refused in the dialog');
+  await p.shot('password-dialog');
+  await p.eval(`document.getElementById('pw-1').value = 'Garden-42-Ok'; document.getElementById('pw-2').value = 'Garden-42-Ok'; document.getElementById('pw-ok').click()`);
+  check(await p.waitFor(`!document.getElementById('dlg-pw').open && document.getElementById('in-pw-l').textContent === 'My own password' && document.getElementById('in-pw').textContent.startsWith('••') && document.getElementById('regen').hidden`), 'the own password is in force, shown as dots');
+  await p.eval(`document.getElementById('pw-reveal').click()`);
+  check(await p.waitFor(`document.getElementById('in-pw').textContent === 'Garden-42-Ok'`), '"Show password" shows it');
+  await p.shot('computer-own-password');
+  await p.eval(`document.getElementById('pw-set').click()`);
+  await p.eval(`document.querySelector('input[name=pwmode][value=temporary]').checked = true; document.getElementById('pw-ok').click()`);
+  check(await p.waitFor(`document.getElementById('in-pw-l').textContent === 'Temporary password' && !document.getElementById('regen').hidden`), 'back to a temporary password');
+
   // Settings, theme, language, small window.
   await p.eval(`document.getElementById('tab-settings').click()`);
   check(await p.waitFor(`!document.getElementById('v-settings').hidden && document.querySelector('input[name=srv][value=custom]').checked`), 'Settings show the server choice');

@@ -370,6 +370,9 @@ func (a *App) startHost() {
 		OnApproval: a.onApproval,
 		Overrides:  &hostd.Overrides{AskAll: true, TempPasswordOnly: true},
 	}
+	a.mu.Lock()
+	hc.Password = a.settings.OwnPassword
+	a.mu.Unlock()
 	if !a.cfg.NoSignal {
 		addr, opts, err := signal.Resolve(a.cfg.Signal)
 		switch {
@@ -583,6 +586,34 @@ func (a *App) Disconnect(id int) error {
 	err = h.Disconnect(id, hostd.ReasonDisconnectedAtHost)
 	a.wake()
 	return err
+}
+
+// SetOwnPassword makes password the one for incoming connections, kept
+// across starts, instead of a new temporary one at every start; "" goes
+// back to temporary passwords. Every connection still asks. The rule is
+// hostd.CheckOwnPassword.
+func (a *App) SetOwnPassword(password string) error {
+	pw := strings.TrimSpace(password) // kept as typed (dashes and all) for the user to read; the host normalises
+	if auth.NormalizePassword(pw) == "" {
+		pw = ""
+	} else if err := hostd.CheckOwnPassword(pw); err != nil {
+		return Errorf("weak_own_password", err.Error())
+	}
+	if err := a.update(func(s *Settings) { s.OwnPassword = pw }); err != nil {
+		return err
+	}
+	if h, err := a.running(); err == nil {
+		if err := h.SetFixedPassword(pw); err != nil {
+			return err
+		}
+	}
+	if pw == "" {
+		a.log.Info("incoming connections use a temporary password again")
+	} else {
+		a.log.Info("incoming connections use the user's own password")
+	}
+	a.wake()
+	return nil
 }
 
 // Regenerate replaces the temporary password.
@@ -804,20 +835,23 @@ type Session struct {
 
 // Incoming is "This computer".
 type Incoming struct {
-	On        bool      `json:"on"`
-	Phase     string    `json:"phase"`
-	ErrorCode string    `json:"error_code,omitempty"`
-	Error     string    `json:"error,omitempty"`
-	ID        string    `json:"id,omitempty"`
-	OtherID   string    `json:"other_id,omitempty"`
-	Password  string    `json:"password,omitempty"`
-	Online    bool      `json:"online"`
-	Transport string    `json:"transport,omitempty"`
-	Addresses []string  `json:"addresses,omitempty"`
-	Waited    int       `json:"waited,omitempty"`
-	Device    string    `json:"device,omitempty"`
-	Requests  []Request `json:"requests"`
-	Sessions  []Session `json:"sessions"`
+	On        bool   `json:"on"`
+	Phase     string `json:"phase"`
+	ErrorCode string `json:"error_code,omitempty"`
+	Error     string `json:"error,omitempty"`
+	ID        string `json:"id,omitempty"`
+	OtherID   string `json:"other_id,omitempty"`
+	Password  string `json:"password,omitempty"`
+	// PasswordMode: "temporary" (new at every start, "New" replaces it)
+	// or "fixed" (the user's own, SetOwnPassword).
+	PasswordMode string    `json:"password_mode"`
+	Online       bool      `json:"online"`
+	Transport    string    `json:"transport,omitempty"`
+	Addresses    []string  `json:"addresses,omitempty"`
+	Waited       int       `json:"waited,omitempty"`
+	Device       string    `json:"device,omitempty"`
+	Requests     []Request `json:"requests"`
+	Sessions     []Session `json:"sessions"`
 }
 
 // State is everything the page shows.
@@ -874,7 +908,11 @@ func (a *App) State() State {
 		Server: ServerState{Mode: mode, Addr: addr, Chosen: chosen}, Timeout: int(a.cfg.AskTimeout / time.Second),
 		Trusted: append([]TrustedDevice{}, a.settings.Trusted...)}
 	in := Incoming{On: a.settings.Incoming, Phase: a.phase, ErrorCode: a.errCode, Error: a.errText, OtherID: a.otherID,
-		Requests: []Request{}, Sessions: []Session{}}
+		Requests: []Request{}, Sessions: []Session{}, PasswordMode: "temporary"}
+	own := a.settings.OwnPassword
+	if own != "" {
+		in.PasswordMode = "fixed"
+	}
 	h, started, server := a.host, a.started, a.server
 	trusted := map[string]bool{}
 	for _, t := range a.settings.Trusted {
@@ -886,6 +924,9 @@ func (a *App) State() State {
 		hs := h.Status()
 		in.Device, in.Online, in.Transport = clean(hs.Name), hs.Online, hs.Transport
 		in.Password = hs.Password
+		if own != "" {
+			in.Password = own
+		}
 		switch {
 		case hs.ID != "":
 			in.Phase, in.ID = PhaseReady, signal.FormatID(hs.ID)

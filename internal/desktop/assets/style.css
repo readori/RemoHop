@@ -146,7 +146,7 @@ button.chip { cursor: pointer; }
 .cred { padding: 14px 16px; border-radius: 16px; background: var(--surface-3); min-width: 0; }
 .cred .v { font: 600 1.75rem/1.25 var(--mono); letter-spacing: .02em; margin: 2px 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all; }
 .cred .v.pending { font: 400 1rem/1.4 inherit; color: var(--on-surface-variant); user-select: none; }
-.cred .acts { display: flex; gap: 4px; margin-left: -8px; }
+.cred .acts { display: flex; flex-wrap: wrap; gap: 4px; margin-left: -8px; }
 .status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.875rem; font-weight: 600; }
 .status .d { width: 8px; height: 8px; border-radius: 50%; background: var(--outline); }
 .status.ok { color: var(--ok); } .status.ok .d { background: var(--ok); }

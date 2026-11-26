@@ -1,11 +1,14 @@
 package hostd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
+	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/perm"
 )
@@ -81,6 +84,38 @@ func OwnerEnded(reason string) bool {
 		return true
 	}
 	return strings.HasPrefix(reason, reasonPanicPrefix)
+}
+
+// CheckOwnPassword is the rule for a fixed password the owner chooses in a
+// front end (the desktop app, a phone's host mode), where every login still
+// waits for the owner's answer: at least 8 characters with two of letters,
+// digits and other characters, so that it is not a word or a date.
+func CheckOwnPassword(pw string) error {
+	pw = auth.NormalizePassword(pw)
+	if err := auth.CheckPassword(pw); err != nil {
+		return err
+	}
+	var letters, digits, other bool
+	for _, r := range pw {
+		switch {
+		case unicode.IsLetter(r):
+			letters = true
+		case unicode.IsDigit(r):
+			digits = true
+		default:
+			other = true
+		}
+	}
+	n := 0
+	for _, b := range []bool{letters, digits, other} {
+		if b {
+			n++
+		}
+	}
+	if n < 2 {
+		return errors.New("use at least two of: letters, digits, other characters")
+	}
+	return nil
 }
 
 // Disconnect ends the session with the given ID, telling the client why.
