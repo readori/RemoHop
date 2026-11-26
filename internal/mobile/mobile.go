@@ -88,6 +88,9 @@ func Init(configDir, tempDir string) error {
 		return errors.New("mobile: the configuration directory must be an absolute path")
 	}
 	configDir = filepath.Clean(configDir)
+	// Connection outcome reports only when the app's settings turn them
+	// on (see dial.OutcomesDefault).
+	dial.OutcomesDefault = false
 	if gw != nil && configDir != dir {
 		return errors.New("mobile: stop the gateway before changing the configuration directory")
 	}
@@ -644,10 +647,11 @@ func SettingsJSON() (string, error) {
 	for _, k := range appSettings {
 		out[k] = all[k]
 	}
-	for _, k := range []string{signal.SettingRelay, dial.SettingOutcomes} {
-		if out[k] == "" {
-			out[k] = "on"
-		}
+	if out[signal.SettingRelay] == "" {
+		out[signal.SettingRelay] = "on"
+	}
+	if out[dial.SettingOutcomes] == "" {
+		out[dial.SettingOutcomes] = "off" // dial.OutcomesDefault in the apps
 	}
 	out["fingerprint"] = fingerprint(d)
 	b, err := json.Marshal(out)

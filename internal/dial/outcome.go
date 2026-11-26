@@ -51,8 +51,14 @@ func OutcomesAllowed(dir string) bool {
 	} else {
 		values, _ = config.AllIn(dir)
 	}
-	return config.Bool(values[SettingOutcomes], true)
+	return config.Bool(values[SettingOutcomes], OutcomesDefault)
 }
+
+// OutcomesDefault is whether reports are on while the outcomes setting is
+// unset. The mobile apps turn it off (internal/mobile): they have no
+// switch for it on screen yet, and their store privacy labels say they
+// send the developer nothing, so reports there need the setting on.
+var OutcomesDefault = true
 
 // outcomeTimeout bounds one report.
 const outcomeTimeout = 2 * time.Second
