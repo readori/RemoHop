@@ -111,7 +111,7 @@ Linux x86_64
 <h3>目前不适合</h3>
 <ul>
 <li>想要下载即用的图形界面安装包。现在有命令行和快速协助窗口，但没有安装程序。</li>
-<li>要控制手机或平板。移动应用只是控制端，手机不能被控。</li>
+<li>要控制 iPhone 或 iPad。iOS 设备暂时不能作为被控端（Android 手机可以）。</li>
 <li>需要经过第三方审计的产品。RemoHop 还没有做过独立审计。</li>
 <li>被控机用的是原生 Wayland 桌面。屏幕采集目前只支持 X11、macOS 和 Windows。</li>
 </ul>
@@ -334,7 +334,7 @@ sh install.sh</code></pre>
 <li>串口用伪终端和 picocom 验证过，没有用过真实的 UART。USB/IP 没有在真实内核上运行过。</li>
 <li>手机应用即将上架 App Store 和 Google Play（已提交审核），在此之前需要从源码构建。</li>
 <li>被控端重启后，shell 会话不会保留。</li>
-<li>把移动设备作为被控机，尚未实现。</li>
+<li>Android 手机可以作为被控端，iPhone 和 iPad 暂时不行。真机上的屏幕采集和控制尚未测试。</li>
 </ul>
 <p>以上内容来自文档中的<a href="/docs/platforms/">平台支持与限制</a>一页，以那里的版本为准。遇到问题请看<a href="/support/">支持</a>。</p>
 </div>

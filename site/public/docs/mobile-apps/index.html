@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>移动端应用 | RemoHop</title>
-<meta name="description" content="仓库里有两个移动端应用：mobile/android（Android）和 mobile/ios（iOS）。它们都是控制端：一个原生外壳加一个 WebView，WebView 显示进程内运行的 remohop web 网关（Go 核心通过 gomobile 绑定）。">
+<meta name="description" content="仓库里有两个移动端应用：mobile/android（Android）和 mobile/ios（iOS）。它们都是控制端：一个原生外壳加一个 WebView，WebView 显示进程内运行的 remohop web 网关（Go 核心通过 gomobile 绑定）。Android 应用还可以让手机本身被其他…">
 <link rel="stylesheet" href="/assets/site.css?v=bb42435348">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -21,7 +21,7 @@
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:title" content="移动端应用 | RemoHop">
-<meta property="og:description" content="仓库里有两个移动端应用：mobile/android（Android）和 mobile/ios（iOS）。它们都是控制端：一个原生外壳加一个 WebView，WebView 显示进程内运行的 remohop web 网关（Go 核心通过 gomobile 绑定）。">
+<meta property="og:description" content="仓库里有两个移动端应用：mobile/android（Android）和 mobile/ios（iOS）。它们都是控制端：一个原生外壳加一个 WebView，WebView 显示进程内运行的 remohop web 网关（Go 核心通过 gomobile 绑定）。Android 应用还可以让手机本身被其他…">
 <meta property="og:url" content="https://remohop.com/docs/mobile-apps/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-1120.png">
 <meta property="og:image:width" content="1120">
@@ -52,9 +52,9 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/docs/#more">文档</a></p>
 <h1 id="移动端应用">移动端应用</h1>
-<p>仓库里有两个移动端应用：<code>mobile/android</code>（Android）和 <code>mobile/ios</code>（iOS）。它们都是<strong>控制端</strong>：一个原生外壳加一个 WebView，WebView 显示进程内运行的 <code>remohop web</code> 网关（Go 核心通过 gomobile 绑定）。</p>
+<p>仓库里有两个移动端应用：<code>mobile/android</code>（Android）和 <code>mobile/ios</code>（iOS）。它们都是<strong>控制端</strong>：一个原生外壳加一个 WebView，WebView 显示进程内运行的 <code>remohop web</code> 网关（Go 核心通过 gomobile 绑定）。Android 应用还可以让手机本身被其他 RemoHop 设备观看，经你允许后还能被控制，见<a href="#本机作为被控端android">本机作为被控端</a>。</p>
 <ul>
-<li>只是控制端。把 Android 或 iOS 设备作为被控机没有实现。</li>
+<li>iOS 应用目前只是控制端：iPhone 和 iPad 暂时不能被观看或控制。</li>
 <li>iOS 应用可以从 <a href="https://apps.apple.com/app/id6838609056">App Store</a> 安装。Android 应用已提交 Google Play 审核，审核通过之前需要自己构建。</li>
 <li>Android：运行 <code>mobile/android/build.sh</code>（需要 Go、JDK 17+、Android SDK 和 NDK，<code>ANDROID_HOME</code> 要设置），默认生成 debug APK 并运行 JVM 单元测试。</li>
 <li>iOS：在 macOS 上先运行 <code>mobile/ios/build-xcframework.sh</code> 生成 <code>Remohopcore.xcframework</code>，再用 Xcode 构建 <code>mobile/ios/RemoHop.xcodeproj</code>。</li>
@@ -65,6 +65,16 @@
 <li>如果填写的汇合服务器地址其实是一台 RemoHop 被控端，会明确报告（错误码 <code>signal_is_host</code>）：请直接用这个地址连接被控端。</li>
 <li>移动端应用目前不支持账号登录。</li>
 <li>界面语言：原生界面和网页部分都有简体中文和英文。默认跟随系统（系统语言是任何一种中文时显示中文，否则显示英文）；在“设置 &gt; 语言”里切换，立即生效，已建立的会话不会断开。Android 13 及以上版本中，系统的“应用语言”设置与此是同一个选项。</li>
+</ul>
+<h2 id="本机作为被控端android">本机作为被控端（Android）</h2>
+<p>设置 → 本机 → <strong>允许远程连接</strong> 打开后，其他 RemoHop 设备（桌面应用、浏览器控制台、<code>remohop &lt;ID&gt; desktop</code>、另一台手机）可以连接这台手机。页面上显示手机的 ID（没有汇合服务器时显示本网络内的地址）、临时密码（可复制、可换一个）、状态和当前连接的设备。说明文字在页面右上角的 ⓘ 按钮里。</p>
+<ul>
+<li>每个请求都会在手机上问你：弹出对话框（应用在后台时是一条通知），显示设备名称、密钥指纹、地址、是否新设备，以及防诈骗提醒。60 秒内无人应答即视为拒绝。</li>
+<li>你允许的设备可以看到屏幕。只有勾选了 <strong>控制</strong>，它才能操作手机；这需要开启 RemoHop 的无障碍服务：应用会先说明这项服务做什么，再打开系统的无障碍设置，你随时可以在那里关闭它。不开启时会话只能观看。</li>
+<li>只能用临时密码登录，不签发配对令牌，除了屏幕（和基本系统信息）什么都不提供：没有文件、剪贴板和终端。</li>
+<li>每次共享屏幕前 Android 都会先问你。有人连接时，通知栏会显示谁在观看或控制，并带“停止”按钮。最后一台设备断开、点“停止”或“断开”，或者在 Android 的屏幕共享指示器里结束时，共享就会结束。应用每次重新启动后本功能都会恢复为关闭。</li>
+<li>在观看端控制：单击即点按，按住即长按，拖动即滑动，滚轮滚动（Ctrl + 滚轮为双指缩放）。右键或 Esc 为返回，中键或 Home 为主屏幕，菜单键为最近任务，F1 打开通知栏。输入的文字进入当前获得焦点的输入框。</li>
+<li>屏幕在手机上用硬件 H.264 编码，长边最多 1920 像素、最高 60 fps，会跟随屏幕旋转。</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/mobile-apps.md">源文件（GitHub）</a></p>
 </div>
