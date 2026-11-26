@@ -137,8 +137,8 @@ enum L10n {
         "No saved hosts yet.": "还没有保存的被控端。",
         "Forget": "移除",
         "Check which are online": "检查哪些在线",
-        "RemoHop talks only to the hosts you connect to and the rendezvous server you set here. Its identity, pairings and settings stay in this app's private storage. The app runs a local gateway on 127.0.0.1 that only its own page, holding a random per-launch token, can use.":
-            "RemoHop 只与你连接的被控端以及你在这里设置的汇合服务器通信。它的身份、配对和设置都留在本应用的私有存储中。应用在 127.0.0.1 上运行一个本地网关，只有它自己的页面（持有每次启动时随机生成的令牌）才能使用。",
+        "RemoHop talks only to the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set here. Its identity, pairings and settings stay in this app's private storage. The app runs a local gateway on 127.0.0.1 that only its own page, holding a random per-launch token, can use.":
+            "RemoHop 只与你连接的被控端、你允许连接这台设备的设备，以及你在这里设置的汇合服务器通信。它的身份、配对和设置都留在本应用的私有存储中。应用在 127.0.0.1 上运行一个本地网关，只有它自己的页面（持有每次启动时随机生成的令牌）才能使用。",
         "Settings saved.": "设置已保存。",
         "Key line copied.": "已复制密钥行。",
         "Connecting… the host may ask its owner to approve.": "正在连接…被控端可能需要其主人批准。",
@@ -256,7 +256,7 @@ enum L10n {
         "Diagnostic logs stay here unless you share them": "诊断日志留在本设备，除非你主动分享",
         "Privacy policy": "隐私政策",
         "What the app talks to": "应用会连接谁",
-        "Only the hosts you connect to and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.": "只连接你要控制的被控端，以及你设置的汇合服务器。不经过 Readori 的服务器，也不会向我们发送任何数据。",
+        "Only the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.": "只连接你要控制的被控端、你允许连接这台设备的设备，以及你设置的汇合服务器。不经过 Readori 的服务器，也不会向我们发送任何数据。",
         "The local gateway": "本地网关",
         "The app runs its remote-control page on a gateway inside the app itself (127.0.0.1). Only the app's own page, holding a random token made at each launch, can use it.": "应用的远程控制页面运行在应用内部的网关上（127.0.0.1）。只有应用自己的页面（持有每次启动时随机生成的令牌）才能使用它。",
         "Off by default. When you turn them on they stay on this device, with passwords and tokens removed, and leave it only when you share them.": "默认关闭。开启后日志只保存在本设备上，并去除密码和令牌；只有你分享时才会离开本设备。",
@@ -458,7 +458,7 @@ enum L10n {
         "Diagnostic logs stay here unless you share them",
         "Privacy policy",
         "What the app talks to",
-        "Only the hosts you connect to and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.",
+        "Only the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.",
         "The local gateway",
         "The app runs its remote-control page on a gateway inside the app itself (127.0.0.1). Only the app's own page, holding a random token made at each launch, can use it.",
         "Off by default. When you turn them on they stay on this device, with passwords and tokens removed, and leave it only when you share them.",
