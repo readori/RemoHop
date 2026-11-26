@@ -21,6 +21,14 @@
     <string name="hm_pw_settings">Password settings</string>
     <string name="hm_pw_mode_temporary">Random</string>
     <string name="hm_pw_mode_fixed">My own</string>
+    <string name="hm_readmit">Reconnect without asking</string>
+    <string name="hm_readmit_10m">10 minutes</string>
+    <string name="hm_readmit_30m">30 minutes</string>
+    <string name="hm_readmit_1h">1 hour</string>
+    <string name="hm_readmit_1d">1 day</string>
+    <string name="hm_readmit_7d">7 days</string>
+    <string name="hm_readmit_30d">30 days</string>
+    <string name="hm_readmit_always">Always (unattended)</string>
 
     <!-- The password settings dialog (as in the desktop app) -->
     <string name="hm_pwm_title">Password for incoming connections</string>
@@ -53,7 +61,7 @@
 
     <!-- The page's ⓘ -->
     <string name="hm_info_what_t">What this does</string>
-    <string name="hm_info_what">While this is on, other RemoHop devices can ask to connect to this phone with its ID (or its address on this network) and the password. Every request asks you first, and nobody gets in unless you allow it. A device you allowed that drops out (for example because its app went to the background) comes back for 10 minutes without asking again; disconnecting it or turning this off ends that.</string>
+    <string name="hm_info_what">While this is on, other RemoHop devices can ask to connect to this phone with its ID (or its address on this network) and the password. Every request asks you first, and nobody gets in unless you allow it. A device you allowed that drops out (for example because its app went to the background) comes back without asking again: for 10 minutes, or as long as you choose in Reconnect without asking, up to always (unattended). Disconnecting it or turning this off ends that; a new device is always asked.</string>
     <string name="hm_info_access_t">Viewing and control</string>
     <string name="hm_info_access">A device you allow sees your screen. It can also tap, swipe and type only if you tick Control in the request, and only while RemoHop\'s accessibility service is on. You can take control away or disconnect it at any time.</string>
     <string name="hm_info_start_t">Starting and stopping</string>

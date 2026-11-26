@@ -303,6 +303,17 @@ final class BroadcastLogicTests: XCTestCase {
         XCTAssertFalse(BroadcastApprovals.handle(action: BroadcastStrings.allowAction, category: BroadcastStrings.category, userInfo: [:]))
     }
 
+    func testReadmitChoices() {
+        XCTAssertEqual(ReadmitChoice.index(10), 0)
+        XCTAssertEqual(ReadmitChoice.index(24 * 60), 3)
+        XCTAssertEqual(ReadmitChoice.index(ReadmitChoice.always), ReadmitChoice.minutes.count - 1)
+        XCTAssertEqual(ReadmitChoice.index(45), 1) // set elsewhere: the nearest shorter choice
+        XCTAssertEqual(ReadmitChoice.index(5), 0)
+        XCTAssertEqual(ReadmitChoice.label(30, lang: "en"), "30 minutes")
+        XCTAssertEqual(ReadmitChoice.label(7 * 24 * 60, lang: "zh"), "7 天")
+        XCTAssertEqual(ReadmitChoice.label(ReadmitChoice.always, lang: "zh"), "一直（静默值守）")
+    }
+
     func testShareScreenStringsAreTranslated() {
         for s in L10n.shareStrings { XCTAssertNotNil(L10n.zh[s], s) }
         for (en, zh) in BroadcastStrings.zh {

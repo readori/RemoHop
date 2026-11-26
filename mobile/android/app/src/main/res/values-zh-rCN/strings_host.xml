@@ -19,6 +19,14 @@
     <string name="hm_pw_settings">密码设置</string>
     <string name="hm_pw_mode_temporary">随机密码</string>
     <string name="hm_pw_mode_fixed">固定密码</string>
+    <string name="hm_readmit">重新连接免确认</string>
+    <string name="hm_readmit_10m">10 分钟</string>
+    <string name="hm_readmit_30m">30 分钟</string>
+    <string name="hm_readmit_1h">1 小时</string>
+    <string name="hm_readmit_1d">1 天</string>
+    <string name="hm_readmit_7d">7 天</string>
+    <string name="hm_readmit_30d">30 天</string>
+    <string name="hm_readmit_always">一直（静默值守）</string>
 
     <string name="hm_pwm_title">连接密码</string>
     <string name="hm_pwm_temp">随机密码</string>
@@ -49,7 +57,7 @@
     <string name="hm_unknown_device">未命名设备</string>
 
     <string name="hm_info_what_t">这是做什么的</string>
-    <string name="hm_info_what">开启后，其他 RemoHop 设备可以用本机的 ID（或本网络内的地址）和密码请求连接这台手机。每个请求都会先问你，你不允许就谁也进不来。你允许过的设备如果中途断开（比如它的 App 切到了后台），10 分钟内重新连接不会再问你；你断开它或关闭此功能后就需要重新批准。</string>
+    <string name="hm_info_what">开启后，其他 RemoHop 设备可以用本机的 ID（或本网络内的地址）和密码请求连接这台手机。每个请求都会先问你，你不允许就谁也进不来。你允许过的设备如果中途断开（比如它的 App 切到了后台），重新连接时不会再问你：默认 10 分钟内，也可以在“重新连接免确认”里改成更长，直到“一直（静默值守）”。你断开它或关闭此功能后就需要重新批准；新设备每次都会询问。</string>
     <string name="hm_info_access_t">观看与控制</string>
     <string name="hm_info_access">你允许的设备可以看到你的屏幕。只有你在请求里勾选了“控制”，并且 RemoHop 的无障碍服务已开启，它才能点按、滑动和输入。你随时可以收回控制或断开它。</string>
     <string name="hm_info_start_t">开启与关闭</string>

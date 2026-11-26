@@ -146,6 +146,17 @@ enum Core {
         return err == nil && HostStatus(json: s).passwordFixed
     }
 
+    /// How long a viewer the owner allowed may come back without being
+    /// asked after it dropped out: minutes, or ReadmitChoice.always for as
+    /// long as sharing runs. Kept in the configuration directory shared with
+    /// the broadcast extension, whose host follows it within a second.
+    static var shareReadmitMinutes: Int { RemohopcoreHostReadmitMinutes() }
+
+    static func setShareReadmit(_ minutes: Int) throws {
+        var err: NSError?
+        if !RemohopcoreSetHostReadmit(minutes, &err) { throw err ?? Failure(message: "could not save the setting") }
+    }
+
     // ---- settings screen ----
 
     static func settings() throws -> [String: String] {

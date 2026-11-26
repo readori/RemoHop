@@ -32,6 +32,12 @@ data class HostState(
      * [password] is the one in force, the owner's own as typed when fixed.
      */
     val passwordMode: String = PASSWORD_TEMPORARY,
+    /**
+     * How long a device the owner allowed may come back without being asked
+     * after it dropped out: minutes, or [HostReadmit.ALWAYS] for as long as
+     * host mode runs; known while host mode is off too.
+     */
+    val readmitMinutes: Int = HostReadmit.DEFAULT,
 ) {
     /** What the status line says, as one of a few kinds (the screen picks the words). */
     enum class Status { OFF, STARTING, READY, OFFLINE, NO_SERVER, ERROR }
@@ -92,6 +98,7 @@ data class HostState(
                     controlOffered = o.optBoolean("control_offered", true),
                     // Anything unknown is the temporary password, as before the setting existed.
                     passwordMode = if (o.optString("password_mode") == PASSWORD_FIXED) PASSWORD_FIXED else PASSWORD_TEMPORARY,
+                    readmitMinutes = o.optInt("readmit_minutes", HostReadmit.DEFAULT),
                 )
             } catch (e: Exception) {
                 OFF
@@ -166,5 +173,22 @@ data class HostSession(
             seconds = o.optInt("seconds"),
             control = o.optBoolean("control"),
         )
+    }
+}
+
+/**
+ * The choices of "Reconnect without asking" (Remohopcore.setHostReadmit):
+ * minutes, and [ALWAYS] for as long as host mode runs (unattended). Pure
+ * Kotlin: unit-tested.
+ */
+object HostReadmit {
+    const val DEFAULT = 10
+    const val ALWAYS = -1
+    val CHOICES = listOf(10, 30, 60, 24 * 60, 7 * 24 * 60, 30 * 24 * 60, ALWAYS)
+
+    /** The choice that shows [minutes]: itself, or the nearest shorter one (a value set elsewhere). */
+    fun index(minutes: Int): Int = when {
+        minutes == ALWAYS -> CHOICES.size - 1
+        else -> CHOICES.indices.lastOrNull { CHOICES[it] != ALWAYS && CHOICES[it] <= minutes } ?: 0
     }
 }

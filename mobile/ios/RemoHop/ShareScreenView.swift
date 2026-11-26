@@ -53,6 +53,15 @@ struct ShareScreenView: View {
                         }
                         .foregroundStyle(.primary)
                     }
+                    Picker(selection: Binding(get: { ReadmitChoice.index(b.readmitMinutes) },
+                                              set: { b.setReadmit(ReadmitChoice.minutes[$0]) })) {
+                        ForEach(ReadmitChoice.minutes.indices, id: \.self) { i in
+                            Text(ReadmitChoice.label(ReadmitChoice.minutes[i])).tag(i)
+                        }
+                    } label: {
+                        Text(L("Reconnect without asking"))
+                    }
+                    .pickerStyle(.navigationLink)
                 }
             }
             if !b.notificationsAllowed {
@@ -117,7 +126,7 @@ struct ShareScreenView: View {
             InfoItem(title: L("View only"), text: L("Viewers see this screen and nothing else. They cannot tap, type or open anything on this device, and no sound is shared.")),
             InfoItem(title: L("Start and stop"), text: L("Sharing starts only when you tap Start sharing and then Start Broadcast. Stop it any time from the red status bar or Control Center, or with Stop sharing here.")),
             InfoItem(title: L("Who can connect"), text: L("Someone with the ID and the password shown here. You are asked every time, in a notification and on this page; a request you do not answer is refused after a minute. The password is new each time sharing starts, unless you set your own in Password settings.")),
-            InfoItem(title: L("Coming back"), text: L("A viewer you allowed that drops out, for example because its app went to the background, comes back for 10 minutes without asking you again. Disconnecting it or stopping sharing ends that.")),
+            InfoItem(title: L("Coming back"), text: L("A viewer you allowed that drops out, for example because its app went to the background, comes back without asking you again: for 10 minutes, or as long as you choose in Reconnect without asking, up to always (unattended). Disconnecting it or stopping sharing ends that; a new device is always asked.")),
             InfoItem(title: L("What viewers see"), text: L("Everything on the screen while sharing, including notifications that appear. Close anything private first.")),
             InfoItem(title: L("When it ends"), text: L("When you stop it, when the phone restarts, or when the system ends it, for example when memory runs short. Viewers are disconnected at once.")),
             InfoItem(title: L("Scams"), text: L("Did someone call you saying they are from support, your bank or the police, and ask you to install this or share your screen? Do not share. That is a scam.")),
@@ -459,4 +468,29 @@ struct BroadcastPickerHost: UIViewRepresentable {
     let picker: RPSystemBroadcastPickerView
     func makeUIView(context: Context) -> RPSystemBroadcastPickerView { picker }
     func updateUIView(_ uiView: RPSystemBroadcastPickerView, context: Context) {}
+}
+
+/// The choices of "Reconnect without asking" (Core.setShareReadmit):
+/// minutes, and `always` for as long as sharing runs (unattended).
+enum ReadmitChoice {
+    static let defaultMinutes = 10
+    static let always = -1
+    static let minutes = [10, 30, 60, 24 * 60, 7 * 24 * 60, 30 * 24 * 60, always]
+
+    /// The choice that shows `m`: itself, or the nearest shorter one (a value set elsewhere).
+    static func index(_ m: Int) -> Int {
+        if m == always { return minutes.count - 1 }
+        return minutes.indices.last { minutes[$0] != always && minutes[$0] <= m } ?? 0
+    }
+
+    static func label(_ m: Int, lang: String = L10n.effective) -> String {
+        let t = { (en: String) in L10n.text(en, lang: lang) }
+        switch m {
+        case always: return t("Always (unattended)")
+        case 60: return t("1 hour")
+        case 24 * 60: return t("1 day")
+        case let x where x % (24 * 60) == 0: return String(format: t("%d days"), x / (24 * 60))
+        default: return String(format: t("%d minutes"), m)
+        }
+    }
 }

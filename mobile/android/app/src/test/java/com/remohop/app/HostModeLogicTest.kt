@@ -190,4 +190,16 @@ class HostModeLogicTest {
         assertEquals("1 h 05 min", HostTime.duration(3900))
         assertEquals("0 s", HostTime.duration(-3))
     }
+
+    @Test fun readmit() {
+        assertEquals(HostReadmit.DEFAULT, HostState.parse("""{"on":false,"phase":"off"}""").readmitMinutes)
+        assertEquals(HostReadmit.ALWAYS, HostState.parse("""{"on":false,"phase":"off","readmit_minutes":-1}""").readmitMinutes)
+        assertEquals(1440, HostState.parse("""{"on":true,"phase":"ready","readmit_minutes":1440}""").readmitMinutes)
+        assertEquals(0, HostReadmit.index(10))
+        assertEquals(3, HostReadmit.index(1440))
+        assertEquals(HostReadmit.CHOICES.size - 1, HostReadmit.index(HostReadmit.ALWAYS))
+        assertEquals(1, HostReadmit.index(45)) // set elsewhere: the nearest shorter choice
+        assertEquals(0, HostReadmit.index(5))
+        assertEquals(5, HostReadmit.index(500000))
+    }
 }
