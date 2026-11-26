@@ -172,39 +172,60 @@ jobs:
               -f ref=main -f "inputs[ref]=$GITHUB_SHA" -f "inputs[version]=$TAG" -f "inputs[upload]=true" \
               -f "inputs[correlation]=$corr" "$@"
           }
+          : >dispatch.err
           if ! resp="$(dispatch -F return_run_details=true 2>dispatch.err)"; then
-            # Refused as an unknown key: nothing was started; dispatch the classic way.
-            grep -q return_run_details dispatch.err || { cat dispatch.err; exit 1; }
-            resp="$(dispatch)"
+            resp=""
+            if grep -q return_run_details dispatch.err; then
+              # Refused as an unknown key: nothing was started; dispatch the classic way.
+              resp="$(dispatch)"
+            else
+              # The dispatch can start the run and still answer an error: v1.0.4's release
+              # got "HTTP 404" twice while the run it asked for was created in that second
+              # (and then signed and notarized). Look for the run by its correlation string
+              # before deciding that nothing started.
+              echo "::warning::the dispatch answered: $(head -c 300 dispatch.err); looking for the run"
+            fi
           fi
-          id="$(printf '%s' "$resp" | jq -r '.workflow_run_id // empty' 2>/dev/null || true)"
-          if [ -z "$id" ]; then
+          # Finds the run by the correlation string in its title (the list can lag a little).
+          find_run() {
+            local found=""
             for _ in $(seq 1 30); do
               sleep 10
-              id="$(gh run list -R "$CI_REPO" --workflow "$CI_WORKFLOW" --event workflow_dispatch --limit 30 \
+              found="$(gh run list -R "$CI_REPO" --workflow "$CI_WORKFLOW" --event workflow_dispatch --limit 30 \
                 --json databaseId,displayTitle \
-                --jq "map(select(.displayTitle | endswith(\"[$corr]\"))) | .[0].databaseId // empty")"
-              [ -z "$id" ] || break
+                --jq "map(select(.displayTitle | endswith(\"[$corr]\"))) | .[0].databaseId // empty")" || found=""
+              [ -z "$found" ] || break
             done
+            printf '%s' "$found"
+          }
+          # Reads run $id into run.json once its title carries the correlation string (a run's
+          # title, its run-name with the commit and the correlation string, is filled in shortly
+          # after the run is created; until then it is the workflow's name). A run just created
+          # can also answer 404 for a moment. Fails when it never becomes readable.
+          read_run() {
+            : >run.json
+            for _ in $(seq 1 12); do
+              if gh api "repos/$CI_REPO/actions/runs/$id" >run.json 2>run.err; then
+                jq -e --arg corr "[$corr]" '.display_title | endswith($corr)' run.json >/dev/null && return 0
+              else
+                grep -q 'HTTP 404' run.err || { cat run.err; exit 1; }
+                : >run.json
+              fi
+              sleep 5
+            done
+            [ -s run.json ]
+          }
+          id="$(printf '%s' "$resp" | jq -r '.workflow_run_id // empty' 2>/dev/null || true)"
+          [ -n "$id" ] || id="$(find_run)"
+          [ -n "$id" ] || { echo "::error::the signing run did not appear in $CI_REPO"; cat dispatch.err; exit 1; }
+          if ! read_run; then
+            # The ID the dispatch returned cannot be read: find the run by its title instead.
+            echo "::warning::run $id in $CI_REPO cannot be read ($(head -c 200 run.err)); looking for it by title"
+            id="$(find_run)"
+            [ -n "$id" ] && read_run || { echo "::error::the signing run cannot be read in $CI_REPO"; cat run.err; exit 1; }
           fi
-          [ -n "$id" ] || { echo "::error::the signing run did not appear in $CI_REPO"; exit 1; }
           # Whatever way it was found, it must be the run this job started: the release workflow
           # of the CI repository's main branch, dispatched by this token's account, for this commit.
-          # A run's title (its run-name, which carries the commit and the correlation string) is
-          # filled in shortly after the run is created; until then it is the workflow's name.
-          # A run just created can answer 404 for a moment (v1.0.4's first attempt failed so,
-          # 3 s after the dispatch): until it is readable, wait as for its title.
-          : >run.json
-          for _ in $(seq 1 24); do
-            if gh api "repos/$CI_REPO/actions/runs/$id" >run.json 2>run.err; then
-              jq -e --arg corr "[$corr]" '.display_title | endswith($corr)' run.json >/dev/null && break
-            else
-              grep -q 'HTTP 404' run.err || { cat run.err; exit 1; }
-              : >run.json
-            fi
-            sleep 5
-          done
-          [ -s run.json ] || { echo "::error::run $id in $CI_REPO never became readable"; cat run.err; exit 1; }
           jq -e --arg wf ".github/workflows/$CI_WORKFLOW" --arg me "$me" --arg corr "[$corr]" --arg sha "$GITHUB_SHA" '
             .path == $wf and .event == "workflow_dispatch" and .head_branch == "main"
             and .triggering_actor.login == $me and (.display_title | endswith($corr))
