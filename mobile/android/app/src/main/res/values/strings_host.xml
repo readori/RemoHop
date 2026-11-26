@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Host mode: this phone viewed and controlled from other devices (HostPage,
+     ApprovalActivity, HostService, ControlService). -->
+<resources>
+    <string name="host_this_device">This device</string>
+    <string name="host_allow">Allow remote connection</string>
+    <string name="host_status">Status</string>
+    <string name="host_status_off">Off: nobody can connect</string>
+    <string name="host_status_starting">Connecting to the server…</string>
+    <string name="host_status_ready">Ready: every connection asks you</string>
+    <string name="host_status_offline">Offline: trying again…</string>
+    <string name="host_status_no_server">No server: reachable by address on this network</string>
+    <string name="host_status_error">Could not start: %1$s</string>
+    <string name="host_connect_with">Connect with</string>
+    <string name="host_id">ID</string>
+    <string name="host_address">Address</string>
+    <string name="host_password">Temporary password</string>
+    <string name="host_new_password">New password</string>
+    <string name="host_copy">Copy</string>
+    <string name="host_copied">Copied</string>
+    <string name="host_control">Control</string>
+    <string name="host_control_on">On</string>
+    <string name="host_control_starting">Starting…</string>
+    <string name="host_control_off">Off: view only</string>
+    <string name="host_connected">Connected now</string>
+    <string name="host_viewing">Viewing · %1$s</string>
+    <string name="host_controlling">Controlling · %1$s</string>
+    <string name="host_disconnect">Disconnect</string>
+    <string name="host_disconnect_all">Disconnect everyone</string>
+    <string name="host_give_control">Allow control</string>
+    <string name="host_take_control">Take control away</string>
+    <string name="host_unknown_device">Unnamed device</string>
+
+    <!-- The page's ⓘ -->
+    <string name="host_info_what_t">What this does</string>
+    <string name="host_info_what">While this is on, other RemoHop devices can ask to connect to this phone with its ID (or its address on this network) and the temporary password. Every request asks you first, and nobody gets in unless you allow it.</string>
+    <string name="host_info_access_t">Viewing and control</string>
+    <string name="host_info_access">A device you allow sees your screen. It can also tap, swipe and type only if you tick Control in the request, and only while RemoHop\'s accessibility service is on. You can take control away or disconnect it at any time.</string>
+    <string name="host_info_start_t">Starting and stopping</string>
+    <string name="host_info_start">Switch Allow remote connection on to accept requests and off to stop. It is off again whenever the app restarts. New password replaces the temporary password; the old one stops working.</string>
+    <string name="host_info_end_t">How sharing ends</string>
+    <string name="host_info_end">Android asks you before your screen is shared. The sharing ends when the last device disconnects, when you tap Stop in the notification or Disconnect here, or when you end it from Android\'s screen sharing indicator.</string>
+    <string name="host_info_control_t">The accessibility service</string>
+    <string name="host_info_control">To be controlled, RemoHop uses an Android accessibility service that you switch on in the system settings. It only performs the taps, swipes, keys and text of a device you allowed with Control, during that session. It reads nothing from the screen for itself. Switch it off in Settings → Accessibility → RemoHop at any time.</string>
+
+    <!-- Google Play's prominent disclosure, before the accessibility settings. -->
+    <string name="host_ax_title">Let others control this phone?</string>
+    <string name="host_ax_body">RemoHop uses an Android accessibility service so that a device you allow can control this phone: it performs that device\'s taps, swipes, scrolling, Back, Home and typed text.\n\nIt acts only during a remote session you approved with Control ticked, and does nothing at any other time. It does not read, collect or send your screen content or personal data for itself.\n\nYou can switch it off at any time in Settings → Accessibility → RemoHop.</string>
+    <string name="host_ax_agree">Agree and open settings</string>
+    <string name="host_ax_not_now">Not now</string>
+    <string name="host_ax_label">RemoHop remote control</string>
+    <string name="host_ax_description">Lets a device you allow in RemoHop control this phone: taps, swipes, scrolling, Back, Home and typed text. It acts only during a remote session you approved with Control ticked. It does not read or collect your screen content or personal data. Switch it off here at any time.</string>
+
+    <!-- The approval dialog and its notification -->
+    <string name="host_channel_requests">Connection requests</string>
+    <string name="host_channel_active">This device: remote connection</string>
+    <string name="host_req_title">%1$s wants to connect</string>
+    <string name="host_req_title_access">%1$s asks to control this phone</string>
+    <string name="host_req_notification_text">Tap to review. Nobody answering means no.</string>
+    <string name="host_review">Review</string>
+    <string name="host_deny">Deny</string>
+    <string name="host_allow_btn">Allow</string>
+    <string name="host_req_new">New device</string>
+    <string name="host_req_known">Connected before</string>
+    <string name="host_req_device">Device</string>
+    <string name="host_req_key">Key</string>
+    <string name="host_req_from">From</string>
+    <string name="host_req_scam">Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.</string>
+    <string name="host_req_may">They will see your screen.</string>
+    <string name="host_req_control">Also let them control this phone</string>
+    <string name="host_req_control_off">Control is off on this phone.</string>
+    <string name="host_req_enable_control">Turn on control</string>
+    <string name="host_req_left">Refused in %1$d s</string>
+    <string name="host_req_gone">This request is no longer waiting.</string>
+    <string name="host_consent_denied">Screen sharing was not allowed, so the request was denied.</string>
+
+    <!-- The ongoing notification (HostService) -->
+    <string name="host_notif_waiting">Accepting connection requests</string>
+    <string name="host_notif_id">Connect with %1$s</string>
+    <string name="host_notif_viewed">Being viewed by %1$s</string>
+    <string name="host_notif_controlled">Being controlled by %1$s</string>
+    <string name="host_notif_stop_hint">Stop ends the sharing.</string>
+    <string name="host_stop">Stop</string>
+    <string name="host_turn_off">Turn off</string>
+</resources>

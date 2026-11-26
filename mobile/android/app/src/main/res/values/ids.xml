@@ -11,4 +11,7 @@
     <item name="field_host_alias" type="id" />
     <!-- A field's value when it was built (to tell what the user changed). -->
     <item name="field_initial" type="id" />
+    <!-- Host mode's approval dialog (for tests). -->
+    <item name="host_scam_warning" type="id" />
+    <item name="host_req_control" type="id" />
 </resources>

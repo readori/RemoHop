@@ -9,5 +9,6 @@ class RemoHopApp : Application() {
         Core.init(this)
         CrashLog.flush()
         LocalAddresses.watch(this)
+        HostMode.install(this)
     }
 }

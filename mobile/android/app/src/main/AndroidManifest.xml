@@ -11,6 +11,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Host mode (this phone viewed and controlled from other devices,
+         HostService): the screen sharing the owner allows for each sharing. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
 
     <!-- Whether a mail app is installed (Diag.email). -->
     <queries>
@@ -85,6 +88,45 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Keeps the user's remote-control session to their own computer connected while the app is in the background, until the user disconnects from the app or from the ongoing notification." />
+        </service>
+
+        <!-- Host mode: "This device" lives in Settings; this is the approval
+             dialog for each incoming request (from the app or its notification). -->
+        <activity
+            android:name=".ApprovalActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.RemoHop.Approval" />
+
+        <!-- Host mode's foreground service: while host mode is on it keeps the
+             app reachable for connection requests (specialUse), and while the
+             owner shares the screen it holds the MediaProjection
+             (mediaProjection, after the owner's consent for that sharing). -->
+        <service
+            android:name=".HostService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|mediaProjection">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="The user switched on Allow remote connection: the app must stay reachable so that connection requests to this phone reach the user, who approves or denies each one; it stops when the user switches it off from the app or the ongoing notification." />
+        </service>
+
+        <!-- Host mode's control: an accessibility service the owner switches on
+             in the system settings, acting only during a session the owner
+             approved with control (ControlService). -->
+        <service
+            android:name=".ControlService"
+            android:exported="true"
+            android:label="@string/host_ax_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/control_service" />
         </service>
     </application>
 </manifest>

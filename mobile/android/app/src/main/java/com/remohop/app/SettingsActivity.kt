@@ -63,6 +63,8 @@ class SettingsActivity : AppCompatActivity() {
     private var content: View? = null
     private val stack = ArrayList<String>()
     private var info: Pair<String, List<Pair<String, String>>>? = null
+    /** The "This device" page while it shows (it follows host mode's state). */
+    private var hostPage: HostPage? = null
 
     // What the core has, to save only changes.
     private var signal = ""
@@ -161,6 +163,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        hostPage?.dispose()
         PairJob.unlisten(pairListener)
         bg.shutdownNow()
         net.shutdownNow()
@@ -207,6 +210,11 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun showInfo() {
         val (title, items) = info ?: return
+        showInfo(title, items)
+    }
+
+    /** An explanation in a bottom sheet: a title, then headed paragraphs. */
+    private fun showInfo(title: String, items: List<Pair<String, String>>) {
         val d = BottomSheetDialog(this)
         val (scroll, col) = ui.page()
         col.setPadding(ui.dp(24), ui.dp(8), ui.dp(24), ui.dp(32))
@@ -248,6 +256,8 @@ class SettingsActivity : AppCompatActivity() {
     private var shownPage: String? = "\u0000"
 
     private fun show() {
+        hostPage?.dispose()
+        hostPage = null
         info = null
         hidePassword = null
         // What the user typed into the page being built again (the settings
@@ -266,6 +276,7 @@ class SettingsActivity : AppCompatActivity() {
             PAGE_DIAGNOSTICS -> diagnostics(col)
             PAGE_PRIVACY -> privacy(col)
             PAGE_ABOUT -> about(col)
+            PAGE_THIS_DEVICE -> thisDevice(col)
             else -> stack.last().takeIf { it.startsWith(PAGE_HOST) }?.let { hostDetail(col, it.removePrefix(PAGE_HOST)) } ?: main(col)
         }
         for ((id, text) in typed) (scroll.findViewById<View>(id) as? android.widget.EditText)?.let { if (it.text.toString() != text) it.setText(text) }
@@ -351,7 +362,11 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         }
-        var c = ui.section(col, getString(R.string.device_heading), SettingsUi.Tone.SECONDARY)
+        // This phone as a host: view and control it from another device.
+        var c = ui.section(col, getString(R.string.host_this_device), SettingsUi.Tone.PRIMARY)
+        ui.row(c, getString(R.string.host_allow), summary = getString(if (HostMode.state.on) R.string.on else R.string.off),
+            icon = R.drawable.ic_s_device, chevron = true) { open(PAGE_THIS_DEVICE) }
+        c = ui.section(col, getString(R.string.device_heading), SettingsUi.Tone.SECONDARY)
         ui.row(c, getString(R.string.device_name), summary = name.ifEmpty { Diag.device() }, icon = R.drawable.ic_s_device, chevron = true) { open(PAGE_NAME) }
         ui.row(c, getString(R.string.identity_heading), summary = AppInfo.shortFingerprint(fingerprint), icon = R.drawable.ic_s_key, chevron = true) { open(PAGE_IDENTITY) }
         c = ui.section(col, getString(R.string.sec_hosts), SettingsUi.Tone.PRIMARY)
@@ -366,6 +381,16 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private var checkingMain = false
+
+    private fun thisDevice(col: LinearLayout) {
+        pageTitle(R.string.host_this_device)
+        val page = HostPage(this, ui, { t, items -> showInfo(t, items) }, { snack(it) }) {
+            if (stack.lastOrNull() == PAGE_THIS_DEVICE && !isDestroyed) show()
+        }
+        page.build(col)
+        info = page.info()
+        hostPage = page
+    }
 
     /** The status card's badge: checking, working, or what is wrong (in words). */
     private fun heroStatus(): String = if (rendezvousStatus == null) getString(R.string.checking) else statusText(rendezvousStatus)
@@ -1052,10 +1077,12 @@ class SettingsActivity : AppCompatActivity() {
         const val PAGE_DIAGNOSTICS = "diagnostics"
         const val PAGE_PRIVACY = "privacy"
         const val PAGE_ABOUT = "about"
+        /** Host mode: this phone viewed and controlled from other devices. */
+        const val PAGE_THIS_DEVICE = "thisDevice"
         /** A saved host's page: this prefix and its target. */
         const val PAGE_HOST = "host:"
 
         /** Pages the web page may open directly. */
-        val DIRECT_PAGES = setOf(PAGE_PRIVACY, PAGE_ABOUT, PAGE_DIAGNOSTICS, PAGE_RENDEZVOUS)
+        val DIRECT_PAGES = setOf(PAGE_PRIVACY, PAGE_ABOUT, PAGE_DIAGNOSTICS, PAGE_RENDEZVOUS, PAGE_THIS_DEVICE)
     }
 }
