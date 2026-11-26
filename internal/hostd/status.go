@@ -12,6 +12,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/perm"
+	"github.com/readori/RemoHop/internal/portmap"
 )
 
 // statusFile records the running host in the config directory, for
@@ -45,6 +46,8 @@ type Status struct {
 	// arrive relayed); empty while offline.
 	Transport string `json:"transport,omitempty"`
 	NAT       string `json:"nat,omitempty"`
+	// PortMap is the router port forwarding in force, if any.
+	PortMap *PortMapStatus `json:"port_map,omitempty"`
 	// FeaturesOff lists the features the owner has switched off.
 	FeaturesOff []string `json:"features_off,omitempty"`
 	// Ask is "off", "on" (password logins need approval) or "all"
@@ -54,6 +57,15 @@ type Status struct {
 	Sessions int             `json:"sessions"`
 	Clients  []SessionStatus `json:"clients,omitempty"`
 	Started  time.Time       `json:"started"`
+}
+
+// PortMapStatus describes the router port mapping (UPnP, NAT-PMP or PCP).
+type PortMapStatus struct {
+	Protocol string `json:"protocol"` // PCP, NAT-PMP or UPnP
+	External string `json:"external"` // the router's public addr:port
+	// Offered is false when the router is behind another NAT, so its
+	// address is not given to clients.
+	Offered bool `json:"offered"`
 }
 
 // SessionStatus describes one live session.
@@ -81,6 +93,7 @@ func (h *Host) OnChange(fn func()) {
 func (h *Host) Status() Status {
 	pol := h.policy()
 	password, mode := h.TempPassword()
+	pm := h.portMapStatus() // before taking h.mu: Mapping takes its own lock
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	st := Status{
@@ -96,6 +109,7 @@ func (h *Host) Status() Status {
 		Signal:       h.cfg.Signal,
 		Transport:    h.transportLocked(),
 		NAT:          string(h.natType),
+		PortMap:      pm,
 		Ask:          "off",
 		Pending:      len(h.approvals),
 		Sessions:     len(h.sessions),
@@ -125,6 +139,32 @@ func (h *Host) Status() Status {
 	}
 	sort.Slice(st.Clients, func(i, j int) bool { return st.Clients[i].Since.Before(st.Clients[j].Since) })
 	return st
+}
+
+// portMapStatus reports the router mapping, or nil if there is none.
+// It must not be called with h.mu held.
+func (h *Host) portMapStatus() *PortMapStatus {
+	var m portmap.Mapping
+	var ok bool
+	if h.mappingFn != nil {
+		m, ok = h.mappingFn()
+	} else if pm := h.portmap.Load(); pm != nil {
+		m, ok = pm.Mapping()
+	}
+	if !ok {
+		return nil
+	}
+	name := m.Protocol
+	switch m.Protocol {
+	case portmap.ProtoPCP:
+		name = "PCP"
+	case portmap.ProtoNATPMP:
+		name = "NAT-PMP"
+	case portmap.ProtoUPnP:
+		name = "UPnP"
+	}
+	return &PortMapStatus{Protocol: name, External: m.External.String(),
+		Offered: offerMapped(m.External, h.reflexive.Load()).IsValid()}
 }
 
 // transportLocked names how the host is registered; h.mu is held.
