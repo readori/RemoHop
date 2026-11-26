@@ -85,7 +85,7 @@ EMAIL = "info@remohop.com"  # general contact
 SUPPORT_EMAIL = "support@remohop.com"  # support page and store support lines
 PRIVACY_EMAIL = "privacy@remohop.com"  # privacy policy
 TELEGRAM = "https://t.me/remohop"
-UPDATED = "2026-11-25"
+UPDATED = "2026-11-26"
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent

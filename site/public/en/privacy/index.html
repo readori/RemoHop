@@ -51,7 +51,7 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Privacy policy</h1>
-<p class="updated">Last updated: 2026-11-25</p>
+<p class="updated">Last updated: 2026-11-26</p>
 <p>This policy explains how the RemoHop software, the RemoHop apps for Android and iOS, this website, and servers operated by the RemoHop project handle data. The publisher is the RemoHop project. Contact: <a href="mailto:privacy@remohop.com">privacy@remohop.com</a>.</p>
 
 <h2 id="short">The short version</h2>
@@ -80,7 +80,7 @@
 </ul>
 <h3>Data kept on the device</h3>
 <ul>
-<li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on). If you have let others reach this device, also the key fingerprints of devices that asked to connect and when they last asked (at most 256, to mark new devices), and the host's audit log.</li>
+<li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on). If you have let others reach this device, also the key fingerprints of devices that asked to connect and when they last asked (at most 256, to mark new devices), the host's audit log, your own password for it if you set one, and how long allowed devices may reconnect without asking. The list of sessions that were open, so they can be restored after the system ends the app, holds only the hosts' IDs or addresses, no credential.</li>
 <li>This data is kept in the app's private directory; on iOS that is an App Group directory shared by the app and its screen-sharing extension, still only on the device. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
 <li>The web view inside the app keeps no cookies or caches. A host password you type is saved in the app's private directory only when you tick "Remember this computer" and the host does not pair (you can show or delete it among the saved hosts, and it is deleted when the host rejects it). Otherwise it is never written to storage; while the app is running it may be kept in memory, together with a temporary pairing, so a dropped session can reconnect by itself, and it is gone when the app quits.</li>
 <li>Uninstalling the app deletes all of the above.</li>

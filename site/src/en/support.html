@@ -11,6 +11,18 @@
 <li><a href="{{L:features}}#status">Status and limits</a> on the Features page lists the platforms and features known to be untested.</li>
 </ul>
 
+<h2 id="faq">Common questions</h2>
+<dl>
+<dt>The connection says <code>relayed</code>. Is that slow?</dt>
+<dd>It means no direct path got through yet, so the session goes through the rendezvous server's relay: still end-to-end encrypted, but slower and capped. The client keeps punching in the background (after 5, 20 and 60 seconds, then every 3 minutes, and at once when the network changes), and once a path works the session moves onto it without a break. Where the host's router speaks PCP, NAT-PMP or UPnP, the host maps a port by itself, and most networks connect directly. <code>remohop &lt;ID&gt; ping</code> shows the path. See <a href="{{L:how-it-works}}#paths-h">How it works</a>.</dd>
+<dt>Can I control an iPhone or iPad?</dt>
+<dd>You can view it, not control it: iOS does not let any app control the device. Start sharing in the iOS app under Settings → This device → Share this screen. An Android phone can be controlled once you allow it and turn on the accessibility service. See <a href="{{L:apps}}#host">Apps</a>.</dd>
+<dt>What happens when the phone goes to the background?</dt>
+<dd>As a host: a device you allowed that drops out comes back without asking for as long as you chose under Reconnect without asking; a new device is always asked. As a controller: a session lasts until you disconnect it and reconnects by itself, and after the system ended the app it comes back with the saved pairing or password.</dd>
+<dt>The remote desktop stutters. What can I do?</dt>
+<dd>Open Stats in the viewer to see latency, bitrate and the frames dropped in the last 10 seconds. Lowering the quality to 1080p or 720p and the frame rate to 30 or 60 fps is often enough. A host without a hardware encoder encodes on the CPU; see the <a href="{{E:docs/troubleshooting}}">troubleshooting guide</a>.</dd>
+</dl>
+
 <h2 id="report">What to include in a report</h2>
 <ol>
 <li>The output of <code>remohop -v &lt;the failing command&gt;</code> on the client.</li>
