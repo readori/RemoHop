@@ -141,6 +141,8 @@
       'tab.clipboard': 'Clipboard',
       'tab.info': 'Info',
       'refused': 'The host refused this: {msg}',
+      'refused.feature': 'This computer does not allow {f} in this session. Its owner can allow it on that computer.',
+      'feat.shell': 'the terminal', 'feat.file': 'file transfer', 'feat.clip': 'the clipboard', 'feat.input': 'mouse and keyboard control', 'feat.forward': 'port forwarding', 'feat.vpn': 'the VPN', 'feat.serial': 'serial ports', 'feat.usb': 'USB devices', 'feat.screen': 'the screen',
 
       // desktop
       'd.controls': 'Desktop controls',
@@ -446,6 +448,8 @@
       'tab.clipboard': '剪贴板',
       'tab.info': '信息',
       'refused': '被控端拒绝了此操作：{msg}',
+      'refused.feature': '这台电脑没有对这次连接开放{f}，需要对方在那台电脑上允许。',
+      'feat.shell': '终端', 'feat.file': '文件传输', 'feat.clip': '剪贴板', 'feat.input': '鼠标键盘控制', 'feat.forward': '端口转发', 'feat.vpn': 'VPN', 'feat.serial': '串口', 'feat.usb': 'USB 设备', 'feat.screen': '屏幕',
 
       'd.controls': '远程桌面控制',
       'd.viewonly': '仅查看',

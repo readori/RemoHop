@@ -176,6 +176,11 @@ func (a *App) EnableUnattended(ctx context.Context, password string) error {
 	} else {
 		err = a.installUserService(ctx, password)
 	}
+	if err != nil {
+		a.log.Warn("unattended access could not be turned on", "err", err)
+	} else {
+		a.log.Info("unattended access turned on")
+	}
 	a.setBusy(false, err)
 	return err
 }
@@ -275,11 +280,17 @@ func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...
 	if err != nil {
 		return elevatedResult{}, err
 	}
+	a.log.Info("administrator step", "op", op, "exe", exe)
 	if err := runElevated(ctx, exe, args); err != nil {
+		a.log.Warn("administrator step did not start", "op", op, "err", err)
 		return elevatedResult{}, err
 	}
 	b, err := os.ReadFile(result)
 	if err != nil {
+		// The helper ran but wrote nothing: it refused its arguments (for
+		// example a different administrator account, whose RemoHop folder
+		// is not this user's) or could not start at all.
+		a.log.Warn("administrator step left no result", "op", op, "err", err)
 		return elevatedResult{}, Errorf("elevation", "the administrator step did not finish")
 	}
 	var r elevatedResult
@@ -287,6 +298,7 @@ func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...
 		return elevatedResult{}, err
 	}
 	if r.Error != "" {
+		a.log.Warn("administrator step failed", "op", op, "err", r.Error)
 		return r, errors.New(r.Error)
 	}
 	return r, nil

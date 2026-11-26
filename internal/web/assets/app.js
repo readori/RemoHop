@@ -599,7 +599,7 @@
     main.className = 'errmain';
     const key = reasonKey(code, msg);
     if (key) I.say(main, key);
-    else if (code === 'host_refused' || code === 'feature_off') I.say(main, 'refused', {msg});
+    else if (code === 'host_refused' || code === 'feature_off') SD.refusal(main, msg);
     else if (code && I.has('err.' + code, 'zh')) I.say(main, 'err.' + code);
     else I.say(main, 'connect.failed');
     box.appendChild(main);
@@ -787,11 +787,22 @@
 
   // Report per-feature API errors the same way everywhere: the host's own
   // words for a refusal, in the tab's error line.
+  // A feature the host's owner did not allow for this session (the desktop
+  // app and quick support offer the screen, control and files only) is
+  // said in the user's language, naming the feature.
+  const featureRefusal = msg => {
+    const m = /\(feature "([a-z]+)"\)/.exec(msg || '');
+    return m && I.has('feat.' + m[1], 'en') ? {f: {k: 'feat.' + m[1]}} : null;
+  };
+  SD.refusal = (el, msg) => {
+    const f = featureRefusal(msg);
+    if (f) I.say(el, 'refused.feature', f); else I.say(el, 'refused', {msg});
+  };
   SD.showErr = (id, e) => {
     const el = $(id);
     I.plain(el, '');
     if (!e) return;
-    if (e.code === 'feature_off' || e.code === 'host_refused') I.say(el, 'refused', {msg: e.message});
+    if (e.code === 'feature_off' || e.code === 'host_refused') SD.refusal(el, e.message);
     else if (e.code === 'disconnected' || e.code === 'reconnecting') { SD.sayErr(el, e); heartbeat(); }
     else SD.sayErr(el, e);
   };
