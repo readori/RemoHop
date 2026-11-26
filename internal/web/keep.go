@@ -131,6 +131,7 @@ func (s *Server) keep(ws *webSession, p *pooled, release func()) {
 		release()
 		s.forget(p)
 		p.close()
+		s.saveOpen() // the user ended it (nothing while the gateway closes)
 	}()
 	for {
 		conn := p.current()
@@ -156,6 +157,7 @@ func (s *Server) keep(ws *webSession, p *pooled, release func()) {
 			// closes it or connects again.
 			p.setState(stateFailed, &apiError{Code: "host_disconnected", Message: "the host ended the session: " + reason}, 0)
 			s.log.Info("web: the host ended the session; not reconnecting", "target", p.key, "reason", reason)
+			s.saveOpen()
 			select {
 			case <-p.stopped:
 			case <-s.ctx.Done():
@@ -164,6 +166,7 @@ func (s *Server) keep(ws *webSession, p *pooled, release func()) {
 		}
 		if !s.reconnect(p) {
 			// Failed for good: listed as failed until the user acts.
+			s.saveOpen()
 			select {
 			case <-p.stopped:
 			case <-s.ctx.Done():
@@ -392,7 +395,9 @@ func received(c *peer.Conn) int64 {
 // mode, reconnect). For tests of the reconnection.
 func (s *Server) DropSessionsForTest() {
 	for _, p := range s.allPooled() {
-		p.current().CloseWithReason("connection dropped by a test")
+		if c := p.current(); c != nil {
+			c.CloseWithReason("connection dropped by a test")
+		}
 	}
 }
 

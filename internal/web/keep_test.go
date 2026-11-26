@@ -7,6 +7,8 @@ import (
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/signal"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -296,4 +298,80 @@ func TestPersistentHostShutdownReconnects(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	c.waitState(key, stateConnected)
+}
+
+// The system ended the app with sessions open: the next gateway logs in
+// to those hosts again by itself, with what is saved for them (Restore),
+// and the page finds them. A session the user ended, and one whose host
+// has nothing saved, is not restored; the list holds no credential.
+func TestPersistentRestoresOpenSessions(t *testing.T) {
+	testEnv(t)
+	dir := t.TempDir()
+	f := &flakyDialer{dialer: &dialer{t: t}}
+	restore := func(target string) Redialer {
+		if target == "typed.test:21118" {
+			return nil // only a typed password: nothing saved
+		}
+		return func(ctx context.Context, notify func(string)) (*peer.Conn, error) {
+			// The test host takes "hostpw": here, what is saved for it.
+			return f.dial(ctx, DialRequest{Target: target, Password: "hostpw", Notify: notify})
+		}
+	}
+	cfg := Config{Dial: f.dial, Persistent: true, ConfigDir: dir, Restore: restore}
+	s1, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := s1.Start()
+	c := newLoopbackClient(t, s1)
+	c.newSession()
+	host := c.connect("host.test:21118", "hostpw")
+	c.connect("typed.test:21118", "hostpw")
+	ended := c.connect("ended.test:21118", "hostpw")
+	if code := c.jsonCall("POST", "api/v1/disconnect", map[string]string{"c": ended}, nil); code != 200 {
+		t.Fatalf("disconnect: %d", code)
+	}
+	time.Sleep(50 * time.Millisecond)
+	b, err := os.ReadFile(filepath.Join(dir, openSessionsFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(b); !strings.Contains(s, "host.test") || !strings.Contains(s, "typed.test") || strings.Contains(s, "ended.test") || strings.Contains(s, "pw") {
+		t.Fatalf("open sessions file: %s", s)
+	}
+	s1.Close() // the system ended the app
+	<-done
+	if b2, _ := os.ReadFile(filepath.Join(dir, openSessionsFile)); string(b2) != string(b) {
+		t.Fatalf("closing the gateway changed the list: %s", b2)
+	}
+
+	n := f.calls.Load()
+	s2 := startServer(t, cfg)
+	c2 := newLoopbackClient(t, s2)
+	c2.newSession()
+	c2.waitState(host, stateConnected)
+	if v := c2.connsView(); len(v) != 1 || v[0].Key != host {
+		t.Fatalf("restored sessions: %+v", v)
+	}
+	if f.calls.Load() != n+1 {
+		t.Fatalf("dials %d, want %d", f.calls.Load(), n+1)
+	}
+	f.dialer.mu.Lock()
+	last := f.dialer.calls[len(f.dialer.calls)-1]
+	f.dialer.mu.Unlock()
+	if last.Target != "host.test:21118" {
+		t.Fatalf("restore dial %+v", last)
+	}
+	var info map[string]any
+	if code := c2.jsonCall("GET", "api/v1/info?c="+host, nil, &info); code != 200 {
+		t.Fatalf("info on the restored session: %d %v", code, info)
+	}
+	// The user ends it: it leaves the list.
+	if code := c2.jsonCall("POST", "api/v1/disconnect", map[string]string{"c": host}, nil); code != 200 {
+		t.Fatalf("disconnect: %d", code)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if b, _ := os.ReadFile(filepath.Join(dir, openSessionsFile)); strings.Contains(string(b), "host.test") {
+		t.Fatalf("after disconnecting: %s", b)
+	}
 }

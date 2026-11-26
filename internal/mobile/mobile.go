@@ -335,6 +335,7 @@ func startLocked() (string, error) {
 		Pair:       pairGateway(d),
 		Persistent: true,
 		Redial:     redialGateway(d),
+		Restore:    restoreGateway(d),
 		Logger:     quietLogger(),
 	})
 	if err != nil {
@@ -468,6 +469,39 @@ func redialGateway(d string) web.RedialFunc {
 			})
 		}, nil
 	}
+}
+
+// restoreGateway is how the gateway logs in again, when the app starts, to
+// a host whose session was open when the system ended the app (see
+// internal/web/restore.go): with what this device saved for it (a pairing,
+// a key login the host's owner authorised, a password the user asked to
+// remember). A host with none is not restored: the password typed for a
+// session lives in memory only, and went with the app.
+func restoreGateway(d string) func(target string) web.Redialer {
+	return func(target string) web.Redialer {
+		if !savedCredential(d, target) {
+			return nil
+		}
+		return func(ctx context.Context, notify func(string)) (*peer.Conn, error) {
+			return dial.Dial(ctx, target, dial.Options{
+				Notify: notify,
+				Dir:    d,
+				Locals: localAddrs,
+				Logger: quietLogger(),
+			})
+		}
+	}
+}
+
+// savedCredential reports whether this device can log in to target without
+// a typed password.
+func savedCredential(d, target string) bool {
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		return false
+	}
+	p, _, err := st.Get(target)
+	return err == nil && (p.Paired() || p.SavedPassword() || (p.KeyLogin && p.HostKey != ""))
 }
 
 // savedPairing reports whether this device has a pairing saved for target.
