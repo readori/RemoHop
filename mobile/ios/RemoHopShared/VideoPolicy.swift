@@ -94,7 +94,7 @@ struct FrameThrottle {
 /// needs and avoids reconfiguring the encoder for small changes.
 struct BitrateController {
     static let floor = 250_000
-    static let absoluteCeiling = 8_000_000
+    static let absoluteCeiling = 12_000_000
     /// Increases are applied at most this often; decreases at once.
     static let raiseInterval: TimeInterval = 1
 
@@ -102,9 +102,12 @@ struct BitrateController {
     private(set) var current: Int
     private var lastRaise: Date?
 
-    /// About 0.1 bit per pixel and frame: screen content compresses well.
+    /// About 0.2 bit per pixel and frame. Screen content compresses well,
+    /// but a phone's small text needs more than a desktop's: the core asks
+    /// about 0.12 on a fast path and this must not cut that, and an encoder
+    /// spends less whenever the screen is still.
     static func ceiling(for size: FrameSize, fps: Int) -> Int {
-        let v = size.width * size.height * max(fps, 1) / 10
+        let v = size.width * size.height * max(fps, 1) / 5
         return min(max(v, 1_000_000), absoluteCeiling)
     }
 
