@@ -338,6 +338,12 @@ func (a *gtkApp) NewWindow(o Options) (Window, error) {
 	}
 	l.setTitle(w.win, o.Title)
 	width, height := o.Size()
+	if !o.Overlay {
+		if r := a.workarea(); r.W > 0 && r.H > 0 {
+			width, height, o.MinWidth, o.MinHeight = fitArea(width, height, o.MinWidth, o.MinHeight, int(r.W), int(r.H))
+			w.opts = o
+		}
+	}
 	l.setDefaultSize(w.win, int32(width), int32(height))
 	if o.MinWidth > 0 || o.MinHeight > 0 {
 		l.setSizeRequest(w.win, int32(o.MinWidth), int32(o.MinHeight))
@@ -395,6 +401,13 @@ type gdkRect struct{ X, Y, W, H int32 }
 // app's own window and its tab bar. Wayland compositors may place it
 // elsewhere.
 func (a *gtkApp) overlayOrigin(width, height int) (int32, int32) {
+	r := a.workarea()
+	return r.X + r.W - int32(width) - overlayMargin, r.Y + r.H - int32(height) - overlayMargin
+}
+
+// workarea is the primary monitor's work area (the screen minus panels),
+// or the screen less a guess for a panel when GDK cannot say.
+func (a *gtkApp) workarea() gdkRect {
 	l := a.l
 	r := gdkRect{}
 	if l.haveWorkarea {
@@ -413,7 +426,7 @@ func (a *gtkApp) overlayOrigin(width, height int) (int32, int32) {
 			r = gdkRect{W: l.screenWidth(s), H: l.screenHeight(s) - 48}
 		}
 	}
-	return r.X + r.W - int32(width) - overlayMargin, r.Y + r.H - int32(height) - overlayMargin
+	return r
 }
 
 func (w *gtkWindow) Navigate(url string) {

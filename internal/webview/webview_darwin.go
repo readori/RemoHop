@@ -430,6 +430,13 @@ func (a *macApp) Quit() {
 
 func (a *macApp) NewWindow(o Options) (Window, error) {
 	width, height := o.Size()
+	if !o.Overlay {
+		// Fit the screen's visible frame (minus menu bar and Dock).
+		if scr := cls("NSScreen").Send(sel("mainScreen")); scr != 0 {
+			f := objc.Send[nsRect](scr, sel("visibleFrame"))
+			width, height, o.MinWidth, o.MinHeight = fitArea(width, height, o.MinWidth, o.MinHeight, int(f.Size.W), int(f.Size.H))
+		}
+	}
 	rect := nsRect{Size: nsSize{float64(width), float64(height)}}
 	class := "NSWindow"
 	style := uint(styleTitled | styleClosable | styleMiniaturizable | styleResizable)

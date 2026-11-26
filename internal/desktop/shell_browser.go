@@ -99,7 +99,7 @@ func runBrowser(ctx context.Context, app *App, srv *Server, o runOptions, log *s
 		}
 	}})
 	if !o.hidden {
-		if err := b.open(srv.URL(), "960", "640"); err != nil {
+		if err := b.open(srv.URL(), "1180", "720"); err != nil {
 			return err
 		}
 	}
@@ -130,7 +130,7 @@ func runBrowser(ctx context.Context, app *App, srv *Server, o runOptions, log *s
 }
 
 func (b *browserShell) Show() {
-	if err := b.open(b.srv.URL(), "960", "640"); err != nil {
+	if err := b.open(b.srv.URL(), "1180", "720"); err != nil {
 		b.log.Error("could not open a window", "err", err)
 	}
 }
@@ -138,7 +138,7 @@ func (b *browserShell) Show() {
 func (b *browserShell) Hide() {}
 
 func (b *browserShell) PopOut(url, title string) error {
-	if err := b.open(url, "1100", "760"); err != nil {
+	if err := b.open(url, "1180", "720"); err != nil {
 		return errors.New("could not open a window")
 	}
 	return nil

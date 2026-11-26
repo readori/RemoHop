@@ -4,12 +4,50 @@
 'use strict';
 (function () {
   const $ = id => document.getElementById(id);
+
+  // Every password field gets an eye button that shows what was typed, so
+  // it can be checked before connecting. It never leaves the field shown:
+  // submitting the form hides it again.
+  function eyeIcon(open) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('fill', 'currentColor');
+    path.setAttribute('d', open
+      ? 'M12 5C6.5 5 2.7 9 1.5 12c1.2 3 5 7 10.5 7s9.3-4 10.5-7C21.3 9 17.5 5 12 5Zm0 11.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z'
+      : 'M2.3 3.7 3.7 2.3l18 18-1.4 1.4-3.2-3.2A11.4 11.4 0 0 1 12 19c-5.5 0-9.3-4-10.5-7 .6-1.5 1.8-3.3 3.5-4.8L2.3 3.7Zm5.4 5.4A4.5 4.5 0 0 0 14.9 15.3l-1.6-1.6A2 2 0 0 1 10.3 10.7L7.7 9.1ZM12 5c5.5 0 9.3 4 10.5 7-.5 1.3-1.5 2.8-2.8 4.1l-3.3-3.3A4.5 4.5 0 0 0 11.2 7.6L8.9 5.4C9.9 5.1 10.9 5 12 5Z');
+    svg.appendChild(path);
+    return svg;
+  }
+  function addEye(input) {
+    if (!input || input.dataset.eye) return;
+    input.dataset.eye = '1';
+    const wrap = document.createElement('span');
+    wrap.className = 'pwwrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'pweye';
+    const set = shown => {
+      input.type = shown ? 'text' : 'password';
+      b.textContent = ''; b.appendChild(eyeIcon(!shown));
+      b.setAttribute('aria-pressed', String(shown));
+      I.sayAttr(b, 'aria-label', shown ? 'pw.hide' : 'pw.show');
+      I.sayAttr(b, 'title', shown ? 'pw.hide' : 'pw.show');
+    };
+    b.addEventListener('click', () => { set(input.type === 'password'); input.focus(); });
+    if (input.form) input.form.addEventListener('submit', () => set(false));
+    wrap.appendChild(b);
+    set(false);
+  }
   const base = new URL('.', location.href);
   const SD = window.SD = {tabs: {}, state: {sid: null, csrf: null, mode: null, conns: [], cur: null}};
   const st = SD.state;
   // Text goes through i18n.js: SD.t for a string now, SD.say/SD.sayAttr for
   // text that follows a language switch, SD.plain for untranslated text.
   const I = SD.i18n = window.SDI18n;
+  for (const id of ['hostpass', 'gwpass']) addEye($(id));
   SD.t = I.t; SD.say = I.say; SD.plain = I.plain; SD.sayAttr = I.sayAttr;
 
   class ApiError extends Error {
@@ -361,7 +399,8 @@
         const o = document.createElement('option');
         o.value = p.target;
         const label = (p.alias ? p.alias + ' · ' : '') + p.target;
-        if (p.paired || p.key_login) I.say(o, p.paired ? 'peer.opt.paired' : 'peer.opt.key', {label}); else I.plain(o, label);
+        if (p.paired || p.key_login) I.say(o, p.paired ? 'peer.opt.paired' : 'peer.opt.key', {label});
+        else if (p.saved_password) I.say(o, 'peer.opt.saved', {label}); else I.plain(o, label);
         sel.appendChild(o);
       }
       renderPeerCards();
@@ -372,7 +411,7 @@
   // password; the others ("recent") fill in the form and wait for the
   // password, with no connection attempt and so no error.
   function renderPeerCards() {
-    const ready = p => p.paired || p.key_login;
+    const ready = p => p.paired || p.key_login || p.saved_password;
     const lists = [[$('peercards'), $('peers-h'), st.peers.filter(ready)], [$('peercards-recent'), $('peers-recent-h'), st.peers.filter(p => !ready(p))]];
     for (const [ul, h, list] of lists) {
       ul.textContent = '';
@@ -384,7 +423,7 @@
   // pickPeer does what a tap on a saved host does: a host that needs no
   // password connects at once; one that does is filled in, waiting for it.
   function pickPeer(p) {
-    const ready = p.paired || p.key_login;
+    const ready = p.paired || p.key_login || p.saved_password;
     $('target').value = p.alias || p.target;
     $('peersel').value = p.target;
     I.plain($('connerr'), '');
@@ -402,7 +441,7 @@
     const name = document.createElement('strong');
     name.textContent = peerLabel(p);
     const sub = document.createElement('small');
-    const ready = p.paired || p.key_login;
+    const ready = p.paired || p.key_login || p.saved_password;
     I.say(sub, p.alias ? 'peer.sub.alias' : 'raw', {target: p.target, s: {k: ready ? 'peer.ready' : 'peer.needspw'}, state: {k: ready ? 'peer.ready' : 'peer.needspw'}});
     text.append(name, sub);
     b.append(icon, text);
@@ -420,8 +459,26 @@
   // A saved host's actions: rename it, or forget it (with its pairing).
   async function peerActions(p) {
     const label = peerLabel(p);
-    const a = await SD.menu({title: label, message: p.alias ? p.target : '',
-      actions: [{label: I.t('peer.rename'), value: 'rename'}, {label: I.t('peer.forget'), value: 'forget', destructive: true}]});
+    const actions = [{label: I.t('peer.rename'), value: 'rename'}];
+    if (p.saved_password) actions.push({label: I.t('peer.showpw'), value: 'showpw'}, {label: I.t('peer.forgetpw'), value: 'forgetpw', destructive: true});
+    actions.push({label: I.t('peer.forget'), value: 'forget', destructive: true});
+    const a = await SD.menu({title: label, message: p.alias ? p.target : '', actions});
+    if (a === 'showpw') {
+      let pw;
+      try { pw = (await SD.json('POST', 'peers/password', {target: p.target})).password; }
+      catch (e) { banner('raw', {s: SD.errVar(e)}, true); return; }
+      if (await SD.confirm(I.t('peer.pw.title', {label}), pw, I.t('peer.pw.copy'))) {
+        try { await navigator.clipboard.writeText(pw); } catch (e) { /* the dialog showed it */ }
+      }
+      return;
+    }
+    if (a === 'forgetpw') {
+      try { await SD.json('POST', 'peers/password', {target: p.target, forget: true}); }
+      catch (e) { banner('raw', {s: SD.errVar(e)}, true); return; }
+      banner('peer.forgetpw.done', null, false);
+      await reloadPeers();
+      return;
+    }
     if (a === 'rename') {
       const name = await SD.prompt({title: I.t('peer.rename.title', {label}), message: I.t('peer.rename.msg', {target: p.target}),
         value: p.alias || '', label: I.t('peer.rename.input'), placeholder: p.target, okLabel: I.t('save')});
@@ -547,7 +604,7 @@
     else I.say(main, 'connect.failed');
     box.appendChild(main);
     // An expected case (the host needs its password): no technical detail.
-    if (code === 'password_required') { $('hostpass').focus(); return; }
+    if (code === 'password_required' || code === 'saved_password_rejected') { $('hostpass').focus(); return; }
     if (msg && msg !== main.textContent) {
       const d = document.createElement('details');
       d.className = 'errdetail';
@@ -623,7 +680,8 @@
         // by its notice.
         const notices = (j.notices || []).filter(n => !/^pairing failed/.test(n));
         const pairFailed = (j.pair && j.pair.ok === false) || notices.length < (j.notices || []).length;
-        const pairMsg = pairFailed ? (j.pair && j.pair.code === 'pair_refused' ? 'connect.pairrefused' : 'connect.pairfailed') : null;
+        let pairMsg = pairFailed ? (j.pair && j.pair.code === 'pair_refused' ? 'connect.pairrefused' : 'connect.pairfailed') : null;
+        if (j.pair && j.pair.ok && j.pair.code === 'password_saved') pairMsg = 'connect.pwsaved';
         if (notices.length) banner('raw', {s: notices.join(' ')}, false);
         await loadPeers();
         $('peerrow').hidden = !(st.peers && st.peers.length);

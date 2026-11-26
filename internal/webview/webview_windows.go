@@ -337,6 +337,17 @@ func (a *winApp) NewWindow(o Options) (Window, error) {
 	title := windows.StringToUTF16Ptr(o.Title)
 	style, ex := uintptr(wsOverlappedWindow), uintptr(0)
 	x, y := uintptr(cwUseDefault), uintptr(cwUseDefault)
+	if !o.Overlay {
+		// Fit the work area (a 1366x768 laptop is smaller than the size
+		// asked for) and centre the window in it.
+		var wa struct{ Left, Top, Right, Bottom int32 }
+		if r, _, _ := pSystemParametersInfoW.Call(0x0030 /* SPI_GETWORKAREA */, 0, uintptr(unsafe.Pointer(&wa)), 0); r != 0 && a.dpi > 0 {
+			aw, ah := int(wa.Right-wa.Left)*96/a.dpi, int(wa.Bottom-wa.Top)*96/a.dpi
+			width, height, o.MinWidth, o.MinHeight = fitArea(width, height, o.MinWidth, o.MinHeight, aw, ah)
+			x = uintptr(int(wa.Left) + (int(wa.Right-wa.Left)-int(a.scale(width)))/2)
+			y = uintptr(int(wa.Top) + (int(wa.Bottom-wa.Top)-int(a.scale(height)))/2)
+		}
+	}
 	if o.Overlay {
 		// The bottom-right corner of the work area (above the task bar),
 		// where notifications appear, away from the app's window.

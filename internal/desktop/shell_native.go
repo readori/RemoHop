@@ -59,7 +59,7 @@ func runNative(ctx context.Context, app *App, srv *Server, o runOptions, log *sl
 	return nativeui.Run(cfg, func(ui nativeui.App) {
 		sh.ui = ui
 		sh.tray = ui.SetTray(sh.trayMenu()) == nil
-		w, err := ui.NewWindow(nativeui.Options{Title: "RemoHop", URL: srv.URL(), Width: 960, Height: 640, MinWidth: 420, MinHeight: 520,
+		w, err := ui.NewWindow(nativeui.Options{Title: "RemoHop", URL: srv.URL(), Width: 1280, Height: 800, MinWidth: 800, MinHeight: 600,
 			Hidden: o.hidden && sh.tray, OnClose: sh.onMainClose})
 		if err != nil {
 			log.Error("could not open the window", "err", err)
@@ -149,7 +149,7 @@ func (sh *nativeShell) Hide() {
 
 func (sh *nativeShell) PopOut(url, title string) error {
 	sh.ui.Dispatch(func() {
-		if _, err := sh.ui.NewWindow(nativeui.Options{Title: title, URL: url, Width: 1100, Height: 760, MinWidth: 480, MinHeight: 400}); err != nil {
+		if _, err := sh.ui.NewWindow(nativeui.Options{Title: title, URL: url, Width: 1280, Height: 800, MinWidth: 800, MinHeight: 600}); err != nil {
 			sh.log.Error("could not open a window", "err", err)
 		}
 	})

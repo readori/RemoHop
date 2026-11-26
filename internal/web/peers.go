@@ -16,6 +16,8 @@ import (
 //
 //	POST peers/alias   {target, alias}  ("" removes the name)
 //	POST peers/forget  {target}         (also ends the sessions to it)
+//	POST peers/password {target}         the saved password, to show it
+//	POST peers/password {target, forget} removes the saved password
 
 // errNoSuchPeer: the target is not a saved host of this gateway.
 var errNoSuchPeer = errors.New("no saved host with that target")
@@ -23,6 +25,59 @@ var errNoSuchPeer = errors.New("no saved host with that target")
 type peerReq struct {
 	Target string `json:"target"`
 	Alias  string `json:"alias"`
+	Forget bool   `json:"forget"`
+}
+
+func (s *Server) defaultSavePassword(target, password string) error {
+	st, err := dial.OpenStore(s.cfg.ConfigDir)
+	if err != nil {
+		return err
+	}
+	return st.SetPassword(target, password)
+}
+
+func (s *Server) defaultPassword(target string) (string, error) {
+	st, err := dial.OpenStore(s.cfg.ConfigDir)
+	if err != nil {
+		return "", err
+	}
+	p, ok, err := st.Get(target)
+	if err != nil {
+		return "", err
+	}
+	if !ok || !p.SavedPassword() {
+		return "", errNoSuchPeer
+	}
+	return p.Password, nil
+}
+
+// handlePeerPassword shows or removes a saved host's saved password.
+// Showing it is no more than the page can already do with it (log in to
+// that host), and it lets the user check what was saved.
+func (s *Server) handlePeerPassword(w http.ResponseWriter, r *http.Request, ws *webSession) {
+	req, ok := s.readPeerReq(w, r)
+	if !ok {
+		return
+	}
+	if req.Forget {
+		if err := s.cfg.SavePassword(req.Target, ""); err != nil {
+			writeErr(w, classify(err))
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		return
+	}
+	pw, err := s.cfg.Password(req.Target)
+	if errors.Is(err, errNoSuchPeer) {
+		writeErr(w, &apiError{Status: http.StatusNotFound, Code: "not_found", Message: "no saved password for that host"})
+		return
+	}
+	if err != nil {
+		writeErr(w, classify(err))
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeJSON(w, http.StatusOK, map[string]any{"password": pw})
 }
 
 func (s *Server) defaultSetAlias(target, alias string) error {

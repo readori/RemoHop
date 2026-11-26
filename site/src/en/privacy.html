@@ -15,7 +15,7 @@
 <h2 id="software">1. The software (<code>remohop</code>)</h2>
 <p><code>remohop</code> talks to two kinds of peers only: the devices you connect to, and the rendezvous server you configured yourself (<code>remohop config set signal</code>). It does not report statistics or crashes.</p>
 <p><strong>Update check:</strong> the desktop app (<code>remohop app</code>, RemoHop.exe, RemoHop.app) reads <code>https://remohop.com/version.json</code> from this website once a day by default, to see whether a newer version exists. The request carries no identifier: no device ID, account or cookie, and the User-Agent is just "RemoHop"; as with any visit to this website, the hosting provider (Cloudflare) processes your IP address (see <a href="#website">section 4</a>). The app downloads and installs nothing by itself. Switch it off in Settings &gt; Updates; administrators can set the environment variable <code>REMOHOP_NO_UPDATE_CHECK=1</code> to switch it off for everyone. The command line, quick support and the mobile apps do not check for updates.</p>
-<p>In its configuration directory on your machine it stores this machine's identity key, the public keys and pairing tokens of saved hosts, settings, the clipboard history if you use the clipboard commands, and on a host the audit log. These files stay on your device and are readable by their owner only.</p>
+<p>In its configuration directory on your machine it stores this machine's identity key, the public keys and pairing tokens of saved hosts, the passwords of hosts you chose to remember that do not pair, settings, the clipboard history if you use the clipboard commands, and on a host the audit log. These files stay on your device and are readable by their owner only.</p>
 <p>The owner of a host can see everything a client sends to it. That is what remote control means. Before you connect to someone else's machine, make sure you trust them.</p>
 
 <h2 id="apps">2. The Android and iOS apps</h2>
@@ -24,7 +24,7 @@
 <ul>
 <li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on).</li>
 <li>This data is kept in the app's private directory. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
-<li>The web view inside the app keeps no cookies or caches. A host password you type is never written to storage. While the app is running it may be kept in memory, together with a temporary pairing, so a dropped session can reconnect by itself; it is gone when the app quits.</li>
+<li>The web view inside the app keeps no cookies or caches. A host password you type is saved in the app's private directory only when you tick "Remember this computer" and the host does not pair (you can show or delete it among the saved hosts, and it is deleted when the host rejects it). Otherwise it is never written to storage; while the app is running it may be kept in memory, together with a temporary pairing, so a dropped session can reconnect by itself, and it is gone when the app quits.</li>
 <li>Uninstalling the app deletes all of the above.</li>
 </ul>
 <h3>Diagnostic logs</h3>

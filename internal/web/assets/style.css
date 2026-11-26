@@ -97,6 +97,11 @@ label.check input { margin-top: .3em; accent-color: var(--accent); width: 16px; 
 .checktext .fieldhint { margin: 0; }
 input[type=text], input[type=password], select, textarea { width: 100%; background: var(--panel); color: var(--fg); border: 1px solid var(--field); border-radius: 8px; padding: 9px 11px; font: inherit; }
 input[type=text], input[type=password] { min-height: 44px; }
+.pwwrap { position: relative; display: block; }
+.pwwrap input { padding-right: 48px; }
+.pweye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); min-height: 36px; width: 40px; padding: 0; border: 0; background: none; color: var(--muted); display: grid; place-items: center; }
+.pweye:hover { color: var(--fg); background: var(--panel2); }
+.pweye svg { width: 20px; height: 20px; }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 #target, #hostpass, #gwpass { font-family: var(--mono); }
 .toolbar select, .hostbar select { width: auto; max-width: 100%; padding: 6px 9px; min-height: 36px; }
