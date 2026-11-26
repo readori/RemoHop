@@ -11,4 +11,7 @@ package update
 //
 // Empty: one-click upgrades are off, and the app offers the download page.
 // `go run ./scripts/updsign keygen` makes a key pair.
-var TrustedKeys = []string{}
+var TrustedKeys = []string{
+	"EhMAtz32qkaC5xnCXOo6SLO2J/fH6WzxkIV3wvZuUyQ=", // release (secret UPDATE_SIGNING_KEY), made 2026-11-26
+	"fdzFU7FhCrIrtD3sTKmcEP4Y1TioJ6LKurOp5fzetSo=", // spare, offline with the owner
+}
