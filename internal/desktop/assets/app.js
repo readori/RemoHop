@@ -50,7 +50,7 @@
       'req.asks': 'Asks to:', 'req.input': 'control the mouse and keyboard', 'req.file': 'transfer files', 'req.clip': 'use the clipboard',
       'req.unknown': 'Unnamed device',
       'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start automatically', 'set.autostart': 'Start RemoHop when the computer starts (in the tray)',
-      'about': 'RemoHop {v} · {e}', 'browser': 'browser window',
+      'about': '{v} · {e}', 'about.app': 'About RemoHop', 'set.g.conn': 'Connection', 'set.g.general': 'General', 'set.g.support': 'Support', 'upd.version': 'Version', 'browser': 'browser window',
       'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
       'upd.how.cmd': 'You have {c}. Upgrade with:', 'upd.how.package': "You have {c}. Upgrade it with your system's package manager.",
       'upd.how.nix': 'You have {c}. Upgrade it through Nix.', 'upd.get': 'Download', 'upd.install': 'Upgrade now', 'upd.how.install': 'You have {c}. Upgrade in place: RemoHop restarts by itself.',
@@ -109,7 +109,7 @@
       'req.asks': '请求：', 'req.input': '控制鼠标和键盘', 'req.file': '传输文件', 'req.clip': '使用剪贴板',
       'req.unknown': '未命名设备',
       'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '开机自动启动', 'set.autostart': '开机后自动启动 RemoHop（在托盘中运行）',
-      'about': 'RemoHop {v} · {e}', 'browser': '浏览器窗口',
+      'about': '{v} · {e}', 'about.app': '关于 RemoHop', 'set.g.conn': '连接', 'set.g.general': '通用', 'set.g.support': '支持', 'upd.version': '版本', 'browser': '浏览器窗口',
       'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
       'upd.how.cmd': '当前是 {c}。用这条命令升级：', 'upd.how.package': '当前是 {c}。请用系统的包管理器升级。',
       'upd.how.nix': '当前是 {c}。请通过 Nix 升级。', 'upd.get': '下载', 'upd.install': '立即升级', 'upd.how.install': '当前是 {c}。可以直接升级，完成后 RemoHop 会自动重启。',
@@ -470,8 +470,9 @@
     const tr = $('trusted'); tr.textContent = '';
     $('trusted-box').hidden = !s.trusted.length;
     for (const d of s.trusted) {
-      const r = document.createElement('div'); r.className = 'list-row';
-      const g = document.createElement('div'); g.className = 'grow';
+      const r = document.createElement('div'); r.className = 'item';
+      r.append(tile('purple', 'i-device'));
+      const g = document.createElement('div'); g.className = 'lbl';
       const a = document.createElement('div'); a.textContent = d.name || t('req.unknown');
       const b = document.createElement('div'); b.className = 'muted small';
       b.textContent = shortKey(d.identity);
@@ -494,6 +495,13 @@
       f.addEventListener('click', () => api('forget-device', {identity: d.identity}).catch(e => snack(errText(e))));
       r.append(g, chips, rn, f); tr.append(r);
     }
+  }
+  // tile is a list row's coloured icon (style.css .tile).
+  function tile(colour, icon) {
+    const sp = document.createElement('span'); sp.className = 'tile ' + colour;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#' + icon);
+    svg.append(use); sp.append(svg); return sp;
   }
   function fmtDur(s) { const m = Math.floor(s / 60); return m < 60 ? m + ':' + String(s % 60).padStart(2, '0') : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); }
   function shortKey(k) { return (k || '').slice(0, 16); }
@@ -625,6 +633,7 @@
       for (const r of document.querySelectorAll('input[name=srv]')) r.checked = r.value === s.server.mode;
       $('srv-addr').value = s.server.mode === 'custom' ? s.server.addr : '';
     }
+    $('srv-val').textContent = s.server.mode === 'custom' ? s.server.addr : s.server.mode === 'none' ? t('srv.none') : t('srv.official');
     for (const b of $('set-lang').children) b.setAttribute('aria-pressed', String(b.dataset.lang === (s.lang || '')));
     for (const b of $('set-theme').children) b.setAttribute('aria-pressed', String(b.dataset.theme === (s.theme || '')));
     $('autostart-box').hidden = !s.autostart.available;
@@ -679,9 +688,13 @@
   $('upd-skip').addEventListener('click', () => api('update/skip', {version: S.update.latest}).catch(e => snack(errText(e))));
   for (const el of document.querySelectorAll('input[name=srv], #srv-addr')) el.addEventListener('input', () => { srvEdited = true; });
   $('srv-addr').addEventListener('focus', () => { document.querySelector('input[name=srv][value=custom]').checked = true; srvEdited = true; });
+  $('srv-row').addEventListener('click', () => {
+    const open = $('srv-panel').hidden;
+    $('srv-panel').hidden = !open; $('srv-row').setAttribute('aria-expanded', String(open));
+  });
   $('srv-save').addEventListener('click', async () => {
     $('srv-err').textContent = '';
-    try { await api('server', {mode: document.querySelector('input[name=srv]:checked').value, addr: $('srv-addr').value}); srvEdited = false; snack(t('saved')); }
+    try { await api('server', {mode: document.querySelector('input[name=srv]:checked').value, addr: $('srv-addr').value}); srvEdited = false; snack(t('saved')); $('srv-panel').hidden = true; $('srv-row').setAttribute('aria-expanded', 'false'); }
     catch (e) { $('srv-err').textContent = errText(e); }
   });
   $('set-lang').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b) api('lang', {lang: b.dataset.lang}).catch(e => snack(errText(e))); });

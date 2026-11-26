@@ -196,8 +196,13 @@ try {
   await p.eval(`document.getElementById('tab-settings').click()`);
   check(await p.waitFor(`!document.getElementById('v-settings').hidden && document.querySelector('input[name=srv][value=custom]').checked`), 'Settings show the server choice');
   await p.shot('settings');
+  await p.eval(`document.getElementById('srv-row').click()`);
+  check(await p.waitFor(`!document.getElementById('srv-panel').hidden && document.getElementById('srv-val').textContent !== ''`), 'the server row opens its choices');
+  await p.shot('settings-server');
+  await p.eval(`document.getElementById('srv-row').click()`);
   await p.eval(`document.querySelector('#set-theme [data-theme=dark]').click()`);
   check(await p.waitFor(`document.documentElement.dataset.theme === 'dark'`), 'dark theme');
+  await p.shot('settings-dark');
   await p.eval(`document.getElementById('tab-computer').click()`);
   await p.shot('computer-dark');
   await p.eval(`document.querySelector('#set-lang [data-lang=zh]').click()`);
@@ -206,6 +211,12 @@ try {
   await p.eval(`document.querySelector('#set-theme [data-theme=""]').click()`);
   await p.waitFor(`!document.documentElement.dataset.theme`);
   await p.shot('computer-zh');
+  await p.eval(`document.getElementById('tab-settings').click()`);
+  await p.shot('settings-zh');
+  await p.eval(`document.getElementById('v-settings').scrollTop = 1e6`);
+  await p.shot('settings-zh-end');
+  await p.eval(`document.getElementById('v-settings').scrollTop = 0`);
+  await p.eval(`document.getElementById('tab-computer').click()`);
   control('/dial?name=Laptop-2');
   check(await p.waitFor(`document.getElementById('dlg-req').open && document.getElementById('req-title').textContent.includes('请求连接')`), 'request in Chinese');
   await p.shot('request-zh');
@@ -216,6 +227,9 @@ try {
   await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('This computer')`);
   await p.size(480, 720);
   await p.shot('computer-small');
+  await p.eval(`document.getElementById('tab-settings').click()`);
+  await p.shot('settings-small');
+  await p.eval(`document.getElementById('tab-computer').click()`);
   control('/dial?name=Phone');
   check(await p.waitFor(`document.getElementById('dlg-req').open`), 'request in a small window');
   await p.shot('request-small');
