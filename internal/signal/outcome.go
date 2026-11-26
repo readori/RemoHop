@@ -127,7 +127,8 @@ func (s *Server) handleOutcome(c *serverConn, st *quic.Stream, req *request, fai
 
 // recordOutcome adds a valid report to the server's aggregate counts. It
 // must not log or keep anything per report: only counts.
-//
-// The aggregate itself is not built yet; until it is, reports are taken
-// and dropped, so that clients can start sending them.
-func (s *Server) recordOutcome(Outcome) {}
+func (s *Server) recordOutcome(o Outcome) {
+	if s.outcomes != nil {
+		s.outcomes.add(o)
+	}
+}

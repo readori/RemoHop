@@ -318,6 +318,10 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 			env.Errorf("signal: %v", err)
 			return cli.ExitError
 		}
+		if err := printOutcomeStatus(env.Stdout, dir, time.Now()); err != nil {
+			env.Errorf("signal: %v", err)
+			return cli.ExitError
+		}
 		return cli.ExitOK
 	}
 	if *showKeyOnly {
