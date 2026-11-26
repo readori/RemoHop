@@ -28,7 +28,7 @@ Linux 是参考平台。macOS 和 Windows 由托管运行器上的自动化测�
 - **浏览器客户端**在无头 Chromium 中对接真实的被控端验证过。
 - **shell 会话**在客户端断开后会保留一段时间。被控端重启后会话不会保留。
 - **打包与发布。** `packaging/` 中有 nfpm 配置（.deb、.rpm、.apk）、安装脚本、systemd 单元、launchd 模板、汇合服务器的 Dockerfile，以及 Homebrew、Scoop、winget、AUR 和 Nix 的模板。发布版本由推送 `v*` 标签触发的发布工作流发布到 GitHub Releases；macOS 二进制和 `RemoHop.app` 已签名并经过公证，Windows 二进制未签名。让被控端开机自启的受支持方式是 `remohop service install`。
-- **手机作为被控端。** Android 手机可以被观看，经主人同意并开启无障碍服务后还能被控制（见[移动端应用](mobile-apps.md#本机作为被控端android)）。从屏幕采集到观看端的链路在 CI 中用模拟编码器和真实客户端测试，应用的被控模式在模拟器上测试到批准对话框为止；真机上的屏幕采集和控制尚未测试。**尚未实现：** 把 iPhone 或 iPad 作为被控端。
-- **未在真实硬件上测试：** 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器。手机应用每次改动都在 CI 中测试（iOS 应用在模拟器中，Android 应用在模拟器上），两者都即将上架 App Store 和 Google Play。
+- **手机作为被控端。** Android 手机可以被观看，经主人同意并开启无障碍服务后还能被控制（见[移动端应用](mobile-apps.md#本机作为被控端android)）。从屏幕采集到观看端的链路在 CI 中用模拟编码器和真实客户端测试，应用的被控模式在模拟器上测试到批准对话框为止；真机上的屏幕采集和控制尚未测试。iPhone 或 iPad 可以共享屏幕，只能观看（见[移动端应用](mobile-apps.md#共享此屏幕ios)）：iOS 不允许任何应用控制设备。
+- **未在真实硬件上测试：** 实体 Mac 上的一切（macOS 的 VPN 客户端、桌面被控端和输入只在托管虚拟机上验证过）、Windows 的 WebDAV 挂载、真实内核上的 USB/IP、除该虚拟机中的 VideoToolbox 以外的 GPU 编码器。手机应用每次改动都在 CI 中测试（iOS 应用在模拟器中，Android 应用在模拟器上）。
 - **账号**由汇合服务器托管，需要运营者开启；服务器可以对设备隐瞒最新的日志条目，见 [security.md](../security.md#accounts)。
 - **许可证：** AGPL-3.0，另提供商业授权，见[许可证](../../README.zh-CN.md#许可证)。

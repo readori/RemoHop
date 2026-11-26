@@ -68,7 +68,7 @@ remohop dev desktop --bench --bench-duration 20s</code></pre>
 <p><strong>Codec.</strong> AV1 when the host has a GPU AV1 encoder; otherwise low-latency H.264, hardware-encoded where available, else libx264. On a CPU-only host, H.264 measured about half the latency of software AV1 or less. <code>--codec av1</code> forces AV1.</p>
 </li>
 <li>
-<p><strong>Viewer.</strong> The page has buttons for key combinations a browser keeps to itself (Ctrl+Alt+Del, Alt+Tab, the Windows key), Unicode typing, quality presets, monitor switching, locking the remote screen, clipboard transfer, file upload, audio and recording.</p>
+<p><strong>Viewer.</strong> The page has buttons for key combinations a browser keeps to itself (Ctrl+Alt+Del, Alt+Tab, the Windows key), Unicode typing, quality presets (native size, or at most 2160p down to 480p), a frame-rate menu, monitor switching, locking the remote screen, clipboard transfer, file upload, audio and recording. The frame rate is Auto, 30, 60, 90, 120 or 144 fps; Auto asks for the display's refresh rate when it is 90 Hz or more (at most 120), else 60, and the choice applies at once and is remembered on the device. <strong>Stats</strong> overlays the resolution, codec and encoder (GPU or CPU), bitrate, latency and round trip, the host's frame rate, and the frames dropped at the host and skipped in the viewer, in total and over the last 10 seconds.</p>
 </li>
 <li>
 <p><strong>Recording.</strong> <code>--record FILE.mp4</code> (or the Record button) writes the received stream to a fragmented MP4 on this machine without re-encoding.</p>

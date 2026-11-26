@@ -68,7 +68,7 @@ remohop dev desktop --bench --bench-duration 20s</code></pre>
 <p><strong>编码。</strong> 被控机有 GPU AV1 编码器时用 AV1；否则用低延迟的 H.264，能硬件编码就硬件编码，不能则用 libx264。在只有 CPU 的主机上，H.264 的延迟约为软件 AV1 的一半或更低。<code>--codec av1</code> 强制使用 AV1。</p>
 </li>
 <li>
-<p><strong>查看器。</strong> 页面上有按钮可以发送浏览器自己会拦截的组合键（Ctrl+Alt+Del、Alt+Tab、Windows 键），还可以输入任意 Unicode 文本、切换画质预设、切换显示器、锁定远程屏幕、传输剪贴板、上传文件、音频和录制。</p>
+<p><strong>查看器。</strong> 页面上有按钮可以发送浏览器自己会拦截的组合键（Ctrl+Alt+Del、Alt+Tab、Windows 键），还可以输入任意 Unicode 文本、切换画质预设（原始分辨率，或最高 2160p 到 480p）、选择帧率、切换显示器、锁定远程屏幕、传输剪贴板、上传文件、音频和录制。帧率可选“自动”、30、60、90、120 或 144 fps；“自动”在显示器刷新率达到 90 Hz 及以上时按刷新率请求（最高 120），否则用 60，选择立即生效并记在本设备上。<strong>统计</strong>按钮会在画面上叠加分辨率、编码格式和编码器（GPU 或 CPU）、码率、延迟和往返时间、被控端帧率，以及被控端丢帧和本端跳过的帧数（累计和近 10 秒）。</p>
 </li>
 <li>
 <p><strong>录制。</strong> <code>--record FILE.mp4</code>（或页面上的录制按钮）把收到的视频流写成本机上的分片 MP4，不重新编码。</p>
