@@ -404,6 +404,33 @@ func TestHostModeEndToEnd(t *testing.T) {
 	}
 }
 
+// Turning host mode off tells each viewer that the owner ended the session,
+// so its app does not reconnect (as it would to a host that restarts).
+func TestHostModeStopEndsSessionsForGood(t *testing.T) {
+	_, _, l, addr := startPhoneHost(t)
+	req, out := login(t, l, addr, hostDocNow(t).Password, t.TempDir())
+	if err := DecideHostRequest(req.N, true, false); err != nil {
+		t.Fatal(err)
+	}
+	r := <-out
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	defer r.conn.Close()
+	waitDoc(t, "the session", func(d hostDoc) bool { return len(d.Sessions) == 1 })
+
+	StopHost()
+	select {
+	case <-r.conn.Context().Done():
+	case <-time.After(10 * time.Second):
+		t.Fatal("the session did not end")
+	}
+	reason, ok := peer.ClosedByPeer(r.conn)
+	if !ok || !hostd.OwnerEnded(reason) {
+		t.Fatalf("closed by the host %v with %q; want a reason that stops reconnects", ok, reason)
+	}
+}
+
 // Allowed without control, the session views only, whatever the injector
 // could do; and a phone without an injector is view-only for everyone.
 func TestHostModeViewOnly(t *testing.T) {

@@ -435,12 +435,20 @@ func hostFailLocked(err error) error {
 }
 
 // StopHost stops host mode and ends every session. Safe when it is off.
+//
+// The owner turned sharing off (the app's switch, the notification's Stop,
+// iOS's broadcast ending), so each session is told that a person ended it
+// (hostd.ReasonDisconnectedOnPhone), not the host's "host shutting down",
+// which a client takes for a restart and reconnects to.
 func StopHost() {
 	hostMu.Lock()
 	run := hostRun
 	hostRun, hostPhase, hostErr = nil, hostOff, ""
 	hostMu.Unlock()
 	if run != nil {
+		for _, s := range run.h.Sessions() {
+			run.h.Disconnect(s.ID(), hostd.ReasonDisconnectedOnPhone)
+		}
 		run.cancel()
 		<-run.done
 		quietLogger().Info("host mode off")
