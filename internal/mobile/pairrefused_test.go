@@ -9,8 +9,8 @@ import (
 
 // "Remember this computer" against a host that does not allow pairing
 // (remohop host --no-pairing, as the demo and quick-support hosts run):
-// the session works, the page learns why nothing was remembered from a
-// stable code, and the saved host stays one that needs its password.
+// the session works, the password is saved on the device instead of a
+// pairing (a stable code says so), and the saved host logs in with it.
 func TestRememberRefusedByHost(t *testing.T) {
 	initDir(t)
 	h := runHost(t, hostd.Config{Password: hostPassword, NoPairing: true})
@@ -38,14 +38,15 @@ func TestRememberRefusedByHost(t *testing.T) {
 	if att.Conn == nil || att.Conn.Paired {
 		t.Errorf("connection marked paired: %+v", att.Conn)
 	}
-	if att.Pair == nil || att.Pair.OK || att.Pair.Code != "pair_refused" || att.Pair.Reason != "no_pairing" {
+	if att.Pair == nil || !att.Pair.OK || att.Pair.Code != "password_saved" || att.Pair.Reason != "no_pairing" {
 		t.Errorf("pair outcome: %+v", att.Pair)
 	}
 	c.listFiles(att.Conn.Key)
 	var peers struct {
 		Peers []struct {
-			Target string
-			Paired bool
+			Target        string
+			Paired        bool
+			SavedPassword bool `json:"saved_password"`
 		}
 	}
 	c.call("GET", "peers", nil, &peers)
@@ -53,8 +54,8 @@ func TestRememberRefusedByHost(t *testing.T) {
 	for _, p := range peers.Peers {
 		if p.Target == h.Addr().String() {
 			found = true
-			if p.Paired {
-				t.Errorf("saved host is paired: %+v", p)
+			if p.Paired || !p.SavedPassword {
+				t.Errorf("saved host: %+v (want its password saved, not a pairing)", p)
 			}
 		}
 	}
