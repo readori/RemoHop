@@ -91,7 +91,9 @@ object HostMode : HostListener {
             } else {
                 Diag.log("host mode: switched off")
                 Remohopcore.stopHost()
-                main.post { HostService.stop(ctx) }
+                // HostService stops itself when it sees host mode off: stopping
+                // it from here could come before it entered the foreground,
+                // which Android punishes by ending the app.
             }
             refresh()
         }
