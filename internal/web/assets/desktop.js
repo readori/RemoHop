@@ -41,6 +41,27 @@
   const stats = {decoded: 0, skipped: 0, errors: 0, fps: 0, mbps: 0, latency: 0, rtt: 0, host: null, wf: 0, wb: 0, ws: performance.now(), bytes: 0};
   window.remohopDesktop = {stats: () => Object.assign({}, stats, {hello, configured: !!decoder && decoder.state === 'configured'})};
 
+  // The frame rate asked of the host: the menu's choice, or with Auto the
+  // display's refresh rate when it is high (90, 120 Hz and more, capped at
+  // 120), else 60. The refresh rate is measured from animation frames once
+  // the page shows; the choice is remembered on this device.
+  let displayHz = 60;
+  function measureHz() {
+    const d = []; let last = 0;
+    const step = t => {
+      if (last) d.push(t - last);
+      last = t;
+      if (d.length < 40) { requestAnimationFrame(step); return; }
+      d.sort((a, b) => a - b);
+      const med = d[d.length >> 1];
+      if (med > 0) displayHz = Math.round(1000 / med);
+    };
+    requestAnimationFrame(step);
+  }
+  measureHz();
+  const wantFPS = () => { const v = +$('d-fps').value; return v || (displayHz >= 85 ? Math.min(displayHz, 120) : 60); };
+  try { const v = localStorage.getItem('sd.fps'); if (v && [...$('d-fps').options].some(o => o.value === v)) $('d-fps').value = v; } catch (e) { /* storage off */ }
+
   // msg shows key (with vars) over the picture; no key clears it.
   const msg = (key, vars, canRetry) => { SD.say($('d-msg'), key, vars); $('d-reconnect').hidden = !canRetry; };
   const send = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
@@ -126,6 +147,7 @@
     openedViewOnly = viewOnly;
     const params = {t, c: conn, decode: dec.join(','), view_only: viewOnly ? '1' : '0'};
     const mh = +$('d-quality').value; if (mh) params.max_height = mh;
+    params.fps = wantFPS();
     const sock = new WebSocket(SD.wsURL('desktop/ws', params));
     sock.binaryType = 'arraybuffer';
     ws = sock;
@@ -396,6 +418,10 @@
     finally { b.disabled = false; SD.say(b, 'd.askctl'); }
   });
   $('d-quality').addEventListener('change', () => { const v = +$('d-quality').value; send({type: 'config', max_height: v || -1}); });
+  $('d-fps').addEventListener('change', () => {
+    try { localStorage.setItem('sd.fps', $('d-fps').value); } catch (e) { /* storage off */ }
+    send({type: 'config', fps: wantFPS()});
+  });
   $('d-display').addEventListener('change', () => send({type: 'display', display: +$('d-display').value}));
   $('d-cad').addEventListener('click', () => {
     if (!hostInput) { msg('d.noinput', null, true); return; }

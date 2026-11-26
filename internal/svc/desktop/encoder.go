@@ -385,7 +385,9 @@ func vaapiDevice() string {
 // 4K60). Doubling the bitrate took the 1080p60 text clip of
 // TestEncoderQuality from 45 to 56 dB PSNR; the fast path can
 // carry it without queueing, and an encoder spends less than its target
-// whenever the screen is still.
+// whenever the screen is still. Above 60 fps each further frame counts
+// half: at 120 fps consecutive frames differ half as much, so the bits a
+// frame needs fall (1080p120 on a fast path gets ≈22 Mbit/s, not 30).
 func autoBitrate(pixels, fps int, fast bool) int64 {
 	if pixels <= 0 {
 		pixels = 1920 * 1080
@@ -394,7 +396,11 @@ func autoBitrate(pixels, fps int, fast bool) int64 {
 	if fast {
 		bpp = 0.12
 	}
-	b := int64(float64(pixels) * float64(fps) * bpp)
+	rate := float64(fps)
+	if rate > 60 {
+		rate = 60 + (rate-60)/2
+	}
+	b := int64(float64(pixels) * rate * bpp)
 	return min(max(b, 1_000_000), maxAutoBitrate)
 }
 
