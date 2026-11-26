@@ -372,4 +372,3 @@ func sitePage(page, lang string) (string, error) {
 	}
 	return "https://remohop.com/en/" + page + "/", nil
 }
-
