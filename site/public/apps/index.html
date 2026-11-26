@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Android 与 iOS 控制端应用 | RemoHop</title>
-<meta name="description" content="RemoHop 的手机应用只是控制端：在手机上连接并操作你的电脑。iOS 正在准备 TestFlight，目前两个平台都没有商店版本。">
+<title>Android 与 iOS 应用 | RemoHop</title>
+<meta name="description" content="RemoHop 的手机应用：在手机或平板上连接并操作你的电脑，断线自动重连；手机本身也能被远程，Android 经你允许可被控制，iPhone 和 iPad 可以共享屏幕（只能观看）。">
 <link rel="stylesheet" href="/assets/site.css?v=58baeb3f48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -20,8 +20,8 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="RemoHop">
 <meta property="og:locale" content="zh_CN">
-<meta property="og:title" content="Android 与 iOS 控制端应用 | RemoHop">
-<meta property="og:description" content="RemoHop 的手机应用只是控制端：在手机上连接并操作你的电脑。iOS 正在准备 TestFlight，目前两个平台都没有商店版本。">
+<meta property="og:title" content="Android 与 iOS 应用 | RemoHop">
+<meta property="og:description" content="RemoHop 的手机应用：在手机或平板上连接并操作你的电脑，断线自动重连；手机本身也能被远程，Android 经你允许可被控制，iPhone 和 iPad 可以共享屏幕（只能观看）。">
 <meta property="og:url" content="https://remohop.com/apps/">
 <meta property="og:image" content="https://remohop.com/assets/img/web-desktop-v2-1280.png">
 <meta property="og:image:width" content="1280">
@@ -57,26 +57,44 @@
 <p><strong>下载 iOS 应用：</strong><a href="https://apps.apple.com/app/id6838609056">App Store</a>（iPhone 和 iPad）。Android 应用已提交 Google Play 审核，审核通过之前可以自己从源码构建。</p>
 </div>
 
-<h2 id="what">应用里有什么</h2>
+<h2 id="what">用手机控制电脑</h2>
 <p>两个应用的结构相同：一个原生外壳，加一个显示 <code>remohop web</code> 网关的 WebView。网关和 Go 核心直接运行在应用进程里，只监听手机自己的 <code>127.0.0.1</code>，所以会话仍然是手机和被控机之间端到端加密的点对点连接，中间没有 RemoHop 的服务器。</p>
 <ul>
-<li><strong>远程桌面：</strong>查看并控制电脑屏幕，可以全屏、切换画质和显示器。</li>
+<li><strong>远程桌面：</strong>查看并控制电脑屏幕，可以全屏，选择画质（原始分辨率或最高 2160p 到 480p）、帧率和显示器。</li>
 <li><strong>终端：</strong>持久的 shell 会话，带 Esc、Tab、Ctrl、方向键等辅助按键。</li>
 <li><strong>文件：</strong>浏览、上传、下载、新建文件夹、重命名和删除。</li>
 <li><strong>剪贴板：</strong>在手机和电脑之间传文本。</li>
 <li><strong>系统信息和截图。</strong></li>
-<li><strong>本机作为被控端（Android）：</strong>设置 → 本机 打开后，其他 RemoHop 设备可以观看这台手机的屏幕。每个请求都会先问你，并显示防诈骗提醒；要控制手机，需要你在请求里勾选“控制”并开启 RemoHop 的无障碍服务。只能用临时密码登录，最后一台设备离开或你点“停止”时共享结束。</li>
-<li><strong>共享此屏幕（iOS）：</strong>设置 → 本设备 → 共享此屏幕，让其他 RemoHop 设备观看 <span class="nobr">iPhone 或 iPad</span> 的屏幕。只能观看，每个请求都会先问你，只能用临时密码登录；随时可以在控制中心或页面上停止。</li>
+<li><strong>会话不会自己断：</strong>会话一直保持到你断开为止。手机切换网络、应用被挂起或短暂断网时，应用会自动重连，回到原来的标签页，终端接回同一个 shell。应用在后台被系统结束后，再打开时会用设备上保存的配对或密码，把当时打开的会话连回来。</li>
+<li><strong>已保存的主机：</strong>配对过或记住了密码的电脑都在这里，保存的密码可以查看、复制或删除。</li>
 <li><strong>界面语言：</strong>应用及其页面都有简体中文和英文，默认跟随系统，可在设置里切换。</li>
-<li><strong>设置（原生界面）：</strong>界面语言、汇合服务器地址和公钥、是否允许中继、设备名、本机身份指纹、用密码配对、已保存的主机。</li>
+<li><strong>设置（原生界面）：</strong>界面语言、汇合服务器地址和公钥、是否允许中继、设备名、本机身份指纹、用密码配对、已保存的主机、诊断日志；iOS 上还有“通知”页。</li>
 </ul>
+
+<h2 id="host">让别人看这台手机</h2>
+<p>手机也可以作为被控端：打开后，桌面应用、浏览器控制台、命令行或另一台手机都能用它的 ID 和密码请求连接。每个请求都要你在手机上允许，并附防诈骗提醒；60 秒内没人回应就自动拒绝。对方只能看到屏幕（和基本系统信息），拿不到文件、剪贴板或终端。</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Android 与 iOS 作为被控端的区别">
+<table>
+<thead><tr><th scope="col"></th><th scope="col">Android</th><th scope="col"><span class="nobr">iPhone 和 iPad</span></th></tr></thead>
+<tbody>
+<tr><th scope="row">在哪里打开</th><td>设置 → 本机 → 允许远程连接</td><td>设置 → 本设备 → 共享此屏幕，再在系统窗口里点“开始直播”</td></tr>
+<tr><th scope="row">对方能做什么</th><td>观看；你在请求里勾选“控制”并开启 RemoHop 的无障碍服务后，还能点按、滑动和输入</td><td>只能观看：iOS 不允许任何应用控制设备</td></tr>
+<tr><th scope="row">画面</th><td>硬件 H.264 编码，长边最多 1920 像素，最高 60 fps</td><td>硬件 H.264 编码，长边最多 1920 像素，最高 30 fps；在广播扩展里运行，切到别的应用也继续共享</td></tr>
+<tr><th scope="row">密码</th><td colspan="2">每次开启都换新的临时密码，也可以在“密码设置”里改用自己的固定密码</td></tr>
+<tr><th scope="row">重新连接免确认</th><td colspan="2">你允许过的设备中途断开后（比如它的应用切到了后台），重连时不再问你：默认 10 分钟内，可改为 30 分钟到 30 天，或“一直（静默值守）”。它仍需同一个密钥和密码；新设备每次都会询问</td></tr>
+<tr><th scope="row">连接请求</th><td>对话框；应用在后台时是通知</td><td>“时间敏感”通知，专注模式下也会提醒；“通知”页显示系统允许的提醒方式</td></tr>
+<tr><th scope="row">怎么结束</th><td>最后一台设备离开，或点“停止”“断开”；应用重启后自动关闭</td><td>红色状态栏、控制中心，或页面上的“停止共享”；手机重启时也会停止</td></tr>
+</tbody>
+</table>
+</div>
+<p>细节见使用指南里的<a href="/docs/mobile-apps/">移动端应用</a>一页。</p>
 
 <h2 id="limits">目前的限制</h2>
 <ul>
 <li><span class="nobr">iPhone 和 iPad</span> 只能被观看，不能被控制：iOS 不允许任何应用控制设备。</li>
 <li>手机共享屏幕时只提供画面，没有文件、剪贴板和终端，也不共享声音。</li>
 <li>还不支持账号登录。</li>
-<li>两个应用每次改动都在 CI 中测试：iOS 应用在 iOS 模拟器中，应用内的测试用地址和密码连接一台 <code>remohop host</code>，在终端里执行一条命令，并在“文件”里列出一个目录；Android 应用在模拟器上，与一台真实的被控端配对，使用终端、文件、下载、剪贴板和桌面。如果在你的设备上遇到问题，请告诉我们。</li>
+<li>两个应用每次改动都在 CI 中测试：iOS 应用在 iOS 模拟器中，应用内的测试用地址和密码连接一台 <code>remohop host</code>，在终端里执行一条命令，并在“文件”里列出一个目录；Android 应用在模拟器上，与一台真实的被控端配对，使用终端、文件、下载、剪贴板和桌面。真机上的屏幕采集和控制还没有测试过。如果在你的设备上遇到问题，请告诉我们。</li>
 </ul>
 
 <h2 id="requirements">系统要求</h2>
@@ -87,13 +105,13 @@
 <tr><th scope="row">最低系统版本</th><td>iOS 16.0</td><td>Android 8.0（API 26）</td></tr>
 <tr><th scope="row">设备</th><td>iPhone 和 iPad</td><td>手机和平板</td></tr>
 <tr><th scope="row">应用标识</th><td><code>com.remohop.app</code></td><td><code>com.remohop.app</code></td></tr>
-<tr><th scope="row">系统权限</th><td>本地网络；上传照片时由系统选择器访问相机或照片</td><td>网络访问、网络状态</td></tr>
+<tr><th scope="row">系统权限</th><td>本地网络；通知（共享屏幕时的连接请求）；上传照片时由系统选择器访问相机或照片</td><td>网络访问、网络状态；通知；被控端模式下的录屏和无障碍服务（只在你开启时）</td></tr>
 </tbody>
 </table>
 </div>
 
 <h2 id="privacy">应用和你的数据</h2>
-<p>应用只和两类对象通信：你连接的被控机，以及你在设置里填写的汇合服务器。身份密钥、配对令牌和设置保存在应用的私有目录里，不参与系统备份。应用里没有分析统计、广告或崩溃上报的 SDK。完整说明见<a href="/privacy/">隐私政策</a>。</p>
+<p>应用只和这些对象通信：你连接的被控机、你允许连接这台手机的设备，以及你在设置里填写的汇合服务器。身份密钥、配对令牌和设置保存在应用的私有目录里，不参与系统备份。应用里没有分析统计、广告或崩溃上报的 SDK。完整说明见<a href="/privacy/">隐私政策</a>。</p>
 
 <h2 id="build">自己构建</h2>
 <h3>Android</h3>
@@ -106,8 +124,8 @@ open mobile/ios/RemoHop.xcodeproj</code></pre>
 
 <h2 id="first-use">第一次使用</h2>
 <ol>
-<li>在电脑上运行 <code>remohop host</code>，记下 ID（或地址）和密码。</li>
-<li>在应用的设置里填入你的汇合服务器；和电脑在同一个局域网时可以不填，直接用 <code>192.168.1.5:21118</code> 这样的地址（电脑上用 <code>remohop host --no-signal --listen :21118</code> 启动）。</li>
+<li>在电脑上打开 RemoHop <a href="/docs/desktop-app/">桌面应用</a>并允许连接，或者运行 <code>remohop host</code>，记下 ID（或地址）和密码。</li>
+<li>在应用的设置里填入和电脑相同的汇合服务器（官方的 <code>signal.remohop.com</code> 或你自己的）；和电脑在同一个局域网时可以不填，直接用 <code>192.168.1.5:21118</code> 这样的地址（电脑上用 <code>remohop host --no-signal --listen :21118</code> 启动）。</li>
 <li>在连接页输入 ID 或地址和密码。勾选配对后，下次不需要密码。</li>
 </ol>
 <p>遇到问题请看<a href="/support/">支持</a>。真机上的问题报告对我们尤其有用。</p>

@@ -96,7 +96,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <p>x86-64 和 ARM64 的 <code>.deb</code>、<code>.rpm</code>、<code>.apk</code>。文件名里带版本号（例如 <code>remohop_1.0.1_amd64.deb</code>），所以请到<a href="https://github.com/readori/RemoHop/releases/latest">发布页</a>下载。它们安装 <code>remohop</code> 和 systemd 单元，但不启用任何东西；<code>remohop service install</code> 让被控端开机自启。详见<a href="/docs/install/">安装</a>。</p>
 
 <h2 id="channels">包管理器、应用商店和容器</h2>
-<p>这些渠道在首个发布版本之后陆续开通。哪个开通了，这里就会显示它的安装命令。</p>
+<p>标着“可用”的渠道已经开通；其余的陆续开通，开通后这里会显示安装命令。</p>
 <div class="cards">
 <article class="panel">
 <p class="chip">可用</p>
@@ -143,7 +143,7 @@ scoop install remohop</code></pre>
 </div>
 
 <h2 id="mobile">手机应用</h2>
-<p>Android 和 iOS / iPadOS 上的控制端：在手机或平板上连接并操作你的电脑。Android 手机也可以被观看，经你允许后还能被控制。</p>
+<p>Android 和 iOS / iPadOS 应用：在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许后还能被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕（只能观看）。</p>
 <div class="actions">
 <a class="btn primary" href="https://apps.apple.com/app/id6838609056">App Store（iPhone、iPad）</a>
 </div>

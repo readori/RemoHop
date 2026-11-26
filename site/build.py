@@ -115,9 +115,9 @@ PAGES = {
     ),
     "how-it-works": (
         "工作原理：P2P 打洞与端到端加密",
-        "RemoHop 怎样把两台设备直接连起来：汇合服务器的职责、局域网直连、公网打洞、中继和 WebSocket 桥四种路径、默认端口、六步连接流程，以及 QUIC、TLS 1.3 和 CPace 怎样保护会话。",
+        "RemoHop 怎样把两台设备直接连起来：汇合服务器的职责，局域网、打洞、路由器端口映射、端口预测、中继和 WebSocket 桥这几条路径按什么顺序尝试，默认端口，六步连接流程，以及 QUIC、TLS 1.3 和 CPace 怎样保护会话。",
         "How it works: P2P hole punching and end-to-end encryption",
-        "How RemoHop connects two devices directly: what the rendezvous server does, the four paths (LAN, hole punching, relay, websocket bridge), the default ports, the six connection steps, and how QUIC, TLS 1.3 and CPace protect the session.",
+        "How RemoHop connects two devices directly: what the rendezvous server does, the order in which it tries the paths (LAN, hole punching, router port mapping, port prediction, relay, websocket bridge), the default ports, the six connection steps, and how QUIC, TLS 1.3 and CPace protect the session.",
     ),
     "docs": (
         "快速开始与文档",
@@ -134,10 +134,10 @@ PAGES = {
         "Download RemoHop: the quick-support app for the person being helped (Windows, macOS, Linux), the remohop command-line archives, packages and install scripts, package managers, the phone apps, and how to verify a download.",
     ),
     "apps": (
-        "Android 与 iOS 控制端应用",
-        "RemoHop 的手机应用只是控制端：在手机上连接并操作你的电脑。iOS 正在准备 TestFlight，目前两个平台都没有商店版本。",
-        "Android and iOS controller apps",
-        "The RemoHop mobile apps are controllers only: connect to and operate your computers from a phone. TestFlight for iOS is in preparation; neither platform has a store release yet.",
+        "Android 与 iOS 应用",
+        "RemoHop 的手机应用：在手机或平板上连接并操作你的电脑，断线自动重连；手机本身也能被远程，Android 经你允许可被控制，iPhone 和 iPad 可以共享屏幕（只能观看）。",
+        "Android and iOS apps",
+        "The RemoHop phone apps: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can be controlled if you allow it, an iPhone or iPad can share its screen (view only).",
     ),
     "security": (
         "安全模型",
