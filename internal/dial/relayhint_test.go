@@ -107,3 +107,54 @@ func TestRelayHintStore(t *testing.T) {
 		t.Fatal("hint not forgotten")
 	}
 }
+
+// TestRelayHintStillPunches: a hint sets the relay up at once, but the
+// punch runs alongside it, so when the direct path works now (the network
+// that blocked it is gone) the session is direct and the hint is dropped,
+// rather than the hint pinning the host to the relay.
+func TestRelayHintStillPunches(t *testing.T) {
+	w := relayWorld(t, &signal.RelayConfig{})
+	hh := w.net.NAT("203.0.113.20", vnet.PortRestrictedCone).Host("10.0.0.20")
+	host := startHost(t, hostd.Config{Signal: vnetSignal, PacketConn: hh.MustListen(0),
+		Locals: func() []netip.Addr { return []netip.Addr{hh.Addr()} }})
+	dir := t.TempDir()
+	ch := w.net.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10")
+	opts := func(block bool) Options {
+		return Options{
+			Signal:   vnetSignal,
+			Password: host.Password(),
+			Dir:      dir,
+			Listen: func() (net.PacketConn, error) {
+				pc, err := ch.Listen(0)
+				if block {
+					return serverOnly{pc}, err
+				}
+				return pc, err
+			},
+			Locals:    func() []netip.Addr { return []netip.Addr{ch.Addr()} },
+			PunchTime: 1500 * time.Millisecond,
+		}
+	}
+	dial := func(o Options) Path {
+		t.Helper()
+		conn, err := Dial(testCtx(t), host.ID(), o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		echo(t, conn)
+		return InfoOf(conn).Path
+	}
+	if p := dial(opts(true)); p != PathRelayed {
+		t.Fatalf("blocked dial: path %s", p)
+	}
+	if len(readRelayHints(dir)) != 1 {
+		t.Fatalf("no hint after a relayed dial: %+v", readRelayHints(dir))
+	}
+	if p := dial(opts(false)); p == PathRelayed {
+		t.Fatal("the hint kept the session on the relay although the direct path works now")
+	}
+	if n := len(readRelayHints(dir)); n != 0 {
+		t.Fatalf("hint kept after a direct dial: %d", n)
+	}
+}

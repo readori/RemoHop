@@ -887,32 +887,19 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		d.log.Debug("the host offers an address on this machine's tailnet; preferring it", "target", t.canonical)
 	}
 
-	if prefer == nil && !d.punchRetried && intro.RelayOffered && !d.opts.NoRelay && signal.RelayAllowed(d.opts.Dir) &&
-		relayHinted(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive) {
-		// Punching to this host failed moments ago from these same
-		// addresses; it would only cost its timeout again.
-		q, relay, err := d.viaRelay(ctx, sock, sc, intro.Nonce, tlsConf)
-		if err == nil {
-			setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, true)
-			d.notify("connected to " + t.display + " through the rendezvous server's relay: hole punching to it failed minutes ago " +
-				"from the same networks (still end-to-end encrypted, but slower)")
-			return q, route{remote: relay, path: PathRelayed, nonce: intro.Nonce}, nil
-		}
-		if ctx.Err() != nil {
-			return nil, route{}, ctx.Err()
-		}
-		// The relay is out of use; forget the hint and punch after all
-		// (on a fresh introduction, since this one was spent).
-		d.log.Debug("relay hint did not work", "target", t.canonical, "err", err)
-		setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, false)
-		return d.establish(ctx, sock, t)
-	}
+	// Punching to this host failed moments ago from these same addresses
+	// (the relay hint): the relay is set up at once, alongside the punch,
+	// rather than after it. The punch still runs, so a direct path that
+	// works now wins (directGrace) instead of the hint pinning the session
+	// to the relay for its whole life.
+	hinted := prefer == nil && !d.punchRetried && intro.RelayOffered && !d.opts.NoRelay && signal.RelayAllowed(d.opts.Dir) &&
+		relayHinted(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive)
 
 	// Between two machines behind the same NAT the outcome does not
 	// depend on a race (it is the LAN path, or hairpinning, or nothing), so
 	// a second attempt would only cost time.
 	sameNAT := intro.Reflexive.IsValid() && intro.Reflexive.Addr() == intro.Peer.Reflexive.Addr()
-	retryable := d.mayRetryPunch(natType, intro.Peer.NAT) && !sameNAT
+	retryable := d.mayRetryPunch(natType, intro.Peer.NAT) && !sameNAT && !hinted
 	relayOK := intro.RelayOffered && !d.opts.NoRelay && signal.RelayAllowed(d.opts.Dir)
 	punchTime := d.opts.PunchTime
 	if punchTime == 0 {
@@ -950,15 +937,23 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 	var remote netip.AddrPort
 	if relayOK && !retryable {
 		// The last attempt, and a relay to fall back on: start it early
-		// rather than after the punch has given up.
+		// rather than after the punch has given up (at once with a hint).
 		wait := relayAfter
 		if prefer != nil {
 			wait = max(wait, tailnetPunchTime)
 		}
+		if hinted {
+			wait = 0
+		}
 		var rt route
 		q, rt, err = d.punchOrRelay(ctx, sock, sc, intro, tlsConf, cfg, wait)
 		if err == nil && rt.path == PathRelayed {
-			d.notify("no direct path to " + t.display + ": connected through the rendezvous server's relay (still end-to-end encrypted, but slower)")
+			if hinted {
+				d.notify("connected to " + t.display + " through the rendezvous server's relay: hole punching to it failed minutes ago " +
+					"from the same networks and did not answer now either (still end-to-end encrypted, but slower)")
+			} else {
+				d.notify("no direct path to " + t.display + ": connected through the rendezvous server's relay (still end-to-end encrypted, but slower)")
+			}
 			setRelayHint(d.dir, t.canonical, intro.Reflexive, intro.Peer.Reflexive, true)
 			return q, rt, nil
 		}
