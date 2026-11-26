@@ -66,6 +66,7 @@
 <li>The host registers with the rendezvous server and receives its ID.</li>
 <li>The client asks the rendezvous server for the host. The server passes each side the other's candidate addresses.</li>
 <li>Both sides send probes to punch holes through their NATs, and the client connects over QUIC on the first path that answers. If both NATs look punchable but the first attempt fails, the client retries once on a fresh socket.</li>
+<li>The host also asks its router to forward its UDP port (PCP, NAT-PMP or UPnP, whichever the router speaks). Where the router agrees, the forwarded public address is one more candidate, which works whatever NAT the client is behind, so even two symmetric NATs connect directly instead of through the relay. <code>remohop config portmap off</code> or <code>REMOHOP_PORTMAP=0</code> on the host turns it off; see <a href="/en/docs/security/#router-port-mapping">security.md</a>.</li>
 <li>The two machines run a password-authenticated key exchange over that connection. A man in the middle, including the rendezvous server, cannot complete it.</li>
 </ul>
 <h2 id="relay">Relay</h2>

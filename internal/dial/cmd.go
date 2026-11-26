@@ -20,6 +20,7 @@ import (
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
+	"github.com/readori/RemoHop/internal/portmap"
 	"github.com/readori/RemoHop/internal/signal"
 )
 
@@ -140,7 +141,7 @@ const configUsage = `Usage: remohop config [--json]
        remohop config set KEY VALUE
        remohop config unset KEY
        remohop config feature NAME on|off
-       remohop config ask|ask-paired|otp|relay|account-trust on|off
+       remohop config ask|ask-paired|otp|relay|portmap|account-trust on|off
 
 Read and change settings in the remohop config file (config.json in the config
 directory, $REMOHOP_CONFIG_DIR or the platform default). Without arguments all
@@ -157,6 +158,9 @@ sessions that are already connected):
                         (` + "`remohop login`" + `) like authorised keys, checked against
                         the account's signed device list; default off. An
                         account grants no access without it
+  portmap on|off        ask the router (PCP, NAT-PMP or UPnP) to forward the
+                        host's UDP port, so clients behind any NAT can reach it
+                        directly; default on (REMOHOP_PORTMAP=0 turns it off)
 On a client or a host:
   relay on|off          accept a relayed connection when no direct one is
                         possible and the rendezvous server offers it
@@ -747,7 +751,7 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 			return cli.ExitUsage
 		}
 		return onOff(hostd.FeatureSetting(perm.Feature(args[0])), args[1:], "feature "+args[0])
-	case hostd.SettingAsk, hostd.SettingAskPaired, hostd.SettingOTP, signal.SettingRelay, account.SettingTrust:
+	case hostd.SettingAsk, hostd.SettingAskPaired, hostd.SettingOTP, signal.SettingRelay, portmap.Setting, account.SettingTrust:
 		return onOff(sub, args, sub)
 	case "":
 		fs := newFlags(env, "config", configUsage)

@@ -71,6 +71,7 @@ and <a href="/docs/#more">zh/</a>; this page is for people reading the code.</p>
 <tr><td>Session</td><td><code>internal/peer</code></td><td><code>Conn</code>: an authenticated session multiplexing service streams</td></tr>
 <tr><td>Rendezvous</td><td><code>internal/signal</code></td><td>ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts (<code>remohop signal</code>)</td></tr>
 <tr><td>NAT traversal</td><td><code>internal/nat</code></td><td>candidate gathering, UDP hole punching</td></tr>
+<tr><td>Router port mapping</td><td><code>internal/portmap</code></td><td>PCP, NAT-PMP and UPnP IGD: the host's UDP port forwarded by its router, offered as a candidate</td></tr>
 <tr><td>Websocket bridge</td><td><code>internal/wsdgram</code></td><td>UDP datagrams over a WebSocket (HTTPS proxy aware), for networks without UDP</td></tr>
 <tr><td>Authentication</td><td><code>internal/auth</code></td><td>identity keys, password PAKE bound to the TLS channel, pairing</td></tr>
 <tr><td>Host daemon</td><td><code>internal/hostd</code></td><td><code>remohop host</code>: registers, accepts sessions, serves <code>peer.HostServices</code></td></tr>

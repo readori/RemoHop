@@ -36,6 +36,7 @@ import (
 	"github.com/readori/RemoHop/internal/nat"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
+	"github.com/readori/RemoHop/internal/portmap"
 	"github.com/readori/RemoHop/internal/signal"
 	"github.com/readori/RemoHop/internal/tailnet"
 	"github.com/readori/RemoHop/internal/wsdgram"
@@ -115,6 +116,11 @@ type Config struct {
 	// Overrides tighten the config file's access settings for this run;
 	// nil leaves them as they are.
 	Overrides *Overrides
+	// NoPortMap keeps the host from asking the router to forward its UDP
+	// port (internal/portmap), as the portmap setting and REMOHOP_PORTMAP=0
+	// do. A host without a rendezvous server, or on a PacketConn, never
+	// asks.
+	NoPortMap bool
 
 	// PacketConn, if set, is used instead of opening a socket on Listen,
 	// and Locals replaces interface enumeration. Tests on a virtual
@@ -143,6 +149,11 @@ type Host struct {
 	fixed    atomic.Pointer[string] // fixed password given for this run (SetFixedPassword), normalised; nil or "" for none
 	policies policyCache
 	audit    *auditLog
+	// The router port mapping, while Run runs (see startPortmap), and the
+	// public address the rendezvous server last saw the socket at. Read
+	// by the socket's Mapped hook, which must not take mu.
+	portmap   atomic.Pointer[portmap.Mapper]
+	reflexive atomic.Pointer[netip.AddrPort]
 
 	registered chan struct{} // closed on first successful registration
 	started    time.Time
@@ -305,6 +316,7 @@ func New(cfg Config) (*Host, error) {
 	if cfg.Locals != nil {
 		h.sock.Locals = cfg.Locals
 	}
+	h.sock.Mapped = h.mappedAddr
 	tlsConf, err := h.identity.ServerTLS(peer.ALPN, true)
 	if err != nil {
 		h.sock.Close()
@@ -486,6 +498,9 @@ func (h *Host) Sessions() []*Session {
 // Run serves until ctx is cancelled, then closes every session and the
 // socket. A Host cannot be restarted.
 func (h *Host) Run(ctx context.Context) error {
+	if pm := h.startPortmap(); pm != nil {
+		defer pm.Close() // deletes the mapping
+	}
 	var wg sync.WaitGroup
 	if h.cfg.Signal != "" {
 		wg.Go(func() { h.signalLoop(ctx) })
@@ -537,6 +552,57 @@ func (h *Host) Run(ctx context.Context) error {
 		return nil
 	}
 	return err
+}
+
+// startPortmap asks the router to forward the host's UDP port, so that
+// clients whose NAT defeats hole punching can still reach it directly
+// (internal/portmap). It runs in the background; the mapped address is
+// offered to clients (Candidates, through mappedAddr) once the router has
+// agreed. Not when turned off, not for a host without a rendezvous server
+// (it is reached by address, normally on its LAN, and nothing would offer
+// the mapped address), and not for a socket the caller handed in or one
+// bound to loopback.
+func (h *Host) startPortmap() *portmap.Mapper {
+	if h.cfg.NoPortMap || h.cfg.Signal == "" || h.cfg.PacketConn != nil || !portmap.Allowed(h.dir) {
+		return nil
+	}
+	ua, ok := h.sock.LocalAddr().(*net.UDPAddr)
+	if !ok || ua.Port <= 0 || ua.Port > 65535 {
+		return nil
+	}
+	if ip := ua.AddrPort().Addr().Unmap(); ip.IsLoopback() || (!ip.IsUnspecified() && !ip.Is4()) {
+		return nil
+	}
+	pm := portmap.Start(portmap.Config{Port: uint16(ua.Port), Logger: h.log, OnChange: h.notify})
+	h.portmap.Store(pm)
+	return pm
+}
+
+// mappedAddr is the socket's Mapped hook: the public address the router
+// forwards to the host's port, unless the rendezvous server sees the host
+// at another public IPv4 address. Then the router is behind another NAT
+// (carrier-grade NAT, most likely), its "public" address reaches nobody,
+// and offering it would only cost the client a candidate.
+func (h *Host) mappedAddr() netip.AddrPort {
+	pm := h.portmap.Load()
+	if pm == nil {
+		return netip.AddrPort{}
+	}
+	m, ok := pm.Mapping()
+	if !ok {
+		return netip.AddrPort{}
+	}
+	return offerMapped(m.External, h.reflexive.Load())
+}
+
+// offerMapped is mappedAddr's rule: the router's public address and port,
+// unless the server saw the host (reflexive, nil before the first
+// registration) at another public IPv4 address.
+func offerMapped(external netip.AddrPort, reflexive *netip.AddrPort) netip.AddrPort {
+	if reflexive != nil && reflexive.Addr().Is4() && reflexive.Addr() != external.Addr() {
+		return netip.AddrPort{}
+	}
+	return external
 }
 
 func (h *Host) notify() {
@@ -651,6 +717,21 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 	h.log.Debug("NAT type", "type", natType)
 	if first {
 		close(h.registered)
+	}
+	if !bridged {
+		r := reg.Reflexive
+		h.reflexive.Store(&r)
+	}
+	if pm := h.portmap.Load(); pm != nil {
+		if m, ok := pm.Mapping(); ok && !bridged && reg.Reflexive.Addr().Is4() && m.External.Addr() != reg.Reflexive.Addr() {
+			h.log.Debug("router port mapping not offered: the router's public address is not the one the rendezvous server sees (another NAT in front of it?)",
+				"router", m.External.Addr(), "public_addr", reg.Reflexive.Addr())
+		}
+		if !first {
+			// Registering again: the network may have changed, or the
+			// machine woken from sleep. Check the mapping now.
+			pm.Refresh()
+		}
 	}
 	if bridged {
 		h.log.Info("registered with the rendezvous server through its websocket bridge (UDP to it is blocked; clients will come through the relay)",
