@@ -6,7 +6,7 @@
      types. Deliberately not an accessibility tool (isAccessibilityTool is
      not set). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="@string/host_ax_description"
+    android:description="@string/hm_ax_description"
     android:accessibilityEventTypes="typeWindowStateChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagDefault"

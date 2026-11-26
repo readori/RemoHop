@@ -44,12 +44,12 @@ class HostPage(
     private fun str(id: Int, vararg args: Any) = a.getString(id, *args)
 
     /** The page's explanations (its ⓘ). */
-    fun info(): Pair<String, List<Pair<String, String>>> = str(R.string.host_this_device) to listOf(
-        str(R.string.host_info_what_t) to str(R.string.host_info_what),
-        str(R.string.host_info_access_t) to str(R.string.host_info_access),
-        str(R.string.host_info_start_t) to str(R.string.host_info_start),
-        str(R.string.host_info_end_t) to str(R.string.host_info_end),
-        str(R.string.host_info_control_t) to str(R.string.host_info_control),
+    fun info(): Pair<String, List<Pair<String, String>>> = str(R.string.hm_this_device) to listOf(
+        str(R.string.hm_info_what_t) to str(R.string.hm_info_what),
+        str(R.string.hm_info_access_t) to str(R.string.hm_info_access),
+        str(R.string.hm_info_start_t) to str(R.string.hm_info_start),
+        str(R.string.hm_info_end_t) to str(R.string.hm_info_end),
+        str(R.string.hm_info_control_t) to str(R.string.hm_info_control),
     )
 
     fun build(col: LinearLayout) {
@@ -57,28 +57,28 @@ class HostPage(
         current = s
         shape = shapeOf(s)
         var c = ui.section(col, null, SettingsUi.Tone.PRIMARY)
-        sw = ui.switchRow(c, str(R.string.host_allow), s.on, R.drawable.ic_s_device) { on -> HostMode.setEnabled(a, on) }
-        status = ui.row(c, str(R.string.host_status), summary = statusText(s), icon = R.drawable.ic_s_network)
+        sw = ui.switchRow(c, str(R.string.hm_allow), s.on, R.drawable.ic_s_device) { on -> HostMode.setEnabled(a, on) }
+        status = ui.row(c, str(R.string.hm_status), summary = statusText(s), icon = R.drawable.ic_s_network)
         if (s.on) {
-            c = ui.section(col, str(R.string.host_connect_with), SettingsUi.Tone.PRIMARY)
+            c = ui.section(col, str(R.string.hm_connect_with), SettingsUi.Tone.PRIMARY)
             val byId = s.id.isNotEmpty() || s.addresses.isEmpty()
-            idRow = ui.row(c, str(if (byId) R.string.host_id else R.string.host_address), value = s.reachableAs.ifEmpty { "…" },
-                icon = R.drawable.ic_s_host, trailing = iconButton(R.drawable.ic_copy, str(R.string.host_copy)) { copy(current.reachableAs, false) })
-            pwRow = ui.row(c, str(R.string.host_password), value = s.password, icon = R.drawable.ic_s_key,
-                trailing = iconButton(R.drawable.ic_copy, str(R.string.host_copy)) { copy(current.password, true) })
-            ui.row(c, str(R.string.host_new_password), icon = R.drawable.ic_refresh) { HostMode.regenerate() }
+            idRow = ui.row(c, str(if (byId) R.string.hm_id else R.string.hm_address), value = s.reachableAs.ifEmpty { "…" },
+                icon = R.drawable.ic_s_host, trailing = iconButton(R.drawable.ic_copy, str(R.string.hm_copy)) { copy(current.reachableAs, false) })
+            pwRow = ui.row(c, str(R.string.hm_password), value = s.password, icon = R.drawable.ic_s_key,
+                trailing = iconButton(R.drawable.ic_copy, str(R.string.hm_copy)) { copy(current.password, true) })
+            ui.row(c, str(R.string.hm_new_password), icon = R.drawable.ic_refresh) { HostMode.regenerate() }
         }
-        c = ui.section(col, str(R.string.host_control), SettingsUi.Tone.SECONDARY)
-        controlRow = ui.row(c, str(R.string.host_control), summary = controlText(s), icon = R.drawable.ic_eye,
+        c = ui.section(col, str(R.string.hm_control), SettingsUi.Tone.SECONDARY)
+        controlRow = ui.row(c, str(R.string.hm_control), summary = controlText(s), icon = R.drawable.ic_eye,
             trailing = iconButton(R.drawable.ic_info, str(R.string.info_about_screen)) {
-                showInfo(str(R.string.host_info_control_t), listOf("" to str(R.string.host_info_control)))
+                showInfo(str(R.string.hm_info_control_t), listOf("" to str(R.string.hm_info_control)))
             }) { if (ControlService.instance == null) ControlDisclosure.show(a) else ControlService.openSettings(a) }
         if (s.sessions.isNotEmpty()) {
-            c = ui.section(col, str(R.string.host_connected), SettingsUi.Tone.TERTIARY)
+            c = ui.section(col, str(R.string.hm_connected), SettingsUi.Tone.TERTIARY)
             for (x in s.sessions) {
                 sessionRows[x.id] = ui.row(c, x.label, summary = sessionText(x), leading = ui.avatar(x.label, SettingsUi.Tone.TERTIARY), chevron = true) { sessionActions(x.id) }
             }
-            ui.row(c, str(R.string.host_disconnect_all), icon = R.drawable.ic_delete, danger = true) { HostMode.disconnect(0) }
+            ui.row(c, str(R.string.hm_disconnect_all), icon = R.drawable.ic_delete, danger = true) { HostMode.disconnect(0) }
         }
         HostMode.listen(listener)
     }
@@ -101,28 +101,28 @@ class HostPage(
     }
 
     private fun statusText(s: HostState) = when (s.status) {
-        HostState.Status.OFF -> str(R.string.host_status_off)
-        HostState.Status.STARTING -> str(R.string.host_status_starting)
-        HostState.Status.READY -> str(R.string.host_status_ready)
-        HostState.Status.OFFLINE -> str(R.string.host_status_offline)
-        HostState.Status.NO_SERVER -> str(R.string.host_status_no_server)
-        HostState.Status.ERROR -> str(R.string.host_status_error, s.error.take(200))
+        HostState.Status.OFF -> str(R.string.hm_status_off)
+        HostState.Status.STARTING -> str(R.string.hm_status_starting)
+        HostState.Status.READY -> str(R.string.hm_status_ready)
+        HostState.Status.OFFLINE -> str(R.string.hm_status_offline)
+        HostState.Status.NO_SERVER -> str(R.string.hm_status_no_server)
+        HostState.Status.ERROR -> str(R.string.hm_status_error, s.error.take(200))
     }
 
     private fun controlText(s: HostState) = when {
-        ControlService.instance != null -> str(R.string.host_control_on)
-        ControlService.enabledInSettings(a) -> str(R.string.host_control_starting)
-        else -> str(R.string.host_control_off)
+        ControlService.instance != null -> str(R.string.hm_control_on)
+        ControlService.enabledInSettings(a) -> str(R.string.hm_control_starting)
+        else -> str(R.string.hm_control_off)
     }
 
     private fun sessionText(x: HostSession): String {
         val t = HostTime.duration(x.seconds)
-        return str(if (x.control) R.string.host_controlling else R.string.host_viewing, t)
+        return str(if (x.control) R.string.hm_controlling else R.string.hm_viewing, t)
     }
 
     private fun sessionActions(id: Int) {
         val x = current.sessions.firstOrNull { it.id == id } ?: return
-        val items = arrayOf(str(if (x.control) R.string.host_take_control else R.string.host_give_control), str(R.string.host_disconnect))
+        val items = arrayOf(str(if (x.control) R.string.hm_take_control else R.string.hm_give_control), str(R.string.hm_disconnect))
         MaterialAlertDialogBuilder(a)
             .setTitle(x.label)
             .setItems(items) { _, i ->
@@ -153,7 +153,7 @@ class HostPage(
         if (sensitive) clip.description.extras = PersistableBundle().apply { putBoolean(EXTRA_IS_SENSITIVE, true) }
         cm.setPrimaryClip(clip)
         // Android 13+ confirms a copy itself.
-        if (Build.VERSION.SDK_INT < 33) snack(str(R.string.host_copied))
+        if (Build.VERSION.SDK_INT < 33) snack(str(R.string.hm_copied))
     }
 
     private companion object {
@@ -181,14 +181,14 @@ object ControlDisclosure {
     fun show(a: AppCompatActivity, then: () -> Unit = {}) {
         Diag.log("control: disclosure shown")
         MaterialAlertDialogBuilder(a)
-            .setTitle(R.string.host_ax_title)
-            .setMessage(R.string.host_ax_body)
-            .setPositiveButton(R.string.host_ax_agree) { _, _ ->
+            .setTitle(R.string.hm_ax_title)
+            .setMessage(R.string.hm_ax_body)
+            .setPositiveButton(R.string.hm_ax_agree) { _, _ ->
                 Diag.log("control: disclosure accepted; opening the accessibility settings")
                 ControlService.openSettings(a)
                 then()
             }
-            .setNegativeButton(R.string.host_ax_not_now, null)
+            .setNegativeButton(R.string.hm_ax_not_now, null)
             .show()
     }
 }
