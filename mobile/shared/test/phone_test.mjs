@@ -499,7 +499,9 @@ async function gatewayTests(b) {
     await p.eval('window.__answers = {}');
   }
   if (process.env.REMOHOP_NOPAIR_ADDR) {
-    // "Remember" against a host that does not allow it: said plainly, and the host stays a recent one.
+    // "Remember" against a host that does not allow pairing: its password is
+    // saved on the device instead (said plainly), and it is listed with the
+    // hosts that need no password.
     const np = JSON.stringify(process.env.REMOHOP_NOPAIR_ADDR);
     await p.eval(`document.getElementById('target').value = ${np};
       document.getElementById('hostpass').value = ${JSON.stringify(process.env.REMOHOP_HOST_PASSWORD || '')};
@@ -507,11 +509,11 @@ async function gatewayTests(b) {
     check(await p.waitFor('!document.getElementById("workspace").hidden', 30000), 'connects to a host that refuses pairing',
       await p.eval('document.getElementById("connerr").textContent'));
     const bannerText = await p.eval('document.getElementById("banner").hidden ? "" : document.getElementById("banner").textContent');
-    check(bannerText.includes('does not allow remembering') && !/pairing failed/.test(bannerText), 'the refusal to remember is said in plain words', bannerText);
+    check(bannerText.includes('its password is saved on this device') && !/pairing failed/.test(bannerText), 'saving the password instead of a pairing is said in plain words', bannerText);
     await p.eval('document.getElementById("disconnect").click()');
     await p.waitFor('!document.getElementById("connect").hidden');
-    check(await p.waitFor(`[...document.querySelectorAll('#peercards-recent .peer')].some(b => b.textContent.includes(${np}))`) &&
-      !(await p.eval(`[...document.querySelectorAll('#peercards .peer')].some(b => b.textContent.includes(${np}))`)), 'and it stays under Recent, needing its password');
+    check(await p.waitFor(`[...document.querySelectorAll('#peercards .peer')].some(b => b.textContent.includes(${np}))`) &&
+      !(await p.eval(`[...document.querySelectorAll('#peercards-recent .peer')].some(b => b.textContent.includes(${np}))`)), 'and it is listed as needing no password (its password is saved)');
     await p.eval('document.getElementById("banner").hidden = true');
   }
   if (process.env.REMOHOP_CONTROL_URL) await lostListenerTests(p, process.env.REMOHOP_CONTROL_URL, target);
