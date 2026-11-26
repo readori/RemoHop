@@ -252,9 +252,14 @@ func printOutcomeStatus(w io.Writer, dir string, now time.Time) error {
 		fmt.Fprintf(w, "  last recorded month %s: %d reports\n", r.Month, r.total())
 		return nil
 	}
-	total := r.total()
+	// An upgrade is a second report for a connection already counted under
+	// its first path, so it is left out of the shares and shown on its own.
+	total := r.total() - r.Paths[PathUpgraded]
 	fmt.Fprintf(w, "connection outcomes %s (UTC): %d reports\n", month, total)
 	for _, p := range sortedKeys(r.Paths) {
+		if p == PathUpgraded {
+			continue
+		}
 		fmt.Fprintf(w, "  %-10s %6d  %5.1f%%\n", p, r.Paths[p], pct(r.Paths[p], total))
 	}
 	printBuckets := func(title, path string) {
@@ -284,8 +289,10 @@ func printOutcomeStatus(w io.Writer, dir string, now time.Time) error {
 		for _, k := range sortedKeys(r.Pairs) {
 			m := r.Pairs[k]
 			var n int64
-			for _, c := range m {
-				n += c
+			for p, c := range m {
+				if p != PathUpgraded {
+					n += c
+				}
 			}
 			relayed := m[PathRelayed] + m[PathBridged]
 			fmt.Fprintf(w, "    %-20s %5d  %5.1f%% / %5.1f%% / %5.1f%%\n", k, n,

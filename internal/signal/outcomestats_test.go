@@ -124,7 +124,7 @@ func TestPrintOutcomeStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := b.String()
-	for _, w := range []string{"connection outcomes 2026-03 (UTC): 5 reports", "punched", "60.0%", "<500ms 100%", "upgraded to direct: 1", "cone/cone"} {
+	for _, w := range []string{"connection outcomes 2026-03 (UTC): 4 reports", "punched", "75.0%", "75.0% /  25.0% /   0.0%", "<500ms 100%", "upgraded to direct: 1", "cone/cone"} {
 		if !strings.Contains(out, w) {
 			t.Errorf("missing %q in:\n%s", w, out)
 		}
