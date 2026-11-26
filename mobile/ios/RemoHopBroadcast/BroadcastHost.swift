@@ -237,8 +237,9 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
                 core.decide(n: n, allow: allow)
             case .withdraw(let key):
                 let c = UNUserNotificationCenter.current()
-                c.removeDeliveredNotifications(withIdentifiers: [key])
-                c.removePendingNotificationRequests(withIdentifiers: [key])
+                let ids = Self.notificationIDs(key)
+                c.removeDeliveredNotifications(withIdentifiers: ids)
+                c.removePendingNotificationRequests(withIdentifiers: ids)
             }
         }
     }
@@ -268,16 +269,36 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
 
     // MARK: notifications
 
+    /// Seconds after the first alert at which an unanswered request alerts
+    /// again (sound and banner), within the core's 60 s before it is refused:
+    /// a single banner is easy to miss while the phone is in a pocket.
+    static let reminders: [TimeInterval] = [15, 35]
+
+    /// The request's notification and its reminders.
+    static func notificationIDs(_ key: String) -> [String] {
+        [key] + reminders.indices.map { "\(key)#\($0 + 1)" }
+    }
+
     private func postNotification(_ r: BroadcastState.Request) {
         let content = UNMutableNotificationContent()
         content.title = BroadcastStrings.requestTitle(device: r.device, lang: lang)
         content.body = BroadcastStrings.requestBody(firstSeen: r.firstSeen, from: r.from, lang: lang)
         content.categoryIdentifier = BroadcastStrings.category
+        content.threadIdentifier = r.key
         content.userInfo = [BroadcastStrings.requestKey: r.key]
         content.sound = .default
-        content.interruptionLevel = .active
-        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: r.key, content: content, trigger: nil)) { err in
-            if let err { ExtLog.log("request notification not shown: \(err.localizedDescription)") }
+        // Time Sensitive gets through a Focus and stays on the Lock Screen
+        // longer; until the app has that entitlement iOS delivers it as
+        // .active, as before.
+        content.interruptionLevel = .timeSensitive
+        content.relevanceScore = 1
+        let c = UNUserNotificationCenter.current()
+        let ids = Self.notificationIDs(r.key)
+        for (i, id) in ids.enumerated() {
+            let trigger = i == 0 ? nil : UNTimeIntervalNotificationTrigger(timeInterval: Self.reminders[i - 1], repeats: false)
+            c.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger)) { err in
+                if let err, i == 0 { ExtLog.log("request notification not shown: \(err.localizedDescription)") }
+            }
         }
     }
 
@@ -286,6 +307,10 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
         c.getDeliveredNotifications { list in
             let ids = list.filter { $0.request.content.categoryIdentifier == BroadcastStrings.category }.map(\.request.identifier)
             if !ids.isEmpty { c.removeDeliveredNotifications(withIdentifiers: ids) }
+        }
+        c.getPendingNotificationRequests { list in
+            let ids = list.filter { $0.content.categoryIdentifier == BroadcastStrings.category }.map(\.identifier)
+            if !ids.isEmpty { c.removePendingNotificationRequests(withIdentifiers: ids) }
         }
     }
 

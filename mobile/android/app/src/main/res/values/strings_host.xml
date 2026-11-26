@@ -53,7 +53,7 @@
 
     <!-- The page's ⓘ -->
     <string name="hm_info_what_t">What this does</string>
-    <string name="hm_info_what">While this is on, other RemoHop devices can ask to connect to this phone with its ID (or its address on this network) and the password. Every request asks you first, and nobody gets in unless you allow it.</string>
+    <string name="hm_info_what">While this is on, other RemoHop devices can ask to connect to this phone with its ID (or its address on this network) and the password. Every request asks you first, and nobody gets in unless you allow it. A device you allowed that drops out (for example because its app went to the background) comes back for 10 minutes without asking again; disconnecting it or turning this off ends that.</string>
     <string name="hm_info_access_t">Viewing and control</string>
     <string name="hm_info_access">A device you allow sees your screen. It can also tap, swipe and type only if you tick Control in the request, and only while RemoHop\'s accessibility service is on. You can take control away or disconnect it at any time.</string>
     <string name="hm_info_start_t">Starting and stopping</string>

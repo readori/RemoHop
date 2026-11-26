@@ -431,6 +431,71 @@ func TestHostModeStopEndsSessionsForGood(t *testing.T) {
 	}
 }
 
+// A device the owner allowed logs in again without asking (a viewing phone
+// whose app came back from the background), with the control it had; until
+// the owner disconnects it. Another device still asks.
+func TestHostModeReadmit(t *testing.T) {
+	_, _, l, addr := startPhoneHost(t)
+	pw := hostDocNow(t).Password
+	device := t.TempDir()
+	req, out := login(t, l, addr, pw, device)
+	if err := DecideHostRequest(req.N, true, true); err != nil {
+		t.Fatal(err)
+	}
+	r := <-out
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	waitDoc(t, "the session", func(d hostDoc) bool { return len(d.Sessions) == 1 })
+	r.conn.Close() // the app was suspended
+	waitDoc(t, "no session", func(d hostDoc) bool { return len(d.Sessions) == 0 })
+
+	quick := func() dialed {
+		t.Helper()
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		c, err := dial.Dial(ctx, addr, dial.Options{Password: pw, Dir: device})
+		return dialed{c, err}
+	}
+	again := quick()
+	if again.err != nil {
+		t.Fatalf("the allowed device was not let in again: %v", again.err)
+	}
+	d := waitDoc(t, "the session again", func(d hostDoc) bool { return len(d.Sessions) == 1 })
+	if !d.Sessions[0].Control || len(d.Requests) != 0 {
+		t.Fatalf("readmitted %+v, requests %+v", d.Sessions, d.Requests)
+	}
+	select {
+	case q := <-l.requests:
+		t.Fatalf("the owner was asked again: %s", q)
+	default:
+	}
+
+	// Another device still asks.
+	req2, out2 := login(t, l, addr, pw, t.TempDir())
+	DecideHostRequest(req2.N, false, false)
+	if r := <-out2; r.err == nil {
+		r.conn.Close()
+		t.Fatal("a denied device connected")
+	}
+
+	// The owner disconnects it: next time it asks again.
+	if err := DisconnectHostSession(0); err != nil {
+		t.Fatal(err)
+	}
+	waitDoc(t, "no session", func(d hostDoc) bool { return len(d.Sessions) == 0 })
+	again.conn.Close()
+	req3, out3 := login(t, l, addr, pw, device)
+	if req3.Identity != req.Identity {
+		t.Fatalf("identity %s, want %s", req3.Identity, req.Identity)
+	}
+	DecideHostRequest(req3.N, false, false)
+	if r := <-out3; r.err == nil {
+		r.conn.Close()
+		t.Fatal("a denied login connected")
+	}
+}
+
 // Allowed without control, the session views only, whatever the injector
 // could do; and a phone without an injector is view-only for everyone.
 func TestHostModeViewOnly(t *testing.T) {
