@@ -14,7 +14,9 @@
 //   - PortRestrictedCone: endpoint-independent mapping; inbound allowed
 //     only from exact address:port pairs the socket has sent to.
 //   - Symmetric: a fresh public port per destination address:port, inbound
-//     allowed only from that destination.
+//     allowed only from that destination. Ports are handed out in sequence
+//     (SetPortStep sets the stride, Burn simulates other traffic on the
+//     LAN taking some), or at random with SetRandomPorts.
 //   - ConntrackCone: a port-restricted cone that, like a Linux router whose
 //     input chain accepts unsolicited packets, remembers a packet it had no
 //     mapping for. When the inside socket later sends to that packet's
@@ -82,6 +84,7 @@ type Net struct {
 	loss    float64
 	hops    int
 	mtu     int
+	tap     func(src, dst netip.AddrPort, data []byte)
 }
 
 // New returns an empty network whose public internet is three routers wide.
@@ -119,6 +122,15 @@ func (n *Net) SetMTU(mtu int) {
 	n.mu.Unlock()
 }
 
+// SetTap calls f for every packet that enters the public internet, before
+// TTL, loss or MTU decide its fate, so a test can see what was sent where.
+// f must not block; nil removes the tap.
+func (n *Net) SetTap(f func(src, dst netip.AddrPort, data []byte)) {
+	n.mu.Lock()
+	n.tap = f
+	n.mu.Unlock()
+}
+
 // Host attaches a machine with a public address.
 func (n *Net) Host(ip string) *Host {
 	h := &Host{net: n, ip: netip.MustParseAddr(ip), conns: map[uint16]*Conn{}}
@@ -139,6 +151,7 @@ func (n *Net) NAT(publicIP string, kind NATKind) *NAT {
 		byPort:   map[uint16]*mapping{},
 		stray:    map[strayKey]bool{},
 		nextPort: 40000,
+		step:     1,
 	}
 	n.mu.Lock()
 	n.nats[b.pub] = b
@@ -150,8 +163,11 @@ func (n *Net) NAT(publicIP string, kind NATKind) *NAT {
 func (n *Net) route(src, dst netip.AddrPort, data []byte, ttl int) {
 	n.mu.Lock()
 	host, box := n.hosts[dst.Addr()], n.nats[dst.Addr()]
-	latency, loss, hops, mtu := n.latency, n.loss, n.hops, n.mtu
+	latency, loss, hops, mtu, tap := n.latency, n.loss, n.hops, n.mtu, n.tap
 	n.mu.Unlock()
+	if tap != nil {
+		tap(src, dst, data)
+	}
 	if mtu > 0 && len(data)+28 > mtu {
 		return
 	}
@@ -191,6 +207,8 @@ type NAT struct {
 	byPort   map[uint16]*mapping
 	stray    map[strayKey]bool // ConntrackCone: unsolicited packets seen
 	nextPort uint16
+	step     int  // stride between ports handed out in sequence
+	random   bool // hand out ports at random instead
 }
 
 // strayKey identifies an unsolicited inbound flow: a remote address that
@@ -242,6 +260,66 @@ func (b *NAT) Rebind() {
 	b.mu.Unlock()
 }
 
+// SetPortStep sets how far apart the public ports of successive new
+// mappings are (1 by default; negative counts down), as with a router whose
+// allocator moves on by a fixed stride.
+func (b *NAT) SetPortStep(step int) {
+	b.mu.Lock()
+	if step != 0 {
+		b.step = step
+	}
+	b.mu.Unlock()
+}
+
+// SetRandomPorts makes the NAT give each new mapping a random free public
+// port, as NATs that randomise their ports do, instead of the next one in
+// sequence.
+func (b *NAT) SetRandomPorts(on bool) {
+	b.mu.Lock()
+	b.random = on
+	b.mu.Unlock()
+}
+
+// Burn makes the allocator hand out n public ports without mapping
+// anything, as other traffic from the LAN would have taken them.
+func (b *NAT) Burn(n int) {
+	b.mu.Lock()
+	for range n {
+		b.allocLocked()
+	}
+	b.mu.Unlock()
+}
+
+// Expire forgets the mappings towards dst that a Symmetric NAT made for it,
+// as a router does when such a mapping has been idle for its timeout. The
+// next packet to dst gets a new public port.
+func (b *NAT) Expire(dst netip.AddrPort) {
+	b.mu.Lock()
+	for k, m := range b.byKey {
+		if k.dst == dst {
+			delete(b.byKey, k)
+			delete(b.byPort, m.port)
+		}
+	}
+	b.mu.Unlock()
+}
+
+// allocLocked returns a public port no mapping uses.
+func (b *NAT) allocLocked() uint16 {
+	for {
+		var p uint16
+		if b.random {
+			p = uint16(1024 + rand.IntN(65536-1024))
+		} else {
+			p = b.nextPort
+			b.nextPort = uint16(int(b.nextPort) + b.step)
+		}
+		if p != 0 && b.byPort[p] == nil {
+			return p
+		}
+	}
+}
+
 // Host attaches a machine to the NAT's LAN with a private address.
 func (b *NAT) Host(privateIP string) *Host {
 	h := &Host{net: b.net, nat: b, ip: netip.MustParseAddr(privateIP), conns: map[uint16]*Conn{}}
@@ -270,8 +348,7 @@ func (b *NAT) outbound(src, dst netip.AddrPort, data []byte, ttl int) {
 		m = b.byKey[key]
 	}
 	if m == nil {
-		m = &mapping{inside: src, port: b.nextPort, sent: map[netip.AddrPort]bool{}}
-		b.nextPort++
+		m = &mapping{inside: src, port: b.allocLocked(), sent: map[netip.AddrPort]bool{}}
 		b.byKey[key] = m
 		b.byPort[m.port] = m
 	}
