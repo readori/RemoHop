@@ -19,6 +19,7 @@ The [How it works](https://remohop.com/en/how-it-works/) page on the website sho
 - The host registers with the rendezvous server and receives its ID.
 - The client asks the rendezvous server for the host. The server passes each side the other's candidate addresses.
 - Both sides send probes to punch holes through their NATs, and the client connects over QUIC on the first path that answers. If both NATs look punchable but the first attempt fails, the client retries once on a fresh socket.
+- The host also asks its router to forward its UDP port (PCP, NAT-PMP or UPnP, whichever the router speaks). Where the router agrees, the forwarded public address is one more candidate, which works whatever NAT the client is behind, so even two symmetric NATs connect directly instead of through the relay. `remohop config portmap off` or `REMOHOP_PORTMAP=0` on the host turns it off; see [security.md](../security.md#router-port-mapping).
 - The two machines run a password-authenticated key exchange over that connection. A man in the middle, including the rendezvous server, cannot complete it.
 
 ## Relay

@@ -25,6 +25,7 @@ and [zh/](zh/README.md); this page is for people reading the code.
 | Session | `internal/peer` | `Conn`: an authenticated session multiplexing service streams |
 | Rendezvous | `internal/signal` | ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts (`remohop signal`) |
 | NAT traversal | `internal/nat` | candidate gathering, UDP hole punching |
+| Router port mapping | `internal/portmap` | PCP, NAT-PMP and UPnP IGD: the host's UDP port forwarded by its router, offered as a candidate |
 | Websocket bridge | `internal/wsdgram` | UDP datagrams over a WebSocket (HTTPS proxy aware), for networks without UDP |
 | Authentication | `internal/auth` | identity keys, password PAKE bound to the TLS channel, pairing |
 | Host daemon | `internal/hostd` | `remohop host`: registers, accepts sessions, serves `peer.HostServices` |
