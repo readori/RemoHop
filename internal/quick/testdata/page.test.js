@@ -176,7 +176,8 @@ async function shot(page, name) {
     check(!(await page.isVisible('#ready')), 'no credentials in setup');
     // The same choice as the desktop app's wizard, the official server first.
     check(await page.isChecked('input[name=mode][value=official]'), 'the official server is the default choice');
-    check((await page.textContent('#setup')).includes('signal.remohop.com'), 'the official server is named');
+    check((await page.textContent('#setup')).includes('Run by RemoHop'), 'the official server is described');
+    check(!(await page.textContent('#setup')).includes('signal.remohop.com'), 'its address is not shown');
     check(!(await page.textContent('#setup')).includes('has no server of its own'), 'no "RemoHop has no server" text');
     await shot(page, 'quick-setup-en');
     await step('failconfigure');

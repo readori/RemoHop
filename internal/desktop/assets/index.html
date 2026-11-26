@@ -60,7 +60,7 @@
       <div id="wiz-2" hidden>
         <h3 data-t="wiz.server">Rendezvous server <button class="info" data-help="h-server" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
         <p class="help" id="h-server" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
-        <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small">signal.remohop.com</span></span></label>
+        <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
         <label class="opt"><input type="radio" name="wsrv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
           <span class="field mt8"><input id="wiz-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
         <label class="opt"><input type="radio" name="wsrv" value=""><span><span class="t" data-t="srv.skip">Skip for now</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>
@@ -144,7 +144,7 @@
       <h3><span data-t="wiz.server">Rendezvous server</span> <button class="info" data-help="h-server2" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
       <p class="help" id="h-server2" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
       <div class="card">
-        <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small">signal.remohop.com</span></span></label>
+        <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
         <label class="opt"><input type="radio" name="srv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
           <span class="field mt8"><input id="srv-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
         <label class="opt"><input type="radio" name="srv" value="none"><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>

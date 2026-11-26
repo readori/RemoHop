@@ -6,8 +6,8 @@
 <ul>
 <li>Your sessions (screen, keystrokes, files, clipboard, terminal content) are end-to-end encrypted between your two devices. Readori cannot see them, and neither can a relay server.</li>
 <li>The software and the apps contain no analytics, advertising or crash-reporting components and send no usage data to Readori.</li>
-<li>Identity keys, pairing tokens and settings are stored only on your own devices.</li>
-<li>RemoHop has no built-in default server. When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. Whoever operates that server is the one who processes it.</li>
+<li>Identity keys, pairing tokens, the host passwords you chose to remember and settings are stored only on your own devices.</li>
+<li>When two devices find each other by ID they need a rendezvous server, and that server necessarily processes some <strong>metadata</strong>: IP addresses, IDs and connection times. The desktop and mobile apps let you choose the official server operated by Readori, your own server, or no server (connecting by address); the command-line program has no built-in default server. Whoever operates that server is the one who processes the metadata.</li>
 <li>Accounts are optional. A server with accounts enabled stores a hash of your email address and your device list.</li>
 <li>We do not sell data, and we do not use it for advertising or for tracking across apps.</li>
 </ul>
@@ -47,7 +47,7 @@
 
 <h2 id="server">3. Rendezvous server and relay</h2>
 <p>The data below is processed only when you point a device at a rendezvous server. <strong>If that server is run by you or by a third party, that operator's notice applies</strong>, and Readori has no access to the data. When you connect by <code>host:port</code>, no server is involved at all.</p>
-<p>The rest of this section applies to a public rendezvous server operated by Readori.<!-- TODO(owner): name the public server's hostname here once it is announced; if Readori will not run one, remove the Readori-operated parts of this section. --> Its address will be listed on this page once it is announced. RemoHop <!--src-->as it is in the source repository <!--/src--><!--nosrc-->itself <!--/nosrc-->has no default server and does not connect to a Readori server by itself; if an official build ever ships with a default server, we will say so here and in the release notes.</p>
+<p>The rest of this section applies to the official rendezvous server operated by Readori, <code>signal.remohop.com</code> (and its websocket endpoint through Cloudflare). The desktop app, quick support and the mobile apps offer it as one choice during setup and use it only if you choose it; you can enter your own server instead, or use none. The command-line program <code>remohop</code> has no built-in default server and connects to a rendezvous server only after you set one with <code>remohop config set signal</code>.</p>
 <h3>What the server cannot see</h3>
 <p>Connections between your devices are end-to-end encrypted. The server cannot read or change what you send, cannot see your screen or files, and cannot learn your passwords. This includes relayed connections: a relay forwards ciphertext.</p>
 <h3>What the server processes</h3>
