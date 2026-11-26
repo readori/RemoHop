@@ -115,9 +115,11 @@
         <div class="creds" id="creds" hidden>
           <div class="cred"><div class="muted small" data-t="in.id">ID</div><div class="v" id="in-id"></div>
             <div class="acts"><button class="btn text sm" data-copy="in-id"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
-          <div class="cred"><div class="muted small" data-t="in.pw">Temporary password</div><div class="v" id="in-pw"></div>
+          <div class="cred"><div class="muted small" id="in-pw-l">Temporary password</div><div class="v" id="in-pw"></div>
             <div class="acts"><button class="btn text sm" data-copy="in-pw"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
-              <button class="btn text sm" id="regen"><svg><use href="#i-refresh"/></svg><span data-t="in.new">New</span></button></div></div>
+              <button class="btn text sm" id="regen"><svg><use href="#i-refresh"/></svg><span data-t="in.new">New</span></button>
+              <button class="btn text sm" id="pw-reveal" hidden aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
+              <button class="btn text sm" id="pw-set"><svg><use href="#i-settings"/></svg><span data-t="in.setpw">Password settings</span></button></div></div>
         </div>
         <p class="muted small" id="in-addr" hidden></p>
         <p class="err" id="in-err"></p>
@@ -242,6 +244,20 @@
     <p class="err" id="un-err"></p>
     <p class="muted small" id="un-wait" hidden data-t="un.wait">Turning on… Windows asks for administrator permission first; then it takes a few seconds.</p>
     <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="un-ok" data-t="un.enable">Turn on</button></div>
+  </form>
+</dialog>
+
+<!-- the password for incoming connections: temporary, or the user's own -->
+<dialog id="dlg-pw" aria-labelledby="pw-title">
+  <form method="dialog" class="dlg" id="pw-form">
+    <h2 id="pw-title" data-t="pwm.title">Password for incoming connections</h2>
+    <label class="opt"><input type="radio" name="pwmode" value="temporary"><span><span class="t" data-t="pwm.temp">A new random password</span><br><span class="muted small" data-t="pwm.temp.sub">Made each time RemoHop starts; "New" replaces it whenever you like</span></span></label>
+    <label class="opt"><input type="radio" name="pwmode" value="fixed"><span class="grow"><span class="t" data-t="pwm.fixed">My own password</span><br><span class="muted small" data-t="pwm.fixed.sub">Stays the same until you change it; at least 8 characters, with letters and digits</span>
+      <span class="field mt8"><span class="lbl-sm" data-t="un.pw">Password</span><input id="pw-1" type="password" autocomplete="new-password"></span>
+      <span class="field mt8"><span class="lbl-sm" data-t="un.pw2">Repeat</span><input id="pw-2" type="password" autocomplete="new-password"></span></span></label>
+    <p class="muted small mt8" data-t="pwm.note">Either way, every connection still asks you first.</p>
+    <p class="err" id="pw-err"></p>
+    <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="pw-ok" data-t="save">Save</button></div>
   </form>
 </dialog>
 

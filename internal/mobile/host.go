@@ -40,12 +40,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -372,6 +374,7 @@ func StartHost() error {
 		OnApproval: run.onApproval,
 		Services:   phoneServices(screen),
 		Locals:     localAddrs,
+		Password:   ownHostPassword(d),
 		Overrides: &hostd.Overrides{AskAll: true, TempPasswordOnly: true, Features: func() map[perm.Feature]bool {
 			return offeredFeatures()
 		}},
@@ -564,19 +567,22 @@ type hostSession struct {
 
 // hostDoc is HostStateJSON's document.
 type hostDoc struct {
-	On        bool     `json:"on"`
-	Phase     string   `json:"phase"`
-	Error     string   `json:"error,omitempty"`
-	ID        string   `json:"id,omitempty"`
-	Password  string   `json:"password,omitempty"`
-	Online    bool     `json:"online"`
-	Server    string   `json:"server,omitempty"`
-	Addresses []string `json:"addresses,omitempty"`
-	Waited    int      `json:"waited,omitempty"`
-	Device    string   `json:"device,omitempty"`
-	Viewers   int      `json:"viewers"`
-	Control   bool     `json:"control_available"`
-	NoControl string   `json:"control_unavailable,omitempty"`
+	On       bool   `json:"on"`
+	Phase    string `json:"phase"`
+	Error    string `json:"error,omitempty"`
+	ID       string `json:"id,omitempty"`
+	Password string `json:"password,omitempty"`
+	// PasswordMode: "temporary" (new at every start) or "fixed" (the
+	// owner's own, SetHostFixedPassword); Password is the one in force.
+	PasswordMode string   `json:"password_mode"`
+	Online       bool     `json:"online"`
+	Server       string   `json:"server,omitempty"`
+	Addresses    []string `json:"addresses,omitempty"`
+	Waited       int      `json:"waited,omitempty"`
+	Device       string   `json:"device,omitempty"`
+	Viewers      int      `json:"viewers"`
+	Control      bool     `json:"control_available"`
+	NoControl    string   `json:"control_unavailable,omitempty"`
 	// Offered: the phone offers control at all (an input injector is set);
 	// without, the approval should not show a control choice.
 	Offered  bool          `json:"control_offered"`
@@ -610,7 +616,9 @@ func addrOnly(ap netip.AddrPort) string {
 // HostStateJSON returns host mode's state as one JSON object:
 //
 //	on, phase (off, starting, ready, no_server, error), error,
-//	id (formatted "123 456 789"), password (the temporary password),
+//	id (formatted "123 456 789"), password (the password in force:
+//	the temporary one, or the owner's own), password_mode ("temporary"
+//	or "fixed": SetHostFixedPassword, also while host mode is off),
 //	online (registered with the server right now), server, addresses
 //	(ip:port this device is reachable at on its networks: shown when
 //	there is no server or the host is offline), waited (seconds since
@@ -625,13 +633,23 @@ func HostStateJSON() (string, error) {
 	hostMu.Lock()
 	run, phase, herr := hostRun, hostPhase, hostErr
 	hostMu.Unlock()
-	doc := hostDoc{Phase: phase, Error: herr, Timeout: int(HostAskTimeout / time.Second), Requests: []hostRequest{}, Sessions: []hostSession{}}
+	doc := hostDoc{Phase: phase, Error: herr, Timeout: int(HostAskTimeout / time.Second), Requests: []hostRequest{}, Sessions: []hostSession{}, PasswordMode: "temporary"}
+	own := ""
+	if d, err := configDir(); err == nil {
+		own = ownHostPassword(d)
+	}
+	if own != "" {
+		doc.PasswordMode = "fixed"
+	}
 	why := inputProxy{}.Unavailable()
 	doc.Control, doc.NoControl, doc.Offered = why == "", why, controlOffered()
 	if run != nil {
 		now := time.Now()
 		hs := run.h.Status()
 		doc.On, doc.Online, doc.Password, doc.Server = true, hs.Online, hs.Password, run.server
+		if own != "" && run.h.PasswordMode() == "fixed" {
+			doc.Password = own
+		}
 		doc.Device = pairLabel()
 		doc.Viewers = run.screen.Viewers()
 		switch {
@@ -738,6 +756,58 @@ func DisconnectHostSession(id int) error {
 		return nil
 	}
 	return run.h.Disconnect(id, hostd.ReasonDisconnectedOnPhone)
+}
+
+// hostPasswordFile holds the owner's own fixed password for host mode
+// (SetHostFixedPassword), readable only by the app. Without it, a new
+// temporary password is made at every start.
+const hostPasswordFile = "host-password"
+
+// ownHostPassword is the owner's fixed password, or "".
+func ownHostPassword(dir string) string {
+	b, err := os.ReadFile(filepath.Join(dir, hostPasswordFile))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b)) // as typed; the host normalises
+}
+
+// SetHostFixedPassword sets the owner's own password for host mode, kept
+// across starts, instead of a new temporary one at every start; "" goes
+// back to temporary passwords. Every login still waits for the owner's
+// answer. The rule is hostd.CheckOwnPassword (8 characters, two of
+// letters, digits and others); a refusal's message says what is missing.
+// It applies at once when host mode is on.
+func SetHostFixedPassword(password string) error {
+	d, err := configDir()
+	if err != nil {
+		return err
+	}
+	pw := strings.TrimSpace(password) // kept as typed, for the owner to read
+	if auth.NormalizePassword(pw) == "" {
+		pw = ""
+	}
+	path := filepath.Join(d, hostPasswordFile)
+	if pw == "" {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	} else {
+		if err := hostd.CheckOwnPassword(pw); err != nil {
+			return err
+		}
+		if err := config.WriteFileAtomic(path, []byte(pw), 0o600); err != nil {
+			return err
+		}
+	}
+	hostMu.Lock()
+	run := hostRun
+	hostMu.Unlock()
+	if run != nil {
+		return run.h.SetFixedPassword(pw)
+	}
+	notifyHost(nil)
+	return nil
 }
 
 // RegenerateHostPassword replaces the temporary password.
