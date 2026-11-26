@@ -62,4 +62,14 @@ func TestRememberRefusedByHost(t *testing.T) {
 	if !found {
 		t.Errorf("the host is not among the saved ones: %+v", peers.Peers)
 	}
+	// The app's Saved hosts screen shows it and can delete it.
+	if pw, err := SavedPassword(h.Addr().String()); err != nil || pw != hostPassword {
+		t.Errorf("SavedPassword = %q, %v", pw, err)
+	}
+	if err := ForgetSavedPassword(h.Addr().String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SavedPassword(h.Addr().String()); err == nil {
+		t.Error("the password is still there after ForgetSavedPassword")
+	}
 }

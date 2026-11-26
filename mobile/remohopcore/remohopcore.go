@@ -102,5 +102,11 @@ func CancelPair() { mobile.CancelPair() }
 // SetAlias names a saved host ("" removes the name).
 func SetAlias(target, alias string) error { return mobile.SetAlias(target, alias) }
 
+// SavedPassword is the password saved for a host that does not pair.
+func SavedPassword(target string) (string, error) { return mobile.SavedPassword(target) }
+
+// ForgetSavedPassword deletes the password saved for a host.
+func ForgetSavedPassword(target string) error { return mobile.ForgetSavedPassword(target) }
+
 // Forget discards what is saved for a host.
 func Forget(ref string) (int, error) { return mobile.Forget(ref) }
