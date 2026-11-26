@@ -201,3 +201,18 @@ func SetHostFixedPassword(password string) error { return mobile.SetHostFixedPas
 // process saved with SetHostFixedPassword in the same configuration
 // directory (iOS: the app sets it, the broadcast extension calls this).
 func ReloadHostPassword() error { return mobile.ReloadHostPassword() }
+
+// ReadmitAlways, as SetHostReadmit's minutes: for as long as host mode
+// runs (unattended).
+const ReadmitAlways = mobile.ReadmitAlways
+
+// SetHostReadmit sets how long a device the owner allowed may log in again
+// without being asked after it dropped out (its app went to the
+// background): minutes (up to a year), ReadmitAlways, or 0 for the default
+// 10 minutes. Kept across starts in the configuration directory, so a host
+// in another process (the iOS broadcast extension) follows it within a
+// second; HostStateJSON reports it as readmit_minutes.
+func SetHostReadmit(minutes int) error { return mobile.SetHostReadmit(minutes) }
+
+// HostReadmitMinutes is what SetHostReadmit set: minutes, or ReadmitAlways.
+func HostReadmitMinutes() int { return mobile.HostReadmitMinutes() }

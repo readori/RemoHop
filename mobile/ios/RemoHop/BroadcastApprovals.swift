@@ -80,6 +80,8 @@ final class BroadcastModel: ObservableObject {
     /// The password setting: the owner's own (else a new temporary one at
     /// every start). What is in force while sharing is `state.passwordFixed`.
     @Published private(set) var passwordFixed = false
+    /// "Reconnect without asking" (ReadmitChoice): minutes, or always.
+    @Published private(set) var readmitMinutes = ReadmitChoice.defaultMinutes
     /// Whether the App Group is there (a build without it cannot share).
     let available = AppGroup.containerURL != nil
     private var note: DarwinNote.Observation?
@@ -137,7 +139,34 @@ final class BroadcastModel: ObservableObject {
         Task.detached {
             try? Core.initialize(deviceName: device, appVersion: version)
             let fixed = Core.sharePasswordFixed
-            await MainActor.run { self.passwordFixed = fixed }
+            let readmit = Core.shareReadmitMinutes
+            await MainActor.run {
+                self.passwordFixed = fixed
+                self.readmitMinutes = readmit
+            }
+        }
+    }
+
+    /// Sets "Reconnect without asking"; a running share follows it within a
+    /// second (the extension's host reads the shared configuration).
+    func setReadmit(_ minutes: Int) {
+        let device = UIDevice.current.model
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        readmitMinutes = minutes
+        Task.detached {
+            var ok = true
+            do {
+                try Core.initialize(deviceName: device, appVersion: version)
+                try Core.setShareReadmit(minutes)
+            } catch {
+                ok = false
+            }
+            let now = Core.shareReadmitMinutes
+            await MainActor.run {
+                self.readmitMinutes = now
+                Diag.log(ok ? "screen sharing: reconnect without asking for \(minutes == ReadmitChoice.always ? "always" : "\(minutes) min")"
+                    : "screen sharing: reconnect setting not saved")
+            }
         }
     }
 

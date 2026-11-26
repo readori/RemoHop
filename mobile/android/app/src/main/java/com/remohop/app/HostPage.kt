@@ -54,6 +54,7 @@ class HostPage(
     private var pwRow: SettingsUi.Row? = null
     private var eye: ImageButton? = null
     private var modeRow: SettingsUi.Row? = null
+    private var readmitRow: SettingsUi.Row? = null
     /** The owner's own password is shown instead of dots (until the page is built again or left). */
     private var revealed = false
     private var controlRow: SettingsUi.Row? = null
@@ -105,6 +106,7 @@ class HostPage(
         // The password settings: with the password while host mode is on,
         // under the status while it is off (the setting is kept either way).
         modeRow = ui.row(c, str(R.string.hm_pw_settings), value = modeText(s), icon = R.drawable.ic_s_privacy, chevron = true) { passwordDialog() }
+        readmitRow = ui.row(c, str(R.string.hm_readmit), value = readmitText(s.readmitMinutes), icon = R.drawable.ic_refresh, chevron = true) { readmitDialog() }
         c = ui.section(col, str(R.string.hm_control), SettingsUi.Tone.SECONDARY)
         controlRow = ui.row(c, str(R.string.hm_control), summary = controlText(s), icon = R.drawable.ic_eye,
             trailing = iconButton(R.drawable.ic_info, str(R.string.info_about_screen)) {
@@ -139,6 +141,7 @@ class HostPage(
         idRow?.value(s.reachableAs.ifEmpty { "…" })
         pwRow?.value(passwordText(s))
         modeRow?.value(modeText(s))
+        readmitRow?.value(readmitText(s.readmitMinutes))
         controlRow?.summary(controlText(s))
         for (x in s.sessions) sessionRows[x.id]?.summary(sessionText(x))
     }
@@ -147,6 +150,27 @@ class HostPage(
     private fun passwordText(s: HostState) = if (s.fixedPassword && !revealed && s.password.isNotEmpty()) MASKED_PASSWORD else s.password
 
     private fun modeText(s: HostState) = str(if (s.fixedPassword) R.string.hm_pw_mode_fixed else R.string.hm_pw_mode_temporary)
+
+    private fun readmitText(minutes: Int) = readmitLabels()[HostReadmit.index(minutes)]
+
+    private fun readmitLabels() = arrayOf(
+        str(R.string.hm_readmit_10m), str(R.string.hm_readmit_30m), str(R.string.hm_readmit_1h), str(R.string.hm_readmit_1d),
+        str(R.string.hm_readmit_7d), str(R.string.hm_readmit_30d), str(R.string.hm_readmit_always),
+    )
+
+    /** "Reconnect without asking": how long an allowed device that dropped out may come back without being asked. */
+    private fun readmitDialog() {
+        val labels = readmitLabels()
+        check(labels.size == HostReadmit.CHOICES.size)
+        MaterialAlertDialogBuilder(a)
+            .setTitle(R.string.hm_readmit)
+            .setSingleChoiceItems(labels, HostReadmit.index(current.readmitMinutes)) { d, i ->
+                d.dismiss()
+                HostMode.setReadmit(HostReadmit.CHOICES[i])
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
 
     /** Shows the owner's own password, or dots. */
     private fun reveal(on: Boolean) {

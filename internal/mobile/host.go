@@ -47,6 +47,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -158,17 +159,31 @@ type hostState struct {
 // again, while host mode stays on: a viewing phone whose app went to the
 // background loses its session (iOS suspends it) and logs in again when it
 // returns, and the owner should not have to approve it a second time. It
-// lasts while the device is connected and for ReadmitWindow after, and
-// ends when the owner disconnects it. The device must still prove the
-// same key and know the password.
+// lasts while the device is connected and for the owner's readmission
+// time after (SetHostReadmit: ReadmitWindow unless chosen otherwise, or for
+// as long as host mode runs), and ends when the owner disconnects it. The
+// device must still prove the same key and know the password.
 type readmission struct {
 	control bool
-	until   time.Time // zero while connected
+	away    time.Time // when its last session ended; zero while connected
 }
 
 // ReadmitWindow is how long after its session ended a device the owner
-// allowed may log in again without being asked.
+// allowed may log in again without being asked, unless the owner chose
+// another time (SetHostReadmit).
 const ReadmitWindow = 10 * time.Minute
+
+// ReadmitAlways, as SetHostReadmit's minutes, lets an allowed device come
+// back for as long as host mode runs (unattended).
+const ReadmitAlways = -1
+
+// maxReadmitMinutes bounds a chosen readmission time (a year).
+const maxReadmitMinutes = 366 * 24 * 60
+
+// expired reports whether a's time ran out at now, with window (0: never).
+func (a readmission) expired(now time.Time, window time.Duration) bool {
+	return !a.away.IsZero() && window > 0 && now.Sub(a.away) > window
+}
 
 // SetHostListener sets (or with nil clears) the receiver of host events.
 func SetHostListener(l HostListener) {
@@ -519,23 +534,25 @@ func (r *hostState) watch(ctx context.Context) {
 }
 
 // refreshReadmit keeps the readmission of each connected device open and
-// starts the ReadmitWindow of one whose sessions all ended; expired ones go.
+// notes when one's sessions all ended; those whose time (readmitWindow, as
+// the owner chose it now) ran out go.
 func (r *hostState) refreshReadmit(now time.Time) {
 	connected := map[string]bool{}
 	for _, s := range r.h.Sessions() {
 		connected[auth.Fingerprint(s.Auth.ClientKey)] = true
 	}
+	window := readmitWindow()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for id, a := range r.readmit {
 		switch {
 		case connected[id]:
-			a.until = time.Time{}
-		case a.until.IsZero():
-			a.until = now.Add(ReadmitWindow)
-		case now.After(a.until):
+			a.away = time.Time{}
+		case a.expired(now, window):
 			delete(r.readmit, id)
 			continue
+		case a.away.IsZero():
+			a.away = now
 		}
 		r.readmit[id] = a
 	}
@@ -550,7 +567,7 @@ func (r *hostState) readmitted(identity string, now time.Time) (control, ok bool
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	a, ok := r.readmit[identity]
-	if !ok || (!a.until.IsZero() && now.After(a.until)) {
+	if !ok || a.expired(now, readmitWindow()) {
 		return false, false
 	}
 	return a.control, true
@@ -674,10 +691,14 @@ type hostDoc struct {
 	NoControl    string   `json:"control_unavailable,omitempty"`
 	// Offered: the phone offers control at all (an input injector is set);
 	// without, the approval should not show a control choice.
-	Offered  bool          `json:"control_offered"`
-	Timeout  int           `json:"ask_timeout"`
-	Requests []hostRequest `json:"requests"`
-	Sessions []hostSession `json:"sessions"`
+	Offered bool `json:"control_offered"`
+	// ReadmitMinutes: how long an allowed device that dropped out may come
+	// back without asking (SetHostReadmit; ReadmitAlways: as long as host
+	// mode runs), also while host mode is off.
+	ReadmitMinutes int           `json:"readmit_minutes"`
+	Timeout        int           `json:"ask_timeout"`
+	Requests       []hostRequest `json:"requests"`
+	Sessions       []hostSession `json:"sessions"`
 }
 
 func (r *hostState) requestOf(p hostd.Approval, now time.Time) hostRequest {
@@ -714,7 +735,8 @@ func addrOnly(ap netip.AddrPort) string {
 //	start while starting), device (this device's name), viewers (open
 //	screen streams), control_available and control_unavailable (whether
 //	the input injector works, and why not), control_offered (an
-//	injector is set: offer control at all), ask_timeout (seconds),
+//	injector is set: offer control at all), readmit_minutes
+//	(SetHostReadmit, also while host mode is off), ask_timeout (seconds),
 //	requests [{n, name, device, identity, from, auth, left, first_seen,
 //	access, session}] and sessions [{id, label, device, identity, from,
 //	path, seconds, control}].
@@ -732,6 +754,7 @@ func HostStateJSON() (string, error) {
 	}
 	why := inputProxy{}.Unavailable()
 	doc.Control, doc.NoControl, doc.Offered = why == "", why, controlOffered()
+	doc.ReadmitMinutes = HostReadmitMinutes()
 	if run != nil {
 		now := time.Now()
 		hs := run.h.Status()
@@ -977,6 +1000,80 @@ func RegenerateHostPassword() error {
 		return err
 	}
 	return run.h.RotatePassword()
+}
+
+// hostReadmitFile holds the owner's readmission time in minutes
+// (SetHostReadmit); without it, ReadmitWindow. A file in the configuration
+// directory rather than a setting in memory, so that a host in another
+// process (iOS: the broadcast extension) follows the app's choice at its
+// next second.
+const hostReadmitFile = "host-readmit"
+
+// SetHostReadmit sets how long a device the owner allowed may log in again
+// without being asked after its session ended (its app went to the
+// background, its network dropped): minutes, or ReadmitAlways for as long
+// as host mode runs (unattended); 0 goes back to ReadmitWindow. It is kept
+// across starts and applies at once, also to devices that are away now.
+// Either way it ends for a device when the owner disconnects it and for
+// all when host mode stops; a new device is always asked, and every device
+// still needs the key it was allowed with and the password.
+func SetHostReadmit(minutes int) error {
+	if minutes != ReadmitAlways && (minutes < 0 || minutes > maxReadmitMinutes) {
+		return fmt.Errorf("mobile: readmission time %d minutes is out of range", minutes)
+	}
+	d, err := configDir()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(d, hostReadmitFile)
+	if minutes == 0 {
+		if err = os.Remove(path); errors.Is(err, fs.ErrNotExist) {
+			err = nil
+		}
+	} else {
+		err = config.WriteFileAtomic(path, []byte(strconv.Itoa(minutes)+"\n"), 0o600)
+	}
+	if err != nil {
+		return err
+	}
+	quietLogger().Info("host mode: readmission time set", "minutes", minutes)
+	hostMu.Lock()
+	run := hostRun
+	hostMu.Unlock()
+	if run != nil {
+		run.refreshReadmit(time.Now())
+		run.poke()
+	} else {
+		notifyHost(nil)
+	}
+	return nil
+}
+
+// HostReadmitMinutes is the readmission time SetHostReadmit set: minutes,
+// or ReadmitAlways.
+func HostReadmitMinutes() int {
+	d, err := configDir()
+	if err != nil {
+		return int(ReadmitWindow / time.Minute)
+	}
+	b, err := os.ReadFile(filepath.Join(d, hostReadmitFile))
+	if err != nil {
+		return int(ReadmitWindow / time.Minute)
+	}
+	m, err := strconv.Atoi(strings.TrimSpace(string(b)))
+	if err != nil || m == 0 || (m != ReadmitAlways && (m < 0 || m > maxReadmitMinutes)) {
+		return int(ReadmitWindow / time.Minute)
+	}
+	return m
+}
+
+// readmitWindow is HostReadmitMinutes as a duration; 0 for ReadmitAlways.
+func readmitWindow() time.Duration {
+	m := HostReadmitMinutes()
+	if m == ReadmitAlways {
+		return 0
+	}
+	return time.Duration(m) * time.Minute
 }
 
 // hostSeenFile remembers the devices that asked to connect before, by key

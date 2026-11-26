@@ -104,6 +104,13 @@ object HostMode : HostListener {
         bg.execute { runCatching { Remohopcore.hostStateJSON() }.getOrNull()?.let { hostChanged(it) } }
     }
 
+    /** Sets how long an allowed device may come back without asking ([HostReadmit]); it applies at once. */
+    fun setReadmit(minutes: Int) = bg.execute {
+        val err = runCatching { Remohopcore.setHostReadmit(minutes.toLong()) }.exceptionOrNull()
+        Diag.log(if (err != null) "host mode: reconnect setting not saved" else "host mode: reconnect without asking for ${if (minutes == HostReadmit.ALWAYS) "always" else "$minutes min"}")
+        refresh()
+    }
+
     fun regenerate() = bg.execute {
         runCatching { Remohopcore.regenerateHostPassword() }
         refresh()

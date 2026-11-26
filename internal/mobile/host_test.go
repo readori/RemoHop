@@ -496,6 +496,95 @@ func TestHostModeReadmit(t *testing.T) {
 	}
 }
 
+// The owner's readmission time: kept in the configuration directory,
+// reported in the state document, and applied at once to a device that is
+// away (ReadmitAlways: however long it was away).
+func TestHostModeReadmitTime(t *testing.T) {
+	_, _, l, addr := startPhoneHost(t)
+	if m := HostReadmitMinutes(); m != 10 {
+		t.Fatalf("default %d minutes, want 10", m)
+	}
+	for _, bad := range []int{-2, maxReadmitMinutes + 1} {
+		if err := SetHostReadmit(bad); err == nil {
+			t.Fatalf("%d minutes accepted", bad)
+		}
+	}
+	pw := hostDocNow(t).Password
+	req, out := login(t, l, addr, pw, t.TempDir())
+	if err := DecideHostRequest(req.N, true, false); err != nil {
+		t.Fatal(err)
+	}
+	r := <-out
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	r.conn.Close()
+	waitDoc(t, "no session", func(d hostDoc) bool { return len(d.Sessions) == 0 })
+	run, err := runningHost()
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	run.refreshReadmit(now)
+	run.mu.Lock()
+	a := run.readmit[req.Identity]
+	a.away = now.Add(-20 * time.Minute) // away for 20 minutes
+	run.readmit[req.Identity] = a
+	run.mu.Unlock()
+	if _, ok := run.readmitted(req.Identity, now); ok {
+		t.Fatal("readmitted after 20 minutes with the default 10")
+	}
+	for _, c := range []struct {
+		minutes int
+		ok      bool
+	}{{30, true}, {ReadmitAlways, true}, {15, false}, {ReadmitAlways, false}} {
+		if err := SetHostReadmit(c.minutes); err != nil {
+			t.Fatal(err)
+		}
+		want := c.minutes
+		if m := HostReadmitMinutes(); m != want {
+			t.Fatalf("set %d, read %d", c.minutes, m)
+		}
+		if d := hostDocNow(t); d.ReadmitMinutes != want {
+			t.Fatalf("state document says %d minutes, want %d", d.ReadmitMinutes, want)
+		}
+		if _, ok := run.readmitted(req.Identity, now); ok != c.ok {
+			t.Fatalf("%d minutes, away 20: readmitted %v, want %v", c.minutes, ok, c.ok)
+		}
+	}
+	// A time that ran out dropped the device (15 minutes): choosing always
+	// afterwards does not bring it back.
+	SetHostReadmit(0)
+
+	// Always: an allowed device stays readmitted however long it is away,
+	// and the periodic refresh does not drop it.
+	if err := SetHostReadmit(ReadmitAlways); err != nil {
+		t.Fatal(err)
+	}
+	req2, out2 := login(t, l, addr, pw, t.TempDir())
+	if err := DecideHostRequest(req2.N, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if r := <-out2; r.err != nil {
+		t.Fatal(r.err)
+	} else {
+		r.conn.Close()
+	}
+	waitDoc(t, "no session", func(d hostDoc) bool { return len(d.Sessions) == 0 })
+	now = time.Now()
+	run.refreshReadmit(now)
+	later := now.Add(90 * 24 * time.Hour)
+	run.refreshReadmit(later)
+	if _, ok := run.readmitted(req2.Identity, later); !ok {
+		t.Fatal("not readmitted after 90 days with always")
+	}
+	SetHostReadmit(0)
+	run.refreshReadmit(later)
+	if _, ok := run.readmitted(req2.Identity, later); ok {
+		t.Fatal("still readmitted after going back to 10 minutes")
+	}
+}
+
 // Allowed without control, the session views only, whatever the injector
 // could do; and a phone without an injector is view-only for everyone.
 func TestHostModeViewOnly(t *testing.T) {
