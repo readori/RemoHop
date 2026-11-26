@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/signal"
 	"net/http"
 	"strings"
@@ -251,4 +252,48 @@ func TestReconnectPolicy(t *testing.T) {
 			t.Errorf("%s is retried forever", code)
 		}
 	}
+}
+
+// Someone at the host pressed Disconnect: the session is not logged back
+// in (the remembered pairing or a saved password would let it straight
+// back), it says the host ended it, and stays so until the user acts.
+func TestPersistentHostDisconnectSticks(t *testing.T) {
+	_, c, f, key := persistentEnv(t)
+	f.dialer.mu.Lock()
+	host := f.dialer.hosts[len(f.dialer.hosts)-1]
+	f.dialer.mu.Unlock()
+	n := f.calls.Load()
+	host.CloseWithReason(hostd.ReasonDisconnectedAtHost)
+	v := c.waitState(key, stateFailed)
+	if v.Error == nil || v.Error.Code != "host_disconnected" {
+		t.Fatalf("after the host disconnected: %+v", v)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if f.calls.Load() != n {
+		t.Fatal("reconnected after the host's owner disconnected")
+	}
+	code, body := c.do("GET", "api/v1/info?c="+key, nil, nil)
+	if code != http.StatusGone || !contains(string(body), "the host ended the session") {
+		t.Fatalf("info after the host disconnected: %d %s", code, body)
+	}
+	// Connecting again works as usual.
+	if k := c.connect("host.test:21118", "hostpw"); k != key {
+		t.Fatalf("new key %q", k)
+	}
+	c.waitState(key, stateConnected)
+}
+
+// The host stopping (a restart, an upgrade) is not the owner ending the
+// session: that one reconnects.
+func TestPersistentHostShutdownReconnects(t *testing.T) {
+	_, c, f, key := persistentEnv(t)
+	f.dialer.mu.Lock()
+	host := f.dialer.hosts[len(f.dialer.hosts)-1]
+	f.dialer.mu.Unlock()
+	n := f.calls.Load()
+	host.CloseWithReason("host shutting down")
+	for end := time.Now().Add(15 * time.Second); f.calls.Load() == n && time.Now().Before(end); {
+		time.Sleep(10 * time.Millisecond)
+	}
+	c.waitState(key, stateConnected)
 }

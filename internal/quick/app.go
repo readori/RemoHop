@@ -544,7 +544,7 @@ func (a *App) Disconnect(id int) error {
 	if err != nil {
 		return err
 	}
-	err = h.Disconnect(id, "disconnected at the host")
+	err = h.Disconnect(id, hostd.ReasonDisconnectedAtHost)
 	a.wake()
 	return err
 }

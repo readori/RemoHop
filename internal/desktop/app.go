@@ -575,12 +575,12 @@ func (a *App) Disconnect(id int) error {
 	}
 	if id == 0 {
 		for _, s := range h.Sessions() {
-			h.Disconnect(s.ID(), "disconnected at the host")
+			h.Disconnect(s.ID(), hostd.ReasonDisconnectedAtHost)
 		}
 		a.wake()
 		return nil
 	}
-	err = h.Disconnect(id, "disconnected at the host")
+	err = h.Disconnect(id, hostd.ReasonDisconnectedAtHost)
 	a.wake()
 	return err
 }

@@ -2,6 +2,7 @@ package peer
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -64,6 +65,19 @@ func QUICConn(c *Conn) *quic.Conn {
 		return m.q
 	}
 	return nil
+}
+
+// ClosedByPeer is the reason the other side gave (Conn.CloseWithReason)
+// when it ended the session; ok is false while the session lasts and when
+// it ended any other way (closed here, timed out, a network error).
+func ClosedByPeer(c *Conn) (reason string, ok bool) {
+	if c.Context().Err() == nil {
+		return "", false
+	}
+	if e, isApp := errors.AsType[*quic.ApplicationError](context.Cause(c.Context())); isApp && e.Remote {
+		return e.ErrorMessage, true
+	}
+	return "", false
 }
 
 type quicMux struct{ q *quic.Conn }
