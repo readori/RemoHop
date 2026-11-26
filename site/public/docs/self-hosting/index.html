@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>自建汇合服务器 | RemoHop</title>
 <meta name="description" content="汇合服务器很轻，一台小虚拟机就够，例如 Oracle Cloud Always Free 的 1 OCPU / 1 GB 实例。实测（数字来自 remohop help signal 和测量，不是保证）：空闲时约 17 MB 内存，每个在线主机约 70 KB，1000 个主机约 85 MB。">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -52,13 +52,13 @@
 <div class="wrap prose doc">
 <p class="crumbs"><a href="/docs/#more">文档</a></p>
 <h1 id="自建汇合服务器">自建汇合服务器</h1>
-<p>汇合服务器很轻，一台小虚拟机就够，例如 Oracle Cloud Always Free 的 1 OCPU / 1 GB 实例。实测（数字来自 <code>remohop help signal</code> 和测量，不是保证）：空闲时约 17 MB 内存，每个在线主机约 70 KB，1000 个主机约 85 MB。</p>
+<p>汇合服务器很轻，一台小虚拟机就够，例如 Oracle Cloud Always Free 的 1 OCPU / 1&nbsp;GB 实例。实测（数字来自 <code>remohop help signal</code> 和测量，不是保证）：空闲时约 17&nbsp;MB 内存，每个在线主机约 70&nbsp;KB，1000&nbsp;个主机约 85&nbsp;MB。</p>
 <pre tabindex="0"><code class="language-bash">remohop signal --relay --relay-ports 40000-40099
 remohop signal --print-firewall --relay --relay-ports 40000-40099
 remohop signal --show-key</code></pre>
 <ul>
 <li><code>--relay</code> 开启中继（默认关闭，会消耗带宽）。<code>--relay-ports LO-HI</code> 把中继端口限制在一个范围内，防火墙只需开放这个范围；不加则每个会话用随机高端口。</li>
-<li><code>--max-conns N</code> 限制同时打开的连接数（在线主机加正在查询的客户端），每个约 70 KB。默认值按可用内存（cgroup 限制，否则按物理内存）估算：1 GB 的机器约 6400，最多 50000。</li>
+<li><code>--max-conns N</code> 限制同时打开的连接数（在线主机加正在查询的客户端），每个约 70&nbsp;KB。默认值按可用内存（cgroup 限制，否则按物理内存）估算：1&nbsp;GB 的机器约 6400，最多 50000。</li>
 <li><code>--print-firewall</code> 只打印开放端口所需的命令（Ubuntu/Debian 用 iptables，Oracle Linux/RHEL 用 firewall-cmd），不会执行。</li>
 <li><code>--show-key</code> 打印服务器公钥以及如何固定。</li>
 </ul>
@@ -88,7 +88,7 @@ ingress:
 <pre tabindex="0"><code class="language-bash">remohop config set signal relay.example.com:21116        # 和以前一样，用于 UDP
 remohop config set signal-ws wss://relay.example.com/remohop/v1/udp</code></pre>
 <ul>
-<li>设置了 <code>signal-ws</code> 时，如果 4 秒内 UDP 汇合没有应答，<code>remohop</code> 和 <code>remohop host</code> 会改走这个桥。<code>REMOHOP_TRANSPORT=ws</code>（或 <code>remohop config set signal-transport ws</code>）直接跳过 UDP 尝试；<code>REMOHOP_TRANSPORT=udp</code> 从不使用桥。<code>REMOHOP_SIGNAL_WS</code> 覆盖 URL。只配置了 <code>signal-ws</code> 的机器只用桥。</li>
+<li>设置了 <code>signal-ws</code> 时，如果 4&nbsp;秒内 UDP 汇合没有应答，<code>remohop</code> 和 <code>remohop host</code> 会改走这个桥。<code>REMOHOP_TRANSPORT=ws</code>（或 <code>remohop config set signal-transport ws</code>）直接跳过 UDP 尝试；<code>REMOHOP_TRANSPORT=udp</code> 从不使用桥。<code>REMOHOP_SIGNAL_WS</code> 覆盖 URL。只配置了 <code>signal-ws</code> 的机器只用桥。</li>
 <li>桥遵循 <code>HTTPS_PROXY</code>、<code>HTTP_PROXY</code> 和 <code>NO_PROXY</code>（CONNECT 方式；代理认证写成 <code>http://USER:PASSWORD@proxy:port</code>）。</li>
 <li>经过桥无法打洞，所以这类会话总是走服务器的中继，中继必须开启（<code>--relay</code>）。<code>remohop &lt;ID&gt; ping</code> 显示 <code>relayed path (websocket)</code>，<code>remohop host status</code> 显示 <code>over its websocket bridge</code>。加密、密码交换和服务器公钥固定都和 UDP 完全一样：桥和 Cloudflare 只能看到 QUIC 密文。</li>
 <li><code>--ws-real-ip-header CF-Connecting-IP</code> 让按地址的限额使用 Cloudflare 传来的客户端地址；不加的话所有客户端都算作隧道自己的地址。<code>--ws-tls-cert</code>/<code>--ws-tls-key</code> 可以不经隧道直接提供 <code>wss://</code>。<code>--ws-max-conns</code>（默认 512，每个地址 32）限制同时打开的桥连接数。</li>

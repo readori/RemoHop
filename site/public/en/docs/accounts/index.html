@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Accounts (optional) | RemoHop</title>
 <meta name="description" content="An account only groups your own devices, so that each can list the others and see which are online (remohop devices). It grants no access: connecting to a…">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -60,12 +60,12 @@ remohop account approve 3f9a:01bc:77d2:e410:9c55
 remohop account remove old-laptop
 remohop logout</code></pre>
 <ul>
-<li>The server mails the login code: 8 digits, valid 10 minutes, single use.</li>
+<li>The server mails the login code: 8 digits, valid 10&nbsp;minutes, single use.</li>
 <li>The first device to log in creates the account. Every further device must be approved by a device already in it.</li>
 <li>Joining needs a full-fingerprint comparison on both devices. The new device shows the <strong>account fingerprint</strong>: confirm it equals the one <code>remohop account</code> shows on your other device. It also prints <strong>its own identity fingerprint</strong>: on the other device run <code>remohop account approve FINGERPRINT</code> with the complete value. A prefix is refused.</li>
 <li>Membership is a hash-chained log signed by the account's own devices. The server stores and relays it but holds no member key, so it cannot add a device.</li>
 <li>Trusting account devices is opt-in per host. <code>remohop config account-trust on</code> (default off) makes a host accept the account's other devices like keys authorised with <code>remohop authorize</code>. The host re-checks the signed list about once a minute. After <code>remohop account remove</code>, hosts with the option stop accepting that device at their next check.</li>
-<li>A server can still refuse service, and can withhold the newest log entries (a removal, for example) from a device. A host that cannot reach the server keeps the last verified list for up to 7 days, then trusts no account device. Full discussion: <a href="/en/docs/security/#accounts">security.md</a>.</li>
+<li>A server can still refuse service, and can withhold the newest log entries (a removal, for example) from a device. A host that cannot reach the server keeps the last verified list for up to 7&nbsp;days, then trusts no account device. Full discussion: <a href="/en/docs/security/#accounts">security.md</a>.</li>
 </ul>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/en/accounts.md">Source file (GitHub)</a></p>
 </div>

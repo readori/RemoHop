@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Security model | RemoHop</title>
 <meta name="description" content="What RemoHop protects and what it does not: end-to-end encryption, the CPace password-authenticated key exchange, host key pinning, rate limits, host access control, and the exceptions such as the browser gateway.">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -83,7 +83,7 @@
 
 <h2 id="login">Session set-up and login</h2>
 <ol>
-<li>QUIC is set up over UDP. TLS 1.3 inside QUIC encrypts the traffic, but the peers have no certificate authority, so TLS alone does not say who the peer is.</li>
+<li>QUIC is set up over UDP. TLS&nbsp;1.3 inside QUIC encrypts the traffic, but the peers have no certificate authority, so TLS alone does not say who the peer is.</li>
 <li>On the first stream, both sides run CPace over the credential (password or token). The TLS exporter of this exact connection is mixed into the key derivation, each side binds its identity key into the exchange, and each side proves knowledge of the key in a confirmation step.</li>
 <li>A man in the middle ends up with a different TLS exporter on each leg. The two legs derive different keys, the confirmation fails, and the attacker learns nothing useful for guessing the password.</li>
 <li>The password is never sent.</li>
@@ -91,11 +91,11 @@
 
 <h2 id="passwords">Passwords and rate limits</h2>
 <ul>
-<li><strong>Temporary password:</strong> generated with a cryptographic random generator on every start. It has 8 characters, which the code estimates at about 40 bits, and is shown as <code>xxxx-xxxx</code>; the dash is not part of it.</li>
+<li><strong>Temporary password:</strong> generated with a cryptographic random generator on every start. It has 8 characters, which the code estimates at about 40&nbsp;bits, and is shown as <code>xxxx-xxxx</code>; the dash is not part of it.</li>
 <li><strong>One-time password:</strong> with <code>remohop config otp on</code>, it is replaced after every login that used it.</li>
 <li><strong>Fixed password:</strong> set with <code>remohop passwd</code>, at least 8 characters. <code>remohop status</code> and <code>remohop host</code> never print it. It is stored in the host's <code>config.json</code> (owner-only), so anyone who can read that file can read it.</li>
 </ul>
-<p>Failed logins are limited as follows by default. Per source address the first two failures are free; from the third consecutive failure the source is locked out for 10 seconds, doubling each time up to 10 minutes; the count clears after 30 minutes without attempts. Across all sources there is a burst of 20 failed attempts, refilled at one every 5 seconds.</p>
+<p>Failed logins are limited as follows by default. Per source address the first two failures are free; from the third consecutive failure the source is locked out for 10&nbsp;seconds, doubling each time up to 10&nbsp;minutes; the count clears after 30&nbsp;minutes without attempts. Across all sources there is a burst of 20 failed attempts, refilled at one every 5&nbsp;seconds.</p>
 <p>Online guessing at this rate is slow, but not impossible against a weak password. Prefer pairing or key authorisation to typing a password, and consider <code>remohop config ask on</code> for a host whose password is shared.</p>
 
 <h2 id="host-control">Access control on the host</h2>
@@ -120,7 +120,7 @@
 
 <h2 id="accounts">Accounts</h2>
 <p>Accounts are optional, off by default, and enabled by the rendezvous operator. An account groups your devices so that each can see which of the others are online. It <strong>grants no access</strong>. The member list is an append-only, hash-chained log, and each entry is signed with the identity key of a device in the account. The server stores and relays the log but holds no member key, so it cannot add a device.</p>
-<p>The one exception is <code>remohop config account-trust on</code> (off by default), which a host's owner may turn on so that the host accepts the account's other devices like authorised keys. A malicious server can withhold the newest log entries from a device and so delay a removal; a host that cannot reach the server keeps the last verified list for at most 7 days. When you add a device, compare both fingerprints for real, over a channel you trust.</p>
+<p>The one exception is <code>remohop config account-trust on</code> (off by default), which a host's owner may turn on so that the host accepts the account's other devices like authorised keys. A malicious server can withhold the newest log entries from a device and so delay a removal; a host that cannot reach the server keeps the last verified list for at most 7&nbsp;days. When you add a device, compare both fingerprints for real, over a channel you trust.</p>
 
 <h2 id="gateway">Browser gateway and mobile apps</h2>
 <p>The <code>remohop web</code> process is the client of the session, so it sees everything it relays: the screen, every keystroke, files, the clipboard, and any host password typed into the page. The leg from browser to gateway is not end to end with the host. Anyone who logs in to a gateway can use its saved pairings; run a shared gateway with <code>--no-saved</code>.</p>
@@ -130,7 +130,7 @@
 <li>Behind a proxy such as Cloudflare Tunnel, the proxy terminates TLS and its operator sees everything the gateway sees.</li>
 </ul>
 <p>The Android and iOS apps run this gateway inside the app process on the phone, so the same caveats apply, with the gateway on your own device. The access token is in the URL the app loads, and identity and pairings are kept in the app's private directory. After a drop the app logs in again with a saved pairing or key; a password that was only typed is kept in memory and gone when the app ends. Sessions restored after the system ended the app use only credentials saved on the device, and the list of open sessions holds host IDs or addresses, never a credential.</p>
-<p>A phone acting as a host runs with the quick-support policy, whatever its configuration says: every login waits for the owner's answer on the phone and is refused after 60 seconds, the password is the temporary one or the owner's own, no pairing is issued, and only the screen and basic system information are served. The one exception is a device the owner allowed that drops out: for the time the owner chose (10 minutes by default, up to 30 days, or as long as host mode runs) it comes back without being asked, still with its key and the password, until the owner disconnects it or stops host mode.</p>
+<p>A phone acting as a host runs with the quick-support policy, whatever its configuration says: every login waits for the owner's answer on the phone and is refused after 60&nbsp;seconds, the password is the temporary one or the owner's own, no pairing is issued, and only the screen and basic system information are served. The one exception is a device the owner allowed that drops out: for the time the owner chose (10&nbsp;minutes by default, up to 30&nbsp;days, or as long as host mode runs) it comes back without being asked, still with its key and the password, until the owner disconnects it or stops host mode.</p>
 
 <h2 id="client-risks">What a host can do to a client</h2>
 <p>A host gets no services on your machine. Some commands you run do give it a way in: a reverse forward (<code>forward -R</code>) lets the remote machine connect to a local address you named; clipboard sync sends it your clipboard; while a VPN tunnel is up it can send IP packets to your tunnel address, and with <code>--exit</code> all your traffic leaves through it; attaching a remote USB device means your kernel handles whatever device the host presents.</p>

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>文件 | RemoHop</title>
 <meta name="description" content="远程命令的格式都是 remohop &lt;ID&gt; &lt;command&gt;。本页的例子用 dev 作为别名，它来自 remohop &lt;ID&gt; pair --name dev（见快速开始）。每个命令的完整语法用 remohop help &lt;command&gt; 查看。">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -60,14 +60,14 @@ remohop dev cp -rp :project .
 remohop dev send report.pdf
 remohop dev sync -n --delete --exclude node_modules ./site :/var/www/site</code></pre>
 <ul>
-<li><code>cp</code> 和 <code>sync</code> 传输 8 MiB 及以上的文件中断后，重新执行同一条命令会接着传（<code>--no-resume</code> 则从头开始）。<code>sync --perms</code> 原样复制权限位。上传时，隐藏的续传临时文件由被控端根据源文件、目标和会话凭据自行命名；使用<a href="/en/docs/agents/#grants">授权</a>时，重新签发的凭据会从头开始传，早于此版本的客户端在授权下不能续传（改为整份上传）。</li>
+<li><code>cp</code> 和 <code>sync</code> 传输 8&nbsp;MiB 及以上的文件中断后，重新执行同一条命令会接着传（<code>--no-resume</code> 则从头开始）。<code>sync --perms</code> 原样复制权限位。上传时，隐藏的续传临时文件由被控端根据源文件、目标和会话凭据自行命名；使用<a href="/en/docs/agents/#grants">授权</a>时，重新签发的凭据会从头开始传，早于此版本的客户端在授权下不能续传（改为整份上传）。</li>
 <li>在限定目录的授权下，所有文件操作都限制在这些目录之内：指向目录外的符号链接和 Windows 目录联接（junction）不会被跟随，新建的链接必须指向同一个授权目录之内，授权目录本身不能被删除或替换，在两个不同授权目录之间移动或建立硬链接会返回 <code>EXDEV</code>（<code>mv</code> 会改为复制）。</li>
 <li><code>send</code> 把文件投递到远程用户的“下载”目录，从不覆盖：重名时保存为 <code>name (1).ext</code>。</li>
 </ul>
 <p>把远程目录挂载到本地，让编辑器和构建工具直接读写：</p>
 <pre tabindex="0"><code class="language-bash">remohop dev mount :~/src/app ~/mnt/app
 remohop umount ~/mnt/app</code></pre>
-<p>Linux 用 FUSE 挂载。macOS 和 Windows 通过操作系统自带的 WebDAV 客户端挂载，无需安装任何东西；Windows 上挂载点是盘符（<code>Z:</code>，或用 <code>*</code> 自动选一个空闲盘符）。<code>-o nomount</code> 只在本机回环地址上提供 WebDAV 服务，供任意客户端使用。见 <a href="/en/docs/troubleshooting/#mounts">troubleshooting.md</a>。</p>
+<p>Linux 用 FUSE 挂载。macOS&nbsp;和&nbsp;Windows 通过操作系统自带的 WebDAV 客户端挂载，无需安装任何东西；Windows 上挂载点是盘符（<code>Z:</code>，或用 <code>*</code> 自动选一个空闲盘符）。<code>-o nomount</code> 只在本机回环地址上提供 WebDAV 服务，供任意客户端使用。见 <a href="/en/docs/troubleshooting/#mounts">troubleshooting.md</a>。</p>
 <p class="doc-src small"><a href="https://github.com/readori/RemoHop/blob/main/docs/zh/files.md">源文件（GitHub）</a></p>
 </div>
 </main>

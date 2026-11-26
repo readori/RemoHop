@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Android and iOS apps | RemoHop</title>
 <meta name="description" content="The RemoHop phone apps: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can be controlled if you allow it, an iPhone or iPad can share its screen (view only).">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -72,16 +72,16 @@
 </ul>
 
 <h2 id="host">Let someone see this phone</h2>
-<p>A phone can be a host too. Once you switch it on, the desktop app, the browser console, the command line or another phone can ask to connect with its ID and password. You allow every request on the phone, with a scam warning; a request nobody answers is refused after 60 seconds. The other side gets the screen (and basic system information) and nothing else: no files, clipboard or terminal.</p>
+<p>A phone can be a host too. Once you switch it on, the desktop app, the browser console, the command line or another phone can ask to connect with its ID and password. You allow every request on the phone, with a scam warning; a request nobody answers is refused after 60&nbsp;seconds. The other side gets the screen (and basic system information) and nothing else: no files, clipboard or terminal.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="Android and iOS as a host compared">
 <table>
 <thead><tr><th scope="col"></th><th scope="col">Android</th><th scope="col">iPhone and iPad</th></tr></thead>
 <tbody>
 <tr><th scope="row">Where</th><td>Settings → This device → Allow remote connection</td><td>Settings → This device → Share this screen, then Start Broadcast in the system sheet</td></tr>
 <tr><th scope="row">What others can do</th><td>View; also tap, swipe and type if you tick Control in the request and turn on RemoHop's accessibility service</td><td>View only: iOS does not let any app control the device</td></tr>
-<tr><th scope="row">Picture</th><td>Hardware H.264, up to 1920 pixels on the long edge and 60 fps</td><td>Hardware H.264, up to 1920 pixels on the long edge and 30 fps; runs in a broadcast extension, so it continues while you use other apps</td></tr>
+<tr><th scope="row">Picture</th><td>Hardware H.264, up to 1920&nbsp;pixels on the long edge and 60&nbsp;fps</td><td>Hardware H.264, up to 1920&nbsp;pixels on the long edge and 30&nbsp;fps; runs in a broadcast extension, so it continues while you use other apps</td></tr>
 <tr><th scope="row">Password</th><td colspan="2">A new temporary password every time you start, or your own under Password settings</td></tr>
-<tr><th scope="row">Reconnect without asking</th><td colspan="2">A device you allowed that drops out (its app went to the background, say) comes back without asking you again: for 10 minutes by default, or anything from 30 minutes to 30 days, or always (unattended). It still needs its key and the password; a new device is always asked</td></tr>
+<tr><th scope="row">Reconnect without asking</th><td colspan="2">A device you allowed that drops out (its app went to the background, say) comes back without asking you again: for 10&nbsp;minutes by default, or anything from 30&nbsp;minutes to 30&nbsp;days, or always (unattended). It still needs its key and the password; a new device is always asked</td></tr>
 <tr><th scope="row">Requests</th><td>A dialog, or a notification while the app is in the background</td><td>Time Sensitive notifications that get through Focus; the Notifications page shows what the system allows</td></tr>
 <tr><th scope="row">How it ends</th><td>The last device leaves, or you tap Stop or Disconnect; off again whenever the app restarts</td><td>The red status bar, Control Center or Stop sharing on the page; also when the phone restarts</td></tr>
 </tbody>
@@ -102,7 +102,7 @@
 <table>
 <thead><tr><th scope="col"></th><th scope="col">iOS / iPadOS</th><th scope="col">Android</th></tr></thead>
 <tbody>
-<tr><th scope="row">Minimum OS</th><td>iOS 16.0</td><td>Android 8.0 (API 26)</td></tr>
+<tr><th scope="row">Minimum OS</th><td>iOS&nbsp;16.0</td><td>Android&nbsp;8.0 (API&nbsp;26)</td></tr>
 <tr><th scope="row">Devices</th><td>iPhone and iPad</td><td>Phones and tablets</td></tr>
 <tr><th scope="row">App identifier</th><td><code>com.remohop.app</code></td><td><code>com.remohop.app</code></td></tr>
 <tr><th scope="row">System permissions</th><td>Local network; notifications (connection requests while sharing); camera or photos through the system picker when you upload a photo</td><td>Internet access, network state; notifications; screen capture and the accessibility service in host mode (only when you turn it on)</td></tr>
@@ -115,7 +115,7 @@
 
 <h2 id="build">Build it yourself</h2>
 <h3>Android</h3>
-<p>Needs Go, JDK 17 or later, the Android SDK and NDK, and <code>ANDROID_HOME</code>. By default this produces a debug APK and runs the JVM unit tests:</p>
+<p>Needs Go, JDK&nbsp;17 or later, the Android SDK and NDK, and <code>ANDROID_HOME</code>. By default this produces a debug APK and runs the JVM unit tests:</p>
 <pre tabindex="0"><code>mobile/android/build.sh</code></pre>
 <h3>iOS</h3>
 <p>On macOS, build the Go core as an xcframework first, then build the project with Xcode:</p>

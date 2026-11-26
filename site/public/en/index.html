@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>RemoHop: reach your computers from anywhere</title>
 <meta name="description" content="RemoHop is an open-source peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary.">
-<link rel="stylesheet" href="/assets/site.css?v=77ecdb59cc">
+<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -60,7 +60,7 @@
 <a class="btn primary glow" href="/en/download/">Download free</a>
 <a class="btn ghost" href="/en/how-it-works/">See how it works</a>
 </div>
-<p class="meta">Open source (AGPL-3.0) · no account needed · <a href="https://github.com/readori/RemoHop">source on GitHub</a></p>
+<p class="meta">Open source (AGPL-3.0) · no account needed · <a class="nobr" href="https://github.com/readori/RemoHop">source on GitHub</a></p>
 </div>
 <div class="stage">
 <figure class="stage-main">
@@ -93,8 +93,8 @@
 <section class="h-stats" aria-label="In numbers">
 <div class="wrap h-stat-row">
 <div class="h-stat reveal"><p class="h-num n4k"><span class="vh">4K</span></p><p>top quality, with crisp text at 2K and 1080p too</p></div>
-<div class="h-stat reveal"><p class="h-num n60"><span class="vh">60 ms</span></p><p>measured screen-to-viewer latency at 2K on a LAN</p></div>
-<div class="h-stat reveal"><p class="h-num nrelay">1.5 s</p><p>to fall back to a relay when no direct path exists</p></div>
+<div class="h-stat reveal"><p class="h-num n60"><span class="vh">60&nbsp;ms</span></p><p>measured screen-to-viewer latency at 2K on a LAN</p></div>
+<div class="h-stat reveal"><p class="h-num nrelay">1.5&nbsp;s</p><p>to fall back to a relay when no direct path exists</p></div>
 <div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>accounts to sign up for</p></div>
 </div>
 </section>
@@ -102,7 +102,7 @@
 <section class="wrap band h-p2p" aria-labelledby="p2p-h">
 <p class="kicker reveal">Peer to peer</p>
 <h2 id="p2p-h" class="reveal">The server only introduces them; the picture goes straight between the two computers</h2>
-<p class="section-lede reveal">The rendezvous server finds the other computer by its ID. After that the screen, keyboard, mouse and files go over a direct QUIC connection, end-to-end encrypted with TLS 1.3, and the password never crosses the network. Only when no direct path exists does a relay forward the traffic, and it cannot read it either.</p>
+<p class="section-lede reveal">The rendezvous server finds the other computer by its ID. After that the screen, keyboard, mouse and files go over a direct QUIC connection, end-to-end encrypted with TLS&nbsp;1.3, and the password never crosses the network. Only when no direct path exists does a relay forward the traffic, and it cannot read it either.</p>
 <figure class="flow reveal">
 <svg viewBox="0 0 960 400" role="img" aria-labelledby="flow-t">
 <title id="flow-t">How a connection is made: the two computers exchange addresses through the rendezvous server, then connect directly with end-to-end encryption; without a direct path they use a relay.</title>
@@ -152,7 +152,7 @@
 <ol class="h-steps">
 <li class="reveal"><b>1. Introduce</b><span>Both sides reach the rendezvous server, find each other by the 9-digit ID and swap addresses.</span></li>
 <li class="reveal"><b>2. Punch through</b><span>Both send packets to each other at once, which gets through most home and office routers; the host also asks its router to map a port, and symmetric NATs have their next ports predicted. On a LAN they use the local network.</span></li>
-<li class="reveal"><b>3. Connect</b><span>Once the encrypted QUIC channel is up, the server is out of the picture. Without a path a relay takes over in about 1.5 s, and the session moves to a direct path, without a break, as soon as one works.</span></li>
+<li class="reveal"><b>3. Connect</b><span>Once the encrypted QUIC channel is up, the server is out of the picture. Without a path a relay takes over in about 1.5&nbsp;s, and the session moves to a direct path, without a break, as soon as one works.</span></li>
 </ol>
 <p class="links reveal"><a href="/en/how-it-works/">How it works, in one picture</a></p>
 </section>
@@ -174,12 +174,12 @@
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
 <h3>Low latency</h3>
-<p>About 60 ms at 2K and 114 ms at 4K, measured on a LAN. Key-frame requests switch encoders without a gap; the lock screen and UAC pause the picture instead of ending the session.</p>
+<p>About 60&nbsp;ms at 2K and 114&nbsp;ms at 4K, measured on a LAN. Key-frame requests switch encoders without a gap; the lock screen and UAC pause the picture instead of ending the session.</p>
 </article>
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 13l4-4"/><circle cx="12" cy="13" r="1.2"/></svg>
-<h3>Up to 144 fps</h3>
-<p>Pick 30 to 144 fps, or Auto, which follows the display's refresh rate (up to 120). The Stats overlay shows resolution, bitrate, latency and the frames dropped in the last 10 seconds.</p>
+<h3>Up to 144&nbsp;fps</h3>
+<p>Pick 30 to 144&nbsp;fps, or Auto, which follows the display's refresh rate (up to 120). The Stats overlay shows resolution, bitrate, latency and the frames dropped in the last 10&nbsp;seconds.</p>
 </article>
 <article class="h-feat reveal">
 <svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h9"/><path d="M5 9.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5" stroke-dasharray="2 2.5"/></svg>
@@ -216,7 +216,7 @@
 <article class="panel reveal">
 <p class="kicker">Quick support</p>
 <h3>Help someone with their computer</h3>
-<p>They download Quick Support, which needs no installation, and double-click it. The window shows a 9-digit ID and a temporary password in large type, which they read out to you. When you connect, they see your device name, key and address, and you only get in once they click "Allow"; no answer within 60 seconds refuses the request.</p>
+<p>They download Quick Support, which needs no installation, and double-click it. The window shows a 9-digit ID and a temporary password in large type, which they read out to you. When you connect, they see your device name, key and address, and you only get in once they click "Allow"; no answer within 60&nbsp;seconds refuses the request.</p>
 <p>By default you can see the screen, use the mouse and keyboard and move files; running commands and reaching their network need an extra tick. Closing the window stops the sharing.</p>
 <p class="small">You connect with the desktop app, the browser client, a mobile app or the command line; both sides use the same rendezvous server.</p>
 <p class="links"><a href="/en/docs/quick-support/">About quick support</a></p>
