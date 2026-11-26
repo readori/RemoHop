@@ -86,7 +86,7 @@ final class BroadcastLogicTests: XCTestCase {
     func testBitrateDecisions() {
         let size = FrameSize(width: 884, height: 1920)
         var b = BitrateController(size: size, fps: 30)
-        XCTAssertEqual(b.ceiling, 5_091_840)
+        XCTAssertEqual(b.ceiling, 10_183_680)
         XCTAssertEqual(b.current, 2_500_000)
         let t0 = Date(timeIntervalSince1970: 1000)
         // Down: at once.
@@ -99,16 +99,16 @@ final class BroadcastLogicTests: XCTestCase {
         XCTAssertNil(b.request(3_000_000, now: t0.addingTimeInterval(0.5)))
         XCTAssertEqual(b.request(3_000_000, now: t0.addingTimeInterval(1.1)), 3_000_000)
         // Clamped to the ceiling and the floor.
-        XCTAssertEqual(b.request(50_000_000, now: t0.addingTimeInterval(3)), 5_091_840)
+        XCTAssertEqual(b.request(50_000_000, now: t0.addingTimeInterval(3)), 10_183_680)
         XCTAssertEqual(b.request(10, now: t0.addingTimeInterval(4)), BitrateController.floor)
         XCTAssertEqual(b.bytesPerSecondLimit, BitrateController.floor / 8 * 3 / 2)
         // A smaller frame lowers the ceiling and the current value.
         XCTAssertEqual(b.request(4_000_000, now: t0.addingTimeInterval(10)), 4_000_000)
-        XCTAssertEqual(b.resize(FrameSize(width: 442, height: 960), fps: 30), 1_272_960)
+        XCTAssertEqual(b.resize(FrameSize(width: 442, height: 960), fps: 30), 2_545_920)
         XCTAssertNil(b.resize(FrameSize(width: 884, height: 1920), fps: 30))
-        // Never below 1 Mbit/s of ceiling, never above 8.
+        // Never below 1 Mbit/s of ceiling, never above 12.
         XCTAssertEqual(BitrateController.ceiling(for: FrameSize(width: 100, height: 100), fps: 1), 1_000_000)
-        XCTAssertEqual(BitrateController.ceiling(for: FrameSize(width: 4000, height: 4000), fps: 60), 8_000_000)
+        XCTAssertEqual(BitrateController.ceiling(for: FrameSize(width: 4000, height: 4000), fps: 60), 12_000_000)
     }
 
     // MARK: memory

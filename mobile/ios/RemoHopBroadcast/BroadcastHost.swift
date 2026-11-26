@@ -164,7 +164,7 @@ final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendabl
         if now.timeIntervalSince(lastStatsLog) >= 30 {
             lastStatsLog = now
             let s = encoder.snapshot()
-            ExtLog.log("encoder: \(s.size) at \(s.fps) fps, \(s.bitrate / 1000) kbit/s; \(s.stats.encoded) frames (\(s.stats.keyframes) key, \(s.stats.dropped) dropped, \(s.stats.errors) errors), \(s.stats.bytes >> 10) KB")
+            ExtLog.log("encoder: \(s.size) at \(s.fps) fps, \(s.bitrate / 1000) kbit/s; \(s.stats.encoded) frames (\(s.stats.keyframes) key, \(s.stats.dropped) dropped, \(s.stats.refined) still passes, \(s.stats.errors) errors), \(s.stats.bytes >> 10) KB")
             ExtLog.memory("periodic")
         }
     }

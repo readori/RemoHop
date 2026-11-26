@@ -35,7 +35,7 @@ protocol H264EncoderOutput: AnyObject {
 /// screen does not change (ReplayKit sends nothing then).
 final class H264Encoder {
     struct Stats {
-        var received = 0, encoded = 0, dropped = 0, keyframes = 0, bytes = 0, sessions = 0, errors = 0
+        var received = 0, encoded = 0, dropped = 0, keyframes = 0, bytes = 0, sessions = 0, errors = 0, refined = 0
     }
 
     private weak var output: H264EncoderOutput?
@@ -63,10 +63,20 @@ final class H264Encoder {
     private var screen: (FrameSize, VideoRotation)?
     private var last: (buffer: CVPixelBuffer, orientation: UInt32)?
     private var lastEncodedAt = Date.distantPast
+    /// When ReplayKit last delivered a frame, and the still-screen passes so far.
+    private var lastReceivedAt = Date.distantPast
+    private var refinePasses = 0
+    private var refinePending = false
     private(set) var stats = Stats()
 
     /// At most this many frames wait in the encoder; more are dropped (latency and memory).
     private static let maxInFlight = 2
+
+    /// A still screen is encoded again a few times (see refineStill): after
+    /// this long without a new frame, then this often, this many times.
+    static let stillAfter: TimeInterval = 0.15
+    static let refineGap: TimeInterval = 0.3
+    static let refineCount = 3
 
     static let maxFPS = 30
     static let maxLongEdge = 1920
@@ -89,7 +99,11 @@ final class H264Encoder {
             // Kept even while nobody watches: a viewer that joins a still
             // screen gets it as its first keyframe.
             last = (buffer, orientation)
-            guard active, throttle.admit(pts.seconds) else { return }
+            guard active else { return }
+            lastReceivedAt = Date()
+            refinePasses = 0
+            scheduleRefine(after: Self.stillAfter)
+            guard throttle.admit(pts.seconds) else { return }
             guard inFlight < Self.maxInFlight else {
                 stats.dropped += 1
                 return
@@ -162,6 +176,36 @@ final class H264Encoder {
             guard let self, self.active, self.wantKeyframe, self.lastEncodedAt < asked, let l = self.last, self.inFlight == 0 else { return }
             self.submit(l.buffer, pts: CMClockGetTime(CMClockGetHostTimeClock()), orientation: l.orientation)
         }
+    }
+
+    /// (On queue.) ReplayKit delivers a frame only when the screen changes,
+    /// so when it stops, the last frame (encoded during the motion, at the
+    /// motion's quality, or not at all when the throttle skipped it) would
+    /// stay on the viewers' screens: blurry text that never sharpens. A
+    /// desktop's encoder keeps getting frames and refines a still picture by
+    /// itself. So once the screen has been still for `stillAfter`, the last
+    /// frame is encoded again `refineCount` times; each pass spends its bits
+    /// on detail, as nothing moves.
+    private func scheduleRefine(after d: TimeInterval) {
+        guard !refinePending else { return }
+        refinePending = true
+        queue.asyncAfter(deadline: .now() + d) { [weak self] in self?.refineStill() }
+    }
+
+    private func refineStill() {
+        refinePending = false
+        guard active, let l = last, refinePasses < Self.refineCount else { return }
+        let quiet = Date().timeIntervalSince(lastReceivedAt)
+        if quiet < Self.stillAfter {
+            scheduleRefine(after: Self.stillAfter - quiet)
+            return
+        }
+        if inFlight == 0 {
+            submit(l.buffer, pts: CMClockGetTime(CMClockGetHostTimeClock()), orientation: l.orientation)
+            refinePasses += 1
+            stats.refined += 1
+        }
+        if refinePasses < Self.refineCount { scheduleRefine(after: Self.refineGap) }
     }
 
     func requestBitrate(_ bps: Int64) {
