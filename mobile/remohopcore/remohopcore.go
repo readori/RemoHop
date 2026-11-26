@@ -188,3 +188,11 @@ func SetScreenOptions(encoder string, maxFPS int) { mobile.SetScreenOptions(enco
 
 // RegenerateHostPassword replaces the temporary password.
 func RegenerateHostPassword() error { return mobile.RegenerateHostPassword() }
+
+// SetHostFixedPassword sets the owner's own password for host mode, kept
+// across starts ("" goes back to a new temporary password at every start).
+// A weak password is refused with a message saying what is missing (at
+// least 8 characters, two of letters, digits, other characters). It
+// applies at once when host mode is on; HostStateJSON's password_mode is
+// "fixed" or "temporary".
+func SetHostFixedPassword(password string) error { return mobile.SetHostFixedPassword(password) }
