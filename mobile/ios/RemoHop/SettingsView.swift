@@ -4,7 +4,7 @@ import UIKit
 
 /// The screens Settings drills into.
 enum SettingsPage: String, Hashable {
-    case rendezvous, deviceName, identity, shareScreen, hosts, pair, diagnostics, privacy, about
+    case rendezvous, deviceName, identity, shareScreen, notifications, hosts, pair, diagnostics, privacy, about
 
     /// A page the web page may open directly (openSettings with a page).
     init?(bridge name: String?) {
@@ -22,6 +22,8 @@ enum SettingsPage: String, Hashable {
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var m = SettingsModel()
+    @StateObject private var notifications = NotificationStatus()
+    @Environment(\.scenePhase) private var phase
     /// Read here so that the screen redraws in the new language.
     @AppStorage(L10n.key) private var language = AppLanguage.system.rawValue
     var initialPage: SettingsPage?
@@ -51,6 +53,9 @@ struct SettingsView: View {
                     }
                     NavigationLink(value: SettingsPage.shareScreen) {
                         SettingsRow(L("Share this screen"), value: "", symbol: "record.circle", tint: .red)
+                    }
+                    NavigationLink(value: SettingsPage.notifications) {
+                        SettingsRow(L("Notifications"), value: notifications.summary, symbol: "bell.badge.fill", tint: .red)
                     }
                 }
                 Section(L("Hosts")) {
@@ -94,6 +99,7 @@ struct SettingsView: View {
                 case .deviceName: DeviceNameView(m: m)
                 case .identity: IdentityView(m: m)
                 case .shareScreen: ShareScreenView()
+                case .notifications: NotificationsView(n: notifications)
                 case .hosts: SavedHostsView(m: m)
                 case .pair: PairView(m: m)
                 case .diagnostics: DiagnosticsView(m: m)
@@ -111,8 +117,10 @@ struct SettingsView: View {
         .environment(\.locale, L10n.locale(L10n.resolve(AppLanguage(rawValue: language) ?? .system)))
         .onAppear {
             m.load()
+            notifications.refresh()
             if let p = initialPage, path.isEmpty { path.append(p) }
         }
+        .onChange(of: phase) { p in if p == .active { notifications.refresh() } }
         .onChange(of: language) { v in
             m.languageChanged()
             BroadcastApprovals.languageChanged(v)

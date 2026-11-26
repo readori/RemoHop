@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
+import UserNotifications
 
 // The detail screens of Settings. Visible text is labels and values only;
 // explanations are behind the ⓘ in each screen's navigation bar.
@@ -554,6 +555,121 @@ struct PairView: View {
                 ])
             }
         }
+    }
+}
+
+// MARK: Notifications
+
+/// What the system lets RemoHop's notifications do, as Settings → Notifications
+/// shows it. Screen-sharing requests arrive as notifications, so this is
+/// where the owner sees why one did not pop up, ring or reach the Lock Screen.
+@MainActor
+final class NotificationStatus: ObservableObject {
+    enum State { case unknown, notAsked, allowed, quiet, off }
+
+    @Published private(set) var state = State.unknown
+    @Published private(set) var banners = false
+    @Published private(set) var sounds = false
+    @Published private(set) var lockScreen = false
+    /// nil until the app has the Time Sensitive entitlement: the system
+    /// offers no switch for it before that.
+    @Published private(set) var timeSensitive: Bool?
+
+    func refresh() {
+        UNUserNotificationCenter.current().getNotificationSettings { s in
+            let state: State
+            switch s.authorizationStatus {
+            case .notDetermined: state = .notAsked
+            case .denied: state = .off
+            case .provisional: state = .quiet
+            case .authorized, .ephemeral: state = .allowed
+            @unknown default: state = .allowed
+            }
+            let banners = s.alertSetting == .enabled
+            let sounds = s.soundSetting == .enabled
+            let lockScreen = s.lockScreenSetting == .enabled
+            let ts: Bool? = s.timeSensitiveSetting == .notSupported ? nil : s.timeSensitiveSetting == .enabled
+            Task { @MainActor in
+                self.state = state
+                self.banners = banners
+                self.sounds = sounds
+                self.lockScreen = lockScreen
+                self.timeSensitive = ts
+            }
+        }
+    }
+
+    /// Asks once; after that only the Settings app can change it.
+    func ask() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            Diag.log("notifications: \(granted ? "allowed" : "not allowed") when asked in Settings")
+            Task { @MainActor in self.refresh() }
+        }
+    }
+
+    /// The row's value on the Settings screen.
+    var summary: String {
+        switch state {
+        case .unknown: return ""
+        case .notAsked: return L("Not set up")
+        case .allowed: return banners && sounds ? L("On") : L("Limited")
+        case .quiet: return L("Delivered quietly")
+        case .off: return L("Off")
+        }
+    }
+}
+
+@MainActor
+struct NotificationsView: View {
+    @ObservedObject var n: NotificationStatus
+    @Environment(\.scenePhase) private var phase
+
+    init(n: NotificationStatus) { self.n = n }
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent(L("Notifications"), value: n.summary)
+                if n.state == .allowed || n.state == .quiet {
+                    LabeledContent(L("Banners"), value: n.banners ? L("On") : L("Off"))
+                    LabeledContent(L("Sounds"), value: n.sounds ? L("On") : L("Off"))
+                    LabeledContent(L("Lock Screen"), value: n.lockScreen ? L("On") : L("Off"))
+                    if let ts = n.timeSensitive {
+                        LabeledContent(L("Time Sensitive"), value: ts ? L("On") : L("Off"))
+                    }
+                }
+            }
+            if n.state == .off {
+                Section {
+                    Label(L("Notifications are off: answer requests on the Share this screen page."), systemImage: "bell.slash")
+                        .foregroundStyle(.orange)
+                }
+            }
+            Section {
+                if n.state == .notAsked {
+                    Button { n.ask() } label: { Label(L("Allow notifications"), systemImage: "bell.badge") }
+                } else {
+                    Button { open() } label: { Label(L("Open notification settings"), systemImage: "gear") }
+                }
+            }
+        }
+        .navigationTitle(L("Notifications"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                InfoButton(title: L("Notifications"), items: [
+                    InfoItem(title: L("What they are for"), text: L("While you share this screen, someone asking to see it is announced in a notification with sound, so you can allow or deny without opening RemoHop. A request you do not answer is refused after a minute, and RemoHop reminds you twice before that.")),
+                    InfoItem(title: L("Time Sensitive"), text: L("Lets requests through Focus modes and keeps them on the Lock Screen longer. Turn it on under Time Sensitive Notifications in the notification settings.")),
+                    InfoItem(title: L("Sound and vibration"), text: L("Requests use the notification sound. If you hear or feel nothing, turn on Sounds here, and check the Ring/Silent switch and Sounds & Haptics in the Settings app.")),
+                ])
+            }
+        }
+        .onAppear { n.refresh() }
+        .onChange(of: phase) { p in if p == .active { n.refresh() } }
+    }
+
+    private func open() {
+        if let u = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(u) }
     }
 }
 
