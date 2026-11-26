@@ -196,3 +196,8 @@ func RegenerateHostPassword() error { return mobile.RegenerateHostPassword() }
 // applies at once when host mode is on; HostStateJSON's password_mode is
 // "fixed" or "temporary".
 func SetHostFixedPassword(password string) error { return mobile.SetHostFixedPassword(password) }
+
+// ReloadHostPassword gives the running host the own password another
+// process saved with SetHostFixedPassword in the same configuration
+// directory (iOS: the app sets it, the broadcast extension calls this).
+func ReloadHostPassword() error { return mobile.ReloadHostPassword() }

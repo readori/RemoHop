@@ -8,9 +8,10 @@ import ReplayKit
 /// host runs here, not in the app, because the app may be suspended while
 /// the screen is shared: the Go core (linked into this extension) runs an
 /// in-process host with the quick-support policy (every login asks the
-/// owner, a temporary password, no pairing, view only), and its screen is
-/// the H.264 stream encoded from ReplayKit's frames. This process has a
-/// hard memory limit of about 50 MB; see BroadcastHost and H264Encoder.
+/// owner, a temporary password or the owner's own, no pairing, view
+/// only), and its screen is the H.264 stream encoded from ReplayKit's
+/// frames. This process has a hard memory limit of about 50 MB; see
+/// BroadcastHost and H264Encoder.
 final class SampleHandler: RPBroadcastSampleHandler {
     private var host: BroadcastHost?
     private let lock = NSLock()

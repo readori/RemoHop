@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -564,5 +566,64 @@ func TestHostModeOwnPassword(t *testing.T) {
 	}
 	if d := hostDocNow(t); d.PasswordMode != "temporary" || d.Password == "" || auth.NormalizePassword(d.Password) == auth.NormalizePassword("Garden-42-Ok") {
 		t.Fatalf("back to temporary: %+v", d)
+	}
+}
+
+// The own password saved by another process sharing the configuration
+// directory (iOS: the app, while the broadcast extension runs the host):
+// ReloadHostPassword gives it to the running host, and going back to a
+// temporary password the same way.
+func TestHostModeReloadOwnPassword(t *testing.T) {
+	_, _, l, addr := startPhoneHost(t)
+	if err := ReloadHostPassword(); err != nil {
+		t.Fatal(err)
+	}
+	temp := hostDocNow(t).Password
+	if d := hostDocNow(t); d.PasswordMode != "temporary" || temp == "" {
+		t.Fatalf("before: %+v", d)
+	}
+	dir, err := configDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, hostPasswordFile)
+	// What SetHostFixedPassword in the other process leaves behind.
+	if err := os.WriteFile(path, []byte("Garden-42-Ok"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if d := hostDocNow(t); d.Password != temp {
+		t.Fatalf("applied before the reload: %+v", d)
+	}
+	if err := ReloadHostPassword(); err != nil {
+		t.Fatal(err)
+	}
+	if d := hostDocNow(t); d.PasswordMode != "fixed" || d.Password != "Garden-42-Ok" {
+		t.Fatalf("after the reload: %+v", d)
+	}
+	if err := ReloadHostPassword(); err != nil { // unchanged: nothing to do
+		t.Fatal(err)
+	}
+	req, out := login(t, l, addr, "Garden-42-Ok", t.TempDir())
+	if err := DecideHostRequest(req.N, true, false); err != nil {
+		t.Fatal(err)
+	}
+	if r := <-out; r.err != nil {
+		t.Fatalf("the own password: %v", r.err)
+	} else {
+		r.conn.Close()
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReloadHostPassword(); err != nil {
+		t.Fatal(err)
+	}
+	if d := hostDocNow(t); d.PasswordMode != "temporary" || d.Password == "" || d.Password == "Garden-42-Ok" {
+		t.Fatalf("back to temporary: %+v", d)
+	}
+	// Off: nothing to apply, no error.
+	StopHost()
+	if err := ReloadHostPassword(); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -13,7 +13,11 @@ struct HostStatus: Equatable {
     var error = ""
     /// Formatted by the core ("123 456 789").
     var id = ""
+    /// The password in force: the temporary one, or the owner's own.
     var password = ""
+    /// The owner's own password is set ("fixed", Settings → Share this
+    /// screen → Password settings), not a new temporary one at every start.
+    var passwordFixed = false
     var addresses: [String] = []
     var online = false
     /// Logins waiting for the owner.
@@ -31,6 +35,7 @@ struct HostStatus: Equatable {
         error = o["error"] as? String ?? ""
         id = o["id"] as? String ?? ""
         password = o["password"] as? String ?? ""
+        passwordFixed = o["password_mode"] as? String == "fixed"
         addresses = o["addresses"] as? [String] ?? []
         online = o["online"] as? Bool ?? false
         for r in o["requests"] as? [[String: Any]] ?? [] {

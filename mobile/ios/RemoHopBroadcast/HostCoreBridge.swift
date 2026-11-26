@@ -15,11 +15,11 @@ protocol HostCoreEvents: AnyObject {
 }
 
 /// The Go core's host mode (internal/mobile/host.go: an in-process hostd
-/// with the quick-support policy: every login asks, temporary password
-/// only, no pairing; view only, since no input injector is set) and its
-/// provided screen (internal/svc/desktop/provided.go), which turns the
-/// H.264 this extension pushes into the desktop wire protocol, so every
-/// client works unchanged. This file is the only one that names those
+/// with the quick-support policy: every login asks, a temporary password
+/// or the owner's own, no pairing; view only, since no input injector is
+/// set) and its provided screen (internal/svc/desktop/provided.go), which
+/// turns the H.264 this extension pushes into the desktop wire protocol,
+/// so every client works unchanged. This file is the only one that names those
 /// core functions.
 protocol HostCore: AnyObject {
     func start(events: HostCoreEvents) throws
@@ -29,6 +29,9 @@ protocol HostCore: AnyObject {
     func decide(n: Int, allow: Bool)
     /// Ends viewer `id`; 0 ends every viewer.
     func disconnect(viewer id: Int)
+    /// Applies the owner's own password as the app saved it in the shared
+    /// configuration directory, if it changed (cheap when it did not).
+    func reloadPassword()
     /// The upright picture's size before scaling, and the rotation applied to it.
     func setScreenInfo(width: Int, height: Int, rotation: Int)
     /// One access unit in Annex-B (a keyframe carries SPS and PPS in
@@ -107,6 +110,13 @@ final class GoHostCore: HostCore {
         var err: NSError?
         if !RemohopcoreDisconnectHostSession(id, &err) {
             ExtLog.log("disconnect \(id) failed: \(err?.localizedDescription ?? "?")")
+        }
+    }
+
+    func reloadPassword() {
+        var err: NSError?
+        if !RemohopcoreReloadHostPassword(&err) {
+            ExtLog.log("own password not applied: \(err?.localizedDescription ?? "?")")
         }
     }
 
