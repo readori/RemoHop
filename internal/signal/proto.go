@@ -59,6 +59,12 @@
 //	such answers. When a budget runs out, the remaining IDs are answered
 //	"rate_limited". No host is contacted.
 //
+//	outcome (client → server, after a connection attempt; see outcome.go)
+//	  → {t:"outcome", v:1, outcome:{path, ms, nat, peer_nat}}
+//	  ← {ok}
+//	Older servers answer bad_request. The server keeps only aggregate
+//	counts, nothing per report.
+//
 //	account (client → server; only if the server was started with
 //	--accounts, see accounts.go for the operations)
 //	  → {t:"account", v:1, op, ...}
@@ -219,6 +225,8 @@ type request struct {
 	Platform string        `json:"platform,omitempty"`
 	Entry    *ledger.Entry `json:"entry,omitempty"`
 	Device   []byte        `json:"device,omitempty"`
+	// outcome only (outcome.go)
+	Outcome *Outcome `json:"outcome,omitempty"`
 }
 
 // MaxPresenceIDs bounds the IDs of one presence request.
