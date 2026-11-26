@@ -34,7 +34,7 @@
    and macOS rather than a phone's: body text 14/20 px, small text 12/16,
    section headers 14 semibold, page titles 20, the wizard's 28; semibold,
    never bold, for emphasis. Controls are 32 px high with 4 px corners,
-   cards 6 px, dialogs 8 px. Spacing comes from a 4 px grid (4, 8, 12, 16,
+   cards and grouped lists 8 px (as the phone apps), dialogs 8 px. Spacing comes from a 4 px grid (4, 8, 12, 16,
    24) and tightens in narrow windows. Sizes are in px: the system's display
    scaling (125 %, 150 %...) and the user's zoom already scale them. */
 * { box-sizing: border-box; }
@@ -84,7 +84,7 @@ main { flex: 1; min-height: 0; position: relative; }
 .view.host iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface); }
 h2 { font-size: 20px; line-height: 28px; font-weight: 600; margin: 0 0 16px; }
 h3 { font-size: 14px; line-height: 20px; font-weight: 600; margin: 20px 0 8px; color: var(--on-surface); }
-.card { background: var(--surface-1); border: 1px solid var(--outline-variant); border-radius: 6px; padding: 12px 16px; margin-bottom: 4px; }
+.card { background: var(--surface-1); border: 1px solid var(--outline-variant); border-radius: 8px; padding: 12px 16px; margin-bottom: 4px; }
 .card.filled { background: var(--surface-3); border-color: transparent; }
 .row { display: flex; align-items: center; gap: 12px; min-height: 32px; }
 .row > .grow { flex: 1; min-width: 0; }
@@ -198,9 +198,9 @@ dialog::backdrop { background: var(--scrim); }
 .opt:has(input:checked) { border-color: var(--primary); }
 .opt > input { accent-color: var(--primary); width: 16px; height: 16px; margin: 2px 0 0; flex: none; }
 .opt .t { font-weight: 600; }
-.card .opt { border: 0; border-radius: 0; margin: 0; padding: 10px 0; border-top: 1px solid var(--outline-variant); }
-.card .opt:first-child { border-top: 0; padding-top: 2px; }
-.card .opt:has(input:checked) { border-color: var(--outline-variant); }
+.card .opt, .group .opt { border: 0; border-radius: 0; margin: 0; padding: 10px 0; border-top: 1px solid var(--outline-variant); }
+.card .opt:first-child, .group .opt:first-child { border-top: 0; padding-top: 2px; }
+.card .opt:has(input:checked), .group .opt:has(input:checked) { border-color: var(--outline-variant); }
 .steps { display: flex; gap: 6px; margin: 16px 0; }
 .steps i { height: 3px; flex: 1; border-radius: 2px; background: var(--surface-4); }
 .steps i.on { background: var(--primary); }
@@ -244,3 +244,31 @@ body.overlay { font-size: 14px; }
 .list-row .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .card.links { padding: 6px; }
 .card.links .btn.block { justify-content: flex-start; }
+
+/* ---- grouped lists (Settings, This computer): as in the phone apps and
+   the macOS / Windows 11 settings, a card per group, a row per setting with
+   a coloured icon tile, the value or control at the end. ---- */
+.page.narrow { max-width: 720px; }
+h3.gh { font-size: 12px; line-height: 16px; font-weight: 600; color: var(--on-surface-variant); margin: 20px 12px 6px; }
+.group { background: var(--surface-1); border: 1px solid var(--outline-variant); border-radius: 8px; overflow: hidden; }
+.item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 12px; margin: 0;
+  background: none; border: 0; color: inherit; text-align: left; position: relative; flex-wrap: wrap; }
+.item + .item::before, .sub + .item::before, .help.in + .item::before { content: ""; position: absolute; top: 0; right: 0; left: 52px; border-top: 1px solid var(--outline-variant); }
+button.item, label.item { cursor: pointer; }
+button.item:hover, label.item:hover { background: color-mix(in srgb, var(--on-surface) 4%, transparent); }
+.item .lbl { flex: 1; min-width: 120px; display: flex; flex-direction: column; }
+.item .note { font-size: 12px; line-height: 16px; color: var(--on-surface-variant); }
+.item .val { color: var(--on-surface-variant); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
+.item .chev { width: 16px; height: 16px; color: var(--outline); flex: none; }
+.item[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.tile { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: #fff; flex: none; }
+.tile svg { width: 18px; height: 18px; }
+.tile.blue { background: #0a7cff; } .tile.indigo { background: #5856d6; } .tile.purple { background: #7b5cf0; }
+.tile.green { background: #2fb550; } .tile.orange { background: #f2930d; } .tile.teal { background: #22b3c8; }
+.tile.sky { background: #2aabee; } .tile.gray { background: #8e8e93; } .tile.red { background: #e5483f; }
+.group .sub { padding: 4px 12px 12px 52px; border-top: 1px solid var(--outline-variant); }
+.group .help.in { margin: 0 12px 10px 52px; }
+.gfoot { font-size: 12px; line-height: 16px; color: var(--on-surface-variant); margin: 6px 12px 0; }
+.item .seg button { height: 28px; padding: 0 12px; }
+@media (max-width: 560px) { .item .val { max-width: 40%; } .group .sub { padding-left: 12px; } .group .help.in { margin-left: 12px; } }
+.item .lbl.row { flex-direction: row; align-items: center; }
