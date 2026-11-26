@@ -244,3 +244,26 @@ func TestEditDeviceAndPages(t *testing.T) {
 		t.Fatal("an arbitrary page was accepted")
 	}
 }
+
+// The Windows service's start failure is read from its log: only what the
+// current attempt wrote, and the host's own complaint.
+func TestHostFailure(t *testing.T) {
+	dir := t.TempDir()
+	log := filepath.Join(dir, "service.log")
+	old := "remohop: host: an earlier complaint\nremohop: host stopped: host exited with status 2\n"
+	os.WriteFile(log, []byte(old), 0o600)
+	from := fileSize(log)
+	if why := hostFailure(dir, from); why != "" {
+		t.Fatalf("an earlier attempt's failure: %q", why)
+	}
+	f, _ := os.OpenFile(log, os.O_APPEND|os.O_WRONLY, 0)
+	f.WriteString("unattended: enabled\nremohop: host: no rendezvous server configured: pass --signal HOST[:PORT]\n     (or use --no-signal to serve direct connections only)\nremohop: host stopped: host exited with status 2\n")
+	f.Close()
+	if why := hostFailure(dir, from); why != "no rendezvous server configured: pass --signal HOST[:PORT]" {
+		t.Fatalf("failure %q", why)
+	}
+	os.WriteFile(log, []byte(old+"unattended: enabled\n"), 0o600)
+	if why := hostFailure(dir, from); why != "" {
+		t.Fatalf("a host still running: %q", why)
+	}
+}
