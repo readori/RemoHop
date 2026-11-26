@@ -105,7 +105,7 @@
     <string name="privacy_diag">Diagnostic logs stay here unless you share them</string>
     <string name="privacy_policy">Privacy policy</string>
     <string name="privacy_talks_title">What the app talks to</string>
-    <string name="info_privacy_talks">Only the hosts you connect to and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.</string>
+    <string name="info_privacy_talks">Only the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.</string>
     <string name="privacy_gateway_title">The local gateway</string>
     <string name="info_privacy_gateway">The app runs its remote-control page on a gateway inside the app itself (127.0.0.1). Only the app\'s own page, holding a random token made at each launch, can use it.</string>
     <string name="info_privacy_diag">Off by default. When you turn them on they stay on this device, with passwords and tokens removed, and leave it only when you share them.</string>

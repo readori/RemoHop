@@ -65,17 +65,23 @@
 </ul>
 
 <h2 id="software">1. The software (<code>remohop</code>)</h2>
-<p><code>remohop</code> talks to two kinds of peers only: the devices you connect to, and the rendezvous server you configured yourself (<code>remohop config set signal</code>). It does not report statistics or crashes.</p>
+<p><code>remohop</code> talks to two kinds of peers only: the devices you connect to (or, on a host, that you let connect), and the rendezvous server you configured yourself (<code>remohop config set signal</code>). It does not report statistics or crashes.</p>
 <p><strong>Update check:</strong> the desktop app (<code>remohop app</code>, RemoHop.exe, RemoHop.app) reads <code>https://remohop.com/version.json</code> from this website once a day by default, to see whether a newer version exists. The request carries no identifier: no device ID, account or cookie, and the User-Agent is just "RemoHop"; as with any visit to this website, the hosting provider (Cloudflare) processes your IP address (see <a href="#website">section 4</a>). The app downloads and installs nothing by itself; when you click "Upgrade now" it downloads the new release from GitHub (which then processes your IP address like any download) and installs it after checking its signature. Switch it off in Settings &gt; Updates; administrators can set the environment variable <code>REMOHOP_NO_UPDATE_CHECK=1</code> to switch it off for everyone. The command line, quick support and the mobile apps do not check for updates.</p>
 <p>In its configuration directory on your machine it stores this machine's identity key, the public keys and pairing tokens of saved hosts, the passwords of hosts you chose to remember that do not pair, settings, the clipboard history if you use the clipboard commands, and on a host the audit log. These files stay on your device and are readable by their owner only.</p>
 <p>The owner of a host can see everything a client sends to it. That is what remote control means. Before you connect to someone else's machine, make sure you trust them.</p>
 
 <h2 id="apps">2. The Android and iOS apps</h2>
-<p>The apps are controllers. Each runs a gateway inside the app process that listens only on the device's own <code>127.0.0.1</code> and sets up the encrypted session directly with the computer you connect to. No Readori server is in between.</p>
+<p>By default the apps are controllers. Each runs a gateway inside the app process that listens only on the device's own <code>127.0.0.1</code> and sets up the encrypted session directly with the computer you connect to. No Readori server is in between.</p>
+<p><strong>Letting others reach this device (optional):</strong> only when you switch it on in the app. The device then registers with the rendezvous server you chose (which sees its ID and IP address, see <a href="#server">section 3</a>), every connection has to be allowed by you on the device, and by default it can only see the screen.</p>
+<ul>
+<li><strong>Android:</strong> after you allow a connection, the system asks you to confirm the screen capture. The other side can tap and type only if you turned on RemoHop's accessibility service and ticked "control" for that connection.</li>
+<li><strong>iPhone / iPad:</strong> screen sharing only, never control, and only while you run a screen broadcast, which you can stop at any time.</li>
+<li>The picture goes end-to-end encrypted, directly to the device you allowed; it does not pass through Readori and is not stored. No files, clipboard or terminal: the phone does not offer them.</li>
+</ul>
 <h3>Data kept on the device</h3>
 <ul>
-<li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on).</li>
-<li>This data is kept in the app's private directory. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
+<li>The device's identity key, pairing tokens, the names and addresses of saved hosts, and the settings you enter (rendezvous server address, device name and so on). If you have let others reach this device, also the key fingerprints of devices that asked to connect and when they last asked (at most 256, to mark new devices), and the host's audit log.</li>
+<li>This data is kept in the app's private directory; on iOS that is an App Group directory shared by the app and its screen-sharing extension, still only on the device. On iOS that directory is excluded from iCloud and local backups. On Android the app has system backup turned off.</li>
 <li>The web view inside the app keeps no cookies or caches. A host password you type is saved in the app's private directory only when you tick "Remember this computer" and the host does not pair (you can show or delete it among the saved hosts, and it is deleted when the host rejects it). Otherwise it is never written to storage; while the app is running it may be kept in memory, together with a temporary pairing, so a dropped session can reconnect by itself, and it is gone when the app quits.</li>
 <li>Uninstalling the app deletes all of the above.</li>
 </ul>
@@ -91,7 +97,9 @@
 <li><strong>Camera and photos (iOS):</strong> accessed through the system picker, and only when you choose to upload a photo or video to a remote computer. The file goes to the computer you are connected to, not to Readori.</li>
 <li><strong>Clipboard:</strong> read or written only when you use the clipboard function in the app. The content goes to the computer you are connected to.</li>
 <li><strong>Internet access (Android):</strong> to make connections.</li>
-<li><strong>Notifications (Android):</strong> to show the ongoing "Connected to …" notification that keeps a session alive in the background and lets you disconnect from it.</li>
+<li><strong>Notifications:</strong> on Android, the ongoing "Connected to …" notification that keeps a session alive in the background and lets you disconnect from it. With "let others reach this device" on, both platforms use notifications for connection requests, and Android shows an ongoing "Being viewed/controlled" notification with Stop.</li>
+<li><strong>Screen capture (Android) and screen broadcast (iOS):</strong> started only after you allow a connection and confirm the system prompt; the picture goes only to the device you allowed.</li>
+<li><strong>Accessibility service (Android):</strong> used only to tap and type for a connection you allowed with "control" ticked. It does not read or store screen content and does nothing outside such a session. You can turn it off in the system settings at any time.</li>
 </ul>
 <h3>What the apps do not do</h3>
 <p>The apps collect no analytics, contain no advertising or third-party SDKs, do not read contacts, location, the microphone or the advertising identifier, and do not track you across apps. The apps currently have no account login.</p>
