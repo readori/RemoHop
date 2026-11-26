@@ -13,7 +13,8 @@ import UserNotifications
 /// command file plus a Darwin notification; this side reads the commands
 /// on the notification and on every one-second tick, so a lost ping only
 /// delays an answer. A request nobody answers is denied after a minute.
-final class BroadcastHost: HostCoreEvents, H264EncoderOutput {
+/// Its state is used on `queue` only, hence @unchecked Sendable.
+final class BroadcastHost: HostCoreEvents, H264EncoderOutput, @unchecked Sendable {
     private let core: HostCore
     private(set) var encoder: H264Encoder!
     private let queue = DispatchQueue(label: "com.remohop.broadcast.host")
