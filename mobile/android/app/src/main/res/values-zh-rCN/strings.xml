@@ -104,7 +104,7 @@
     <string name="privacy_diag">诊断日志留在本设备，除非你主动分享</string>
     <string name="privacy_policy">隐私政策</string>
     <string name="privacy_talks_title">应用会连接谁</string>
-    <string name="info_privacy_talks">只连接你要控制的被控端、你允许连接这台设备的设备，以及你设置的汇合服务器。不经过 Readori 的服务器，也不会向我们发送任何数据。</string>
+    <string name="info_privacy_talks">只连接你要控制的被控端、你允许连接这台设备的设备，以及你设置的汇合服务器。不经过 RemoHop 的服务器，也不会向我们发送任何数据。</string>
     <string name="privacy_gateway_title">本地网关</string>
     <string name="info_privacy_gateway">应用的远程控制页面运行在应用内部的网关上（127.0.0.1）。只有应用自己的页面（持有每次启动时随机生成的令牌）才能使用它。</string>
     <string name="info_privacy_diag">默认关闭。开启后日志只保存在本设备上，并去除密码和令牌；只有你分享时才会离开本设备。</string>

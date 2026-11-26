@@ -775,7 +775,7 @@ struct PrivacyView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 InfoButton(title: L("Privacy"), items: [
-                    InfoItem(title: L("What the app talks to"), text: L("Only the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set. No Readori server is involved, and nothing is sent to us.")),
+                    InfoItem(title: L("What the app talks to"), text: L("Only the hosts you connect to, the devices you let connect to this one, and the rendezvous server you set. No RemoHop server is involved, and nothing is sent to us.")),
                     InfoItem(title: L("The local gateway"), text: L("The app runs its remote-control page on a gateway inside the app itself (127.0.0.1). Only the app's own page, holding a random token made at each launch, can use it.")),
                     InfoItem(title: L("Diagnostic logs"), text: L("Off by default. When you turn them on they stay on this device, with passwords and tokens removed, and leave it only when you share them.")),
                 ])

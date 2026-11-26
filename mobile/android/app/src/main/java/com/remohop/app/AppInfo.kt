@@ -52,12 +52,12 @@ object AppInfo {
 
     /** The project's NOTICE (kept with the app as its attribution). */
     const val NOTICE = """RemoHop
-Copyright (C) 2026 Readori
+Copyright (C) 2026 RemoHop
 https://github.com/readori/RemoHop
 
-This product is RemoHop, or is based on RemoHop, a peer-to-peer remote control project by Readori, licensed under the GNU Affero General Public License, version 3 (AGPL-3.0-only), with the additional terms in LICENSING.md ("Additional terms under section 7").
+This product is RemoHop, or is based on RemoHop, an independent peer-to-peer remote control project, licensed under the GNU Affero General Public License, version 3 (AGPL-3.0-only), with the additional terms in LICENSING.md ("Additional terms under section 7").
 
-本产品是 RemoHop 或基于 RemoHop 开发。RemoHop 是 Readori 的点对点远程控制开源项目，按 GNU Affero 通用公共许可证第 3 版（AGPL-3.0-only）授权，并附有 LICENSING.md 中“依据第 7 条的附加条款”。
+本产品是 RemoHop 或基于 RemoHop 开发。RemoHop 是独立的点对点远程控制开源项目，按 GNU Affero 通用公共许可证第 3 版（AGPL-3.0-only）授权，并附有 LICENSING.md 中“依据第 7 条的附加条款”。
 
 Works based on RemoHop must keep this notice. See LICENSING.md.
 基于 RemoHop 的作品必须保留本声明，详见 LICENSING.md。"""

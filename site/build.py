@@ -159,17 +159,17 @@ PAGES = {
     ),
     "terms": (
         "使用条款",
-        "使用 RemoHop 软件、移动应用、本网站和 Readori 运营的服务器时适用的条款。",
+        "使用 RemoHop 软件、移动应用、本网站和 RemoHop 运营的服务器时适用的条款。",
         "Terms of use",
-        "The terms that apply when you use the RemoHop software, the mobile apps, this website and servers operated by Readori.",
+        "The terms that apply when you use the RemoHop software, the mobile apps, this website and servers operated by the RemoHop project.",
     ),
     "licensing": (
         "许可证：AGPL-3.0 与商业授权",
-        pick("RemoHop 采用双许可：所有人都可按 GNU AGPL-3.0 使用；AGPL 不适合的场景可向 Readori 购买商业授权。",
-             "RemoHop 采用双许可：源码将在各平台应用上架后以 GNU AGPL-3.0 公开；AGPL 不适合的场景可向 Readori 购买商业授权。"),
+        pick("RemoHop 采用双许可：所有人都可按 GNU AGPL-3.0 使用；AGPL 不适合的场景可向 RemoHop 项目购买商业授权。",
+             "RemoHop 采用双许可：源码将在各平台应用上架后以 GNU AGPL-3.0 公开；AGPL 不适合的场景可向 RemoHop 项目购买商业授权。"),
         "Licensing: AGPL-3.0 and commercial",
-        pick("RemoHop is dual-licensed: everyone may use it under the GNU AGPL-3.0, and a commercial license is available from Readori where the AGPL does not fit.",
-             "RemoHop is dual-licensed: the source will be published under the GNU AGPL-3.0 once the apps are out, and a commercial license is available from Readori where the AGPL does not fit."),
+        pick("RemoHop is dual-licensed: everyone may use it under the GNU AGPL-3.0, and a commercial license is available from the RemoHop project where the AGPL does not fit.",
+             "RemoHop is dual-licensed: the source will be published under the GNU AGPL-3.0 once the apps are out, and a commercial license is available from the RemoHop project where the AGPL does not fit."),
     ),
     "support": (
         "支持与联系",
@@ -196,8 +196,8 @@ T = {
         "other": ("English", "en", "/en"), "foot_nav": "页脚",
         "f_product": "产品", "f_legal": "条款", "f_contact": "联系",
         "privacy": "隐私政策", "terms": "使用条款", "licensing": "许可证", "source": "源码（GitHub）",
-        "legal": pick("RemoHop 由 Readori 发布，以 GNU AGPL-3.0 开源，另提供商业授权。",
-                      "RemoHop 由 Readori 发布。源码将在各平台应用上架后以 GNU AGPL-3.0 公开，另提供商业授权。")
+        "legal": pick("RemoHop 是独立的开源项目，以 GNU AGPL-3.0 开源，另提供商业授权。",
+                      "RemoHop 是独立的开源项目。源码将在各平台应用上架后以 GNU AGPL-3.0 公开，另提供商业授权。")
         + "本网站不使用 Cookie、分析脚本或任何第三方资源。",
         "docs": "文档", "doc_src": "源文件（GitHub）",
         "sitename": "RemoHop", "locale": "zh_CN",
@@ -207,8 +207,8 @@ T = {
         "other": ("中文", "zh-CN", ""), "foot_nav": "Footer",
         "f_product": "Product", "f_legal": "Legal", "f_contact": "Contact",
         "privacy": "Privacy policy", "terms": "Terms of use", "licensing": "Licensing", "source": "Source (GitHub)",
-        "legal": pick("RemoHop is published by Readori under the GNU AGPL-3.0, with a commercial license available.",
-                      "RemoHop is published by Readori. The source will be published under the GNU AGPL-3.0 once the apps are out; a commercial license is available.")
+        "legal": pick("RemoHop is an independent open-source project, published under the GNU AGPL-3.0, with a commercial license available.",
+                      "RemoHop is an independent open-source project. The source will be published under the GNU AGPL-3.0 once the apps are out; a commercial license is available.")
         + " This website uses no cookies, no analytics and no third-party resources.",
         "docs": "Docs", "doc_src": "Source file (GitHub)",
         "sitename": "RemoHop", "locale": "en_US",
