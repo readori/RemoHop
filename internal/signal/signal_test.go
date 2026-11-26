@@ -329,8 +329,8 @@ func TestReRegistrationReplaces(t *testing.T) {
 // connection follows it. Clients must be given the new address at once, and
 // the host is asked to register again, so it measures its NAT afresh.
 func TestHostMovesBehindItsNAT(t *testing.T) {
-	defer func(d time.Duration) { moveCheckEvery = d }(moveCheckEvery)
-	moveCheckEvery = 50 * time.Millisecond
+	defer moveCheckEvery.Store(moveCheckEvery.Load())
+	moveCheckEvery.Store(int64(50 * time.Millisecond))
 	tn := newTestNet(t, Limits{})
 	ctx := testCtx(t)
 	box := tn.net.NAT("203.0.113.20", vnet.PortRestrictedCone)
