@@ -211,3 +211,33 @@ func TestInstallUpdate(t *testing.T) {
 		t.Fatal("can install without trusted keys")
 	}
 }
+
+func TestEditDeviceAndPages(t *testing.T) {
+	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
+	a, err := NewApp(Config{NoUpdateCheck: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.update(func(s *Settings) {
+		s.Trusted = append(s.Trusted, TrustedDevice{Identity: "k1", Name: "old", Control: false, Files: true})
+	})
+	if err := a.EditDevice("k1", "  iPhone 15 ", true, false); err != nil {
+		t.Fatal(err)
+	}
+	st := a.Settings()
+	if d, ok := st.trusted("k1"); !ok || d.Name != "iPhone 15" || !d.Control || d.Files {
+		t.Fatalf("after edit: %+v", d)
+	}
+	if err := a.EditDevice("nope", "x", true, true); err == nil {
+		t.Fatal("an unknown device was edited")
+	}
+	if u, _ := sitePage("privacy", "zh"); u != "https://remohop.com/privacy/" {
+		t.Fatalf("privacy zh: %s", u)
+	}
+	if u, _ := sitePage("terms", "en"); u != "https://remohop.com/en/terms/" {
+		t.Fatalf("terms en: %s", u)
+	}
+	if _, err := sitePage("https://evil.example", "en"); err == nil {
+		t.Fatal("an arbitrary page was accepted")
+	}
+}

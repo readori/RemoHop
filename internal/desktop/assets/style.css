@@ -227,3 +227,7 @@ body.overlay { font-size: 14px; }
 .upd .muted { color: inherit; opacity: .85; }
 .upd-cmd { font-family: var(--mono); font-size: 0.8125rem; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--surface) 70%, transparent); user-select: all; }
 .upd .icon-btn { width: 32px; height: 32px; color: inherit; }
+/* Remembered devices: the same access chips as Connected now. */
+.list-row .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.card.links { padding: 6px; }
+.card.links .btn.block { justify-content: flex-start; }

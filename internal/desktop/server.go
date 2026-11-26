@@ -164,6 +164,16 @@ func (s *Server) routes() {
 	})
 	post("/api/session", func(_ *http.Request, q req) (any, error) { return nil, a.SetSessionAccess(q.ID, q.Control, q.Files) })
 	post("/api/disconnect", func(_ *http.Request, q req) (any, error) { return nil, a.Disconnect(q.ID) })
+	post("/api/edit-device", func(_ *http.Request, q req) (any, error) {
+		return nil, a.EditDevice(q.Identity, q.Alias, q.Control, q.Files)
+	})
+	post("/api/open-page", func(_ *http.Request, q req) (any, error) {
+		u, err := sitePage(q.Target, q.Lang)
+		if err != nil {
+			return nil, err
+		}
+		return nil, openURL(u)
+	})
 	post("/api/forget-device", func(_ *http.Request, q req) (any, error) { return nil, a.ForgetDevice(q.Identity) })
 	post("/api/server", func(_ *http.Request, q req) (any, error) { return nil, a.SetServer(q.Mode, q.Addr) })
 	post("/api/setup", func(_ *http.Request, q req) (any, error) { return nil, a.FinishSetup(q.Mode, q.Addr, q.Lang) })

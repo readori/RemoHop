@@ -604,6 +604,29 @@ func (a *App) ForgetDevice(identity string) error {
 	return nil
 }
 
+// EditDevice changes a remembered device: the name it is listed under and
+// the access it gets when it connects next (a session already open keeps
+// what it has; its switches in Connected now change that).
+func (a *App) EditDevice(identity, name string, control, files bool) error {
+	name = clean(strings.TrimSpace(name))
+	var found bool
+	a.update(func(s *Settings) {
+		for i := range s.Trusted {
+			if s.Trusted[i].Identity == identity {
+				found = true
+				if name != "" {
+					s.Trusted[i].Name = name
+				}
+				s.Trusted[i].Control, s.Trusted[i].Files = control, files
+			}
+		}
+	})
+	if !found {
+		return Errorf("gone", "no such remembered device")
+	}
+	return nil
+}
+
 // watchSessions tells the shell whenever who is connected changes.
 func (a *App) watchSessions() {
 	ch, cancel := a.Subscribe()

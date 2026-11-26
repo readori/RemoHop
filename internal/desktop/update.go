@@ -357,3 +357,19 @@ func openURL(u string) error {
 	go cmd.Wait()
 	return nil
 }
+
+// sitePage is one of the website's pages the app links to (Settings ›
+// About): privacy, terms, licensing or support, in lang. Only these: the
+// page cannot ask the app to open anything else.
+func sitePage(page, lang string) (string, error) {
+	switch page {
+	case "privacy", "terms", "licensing", "support":
+	default:
+		return "", Errorf("bad_request", "unknown page")
+	}
+	if normLang(lang) == "zh" {
+		return "https://remohop.com/" + page + "/", nil
+	}
+	return "https://remohop.com/en/" + page + "/", nil
+}
+
