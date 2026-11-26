@@ -42,6 +42,8 @@ The rendezvous server is untrusted by design:
 - It answers `remohop devices` presence queries for the IDs a client asks about: online, offline or unknown, no more than a connection attempt would reveal.
 - It forwards no session traffic unless its operator enabled the relay.
 
+Hole punching sends small probes to addresses that come from the other peer through the server, so neither may use it to aim traffic at a third party. The server passes on self-reported IPv4 addresses only on the address it observed the peer at, plus at most one IPv6 address, and a punch probes at most three globally routable candidates. A peer behind a symmetric NAT may also send a prediction of its NAT's next ports. The other side then probes at most 48 predicted ports, in at most three passes a second apart, and only on the address the server observed that peer at (where the peer's own packets came from); a prediction for any other address, or with larger gaps between ports, is ignored. A peer cannot point those probes elsewhere or make there be more of them. A dishonest server could claim a third party's address as the peer's, as it can for every candidate; that party then receives at most 144 such probes of 36 bytes (about 5 KB) per introduction.
+
 A malicious server can lie about addresses, which only prevents a connection, because the login below fails. It can refuse service and it sees the metadata: which IDs connect and when. There is no built-in default server; you choose and run your own.
 
 To stop a client from accepting a different rendezvous server than you intend, pin its key:

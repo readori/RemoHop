@@ -135,7 +135,8 @@ The host's owner switched that feature off. `remohop status` on the host lists w
 Both machines found each other through the rendezvous server, but no UDP packet got through in either direction. When both NATs look punchable the client has already retried once on a fresh socket. The explanation names the NAT types detected on each side:
 
 - `both sides are behind symmetric NATs, which cannot be hole-punched ...`: each NAT picks a new port per destination. This case fails fast, in about a second.
-- `... behind a symmetric NAT and the other side's NAT only accepts packets from ports it has sent to (port-restricted) ...`: the same problem in one direction.
+- `... behind a symmetric NAT whose ports cannot be predicted and the other side's NAT only accepts packets from ports it has sent to (port-restricted) ...`: the same problem in one direction. That NAT picks its ports at random, or with large gaps between them.
+- `... behind a symmetric NAT that seemed to hand out its ports in sequence, so ... also probed the ports it was likely to use next, but none answered ...`: RemoHop predicted the symmetric NAT's next ports and the other side probed them, without luck. Other traffic behind that NAT moves its ports on, so retrying when that network is quieter can help. An older RemoHop on the other side does not probe predicted ports; update both sides.
 - `no probe got through although both NATs look punchable. Likely causes: a firewall on either side that blocks UDP, or a NAT that keeps state for unsolicited inbound packets ...`: check host firewalls and the router. Linux hosts send low-TTL priming probes over IPv4 to get through NATs of the second kind.
 - `no probe got through in either direction; a firewall may be blocking UDP, or a NAT on the path is not punchable`: UDP is blocked somewhere, often on a corporate or hotel network.
 

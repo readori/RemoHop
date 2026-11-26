@@ -73,7 +73,7 @@
 </div>
 <h2 id="状态与限制">状态与限制</h2>
 <ul>
-<li><strong>NAT 穿透可能失败。</strong> 双方都是对称型 NAT，或一方对称型、另一方端口受限型时无法打洞；没有中继可用时，连接会在大约一秒内失败并给出诊断信息。对于会记录未请求入站包的 NAT，Linux 被控机在 IPv4 上用低 TTL 预热包来应对。</li>
+<li><strong>NAT 穿透可能失败。</strong> 双方都是对称型 NAT，或一方是随机分配端口的对称型、另一方是端口受限型时无法打洞；没有中继可用时，连接会在几秒内失败并给出诊断信息。按顺序分配端口的对称型 NAT 会被预测，通常可以连上（见<a href="/docs/how-it-works/">工作原理</a>）。对于会记录未请求入站包的 NAT，Linux 被控机在 IPv4 上用低 TTL 预热包来应对。</li>
 <li><strong>IPv6 路径和真实的家用路由器未经测试。</strong> NAT 测试使用的是 Linux 网络命名空间。</li>
 <li><strong>远程桌面。</strong> 在一台只有 CPU 的 4 核虚拟机上，于浏览器中测得的端到端延迟：H.264 约 20 ms（720p）和 31 ms（1080p），软件 AV1 分别约 50 ms 和 61 到 227 ms。硬件编码器优先使用。其中 VideoToolbox（macOS）已验证：在 GitHub 托管的 Apple Silicon macOS 虚拟机（单显示器，1024x768，缩放 1）上，被控端会选用它，解码出的画面、指针和点击输入、只读模式以及两个观看者同时观看都在那里检查过，macOS 上的 libx264 和 SVT-AV1 也是如此。Retina 和多显示器的 Mac、macOS 上的锁屏控制以及实体 Mac 没有测试。NVENC、QSV、VAAPI、AMF 和 Media Foundation 未经测试；4K 60 fps 没有测试过。强制或选用软件 AV1 时，SVT-AV1 2.2 到 3.0 的实时预设有一个上游缺陷（屏幕上的小改动要到下一个关键帧才显示），在这些主机上 RemoHop 改用 libaom 并给出说明。在 X11 被控机上，输入屏蔽和隐私黑屏会报告为不支持。不支持原生 Wayland 采集。</li>
 <li><strong>串口</strong>用伪终端和 picocom 验证过，没有真实的 UART 可用。<strong>USB/IP</strong> 已在托管运行器上用真实内核（dummy_hcd 虚拟 U 盘）验证，没有在实体 USB 设备上测试过。</li>
