@@ -305,6 +305,28 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             assets/SHA256SUMS
 
+      # In-app upgrades (internal/update): an Ed25519 signature over "remohop-update-v1", the
+      # tag and SHA256SUMS, with the key in the UPDATE_SIGNING_KEY secret. The apps trust only
+      # the public keys built into them (internal/update/keys.go). Once those exist, a release
+      # without this signature fails here rather than leaving the apps unable to upgrade.
+      - name: Sign SHA256SUMS for in-app upgrades (Ed25519)
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          set -eu
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            if go run ./scripts/updsign keys; then
+              echo "::error::secret UPDATE_SIGNING_KEY is not set, but this build trusts update keys"; exit 1
+            fi
+            echo "::warning::no UPDATE_SIGNING_KEY and no trusted keys yet: in-app upgrades stay off for this release"
+            exit 0
+          fi
+          go run ./scripts/updsign sign -tag "$TAG" -in assets/SHA256SUMS -out assets/SHA256SUMS.ed25519
+          if go run ./scripts/updsign keys; then
+            go run ./scripts/updsign verify -tag "$TAG" -in assets/SHA256SUMS -sig assets/SHA256SUMS.ed25519
+          fi
+
       # Package-manager files for this release, for a human (or a later job) to submit. Stable
       # tags only: package managers should not track prereleases.
       - name: Render package-manager manifests

@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"crypto/ed25519"
 	"net/http"
 	"os"
 	"os/exec"
@@ -41,6 +42,15 @@ type UpdateState struct {
 	Skipped bool          `json:"skipped"`
 	Error   string        `json:"error,omitempty"`
 	Method  update.Method `json:"method"`
+	// CanInstall: "Upgrade now" can replace this copy (a download from
+	// the website, in a place the user can write, with trusted update
+	// keys in this build).
+	CanInstall bool `json:"can_install"`
+	// Stage is the upgrade under way: verifying, downloading (Percent),
+	// installing, restarting; InstallError the last one's failure.
+	Stage        string `json:"stage,omitempty"`
+	Percent      int    `json:"percent"`
+	InstallError string `json:"install_error,omitempty"`
 }
 
 type updateInfo struct {
@@ -50,19 +60,41 @@ type updateInfo struct {
 	latest   string
 	err      string
 	method   update.Method
+	plan     update.Plan
+	planOK   bool
+	stage    string
+	percent  int
+	instErr  string
 }
 
-func detectMethod() update.Method {
+func executable() string {
 	exe, err := os.Executable()
 	if err == nil {
 		if r, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = r
 		}
 	}
-	return update.Detect(update.Env{GOOS: runtime.GOOS, Exe: exe, Getenv: os.Getenv, Exists: func(p string) bool {
+	return exe
+}
+
+func detectMethod() update.Method {
+	return update.Detect(update.Env{GOOS: runtime.GOOS, Exe: executable(), Getenv: os.Getenv, Exists: func(p string) bool {
 		_, err := os.Stat(p)
 		return err == nil
 	}})
+}
+
+// newUpdateInfo works out how this copy is upgraded.
+func newUpdateInfo(current string) updateInfo {
+	u := updateInfo{current: current, method: detectMethod()}
+	if u.method.Kind == update.KindDownload {
+		// Writable creates a file next to the program: once, here, not at
+		// every state the page is sent.
+		if p, err := update.PlanFor(runtime.GOOS, runtime.GOARCH, executable()); err == nil && p.Writable() {
+			u.plan, u.planOK = p, true
+		}
+	}
+	return u
 }
 
 func (a *App) updateManaged() bool { return os.Getenv(NoUpdateCheckEnv) != "" }
@@ -86,7 +118,118 @@ func (a *App) updateState() UpdateState {
 	}
 	st.Available = u.latest != "" && update.Newer(u.latest, u.current)
 	st.Skipped = st.Available && skip == u.latest
+	st.Stage, st.Percent, st.InstallError = u.stage, u.percent, u.instErr
+	st.CanInstall = st.Available && u.planOK && len(a.updateKeys()) > 0
 	return st
+}
+
+// updateKeys are the keys a release must be signed with (a test seam).
+func (a *App) updateKeys() []ed25519.PublicKey {
+	if a.cfg.UpdateKeys != nil {
+		return a.cfg.UpdateKeys
+	}
+	return update.Keys()
+}
+
+// InstallUpdate upgrades this copy to the latest release: downloads its
+// archive, checks it against the release's signed SHA256SUMS (and on macOS
+// the app's code signature), swaps the program, starts the new one and
+// calls done, which quits this one. It refuses while anyone is connected
+// to this computer. Progress and failure are in the state.
+func (a *App) InstallUpdate(done func()) error {
+	st := a.updateState()
+	if !st.CanInstall {
+		return Errorf("bad_request", "this copy cannot upgrade itself; download the new version")
+	}
+	if st.Stage != "" {
+		return Errorf("busy", "an upgrade is already under way")
+	}
+	if h, err := a.running(); err == nil && len(h.Sessions()) > 0 {
+		return Errorf("busy_sessions", "someone is connected to this computer; disconnect first")
+	}
+	a.mu.Lock()
+	plan, tag := a.upd.plan, a.upd.latest
+	a.upd.stage, a.upd.percent, a.upd.instErr = "verifying", -1, ""
+	a.mu.Unlock()
+	a.wake()
+	go func() {
+		err := a.installUpdate(plan, tag)
+		a.mu.Lock()
+		if err != nil {
+			a.upd.stage, a.upd.instErr = "", err.Error()
+		} else {
+			a.upd.stage = "restarting"
+		}
+		a.mu.Unlock()
+		a.wake()
+		if err != nil {
+			a.log.Warn("upgrade failed", "to", tag, "err", err)
+			return
+		}
+		a.log.Info("upgraded; starting the new version", "to", tag)
+		if done != nil {
+			done()
+		}
+	}()
+	return nil
+}
+
+func (a *App) installUpdate(plan update.Plan, tag string) error {
+	f := update.Fetcher{Client: a.cfg.UpdateClient, Base: a.cfg.UpdateBase}
+	staged, err := update.Download(a.ctx, f, a.updateKeys(), tag, plan, func(stage string, pct int) {
+		a.mu.Lock()
+		a.upd.stage, a.upd.percent = stage, pct
+		a.mu.Unlock()
+		a.wake()
+	})
+	if err != nil {
+		return err
+	}
+	if plan.Bundle {
+		if err := update.VerifyBundle(staged); err != nil {
+			os.RemoveAll(staged)
+			return err
+		}
+	}
+	if err := update.Install(plan, staged); err != nil {
+		os.RemoveAll(staged)
+		return err
+	}
+	if a.cfg.UpdateRestart != nil {
+		return a.cfg.UpdateRestart(plan)
+	}
+	return restartInto(plan)
+}
+
+// restartInto starts the upgraded program with this one's arguments. The
+// new one waits for this one to let go of the one-app lock
+// (WaitLockEnv) instead of showing this one's window.
+func restartInto(plan update.Plan) error {
+	exe := plan.Target
+	if plan.Bundle {
+		exe = filepath.Join(plan.Target, "Contents", "MacOS", filepath.Base(executable()))
+	}
+	cmd := exec.Command(exe, os.Args[1:]...)
+	cmd.Env = append(os.Environ(), WaitLockEnv+"=1")
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Process.Release()
+	return nil
+}
+
+// WaitLockEnv tells a starting app to wait for the running one to quit
+// (an upgrade restarting it) rather than show that one's window.
+const WaitLockEnv = "REMOHOP_UPGRADE_RESTART"
+
+// cleanupUpdate removes what an earlier upgrade left (the old program).
+func (a *App) cleanupUpdate() {
+	a.mu.Lock()
+	plan, ok := a.upd.plan, a.upd.planOK
+	a.mu.Unlock()
+	if ok {
+		update.Cleanup(plan)
+	}
 }
 
 // updateLoop checks after a short delay and then once a day. It looks

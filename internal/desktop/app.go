@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/signal"
+	"github.com/readori/RemoHop/internal/update"
 	"github.com/readori/RemoHop/internal/web"
 )
 
@@ -67,6 +69,13 @@ type Config struct {
 	UpdateDelay   time.Duration
 	UpdateEvery   time.Duration
 	NoUpdateCheck bool
+	// One-click upgrades: the release download address (update.Fetcher
+	// Base), the trusted keys and what restarts the program; the defaults
+	// are GitHub, update.Keys and restartInto.
+	UpdateBase    string
+	UpdateKeys    []ed25519.PublicKey
+	UpdateRestart func(update.Plan) error
+	UpdatePlan    *update.Plan // what an upgrade replaces (tests); default: this program
 }
 
 // Hooks are how the window shell learns what needs the user's attention.
@@ -147,7 +156,10 @@ func NewApp(cfg Config) (*App, error) {
 		cfg.Logger.Warn("the app's settings could not be read; starting with defaults", "err", err)
 	}
 	a := &App{cfg: cfg, log: cfg.Logger, dir: dir, settings: st, phase: PhaseOff,
-		subs: map[chan struct{}]struct{}{}, firstSeen: map[int]bool{}, upd: updateInfo{current: cli.Version, method: detectMethod()}}
+		subs: map[chan struct{}]struct{}{}, firstSeen: map[int]bool{}, upd: newUpdateInfo(cli.Version)}
+	if cfg.UpdatePlan != nil {
+		a.upd.method, a.upd.plan, a.upd.planOK = update.Method{Kind: update.KindDownload}, *cfg.UpdatePlan, true
+	}
 	a.ctx, a.cancel = context.WithCancel(context.Background())
 	return a, nil
 }
@@ -224,6 +236,7 @@ func (a *App) Start() error {
 		a.startHost()
 	}
 	go a.watchSessions()
+	a.cleanupUpdate()
 	if !a.cfg.NoUpdateCheck {
 		go a.updateLoop()
 	}

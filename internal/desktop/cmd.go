@@ -135,6 +135,14 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 
 	// One app per user: a second start shows the first one's window.
 	unlock, lerr := config.Lock(filepath.Join(dir, "desktop"))
+	if lerr != nil && os.Getenv(WaitLockEnv) != "" {
+		// Started by an upgrade: the old version is quitting.
+		for i := 0; i < 80 && lerr != nil; i++ {
+			time.Sleep(250 * time.Millisecond)
+			unlock, lerr = config.Lock(filepath.Join(dir, "desktop"))
+		}
+	}
+	os.Unsetenv(WaitLockEnv)
 	if lerr != nil {
 		if b, err := os.ReadFile(filepath.Join(dir, urlFile)); err == nil && askShow(strings.TrimSpace(string(b))) == nil {
 			log.Info("RemoHop is already running; showed its window")
