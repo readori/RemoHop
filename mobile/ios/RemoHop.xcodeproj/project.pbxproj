@@ -29,6 +29,28 @@
 		5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000046 /* AppInfoTests.swift */; };
 		5D0E5D0E0000000000000049 /* PageRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000048 /* PageRecovery.swift */; };
 		5D0E5D0E000000000000004B /* PageRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000004A /* PageRecoveryTests.swift */; };
+		5D0E5D0E0000000000000120 /* ShareScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000100 /* ShareScreenView.swift */; };
+		5D0E5D0E0000000000000121 /* BroadcastApprovals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000101 /* BroadcastApprovals.swift */; };
+		5D0E5D0E0000000000000122 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000103 /* AppGroup.swift */; };
+		5D0E5D0E0000000000000123 /* BroadcastState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000104 /* BroadcastState.swift */; };
+		5D0E5D0E0000000000000124 /* ApprovalBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000105 /* ApprovalBook.swift */; };
+		5D0E5D0E0000000000000125 /* VideoPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000106 /* VideoPolicy.swift */; };
+		5D0E5D0E0000000000000126 /* AnnexB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000107 /* AnnexB.swift */; };
+		5D0E5D0E0000000000000127 /* BroadcastStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000108 /* BroadcastStrings.swift */; };
+		5D0E5D0E0000000000000130 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000109 /* SampleHandler.swift */; };
+		5D0E5D0E0000000000000131 /* H264Encoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010A /* H264Encoder.swift */; };
+		5D0E5D0E0000000000000132 /* BroadcastHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010B /* BroadcastHost.swift */; };
+		5D0E5D0E0000000000000133 /* HostCoreBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010C /* HostCoreBridge.swift */; };
+		5D0E5D0E0000000000000134 /* ExtensionSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000010D /* ExtensionSupport.swift */; };
+		5D0E5D0E0000000000000135 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000103 /* AppGroup.swift */; };
+		5D0E5D0E0000000000000136 /* BroadcastState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000104 /* BroadcastState.swift */; };
+		5D0E5D0E0000000000000137 /* ApprovalBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000105 /* ApprovalBook.swift */; };
+		5D0E5D0E0000000000000138 /* VideoPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000106 /* VideoPolicy.swift */; };
+		5D0E5D0E0000000000000139 /* AnnexB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000107 /* AnnexB.swift */; };
+		5D0E5D0E000000000000013A /* BroadcastStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000108 /* BroadcastStrings.swift */; };
+		5D0E5D0E000000000000013D /* BroadcastLogicTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000111 /* BroadcastLogicTests.swift */; };
+		5D0E5D0E000000000000013B /* Remohopcore.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E000000000000000E /* Remohopcore.xcframework */; };
+		5D0E5D0E000000000000013C /* RemoHopBroadcast.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5D0E5D0E0000000000000110 /* RemoHopBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,7 +61,28 @@
 			remoteGlobalIDString = 5D0E5D0E0000000000000033;
 			remoteInfo = RemoHop;
 		};
+		5D0E5D0E0000000000000170 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5D0E5D0E0000000000000035 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5D0E5D0E0000000000000160;
+			remoteInfo = RemoHopBroadcast;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5D0E5D0E0000000000000153 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5D0E5D0E000000000000013C /* RemoHopBroadcast.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		5D0E5D0E0000000000000001 /* RemoHopApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoHopApp.swift; sourceTree = "<group>"; };
@@ -68,6 +111,24 @@
 		5D0E5D0E0000000000000046 /* AppInfoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfoTests.swift; sourceTree = "<group>"; };
 		5D0E5D0E0000000000000048 /* PageRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageRecovery.swift; sourceTree = "<group>"; };
 		5D0E5D0E000000000000004A /* PageRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageRecoveryTests.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000100 /* ShareScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareScreenView.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000101 /* BroadcastApprovals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastApprovals.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000102 /* RemoHop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RemoHop.entitlements; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000103 /* AppGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000104 /* BroadcastState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastState.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000105 /* ApprovalBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalBook.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000106 /* VideoPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPolicy.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000107 /* AnnexB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnexB.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000108 /* BroadcastStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastStrings.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000109 /* SampleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010A /* H264Encoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Encoder.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010B /* BroadcastHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastHost.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010C /* HostCoreBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCoreBridge.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010D /* ExtensionSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSupport.swift; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5D0E5D0E000000000000010F /* RemoHopBroadcast.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RemoHopBroadcast.entitlements; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000111 /* BroadcastLogicTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BroadcastLogicTests.swift; sourceTree = "<group>"; };
+		5D0E5D0E0000000000000110 /* RemoHopBroadcast.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RemoHopBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +144,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5D0E5D0E0000000000000151 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D0E5D0E000000000000013B /* Remohopcore.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -105,8 +174,11 @@
 				5D0E5D0E0000000000000044 /* AppInfo.swift */,
 				5D0E5D0E0000000000000042 /* Diagnostics.swift */,
 				5D0E5D0E0000000000000040 /* SettingsScreens.swift */,
+				5D0E5D0E0000000000000100 /* ShareScreenView.swift */,
+				5D0E5D0E0000000000000101 /* BroadcastApprovals.swift */,
 				5D0E5D0E0000000000000009 /* Assets.xcassets */,
 				5D0E5D0E000000000000000A /* Info.plist */,
+				5D0E5D0E0000000000000102 /* RemoHop.entitlements */,
 				5D0E5D0E000000000000003D /* InfoPlist.strings */,
 			);
 			path = RemoHop;
@@ -120,6 +192,7 @@
 				5D0E5D0E0000000000000038 /* GatewayE2ETests.swift */,
 				5D0E5D0E0000000000000046 /* AppInfoTests.swift */,
 				5D0E5D0E000000000000004A /* PageRecoveryTests.swift */,
+				5D0E5D0E0000000000000111 /* BroadcastLogicTests.swift */,
 			);
 			path = RemoHopTests;
 			sourceTree = "<group>";
@@ -145,6 +218,7 @@
 			children = (
 				5D0E5D0E000000000000000F /* RemoHop.app */,
 				5D0E5D0E0000000000000010 /* RemoHopTests.xctest */,
+				5D0E5D0E0000000000000110 /* RemoHopBroadcast.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -154,10 +228,39 @@
 			children = (
 				5D0E5D0E000000000000001E /* RemoHop */,
 				5D0E5D0E000000000000001F /* RemoHopTests */,
+				5D0E5D0E0000000000000140 /* RemoHopBroadcast */,
+				5D0E5D0E0000000000000141 /* RemoHopShared */,
 				5D0E5D0E0000000000000020 /* Shared */,
 				5D0E5D0E0000000000000021 /* Frameworks */,
 				5D0E5D0E0000000000000022 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		5D0E5D0E0000000000000140 /* RemoHopBroadcast */ = {
+			isa = PBXGroup;
+			children = (
+				5D0E5D0E0000000000000109 /* SampleHandler.swift */,
+				5D0E5D0E000000000000010A /* H264Encoder.swift */,
+				5D0E5D0E000000000000010B /* BroadcastHost.swift */,
+				5D0E5D0E000000000000010C /* HostCoreBridge.swift */,
+				5D0E5D0E000000000000010D /* ExtensionSupport.swift */,
+				5D0E5D0E000000000000010E /* Info.plist */,
+				5D0E5D0E000000000000010F /* RemoHopBroadcast.entitlements */,
+			);
+			path = RemoHopBroadcast;
+			sourceTree = "<group>";
+		};
+		5D0E5D0E0000000000000141 /* RemoHopShared */ = {
+			isa = PBXGroup;
+			children = (
+				5D0E5D0E0000000000000103 /* AppGroup.swift */,
+				5D0E5D0E0000000000000104 /* BroadcastState.swift */,
+				5D0E5D0E0000000000000105 /* ApprovalBook.swift */,
+				5D0E5D0E0000000000000106 /* VideoPolicy.swift */,
+				5D0E5D0E0000000000000107 /* AnnexB.swift */,
+				5D0E5D0E0000000000000108 /* BroadcastStrings.swift */,
+			);
+			path = RemoHopShared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -170,10 +273,12 @@
 				5D0E5D0E0000000000000024 /* Sources */,
 				5D0E5D0E0000000000000025 /* Frameworks */,
 				5D0E5D0E0000000000000026 /* Resources */,
+				5D0E5D0E0000000000000153 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5D0E5D0E0000000000000171 /* PBXTargetDependency */,
 			);
 			name = RemoHop;
 			productName = RemoHop;
@@ -198,6 +303,23 @@
 			productReference = 5D0E5D0E0000000000000010 /* RemoHopTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		5D0E5D0E0000000000000160 /* RemoHopBroadcast */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5D0E5D0E0000000000000161 /* Build configuration list for PBXNativeTarget "RemoHopBroadcast" */;
+			buildPhases = (
+				5D0E5D0E0000000000000150 /* Sources */,
+				5D0E5D0E0000000000000151 /* Frameworks */,
+				5D0E5D0E0000000000000152 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RemoHopBroadcast;
+			productName = RemoHopBroadcast;
+			productReference = 5D0E5D0E0000000000000110 /* RemoHopBroadcast.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -214,6 +336,9 @@
 					5D0E5D0E0000000000000034 = {
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = 5D0E5D0E0000000000000033;
+					};
+					5D0E5D0E0000000000000160 = {
+						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
@@ -233,6 +358,7 @@
 			targets = (
 				5D0E5D0E0000000000000033 /* RemoHop */,
 				5D0E5D0E0000000000000034 /* RemoHopTests */,
+				5D0E5D0E0000000000000160 /* RemoHopBroadcast */,
 			);
 		};
 /* End PBXProject section */
@@ -249,6 +375,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		5D0E5D0E0000000000000029 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5D0E5D0E0000000000000152 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -275,6 +408,14 @@
 				5D0E5D0E0000000000000045 /* AppInfo.swift in Sources */,
 				5D0E5D0E0000000000000043 /* Diagnostics.swift in Sources */,
 				5D0E5D0E0000000000000041 /* SettingsScreens.swift in Sources */,
+				5D0E5D0E0000000000000120 /* ShareScreenView.swift in Sources */,
+				5D0E5D0E0000000000000121 /* BroadcastApprovals.swift in Sources */,
+				5D0E5D0E0000000000000122 /* AppGroup.swift in Sources */,
+				5D0E5D0E0000000000000123 /* BroadcastState.swift in Sources */,
+				5D0E5D0E0000000000000124 /* ApprovalBook.swift in Sources */,
+				5D0E5D0E0000000000000125 /* VideoPolicy.swift in Sources */,
+				5D0E5D0E0000000000000126 /* AnnexB.swift in Sources */,
+				5D0E5D0E0000000000000127 /* BroadcastStrings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -287,6 +428,25 @@
 				5D0E5D0E0000000000000039 /* GatewayE2ETests.swift in Sources */,
 				5D0E5D0E0000000000000047 /* AppInfoTests.swift in Sources */,
 				5D0E5D0E000000000000004B /* PageRecoveryTests.swift in Sources */,
+				5D0E5D0E000000000000013D /* BroadcastLogicTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5D0E5D0E0000000000000150 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5D0E5D0E0000000000000130 /* SampleHandler.swift in Sources */,
+				5D0E5D0E0000000000000131 /* H264Encoder.swift in Sources */,
+				5D0E5D0E0000000000000132 /* BroadcastHost.swift in Sources */,
+				5D0E5D0E0000000000000133 /* HostCoreBridge.swift in Sources */,
+				5D0E5D0E0000000000000134 /* ExtensionSupport.swift in Sources */,
+				5D0E5D0E0000000000000135 /* AppGroup.swift in Sources */,
+				5D0E5D0E0000000000000136 /* BroadcastState.swift in Sources */,
+				5D0E5D0E0000000000000137 /* ApprovalBook.swift in Sources */,
+				5D0E5D0E0000000000000138 /* VideoPolicy.swift in Sources */,
+				5D0E5D0E0000000000000139 /* AnnexB.swift in Sources */,
+				5D0E5D0E000000000000013A /* BroadcastStrings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -297,6 +457,11 @@
 			isa = PBXTargetDependency;
 			target = 5D0E5D0E0000000000000033 /* RemoHop */;
 			targetProxy = 5D0E5D0E0000000000000036 /* PBXContainerItemProxy */;
+		};
+		5D0E5D0E0000000000000171 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5D0E5D0E0000000000000160 /* RemoHopBroadcast */;
+			targetProxy = 5D0E5D0E0000000000000170 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -370,6 +535,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RemoHop/RemoHop.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = NO;
@@ -395,6 +561,7 @@
 					"CoreFoundation",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.remohop.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(REMOHOP_APP_PROFILE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -409,6 +576,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = RemoHop/RemoHop.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = NO;
@@ -434,6 +602,7 @@
 					"CoreFoundation",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.remohop.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(REMOHOP_APP_PROFILE)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -481,6 +650,72 @@
 			};
 			name = Release;
 		};
+		5D0E5D0E0000000000000162 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = RemoHopBroadcast/RemoHopBroadcast.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RemoHopBroadcast/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RemoHop;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.3;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lresolv",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.remohop.app.broadcast;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(REMOHOP_BROADCAST_PROFILE)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5D0E5D0E0000000000000163 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = RemoHopBroadcast/RemoHopBroadcast.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RemoHopBroadcast/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = RemoHop;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.3;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lresolv",
+					"-framework",
+					Security,
+					"-framework",
+					CoreFoundation,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.remohop.app.broadcast;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "$(REMOHOP_BROADCAST_PROFILE)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -507,6 +742,15 @@
 			buildConfigurations = (
 				5D0E5D0E0000000000000030 /* Debug */,
 				5D0E5D0E0000000000000031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5D0E5D0E0000000000000161 /* Build configuration list for PBXNativeTarget "RemoHopBroadcast" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5D0E5D0E0000000000000162 /* Debug */,
+				5D0E5D0E0000000000000163 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

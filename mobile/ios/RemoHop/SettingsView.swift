@@ -4,7 +4,7 @@ import UIKit
 
 /// The screens Settings drills into.
 enum SettingsPage: String, Hashable {
-    case rendezvous, deviceName, identity, hosts, pair, diagnostics, privacy, about
+    case rendezvous, deviceName, identity, shareScreen, hosts, pair, diagnostics, privacy, about
 
     /// A page the web page may open directly (openSettings with a page).
     init?(bridge name: String?) {
@@ -49,6 +49,9 @@ struct SettingsView: View {
                     NavigationLink(value: SettingsPage.identity) {
                         SettingsRow(L("Identity key"), value: m.shortFingerprint, symbol: "key.fill", tint: .orange)
                     }
+                    NavigationLink(value: SettingsPage.shareScreen) {
+                        SettingsRow(L("Share this screen"), value: "", symbol: "record.circle", tint: .red)
+                    }
                 }
                 Section(L("Hosts")) {
                     NavigationLink(value: SettingsPage.hosts) {
@@ -90,6 +93,7 @@ struct SettingsView: View {
                 case .rendezvous: RendezvousView(m: m)
                 case .deviceName: DeviceNameView(m: m)
                 case .identity: IdentityView(m: m)
+                case .shareScreen: ShareScreenView()
                 case .hosts: SavedHostsView(m: m)
                 case .pair: PairView(m: m)
                 case .diagnostics: DiagnosticsView(m: m)
@@ -109,7 +113,10 @@ struct SettingsView: View {
             m.load()
             if let p = initialPage, path.isEmpty { path.append(p) }
         }
-        .onChange(of: language) { _ in m.languageChanged() }
+        .onChange(of: language) { v in
+            m.languageChanged()
+            BroadcastApprovals.languageChanged(v)
+        }
     }
 }
 
