@@ -137,7 +137,7 @@ try {
   check(await p.eval(`document.getElementById('req-warn').hidden && document.getElementById('req-chips').textContent.includes('Connected before')`), 'asked before: no longer new');
   await p.eval(`document.getElementById('req-control').click(); document.getElementById('req-allow').click()`);
   check(await p.waitFor(`document.querySelectorAll('#sessions .sess').length === 1`), 'the helper is connected');
-  check((await control('/result')).includes('connected'), 'helper sees the login succeed');
+  { const r = await control('/result'); check(r.includes('connected'), 'helper sees the login succeed', r); }
   const chips = () => p.eval(`[...document.querySelectorAll('#sessions .chip')].map(c => c.textContent + '=' + c.getAttribute('aria-pressed')).join(',')`);
   check((await chips()) === 'View=true,Control=true,Files=false', 'session access shows', await chips());
   check(await p.eval(`!document.getElementById('badge').hidden`), 'the tab shows a badge');
