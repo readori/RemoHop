@@ -260,6 +260,11 @@ func explain(err error, format string, args ...any) error {
 // and no way to ask.
 var ErrNoCredential = errors.New("no credential for this host")
 
+// ErrSavedPasswordRejected comes with ErrNoCredential when the only
+// credential was a saved password and the host rejected it (it has a new
+// password); the saved one has been removed.
+var ErrSavedPasswordRejected = errors.New("the saved password was rejected")
+
 // ErrHostKeyChanged is returned when a host presents a different identity
 // key than the one pinned at the first login.
 var ErrHostKeyChanged = errors.New("host identity has changed")
@@ -431,6 +436,8 @@ type credentials struct {
 	usedTok  bool
 	usedKey  bool
 	usedAcct bool
+	usedSave bool
+	lastSave bool // the credential last returned is the saved password
 	prompts  int
 	reason   string
 }
@@ -439,7 +446,7 @@ type credentials struct {
 // left. prompted reports that it came from the user just now.
 func (c *credentials) next(ctx context.Context) (cred auth.Credential, prompted bool, err error) {
 	opts := &c.d.opts
-	c.lastMem = false
+	c.lastMem, c.lastSave = false, false
 	if opts.Pairing != nil && !c.usedMem {
 		c.usedMem, c.lastMem = true, true
 		return auth.TokenCredential(opts.Pairing.TokenID, opts.Pairing.Token), false, nil
@@ -468,8 +475,17 @@ func (c *credentials) next(ctx context.Context) (cred auth.Credential, prompted 
 		c.usedAcct = true
 		return auth.KeyCredential(), false, nil
 	}
+	// A password the user asked a gateway to remember (Peer.Password),
+	// for the host whose key was pinned when it was saved.
+	if c.t.saved.SavedPassword() && !c.usedSave {
+		c.usedSave, c.lastSave = true, true
+		return auth.PasswordCredential(c.t.saved.Password), false, nil
+	}
 	if opts.Prompt == nil {
 		why := "no password given and no saved pairing"
+		if c.usedSave {
+			why = "the saved password no longer works (the host may have a new one) and no password was given"
+		}
 		if c.usedTok {
 			why = "the saved pairing no longer works and no password was given"
 		} else if c.usedKey {
@@ -479,9 +495,13 @@ func (c *credentials) next(ctx context.Context) (cred auth.Credential, prompted 
 				"(its owner has not run `remohop config account-trust on` there, or this device is no longer in the account) " +
 				"and no password was given"
 		}
-		return cred, false, fmt.Errorf("%w (%s): %s; pass --password PW, set REMOHOP_PASSWORD, "+
+		err := fmt.Errorf("%w (%s): %s; pass --password PW, set REMOHOP_PASSWORD, "+
 			"or run `remohop %s pair` once from a terminal to stop needing one",
 			ErrNoCredential, c.t.display, why, c.t.canonical)
+		if c.usedSave {
+			err = fmt.Errorf("%w: %w", ErrSavedPasswordRejected, err)
+		}
+		return cred, false, err
 	}
 	if c.prompts >= maxPrompts {
 		return cred, false, errors.New("no more credentials")
@@ -636,6 +656,13 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 		// Decide whether another credential is worth a new connection.
 		code := auth.CodeOf(err)
 		switch {
+		case cred.Kind == auth.KindPassword && creds.lastSave && code == auth.CodeAuthFailed:
+			// The host has another password now (quick support and the
+			// desktop app make a new one at every start): forget it, so
+			// the user is asked rather than refused again and again.
+			d.log.Debug("saved password rejected", "target", t.canonical)
+			d.dropPassword(t)
+			creds.reason = "the saved password is no longer accepted"
 		case cred.Kind == auth.KindToken && creds.lastMem && (code == auth.CodeUnknownToken || code == auth.CodeAuthFailed):
 			d.log.Debug("in-memory pairing rejected", "target", t.canonical, "code", code)
 			creds.reason = "the pairing held for this session is no longer accepted"
@@ -1352,6 +1379,13 @@ func (d *dialer) dropToken(t *target) {
 	})
 	if err != nil {
 		d.log.Warn("could not remove the rejected pairing", "err", err)
+	}
+}
+
+func (d *dialer) dropPassword(t *target) {
+	t.saved.Password = ""
+	if err := d.store.SetPassword(t.canonical, ""); err != nil {
+		d.log.Warn("could not remove the rejected password", "err", err)
 	}
 }
 

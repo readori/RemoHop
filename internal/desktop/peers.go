@@ -2,6 +2,8 @@ package desktop
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -30,9 +32,19 @@ type Peer struct {
 func (a *App) Peers(ctx context.Context, refresh bool) ([]Peer, string) {
 	a.peersMu.Lock()
 	defer a.peersMu.Unlock()
-	if !refresh && a.peers != nil && time.Since(a.peersAt) < maxPeersRefresh {
+	// A change to the saved hosts (a computer just connected to in a tab,
+	// a password saved, a pairing made) shows at once, without waiting for
+	// the presence refresh.
+	var mtime time.Time
+	if dir := a.dirOrDefault(); dir != "" {
+		if fi, err := os.Stat(filepath.Join(dir, dial.PeersFile)); err == nil {
+			mtime = fi.ModTime()
+		}
+	}
+	if !refresh && a.peers != nil && time.Since(a.peersAt) < maxPeersRefresh && mtime.Equal(a.peersMtime) {
 		return a.peers, a.peersErr
 	}
+	a.peersMtime = mtime
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	devs, err := dial.Devices(ctx, dial.DevicesOptions{Options: dial.Options{Dir: a.cfg.Dir, Signal: a.cfg.Signal}, Offline: a.cfg.NoSignal})
@@ -133,6 +145,32 @@ func (a *App) Forget(target string) error {
 	return nil
 }
 
+// SavedPassword is the password saved for target (the console saves one
+// when the user asks it to remember a host that does not pair), for the
+// page to show; with forget it is removed instead.
+func (a *App) SavedPassword(target string, forget bool) (string, error) {
+	st, err := dial.OpenStore(a.cfg.Dir)
+	if err != nil {
+		return "", err
+	}
+	target = cli.NormalizeTarget(strings.TrimSpace(target))
+	if forget {
+		if err := st.SetPassword(target, ""); err != nil {
+			return "", err
+		}
+		a.invalidatePeers()
+		return "", nil
+	}
+	p, ok, err := st.Get(target)
+	if err != nil {
+		return "", err
+	}
+	if !ok || !p.SavedPassword() {
+		return "", Errorf("gone", "no saved password for that computer")
+	}
+	return p.Password, nil
+}
+
 // SetWake saves (or with mac "" removes) the Wake-on-LAN address of a
 // saved host.
 func (a *App) SetWake(target, mac string) error {
@@ -183,4 +221,12 @@ func (a *App) Wake(ctx context.Context, target string) error {
 	}
 	_, err = wake.Send(ctx, mac, wake.Options{})
 	return err
+}
+
+// dirOrDefault is the config directory the saved hosts live in.
+func (a *App) dirOrDefault() string {
+	if a.cfg.Dir != "" {
+		return a.cfg.Dir
+	}
+	return a.dir
 }

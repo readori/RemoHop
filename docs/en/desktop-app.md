@@ -22,7 +22,7 @@ A box on that page lets others connect at once. Otherwise incoming connections s
 
 Type a 9-digit ID, a name you gave a computer, or `host:port`, or pick one of **Saved computers** (the ones you connected to or paired with, and your account's devices), each with whether it is online. Its menu (⋮) renames it, forgets it, saves its Wake-on-LAN MAC address and wakes it.
 
-Each computer opens in a **tab of its own** next to Connect and This computer, with the familiar Desktop, Terminal, Files, Clipboard and Info tabs ([remote desktop](remote-desktop.md), [browser client](web-gateway.md)). It asks for the password if there is no pairing (ticking "Pair" saves one). ⧉ moves the computer into a window of its own; × disconnects and closes the tab. A connection that drops (sleep, a new network) comes back by itself.
+Each computer opens in a **tab of its own** next to Connect and This computer, with the familiar Desktop, Terminal, Files, Clipboard and Info tabs ([remote desktop](remote-desktop.md), [browser client](web-gateway.md)). It asks for the password if nothing is remembered for it. With **Remember this computer** ticked, the app pairs with it, or, where the computer does not pair (quick support, another desktop app), saves its password on this device and logs in with it next time, until the password changes. The eye button in the field shows what you typed; in **Saved computers**, ⋮ shows or deletes a saved password. ⧉ moves the computer into a window of its own; × disconnects and closes the tab. A connection that drops (sleep, a new network) comes back by itself.
 
 ## This computer
 

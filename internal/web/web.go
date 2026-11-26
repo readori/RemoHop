@@ -152,6 +152,11 @@ type Config struct {
 	// one. The defaults edit the saved-peers file in ConfigDir.
 	SetAlias func(target, alias string) error
 	Forget   func(target string) (int, error)
+	// SavePassword saves a saved host's password ("" removes it) and
+	// Password reads it back for the page to show. The defaults use the
+	// saved-peers file in ConfigDir.
+	SavePassword func(target, password string) error
+	Password     func(target string) (string, error)
 
 	// Limits.
 	MaxSessions        int           // concurrent host sessions, default 16
@@ -291,6 +296,12 @@ func New(cfg Config) (*Server, error) {
 	}
 	if s.cfg.Forget == nil {
 		s.cfg.Forget = s.defaultForget
+	}
+	if s.cfg.SavePassword == nil {
+		s.cfg.SavePassword = s.defaultSavePassword
+	}
+	if s.cfg.Password == nil {
+		s.cfg.Password = s.defaultPassword
 	}
 	s.lim = newLimiter(s.cfg.Now)
 
@@ -527,6 +538,7 @@ func (s *Server) routes() *http.ServeMux {
 	api("GET /api/v1/peers", s.handlePeers)
 	api("POST /api/v1/peers/alias", s.handlePeerAlias)
 	api("POST /api/v1/peers/forget", s.handlePeerForget)
+	api("POST /api/v1/peers/password", s.handlePeerPassword)
 	api("POST /api/v1/connect", s.handleConnect)
 	api("GET /api/v1/connect/{id}", s.handleAttempt)
 	api("DELETE /api/v1/connect/{id}", s.handleAttemptCancel)

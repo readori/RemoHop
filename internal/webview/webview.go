@@ -29,6 +29,9 @@ import (
 
 func init() { runtime.LockOSThread() }
 
+// fitArea fits a window into the work area (nativeui.FitArea).
+var fitArea = nativeui.FitArea
+
 // The types are nativeui's; this package implements them.
 type (
 	Config   = nativeui.Config

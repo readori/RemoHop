@@ -45,6 +45,9 @@ type PeerInfo struct {
 	Alias    string `json:"alias,omitempty"`
 	Paired   bool   `json:"paired"`
 	KeyLogin bool   `json:"key_login,omitempty"`
+	// SavedPassword: the user asked to remember the login and the host
+	// does not pair, so its password is saved on this gateway.
+	SavedPassword bool `json:"saved_password,omitempty"`
 	// LastSeen is when this device last logged in to the host (or saw it
 	// online), if it ever did.
 	LastSeen *time.Time `json:"last_seen,omitempty"`
@@ -86,7 +89,8 @@ func (s *Server) defaultPeers() ([]PeerInfo, error) {
 	}
 	out := make([]PeerInfo, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, PeerInfo{Target: p.Target, Alias: p.Alias, Paired: p.Paired(), KeyLogin: p.KeyLogin, LastSeen: p.LastSeen})
+		out = append(out, PeerInfo{Target: p.Target, Alias: p.Alias, Paired: p.Paired(), KeyLogin: p.KeyLogin,
+			SavedPassword: p.SavedPassword(), LastSeen: p.LastSeen})
 	}
 	return out, nil
 }
@@ -202,6 +206,8 @@ func classify(err error) *apiError {
 		return mk(http.StatusBadGateway, "signal_wrong_protocol")
 	}
 	switch {
+	case errors.Is(err, dial.ErrSavedPasswordRejected):
+		return mk(http.StatusUnauthorized, "saved_password_rejected")
 	case errors.Is(err, dial.ErrNoCredential):
 		return mk(http.StatusUnauthorized, "password_required")
 	case errors.Is(err, dial.ErrHostKeyChanged):
@@ -247,7 +253,9 @@ type attempt struct {
 // pairOutcome is a pairing that did not work on a connection that did:
 // Code is "pair_refused" when the host does not allow it (Reason says why:
 // no_pairing, the host runs with --no-pairing, as quick support does; grant,
-// the login came through a grant) and "pair_failed" otherwise. The page
+// the login came through a grant) and "pair_failed" otherwise. A refusal
+// on a connect that asked to remember the login saves the typed password
+// instead (OK, Code "password_saved"). The page
 // says so in its own words; the session itself is fine, and the host stays
 // one that needs its password.
 type pairOutcome struct {
@@ -368,6 +376,11 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 	go func() {
 		defer cancel()
 		conn, err := s.cfg.Dial(ctx, DialRequest{Target: target, Password: password, Notify: a.notice})
+		// typed is kept until the pairing step: a host that refuses to
+		// pair gets its password saved instead, when the user asked to
+		// remember the login.
+		typed := password
+		defer func() { typed = "" }()
 		if !s.cfg.Persistent {
 			password = ""
 		}
@@ -386,14 +399,27 @@ func (s *Server) startConnect(ws *webSession, req connectReq) (*attempt, *apiErr
 			err := s.cfg.Pair(pctx, conn, req.PairName)
 			pcancel()
 			if err != nil {
-				// The session works; only the pairing failed. Say so.
-				a.notice("pairing failed: " + err.Error())
 				pf := pairFailure(err)
+				if pf.Code == "pair_refused" && typed != "" && !s.cfg.NoSaved {
+					if serr := s.cfg.SavePassword(ci.Target, typed); serr == nil {
+						pf = &pairOutcome{OK: true, Code: "password_saved", Reason: pf.Reason,
+							Message: "the host does not pair; its password is saved on this device"}
+					} else {
+						s.cfg.Logger.Warn("could not save the password", "target", ci.Target, "err", serr)
+					}
+				}
+				if !pf.OK {
+					// The session works; only the pairing failed. Say so.
+					a.notice("pairing failed: " + err.Error())
+				}
 				a.mu.Lock()
 				a.pair = pf
 				a.mu.Unlock()
 			} else {
 				ci.Paired = true
+				// The pairing logs in from now on: a password saved
+				// before is not needed any more.
+				_ = s.cfg.SavePassword(ci.Target, "")
 			}
 		}
 		p := newPooled(ci.Key, conn, ci)

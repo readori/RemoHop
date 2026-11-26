@@ -21,6 +21,8 @@
       'c.target': 'Computer ID or address', 'c.connect': 'Connect', 'c.saved': 'Saved computers', 'c.none': 'No saved computers yet.',
       'help.saved': 'Computers you connected to or paired with. A paired computer needs no password.',
       'p.online': 'Online', 'p.offline': 'Offline', 'p.unknown': 'Unknown', 'p.paired': 'Paired', 'p.account': 'Account',
+      'p.savedpw': 'Password saved', 'p.showpw': 'Show saved password', 'p.forgetpw': 'Delete saved password', 'p.pw.t': 'Saved password of {t}',
+      'p.forgetpw.done': 'Saved password deleted', 'close': 'Close', 'pw.show': 'Show password', 'pw.hide': 'Hide password',
       'p.rename': 'Rename', 'p.wake': 'Wake up', 'p.mac': 'Wake-on-LAN address', 'p.forget': 'Forget', 'p.woke': 'Wake-up packet sent',
       'p.rename.t': 'Name for {t}', 'p.name': 'Name', 'p.mac.t': 'Wake-on-LAN for {t}', 'p.mac.l': 'MAC address (empty removes it)',
       'p.forget.q': 'Forget {t}? Its pairing is deleted.',
@@ -75,6 +77,8 @@
       'c.target': '电脑 ID 或地址', 'c.connect': '连接', 'c.saved': '已保存的电脑', 'c.none': '还没有保存的电脑。',
       'help.saved': '连接过或配对过的电脑。已配对的电脑不用再输密码。',
       'p.online': '在线', 'p.offline': '离线', 'p.unknown': '未知', 'p.paired': '已配对', 'p.account': '账号',
+      'p.savedpw': '已保存密码', 'p.showpw': '查看保存的密码', 'p.forgetpw': '删除保存的密码', 'p.pw.t': '{t} 的保存密码',
+      'p.forgetpw.done': '已删除保存的密码', 'close': '关闭', 'pw.show': '显示密码', 'pw.hide': '隐藏密码',
       'p.rename': '重命名', 'p.wake': '唤醒', 'p.mac': '网络唤醒地址', 'p.forget': '移除', 'p.woke': '已发送唤醒包',
       'p.rename.t': '为 {t} 命名', 'p.name': '名称', 'p.mac.t': '{t} 的网络唤醒', 'p.mac.l': 'MAC 地址（留空则删除）',
       'p.forget.q': '移除 {t}？它的配对会被删除。',
@@ -263,6 +267,7 @@
       if (p.alias || p.name) bits.push(p.target);
       bits.push(t(p.presence === 'online' ? 'p.online' : p.presence === 'offline' ? 'p.offline' : 'p.unknown'));
       if (p.login === 'pairing') bits.push(t('p.paired'));
+      if (p.login === 'saved_password') bits.push(t('p.savedpw'));
       b.textContent = bits.join(' · ');
       txt.append(a, b);
       const go = document.createElement('button'); go.className = 'btn tonal sm'; go.textContent = t('c.connect');
@@ -292,15 +297,34 @@
     d.append(f); document.body.append(d); d.showModal();
     return new Promise(res => d.addEventListener('close', () => { res(d.returnValue); d.remove(); }, {once: true}));
   }
+  // A saved password, shown so the user can check it, with Copy.
+  function showSecret(title, value) {
+    const d = document.createElement('dialog');
+    const f = document.createElement('form'); f.method = 'dialog'; f.className = 'dlg';
+    const h = document.createElement('h2'); h.textContent = title;
+    const v = document.createElement('div'); v.className = 'secret mono'; v.textContent = value;
+    const acts = document.createElement('div'); acts.className = 'acts';
+    const cp = document.createElement('button'); cp.type = 'button'; cp.className = 'btn tonal'; cp.textContent = t('copy');
+    cp.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(value); } catch (e) { /* shown anyway */ }
+      snack(t('copied'));
+    });
+    const c = document.createElement('button'); c.className = 'btn'; c.value = ''; c.textContent = t('close');
+    acts.append(cp, c); f.append(h, v, acts); d.append(f); document.body.append(d); d.showModal();
+    return new Promise(res => d.addEventListener('close', () => { d.remove(); res(); }, {once: true}));
+  }
   async function peerMenu(p) {
     const items = [{id: 'rename', label: t('p.rename')}];
     if (p.wake) items.push({id: 'wake', label: t('p.wake')});
+    if (p.login === 'saved_password') items.push({id: 'showpw', label: t('p.showpw')}, {id: 'forgetpw', label: t('p.forgetpw')});
     items.push({id: 'mac', label: t('p.mac')}, {id: 'forget', label: t('p.forget')});
     const a = await sheet(peerTitle(p), items);
     try {
       if (a === 'rename') { const v = await ask(t('p.rename.t', {t: p.target}), t('p.name'), p.alias); if (v !== null) await api('peer/alias', {target: p.target, alias: v}); }
       if (a === 'wake') { await api('peer/wake', {target: p.target}); snack(t('p.woke')); }
       if (a === 'mac') { const v = await ask(t('p.mac.t', {t: peerTitle(p)}), t('p.mac.l'), ''); if (v !== null) { await api('peer/mac', {target: p.target, mac: v}); snack(t('saved')); } }
+      if (a === 'showpw') { const r = await api('peer/password', {target: p.target}); await showSecret(t('p.pw.t', {t: peerTitle(p)}), r.password); return; }
+      if (a === 'forgetpw') { await api('peer/password/forget', {target: p.target}); snack(t('p.forgetpw.done')); }
       if (a === 'forget') { const ok = await sheet(t('p.forget.q', {t: peerTitle(p)}), [{id: 'yes', label: t('p.forget')}]); if (ok === 'yes') await api('peer/forget', {target: p.target}); }
       if (a) loadPeers(true);
     } catch (e) { snack(errText(e)); }
@@ -630,6 +654,26 @@
   $('set-lang').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b) api('lang', {lang: b.dataset.lang}).catch(e => snack(errText(e))); });
   $('set-theme').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b) api('theme', {theme: b.dataset.theme}).catch(e => snack(errText(e))); });
   $('autostart').addEventListener('change', ev => api('autostart', {on: ev.target.checked}).catch(e => snack(errText(e))));
+
+  // ---- show password ----
+  // Each password field has an eye button to show what was typed.
+  function addEye(input) {
+    const wrap = document.createElement('span'); wrap.className = 'pwwrap';
+    input.parentNode.insertBefore(wrap, input); wrap.append(input);
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'icon-btn pweye';
+    const set = shown => {
+      input.type = shown ? 'text' : 'password';
+      b.innerHTML = '<svg><use href="#' + (shown ? 'i-eye-off' : 'i-eye') + '"/></svg>';
+      b.setAttribute('aria-pressed', String(shown));
+      b.setAttribute('aria-label', t(shown ? 'pw.hide' : 'pw.show')); b.title = t(shown ? 'pw.hide' : 'pw.show');
+    };
+    b.addEventListener('click', () => { set(input.type === 'password'); input.focus(); });
+    wrap.append(b); set(false);
+    return set;
+  }
+  const eyes = [...document.querySelectorAll('input[type=password]')].map(addEye);
+  // A dialog that closes leaves no password shown.
+  for (const d of document.querySelectorAll('dialog')) d.addEventListener('close', () => eyes.forEach(set => set(false)));
 
   // ---- start ----
   async function start() {

@@ -112,10 +112,13 @@ type App struct {
 	gwDone    chan error
 	onGateway func(origin string) // the UI server lets the page frame it
 
-	peersMu  sync.Mutex
-	peers    []Peer
-	peersAt  time.Time
-	peersErr string
+	peersMu sync.Mutex
+	peers   []Peer
+	peersAt time.Time
+	// peersMtime is the saved-peers file's modification time when peers
+	// was made.
+	peersMtime time.Time
+	peersErr   string
 
 	upd updateInfo
 }

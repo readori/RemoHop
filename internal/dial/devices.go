@@ -72,7 +72,8 @@ type Device struct {
 	Name       string `json:"name,omitempty"`
 	Platform   string `json:"platform,omitempty"`
 	ThisDevice bool   `json:"this_device,omitempty"`
-	// Login is "pairing", "key", "account" (a key login the host accepts
+	// Login is "pairing", "key", "saved_password" (a password the user
+	// asked a gateway to remember), "account" (a key login the host accepts
 	// if its owner turned account-trust on, else the password) or
 	// "password".
 	Login string `json:"login"`
@@ -127,6 +128,8 @@ func Devices(ctx context.Context, opts DevicesOptions) ([]Device, error) {
 			d.Login = "pairing"
 		case p.KeyLogin:
 			d.Login = "key"
+		case p.SavedPassword():
+			d.Login = "saved_password"
 		}
 		if key, err := auth.DecodeKey(p.HostKey); err == nil {
 			d.HostIdentity = auth.Fingerprint(key)

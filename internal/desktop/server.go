@@ -181,6 +181,17 @@ func (s *Server) routes() {
 	post("/api/peer/alias", func(_ *http.Request, q req) (any, error) { return nil, a.SetAlias(q.Target, q.Alias) })
 	post("/api/peer/forget", func(_ *http.Request, q req) (any, error) { return nil, a.Forget(q.Target) })
 	post("/api/peer/wake", func(r *http.Request, q req) (any, error) { return nil, a.Wake(r.Context(), q.Target) })
+	post("/api/peer/password", func(_ *http.Request, q req) (any, error) {
+		pw, err := a.SavedPassword(q.Target, false)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"password": pw}, nil
+	})
+	post("/api/peer/password/forget", func(_ *http.Request, q req) (any, error) {
+		_, err := a.SavedPassword(q.Target, true)
+		return nil, err
+	})
 	post("/api/peer/mac", func(_ *http.Request, q req) (any, error) { return nil, a.SetWake(q.Target, q.MAC) })
 	post("/api/console", func(_ *http.Request, q req) (any, error) {
 		u, err := a.ConsoleURL(q.Target)

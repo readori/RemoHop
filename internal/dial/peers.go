@@ -36,6 +36,13 @@ type Peer struct {
 	TokenID  string     `json:"token_id,omitempty"`
 	Token    []byte     `json:"token,omitempty"`
 	PairedAt *time.Time `json:"paired_at,omitempty"`
+	// Password is the host's password, saved only when the user asked a
+	// gateway (the desktop app, a mobile app, `remohop web`) to remember
+	// the login and the host does not hand out pairings (quick support,
+	// the desktop app's own host). It is sent only to the pinned HostKey
+	// and is dropped when the host rejects it. Like the tokens, it is a
+	// login credential: the file is 0600.
+	Password string `json:"password,omitempty"`
 	// FirstSeen is when the host key was pinned.
 	FirstSeen time.Time `json:"first_seen"`
 	// LastSeen is when this machine last found the host online: a
@@ -47,6 +54,10 @@ type Peer struct {
 
 // Paired reports whether a pairing token is stored for the peer.
 func (p Peer) Paired() bool { return p.TokenID != "" && len(p.Token) > 0 }
+
+// SavedPassword reports whether a usable saved password is stored: one
+// with a pinned host key to send it to.
+func (p Peer) SavedPassword() bool { return p.Password != "" && p.HostKey != "" }
 
 // Store is the saved-peers file: pinned host keys, pairing tokens and
 // aliases. It is mode 0600 because the tokens are login credentials. All
@@ -180,6 +191,27 @@ func (s *Store) SetAlias(target, alias string) error {
 			peers = append(peers, Peer{Target: target, Alias: alias, FirstSeen: time.Now().UTC().Truncate(time.Second)})
 		}
 		return peers, nil
+	})
+}
+
+// SetPassword saves (or, when password is empty, removes) the password of
+// the saved peer target. A peer that is not saved is an error: the password
+// only ever goes with a pinned host key.
+func (s *Store) SetPassword(target, password string) error {
+	return s.modify(func(peers []Peer) ([]Peer, error) {
+		for i := range peers {
+			if peers[i].Target == target {
+				if password != "" && peers[i].HostKey == "" {
+					return nil, fmt.Errorf("%s: no pinned host key to save a password for", target)
+				}
+				peers[i].Password = password
+				return peers, nil
+			}
+		}
+		if password == "" {
+			return peers, nil
+		}
+		return nil, fmt.Errorf("%s is not a saved host", target)
 	})
 }
 

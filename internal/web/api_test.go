@@ -210,6 +210,73 @@ func TestPairRefused(t *testing.T) {
 	}
 }
 
+// Remembering the login of a host that does not pair saves its password
+// instead; the page can show it and remove it, and a later pairing makes
+// it unnecessary.
+func TestPairRefusedSavesPassword(t *testing.T) {
+	testEnv(t)
+	d := &dialer{t: t}
+	saved := map[string]string{}
+	s := startServer(t, Config{Dial: d.dial,
+		Pair: func(context.Context, *peer.Conn, string) error {
+			return errors.New("pair: this host does not allow pairing")
+		},
+		SavePassword: func(target, pw string) error {
+			if pw == "" {
+				delete(saved, target)
+			} else {
+				saved[target] = pw
+			}
+			return nil
+		},
+		Password: func(target string) (string, error) {
+			if pw, ok := saved[target]; ok {
+				return pw, nil
+			}
+			return "", errNoSuchPeer
+		},
+	})
+	c := newLoopbackClient(t, s)
+	c.newSession()
+	var a map[string]any
+	c.jsonCall("POST", "api/v1/connect", map[string]any{"target": "123456789", "password": "hostpw", "pair": true}, &a)
+	for i := 0; ; i++ {
+		var j map[string]any
+		c.jsonCall("GET", "api/v1/connect/"+a["attempt"].(string), nil, &j)
+		if j["state"] == "connected" {
+			p, _ := j["pair"].(map[string]any)
+			if p == nil || p["ok"] != true || p["code"] != "password_saved" {
+				t.Errorf("pair outcome: %v", j["pair"])
+			}
+			for _, n := range j["notices"].([]any) {
+				if strings.Contains(n.(string), "pairing failed") {
+					t.Errorf("a saved password is reported as a failure: %v", n)
+				}
+			}
+			break
+		}
+		if i > 500 {
+			t.Fatalf("not connected: %v", j)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if saved["123456789"] != "hostpw" {
+		t.Fatalf("saved: %v", saved)
+	}
+	var r map[string]any
+	c.jsonCall("POST", "api/v1/peers/password", map[string]any{"target": "123 456 789"}, &r)
+	if r["password"] != "hostpw" {
+		t.Fatalf("reveal: %v", r)
+	}
+	c.jsonCall("POST", "api/v1/peers/password", map[string]any{"target": "123456789", "forget": true}, &r)
+	if _, ok := saved["123456789"]; ok {
+		t.Fatal("forget kept the password")
+	}
+	if code := c.jsonCall("POST", "api/v1/peers/password", map[string]any{"target": "123456789"}, &r); code != http.StatusNotFound {
+		t.Fatalf("reveal after forget: HTTP %d", code)
+	}
+}
+
 func TestFilesAPI(t *testing.T) {
 	r := newRig(t, peertest.Options{})
 	root := t.TempDir()

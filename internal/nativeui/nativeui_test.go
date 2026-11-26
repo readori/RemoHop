@@ -25,3 +25,21 @@ func TestSize(t *testing.T) {
 		t.Fatalf("size %dx%d", w, h)
 	}
 }
+
+func TestFitArea(t *testing.T) {
+	for _, c := range []struct {
+		w, h, minW, minH, aw, ah int
+		want                     [4]int
+	}{
+		{1280, 800, 800, 600, 1920, 1040, [4]int{1280, 800, 800, 600}}, // fits
+		{1280, 800, 800, 600, 1366, 728, [4]int{1256, 669, 800, 600}},  // a 1366x768 laptop
+		{1280, 800, 800, 600, 1280, 680, [4]int{1177, 625, 800, 600}},  // 1280x720
+		{1280, 800, 800, 600, 700, 500, [4]int{700, 500, 700, 500}},    // smaller than the minimum
+		{1280, 800, 800, 600, 0, 0, [4]int{1280, 800, 800, 600}},       // unknown area
+	} {
+		w, h, mw, mh := FitArea(c.w, c.h, c.minW, c.minH, c.aw, c.ah)
+		if got := [4]int{w, h, mw, mh}; got != c.want {
+			t.Errorf("FitArea(%d,%d,%d,%d in %dx%d) = %v, want %v", c.w, c.h, c.minW, c.minH, c.aw, c.ah, got, c.want)
+		}
+	}
+}

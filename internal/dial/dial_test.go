@@ -1530,3 +1530,54 @@ func TestNoPunchRetryForSymmetric(t *testing.T) {
 		t.Fatalf("attempts %v in %s, want one quick attempt", attempts, time.Since(start))
 	}
 }
+
+// A saved password (Peer.Password, which a gateway saves for a host that
+// does not pair) logs in without one being given; once the host has
+// another password it is dropped and the dial says so.
+func TestSavedPassword(t *testing.T) {
+	ctx := testCtx(t)
+	h := startHost(t, hostd.Config{})
+	addr := h.Addr().String()
+	clientDir := t.TempDir()
+	first := h.Password()
+
+	conn, err := Dial(ctx, addr, Options{Dir: clientDir, Password: first, Locals: noLocals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	st := mustStore(t, clientDir)
+	if err := st.SetPassword("nobody:1", "x"); err == nil {
+		t.Fatal("a password was saved for a host that is not saved")
+	}
+	if err := st.SetPassword(addr, first); err != nil {
+		t.Fatal(err)
+	}
+	conn, err = Dial(ctx, addr, Options{Dir: clientDir, Locals: noLocals})
+	if err != nil {
+		t.Fatalf("dial with the saved password: %v", err)
+	}
+	conn.Close()
+
+	// The host gets a new password (quick support and the desktop app
+	// make one at every start).
+	if err := h.RotatePassword(); err != nil {
+		t.Fatal(err)
+	}
+	_, err = Dial(ctx, addr, Options{Dir: clientDir, Locals: noLocals})
+	if !errors.Is(err, ErrSavedPasswordRejected) || !errors.Is(err, ErrNoCredential) {
+		t.Fatalf("dial with a stale saved password: %v", err)
+	}
+	if p, _, _ := st.Get(addr); p.Password != "" {
+		t.Fatal("the rejected password was kept")
+	}
+	// A given password still works, and nothing is saved by the dial.
+	conn, err = Dial(ctx, addr, Options{Dir: clientDir, Password: h.Password(), Locals: noLocals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	if p, _, _ := st.Get(addr); p.Password != "" {
+		t.Fatal("a dial saved a password by itself")
+	}
+}

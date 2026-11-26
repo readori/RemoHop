@@ -153,3 +153,19 @@ func (o *Options) Size() (w, h int) {
 	}
 	return w, h
 }
+
+// FitArea shrinks a window's size, and its minimum size, to fit a work
+// area of areaW x areaH (the screen minus task bar, Dock or panels, in the
+// same units). A window takes at most 92% of the area, so its edges stay
+// clear of them; the minimum never exceeds the area. A zero area (unknown)
+// leaves everything as it is. The overlay banner does not use it: it has
+// its own fixed size.
+func FitArea(w, h, minW, minH, areaW, areaH int) (int, int, int, int) {
+	if areaW <= 0 || areaH <= 0 {
+		return w, h, minW, minH
+	}
+	maxW, maxH := areaW*92/100, areaH*92/100
+	w, h = min(w, maxW), min(h, maxH)
+	minW, minH = min(minW, areaW), min(minH, areaH)
+	return max(w, minW), max(h, minH), minW, minH
+}
