@@ -31,6 +31,11 @@ type Socket struct {
 	// network replace it before use.
 	Locals func() []netip.Addr
 
+	// Mapped, if set, returns the public address the local router forwards
+	// to this socket's port (see internal/portmap), or the zero value while
+	// there is none. Candidates puts it first. Set it before use.
+	Mapped func() netip.AddrPort
+
 	// Excluded reports addresses no punched path may use: neither
 	// advertised, nor probed, nor accepted as the source of a probe or an
 	// ack. It defaults to the package's Excluded (networks the mesh
@@ -215,29 +220,41 @@ func (s *Socket) send(p []byte, to netip.AddrPort) error {
 	return err
 }
 
-// Candidates returns the socket's local candidates: its port on each
-// address in Locals, or just the bound address if the socket is bound to
-// one.
+// Candidates returns the socket's self-reported candidates: its port on
+// each address in Locals, or just the bound address if the socket is bound
+// to one; and first, when the router forwards a public port to the socket
+// (Mapped), that address.
+//
+// At most MaxCandidates local addresses are listed, so the mapped address
+// makes the list one longer rather than pushing a LAN address out; the
+// rendezvous server's bound on what a peer reports leaves room for it.
 func (s *Socket) Candidates() []netip.AddrPort {
 	bound, ok := addrPortOf(s.pc.LocalAddr())
 	if !ok {
 		return nil
 	}
+	var out []netip.AddrPort
+	if s.Mapped != nil {
+		if m := normalize(s.Mapped()); m.IsValid() && m.Port() != 0 && Routable(m.Addr()) && !s.excludes(m.Addr()) {
+			out = append(out, m)
+		}
+	}
 	if !bound.Addr().IsUnspecified() {
 		if !usableLocal(bound.Addr()) || s.excludes(bound.Addr()) {
-			return nil
+			return out
 		}
-		return []netip.AddrPort{bound}
+		return append(out, bound)
 	}
-	var out []netip.AddrPort
+	locals := 0
 	for _, ip := range s.Locals() {
-		if len(out) == MaxCandidates {
+		if locals == MaxCandidates {
 			break
 		}
 		if s.excludes(ip) {
 			continue // see exclude.go
 		}
 		out = append(out, netip.AddrPortFrom(ip, bound.Port()))
+		locals++
 	}
 	return out
 }

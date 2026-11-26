@@ -835,6 +835,24 @@ func TestParseCandidates(t *testing.T) {
 	if len(got) != 1 {
 		t.Errorf("loopback candidate of a loopback peer dropped")
 	}
+
+	// A host whose router forwards a port (internal/portmap) lists that
+	// address first and its full set of local addresses after it: all of
+	// it fits, and survives the round trip through formatCandidates.
+	full := []netip.AddrPort{netip.MustParseAddrPort("203.0.113.7:41641")}
+	for i := range nat.MaxCandidates {
+		full = append(full, netip.AddrPortFrom(netip.AddrFrom4([4]byte{192, 168, 1, byte(10 + i)}), 4000))
+	}
+	got, err = parseCandidates(formatCandidates(full), observed)
+	if err != nil || len(got) != len(full) || got[0] != full[0] {
+		t.Errorf("mapped candidate and %d local ones: kept %v (%v)", nat.MaxCandidates, got, err)
+	}
+	// Behind carrier-grade NAT the router's public address is not the one
+	// the server sees, and the mapping is useless; it is dropped.
+	got, _ = parseCandidates([]string{"198.51.100.9:41641"}, observed)
+	if len(got) != 0 {
+		t.Errorf("mapped candidate on another public address passed on: %v", got)
+	}
 }
 
 // The filter is applied by the server to both sides of an introduction,
