@@ -24,6 +24,8 @@ data class HostState(
     val askTimeout: Int,
     val requests: List<HostRequest>,
     val sessions: List<HostSession>,
+    /** Control is offered at all (the core has an input injector). */
+    val controlOffered: Boolean = true,
 ) {
     /** What the status line says, as one of a few kinds (the screen picks the words). */
     enum class Status { OFF, STARTING, READY, OFFLINE, NO_SERVER, ERROR }
@@ -76,6 +78,7 @@ data class HostState(
                     askTimeout = o.optInt("ask_timeout", 60),
                     requests = objects(o.optJSONArray("requests")).map { HostRequest.of(it) },
                     sessions = objects(o.optJSONArray("sessions")).map { HostSession.of(it) },
+                    controlOffered = o.optBoolean("control_offered", true),
                 )
             } catch (e: Exception) {
                 OFF

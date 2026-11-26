@@ -182,5 +182,9 @@ func SetHostSessionControl(id int, control bool) error {
 // DisconnectHostSession ends a connected session; 0 ends them all.
 func DisconnectHostSession(id int) error { return mobile.DisconnectHostSession(id) }
 
+// SetScreenOptions names the native encoder ("mediacodec", "videotoolbox")
+// and caps the frame rate (1..60; 0 keeps 60), from the next StartHost.
+func SetScreenOptions(encoder string, maxFPS int) { mobile.SetScreenOptions(encoder, maxFPS) }
+
 // RegenerateHostPassword replaces the temporary password.
 func RegenerateHostPassword() error { return mobile.RegenerateHostPassword() }

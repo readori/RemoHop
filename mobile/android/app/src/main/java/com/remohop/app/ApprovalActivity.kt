@@ -119,13 +119,16 @@ class ApprovalActivity : AppCompatActivity() {
             }
             id = R.id.host_scam_warning
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12) })
+        val offered = HostMode.state.controlOffered
         if (!r.isAccess) {
             col.addView(body(getString(R.string.hm_req_may)), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12) })
-            control = MaterialCheckBox(this).apply {
-                text = getString(R.string.hm_req_control)
-                id = R.id.host_req_control
+            if (offered) {
+                control = MaterialCheckBox(this).apply {
+                    text = getString(R.string.hm_req_control)
+                    id = R.id.host_req_control
+                }
+                col.addView(control)
             }
-            col.addView(control)
         }
         // Control needs the accessibility service: a short note and a way to turn it on.
         val note = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -133,8 +136,10 @@ class ApprovalActivity : AppCompatActivity() {
         note.addView(ui.button(getString(R.string.hm_req_enable_control), SettingsUi.ButtonStyle.OUTLINED).apply {
             setOnClickListener { ControlDisclosure.show(this@ApprovalActivity) }
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(4) })
-        col.addView(note)
-        controlNote = note
+        if (offered) {
+            col.addView(note)
+            controlNote = note
+        }
         left = body(getString(R.string.hm_req_left, r.left)).also {
             col.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(8) })
         }
