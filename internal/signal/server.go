@@ -47,8 +47,11 @@ const (
 )
 
 // moveCheckEvery is how often registered hosts are checked for a changed
-// address (see closeMoved). A variable for tests.
-var moveCheckEvery = 5 * time.Second
+// address (see closeMoved). Atomic so that a test can shorten it while
+// another test's server is still running.
+var moveCheckEvery atomic.Int64 // time.Duration
+
+func init() { moveCheckEvery.Store(int64(5 * time.Second)) }
 
 // Config configures a Server.
 type Config struct {
@@ -535,7 +538,7 @@ func (s *Server) housekeeping(ctx context.Context) {
 
 // shortHousekeeping runs the checks that cannot wait for the hourly round.
 func (s *Server) shortHousekeeping(ctx context.Context) {
-	t := time.NewTicker(moveCheckEvery)
+	t := time.NewTicker(time.Duration(moveCheckEvery.Load()))
 	defer t.Stop()
 	for {
 		select {
