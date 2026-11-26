@@ -26,6 +26,12 @@ data class HostState(
     val sessions: List<HostSession>,
     /** Control is offered at all (the core has an input injector). */
     val controlOffered: Boolean = true,
+    /**
+     * [PASSWORD_TEMPORARY] (new at every start) or [PASSWORD_FIXED] (the
+     * owner's own, kept across starts); known while host mode is off too.
+     * [password] is the one in force, the owner's own as typed when fixed.
+     */
+    val passwordMode: String = PASSWORD_TEMPORARY,
 ) {
     /** What the status line says, as one of a few kinds (the screen picks the words). */
     enum class Status { OFF, STARTING, READY, OFFLINE, NO_SERVER, ERROR }
@@ -46,6 +52,9 @@ data class HostState(
     /** Some connected session may control the phone. */
     val controlled: Boolean get() = sessions.any { it.control }
 
+    /** The owner's own password is in force (masked on screen, no "New password"). */
+    val fixedPassword: Boolean get() = passwordMode == PASSWORD_FIXED
+
     /** The ID, or else the first address, to tell the other side; "" when neither is known yet. */
     val reachableAs: String get() = id.ifEmpty { addresses.firstOrNull().orEmpty() }
 
@@ -55,6 +64,8 @@ data class HostState(
         const val PHASE_READY = "ready"
         const val PHASE_NO_SERVER = "no_server"
         const val PHASE_ERROR = "error"
+        const val PASSWORD_TEMPORARY = "temporary"
+        const val PASSWORD_FIXED = "fixed"
 
         val OFF = HostState(false, PHASE_OFF, "", "", "", false, "", emptyList(), "", 0, false, "", 60, emptyList(), emptyList())
 
@@ -79,6 +90,8 @@ data class HostState(
                     requests = objects(o.optJSONArray("requests")).map { HostRequest.of(it) },
                     sessions = objects(o.optJSONArray("sessions")).map { HostSession.of(it) },
                     controlOffered = o.optBoolean("control_offered", true),
+                    // Anything unknown is the temporary password, as before the setting existed.
+                    passwordMode = if (o.optString("password_mode") == PASSWORD_FIXED) PASSWORD_FIXED else PASSWORD_TEMPORARY,
                 )
             } catch (e: Exception) {
                 OFF
