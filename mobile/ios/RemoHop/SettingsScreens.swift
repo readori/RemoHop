@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 // The detail screens of Settings. Visible text is labels and values only;
 // explanations are behind the ⓘ in each screen's navigation bar.
@@ -331,6 +332,14 @@ struct SavedHostDetailView: View {
     @State private var saved = false
     @State private var copied = false
     @State private var confirmForget = false
+    /// The saved password while it is shown: read from the core only when
+    /// the eye is tapped, dropped when hidden, when the screen goes away and
+    /// when the app leaves the foreground.
+    @State private var password: String?
+    @State private var passwordCopied = false
+    @State private var passwordError = ""
+    @State private var confirmDeletePassword = false
+    @Environment(\.scenePhase) private var scenePhase
     @FocusState private var focused: Bool
 
     init(m: SettingsModel, target: String, connect: @escaping (String) -> Void) {
@@ -386,6 +395,9 @@ struct SavedHostDetailView: View {
             Section {
                 Button { save(); connect(h.target) } label: { Label(L("Connect"), systemImage: "play.fill") }
             }
+            if h.kind == .savedPassword {
+                savedPasswordSection(h)
+            }
             Section {
                 Button(role: .destructive) { confirmForget = true } label: { Label(L("Forget this computer"), systemImage: "trash") }
             }
@@ -394,10 +406,7 @@ struct SavedHostDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                InfoButton(title: h.label, items: [
-                    InfoItem(title: L("Name"), text: L("Shown instead of the ID or address, and usable in place of it when you connect. Leave it empty to show the ID or address.")),
-                    InfoItem(title: L("Forget this computer"), text: L("Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.")),
-                ])
+                InfoButton(title: h.label, items: infoItems(h))
             }
         }
         .confirmationDialog(L("Forget %@?", h.label), isPresented: $confirmForget, titleVisibility: .visible) {
@@ -413,8 +422,77 @@ struct SavedHostDetailView: View {
             if !loaded { name = h.alias; loaded = true }
         }
         .onChange(of: focused) { f in if !f { save() } }
-        .onDisappear { save() }
+        .onChange(of: scenePhase) { p in if p != .active { password = nil } }
+        .onDisappear { save(); password = nil }
         .animation(.default, value: saved)
+    }
+
+    private func infoItems(_ h: SavedHost) -> [InfoItem] {
+        var items = [InfoItem(title: L("Name"), text: L("Shown instead of the ID or address, and usable in place of it when you connect. Leave it empty to show the ID or address."))]
+        if h.kind == .savedPassword {
+            items.append(InfoItem(title: L("Saved password"), text: L("This computer does not pair, so when you chose to remember it, RemoHop saved the password you typed. It stays on this device only and is used when you connect. Delete it and the computer needs its password again.")))
+        }
+        items.append(InfoItem(title: L("Forget this computer"), text: L("Removes the pairing and the pinned key from this device. The computer then needs its password again, and a changed key is no longer noticed.")))
+        return items
+    }
+
+    /// The password saved for a host that does not pair: masked, with an
+    /// eye to show it, Copy, and Delete. It is read only on a tap.
+    @ViewBuilder
+    private func savedPasswordSection(_ h: SavedHost) -> some View {
+        Section {
+            HStack {
+                if let password {
+                    Text(verbatim: password).font(.body.monospaced()).textSelection(.enabled)
+                } else {
+                    Text(verbatim: "••••••••").accessibilityLabel(L("Saved password"))
+                }
+                Spacer()
+                Button {
+                    if password != nil { password = nil; return }
+                    m.savedPassword(target) { pw in
+                        passwordError = pw == nil ? L("The saved password could not be read.") : ""
+                        password = pw
+                    }
+                } label: {
+                    Image(systemName: password == nil ? "eye" : "eye.slash")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(password == nil ? L("Show password") : L("Hide password"))
+            }
+            Button {
+                m.savedPassword(target) { pw in
+                    guard let pw else { passwordError = L("The saved password could not be read."); return }
+                    passwordError = ""
+                    // Not to other devices (Universal Clipboard), and gone after two minutes.
+                    UIPasteboard.general.setItems([[UTType.utf8PlainText.identifier: pw]],
+                                                  options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)])
+                    passwordCopied = true
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
+            } label: {
+                Label(L("Copy"), systemImage: passwordCopied ? "checkmark" : "doc.on.doc")
+            }
+            Button(role: .destructive) { confirmDeletePassword = true } label: {
+                Label(L("Delete saved password"), systemImage: "trash")
+            }
+            .confirmationDialog(L("Delete the saved password?"), isPresented: $confirmDeletePassword, titleVisibility: .visible) {
+                Button(L("Delete saved password"), role: .destructive) {
+                    password = nil
+                    m.forgetSavedPassword(target) { ok in
+                        passwordError = ok ? "" : L("The saved password could not be deleted.")
+                        if ok { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+                    }
+                }
+                Button(L("Cancel"), role: .cancel) {}
+            } message: {
+                Text(L("%@ stays in Saved hosts. To connect to it again you will need its password.", h.label))
+            }
+        } header: {
+            Text(L("Saved password"))
+        } footer: {
+            if !passwordError.isEmpty { Text(passwordError).foregroundStyle(.red) }
+        }
     }
 
     private func save() {

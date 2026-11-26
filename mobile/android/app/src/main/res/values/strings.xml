@@ -188,4 +188,21 @@
     <string name="download_canceled">Download canceled.</string>
     <string name="download_busy">Another download is still running. Wait for it, or cancel it.</string>
     <string name="download_interrupted">The app was restarted while you chose where to save, so the download stopped. Download it again.</string>
+    <!-- A saved host that does not pair, with its password saved on this device. -->
+    <string name="login_saved_password">saved password</string>
+    <string name="host_savedpw_sub">Password saved · connects without a password</string>
+    <string name="host_status_savedpw">Password saved: connects without typing a password</string>
+    <string name="badge_saved_password">Password saved</string>
+    <string name="savedpw_heading">Saved password</string>
+    <string name="savedpw_show">Show password</string>
+    <string name="savedpw_hide">Hide password</string>
+    <string name="savedpw_copy">Copy</string>
+    <string name="savedpw_delete">Delete saved password</string>
+    <string name="savedpw_delete_title">Delete the saved password?</string>
+    <string name="savedpw_delete_msg">%1$s stays in Saved hosts. To connect to it again you will need its password.</string>
+    <string name="savedpw_delete_button">Delete</string>
+    <string name="savedpw_deleted">Saved password deleted.</string>
+    <string name="savedpw_read_failed">The saved password could not be read.</string>
+    <string name="savedpw_delete_failed">The saved password could not be deleted.</string>
+    <string name="info_host_savedpw">This computer does not pair, so when you chose to remember it, RemoHop saved the password you typed. It stays on this device only and is used when you connect. Delete it and the computer needs its password again.</string>
 </resources>

@@ -145,10 +145,11 @@ struct SettingsRow: View {
 }
 
 /// A saved host as the core's DevicesJSON reports it, in the words the
-/// screens use: paired (or authorised by key), so it connects without a
+/// screens use: paired (or authorised by key, or with its password saved
+/// on this device because it does not pair), so it connects without a
 /// password, or recent, so it needs the password each time.
 struct SavedHost: Identifiable, Equatable {
-    enum Kind { case paired, key, recent }
+    enum Kind { case paired, key, savedPassword, recent }
 
     let target: String
     let alias: String
@@ -161,6 +162,7 @@ struct SavedHost: Identifiable, Equatable {
         switch login {
         case "pairing": return .paired
         case "key": return .key
+        case "saved_password": return .savedPassword
         default: return .recent
         }
     }
@@ -178,6 +180,7 @@ struct SavedHost: Identifiable, Equatable {
         switch kind {
         case .paired: return L("Paired · connects without a password")
         case .key: return L("Authorised by key · connects without a password")
+        case .savedPassword: return L("Password saved · connects without a password")
         case .recent: return L("Recent · needs the password")
         }
     }
@@ -185,6 +188,7 @@ struct SavedHost: Identifiable, Equatable {
         switch kind {
         case .paired: return L("Paired: connects without a password")
         case .key: return L("Authorised by key: connects without a password")
+        case .savedPassword: return L("Password saved: connects without typing a password")
         case .recent: return L("Recent: needs the password each time")
         }
     }
@@ -458,6 +462,29 @@ final class SettingsModel: ObservableObject {
             try? Core.forget(target)
             Diag.log("saved host forgotten")
             await MainActor.run { self.loadHosts(online: false) }
+        }
+    }
+
+    /// Reads the password saved for a host, for the detail screen to show or
+    /// copy (nil when it cannot). It is passed on, never kept here or logged.
+    func savedPassword(_ target: String, done: @escaping @MainActor (String?) -> Void) {
+        Task.detached {
+            let pw = try? Core.savedPassword(target)
+            if pw == nil { Diag.log("saved password not read") }
+            await MainActor.run { done(pw) }
+        }
+    }
+
+    /// Deletes the password saved for a host that does not pair; the host
+    /// stays saved and needs its password again. `done` gets whether it went.
+    func forgetSavedPassword(_ target: String, done: @escaping @MainActor (Bool) -> Void = { _ in }) {
+        Task.detached {
+            let ok = (try? Core.forgetSavedPassword(target)) != nil
+            Diag.log(ok ? "saved password deleted" : "saved password not deleted")
+            await MainActor.run {
+                self.loadHosts(online: false)
+                done(ok)
+            }
         }
     }
 

@@ -187,4 +187,20 @@
     <string name="download_canceled">已取消下载。</string>
     <string name="download_busy">另一个下载仍在进行。请等待它完成，或取消它。</string>
     <string name="download_interrupted">选择保存位置时应用被重新启动，下载已停止。请重新下载。</string>
+    <string name="login_saved_password">保存的密码</string>
+    <string name="host_savedpw_sub">已保存密码 · 免密码连接</string>
+    <string name="host_status_savedpw">已保存密码：连接时无需输入密码</string>
+    <string name="badge_saved_password">已保存密码</string>
+    <string name="savedpw_heading">保存的密码</string>
+    <string name="savedpw_show">显示密码</string>
+    <string name="savedpw_hide">隐藏密码</string>
+    <string name="savedpw_copy">复制</string>
+    <string name="savedpw_delete">删除保存的密码</string>
+    <string name="savedpw_delete_title">删除保存的密码？</string>
+    <string name="savedpw_delete_msg">%1$s 仍会保留在已保存的被控端中。以后连接它时需要再次输入密码。</string>
+    <string name="savedpw_delete_button">删除</string>
+    <string name="savedpw_deleted">已删除保存的密码。</string>
+    <string name="savedpw_read_failed">无法读取保存的密码。</string>
+    <string name="savedpw_delete_failed">无法删除保存的密码。</string>
+    <string name="info_host_savedpw">这台电脑不接受配对，所以你选择记住它时，RemoHop 保存了你输入的密码。密码只保存在本设备上，连接时自动使用。删除后，连接这台电脑需要再次输入密码。</string>
 </resources>

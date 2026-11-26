@@ -151,4 +151,19 @@ enum Core {
         var err: NSError?
         if !RemohopcoreForget(target, &n, &err) { throw err ?? Failure(message: "could not forget \(target)") }
     }
+
+    /// The password saved for a host that does not pair (an error when none
+    /// is). Read only when the user asks to see or copy it; never log it.
+    static func savedPassword(_ target: String) throws -> String {
+        var err: NSError?
+        let s = RemohopcoreSavedPassword(target, &err)
+        if let err { throw err }
+        return s
+    }
+
+    /// Deletes the password saved for a host; the rest of what is saved for it stays.
+    static func forgetSavedPassword(_ target: String) throws {
+        var err: NSError?
+        if !RemohopcoreForgetSavedPassword(target, &err) { throw err ?? Failure(message: "could not delete the saved password") }
+    }
 }

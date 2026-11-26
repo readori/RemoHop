@@ -61,6 +61,16 @@ final class AppInfoTests: XCTestCase {
         XCTAssertNil(SavedHost.date("yesterday"))
     }
 
+    /// A host that does not pair, with its password saved: it connects without one, like a paired host.
+    func testSavedPasswordHost() {
+        let h = SavedHost(json: ["target": "10.0.0.3:21118", "login": "saved_password", "presence": "not_checked"])
+        XCTAssertEqual(h.kind, .savedPassword)
+        XCTAssertEqual(h.status, L("Password saved: connects without typing a password"))
+        XCTAssertEqual(L10n.zh["Password saved · connects without a password"], "已保存密码 · 免密码连接")
+        XCTAssertTrue(h.detail.contains(h.kindSummary))
+        XCTAssertNotEqual(h.kindSummary, SavedHost(json: ["target": "x:1", "login": "password"]).kindSummary)
+    }
+
     /// The rendezvous check offers the key the server presented.
     func testRendezvousCheckKey() {
         let ok = RendezvousCheck.parse(#"{"ok":true,"code":"ok","server":"s:21116","key":"AAAA"}"#)
