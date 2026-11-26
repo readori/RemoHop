@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The RemoHop logo (the same mark as the launcher icon and site/public/favicon.svg):
+     a cobalt rounded tile with two screen corners and an arrow. Shown while the page loads. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="88dp" android:height="88dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <path android:pathData="M13,0L51,0A13,13 0,0 1,64 13L64,51A13,13 0,0 1,51 64L13,64A13,13 0,0 1,0 51L0,13A13,13 0,0 1,13 0Z"
+        android:fillColor="#2546D8" />
+    <path android:pathData="M13,31L13,17L34,17M30,47L51,47L51,33M24,32L42,32M35,25L42,32L35,39" android:strokeColor="#F7F8FF" android:strokeWidth="5.5"
+        android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+</vector>

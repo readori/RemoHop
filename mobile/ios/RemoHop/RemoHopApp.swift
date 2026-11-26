@@ -18,9 +18,11 @@ struct RemoHopApp: App {
             // trip to another app keeps the host sessions), and closes the
             // gateway's listener when that time is up; on the way back it
             // checks (reopens) the listener before the page needs it, and
-            // the gateway re-establishes host sessions that dropped.
+            // the gateway re-establishes host sessions that dropped. Then
+            // the web view checks its page (it may have been killed or left
+            // half loaded meanwhile) and loads it again if needed.
             switch phase {
-            case .active: model.ensureGateway()
+            case .active: model.enterForeground()
             case .background: model.enterBackground()
             default: break
             }
@@ -44,6 +46,16 @@ final class AppModel: ObservableObject {
     var pendingConnect: String?
     /// Runs a script in the loaded page (set by the web view's coordinator).
     var runOnPage: ((String) -> Void)?
+    /// What covers the web view: nothing, the logo while the page loads, or
+    /// "Try again" (set by the web view's coordinator, see PageRecovery).
+    @Published var pageCover: PageCover = .loading
+    /// Back in the foreground, after the gateway check (whether it answers):
+    /// the coordinator checks its page. Set by the coordinator.
+    var onForeground: (@MainActor (Bool) -> Void)?
+    /// On the way into the background (set by the coordinator).
+    var onBackground: (@MainActor () -> Void)?
+    /// "Try again" on the cover (set by the coordinator).
+    var retryPage: (@MainActor () -> Void)?
 
     /// Settings closed: the page connects to the host chosen there, or lists
     /// the saved hosts again (they may have been renamed or forgotten).
@@ -89,6 +101,7 @@ final class AppModel: ObservableObject {
     /// background mode is used: once suspended, the sessions drop, and the
     /// gateway re-establishes them on return.
     func enterBackground() {
+        onBackground?()
         endBackgroundTask()
         gatewayQueue.async {
             // A session, or an attempt waiting for the host's owner to approve.
@@ -111,6 +124,12 @@ final class AppModel: ObservableObject {
         guard backgroundTask != .invalid else { return }
         UIApplication.shared.endBackgroundTask(backgroundTask)
         backgroundTask = .invalid
+    }
+
+    /// The app is active again: the gateway is checked (reopened), then the
+    /// page (the coordinator reloads it if it is dead).
+    func enterForeground() {
+        ensureGateway { [weak self] up in self?.onForeground?(up) }
     }
 
     /// Makes sure the gateway answers (starting it, or reopening its

@@ -25,6 +25,7 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -40,6 +41,7 @@ import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.util.concurrent.Executors
 import kotlin.math.max
 
@@ -57,6 +59,12 @@ import kotlin.math.max
  * ?lang=zh or ?lang=en, and told when the setting changes. This activity
  * is not recreated for a language change (it would drop the page), so its
  * own strings come from [Lang.localized].
+ *
+ * The page is never left blank (see [PageRecovery]): a native cover
+ * ([PageCover]: the logo, or "Try again") hides the WebView until the page
+ * has loaded, and the page is loaded again when its renderer died, a load
+ * failed or never finished, or a check on the return to the foreground
+ * finds it dead.
  */
 class MainActivity : Activity(), BridgeHost {
     private lateinit var root: FrameLayout
@@ -74,6 +82,17 @@ class MainActivity : Activity(), BridgeHost {
     private val bg = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private var askedNotifications = false
+    private val recovery = PageRecovery()
+    private lateinit var cover: PageCover
+    /** Between onStart and onStop (visible); otherwise "in the background" for [recovery]. */
+    private var started = false
+    /** A reload is under way after the page was lost (for the log). */
+    private var recovering = false
+    /** The current load hit a main-frame error (onPageFinished still follows it). */
+    private var loadErrored = false
+    /** The probe of the page waiting for its answer (0: none). */
+    private var pendingProbe = 0
+    private var probes = 0
     /** While resumed: start the foreground service once a host session exists (see SessionService). */
     private val watch = object : Runnable {
         override fun run() {
@@ -89,6 +108,7 @@ class MainActivity : Activity(), BridgeHost {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this)
         setContentView(root)
+        cover = PageCover(this, { str(it) }) { userRetry() }
         applyBarColors()
         // Edge to edge (enforced from Android 15): pad for the system bars,
         // and for the keyboard so the page resizes above it.
@@ -147,7 +167,123 @@ class MainActivity : Activity(), BridgeHost {
         installBridge(o)
         val lang = Lang.effective(this)
         pageLang = lang
+        recovery.loadStarted()
+        loadErrored = false
+        showCover()
+        val gen = recovery.generation
         web.loadUrl(GatewayUrls.withLang(url, lang))
+        // A load that does not finish in time counts as failed.
+        main.postDelayed({ handleFailure(recovery.loadTimedOut(gen, !started), "page load timed out") }, PageRecovery.LOAD_TIMEOUT_MS)
+    }
+
+    // ---- recovery: the page is never left blank ----
+
+    /** Shows the recovery state on the cover. */
+    private fun showCover() {
+        if (!::cover.isInitialized) return
+        cover.show(when (recovery.phase) {
+            PageRecovery.Phase.READY -> PageCover.State.HIDDEN
+            PageRecovery.Phase.FAILED -> PageCover.State.FAILED
+            else -> PageCover.State.LOADING
+        })
+    }
+
+    /**
+     * Loads the page again after it was lost, once the gateway answers (it
+     * reopens a failed listener, or starts again), in a new WebView if the
+     * old one is gone.
+     */
+    private fun recover(reason: String) {
+        Diag.log(reason)
+        recovering = true
+        showCover()
+        if (bg.isShutdown) return
+        bg.execute {
+            val url = runCatching { Core.gatewayUrl(this) }
+            val gen = Core.generation
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                val u = url.getOrNull()
+                if (u != null) {
+                    if (!::web.isInitialized || web.parent == null) newWebView()
+                    loadedGen = gen
+                    load(u)
+                } else {
+                    recovery.loadStarted()
+                    handleFailure(recovery.loadFailed(!started), "gateway did not answer")
+                }
+            }
+        }
+    }
+
+    /** What to do after a failed or timed-out load. */
+    private fun handleFailure(after: PageRecovery.AfterFailure, what: String) {
+        if (isDestroyed) return
+        when (after) {
+            PageRecovery.AfterFailure.Ignored -> return
+            PageRecovery.AfterFailure.WaitForForeground -> Diag.log("$what; reloading on return to the app")
+            is PageRecovery.AfterFailure.Retry -> {
+                Diag.log("$what; retry ${recovery.failures} of ${PageRecovery.MAX_RETRIES} in ${after.afterMs / 1000} s")
+                val gen = recovery.generation
+                // In the background the page stays dead: the return to the foreground reloads it.
+                main.postDelayed({ if (!isDestroyed && started && recovery.retryDue(gen)) recover("page load retry") }, after.afterMs)
+            }
+            PageRecovery.AfterFailure.GiveUp -> {
+                recovering = false
+                Diag.log("$what; showing Try again")
+            }
+        }
+        showCover()
+    }
+
+    /**
+     * Back in the foreground: the gateway is checked (as before), a dead page
+     * is loaded again, and a shown one is asked whether it is alive.
+     */
+    private fun foregroundCheck() {
+        when (recovery.foregroundAction()) {
+            PageRecovery.Foreground.NOTHING -> if (origin != null) ensureGateway {}
+            PageRecovery.Foreground.RELOAD -> {
+                val failedBefore = recovery.phase == PageRecovery.Phase.FAILED
+                recovery.retryNow()
+                recover(if (failedBefore) "foreground check: page failed to load, reloading" else "foreground check: page dead, reloading")
+            }
+            PageRecovery.Foreground.PROBE -> ensureGateway { up ->
+                // A new gateway URL was loaded meanwhile: nothing to check.
+                if (recovery.phase != PageRecovery.Phase.READY) return@ensureGateway
+                val gen = recovery.generation
+                if (!up) {
+                    if (recovery.probeFailed(gen)) recover("foreground check: gateway did not answer, reloading")
+                    return@ensureGateway
+                }
+                probe { alive -> if (!alive && recovery.probeFailed(gen)) recover("foreground check: page dead, reloading") }
+            }
+        }
+    }
+
+    /** "Try again" on the cover. */
+    private fun userRetry() {
+        recovery.retryNow()
+        recover("page reload requested (Try again)")
+    }
+
+    /** Asks the page whether it is alive; no answer in time counts as dead. */
+    private fun probe(done: (Boolean) -> Unit) {
+        val o = origin
+        if (!::web.isInitialized || o == null) return done(false)
+        val id = ++probes
+        pendingProbe = id
+        val finish = { alive: Boolean ->
+            if (pendingProbe == id && !isDestroyed) {
+                pendingProbe = 0
+                done(alive)
+            }
+        }
+        web.evaluateJavascript(PageRecovery.PROBE_SCRIPT) { r ->
+            val s = runCatching { JSONTokener(r ?: "null").nextValue() as? String }.getOrNull()
+            finish(PageRecovery.probeOk(s, o))
+        }
+        main.postDelayed({ finish(false) }, PageRecovery.PROBE_TIMEOUT_MS)
     }
 
     private fun str(id: Int, vararg args: Any): String = Lang.localized(this).getString(id, *args)
@@ -198,6 +334,7 @@ class MainActivity : Activity(), BridgeHost {
         web = WebView(this)
         root.removeAllViews()
         root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        root.addView(cover, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         listenerInstalled = false
         scriptHandler = null
         origin = null
@@ -233,18 +370,44 @@ class MainActivity : Activity(), BridgeHost {
                 // Without document-start injection, inject late: the page
                 // works, but its first desktop socket may be missed.
                 if (scriptHandler == null) view.evaluateJavascript(script, null)
+                // The page is shown, unless this finishes an error page
+                // (onReceivedError came first) or another page.
+                val o = origin
+                if (view !== web || loadErrored || o == null || url == null || !GatewayUrls.sameOrigin(url, o)) return
+                if (recovering) Diag.log("page loaded again")
+                recovering = false
+                recovery.loadFinished()
+                showCover()
+            }
+
+            // The main frame did not load: load it again a few times, then
+            // show "Try again". The error's text is not logged (it may name the URL).
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if (view !== web || !request.isForMainFrame) return
+                loadErrored = true
+                handleFailure(recovery.loadFailed(!started), "page load failed (${error.errorCode})")
             }
 
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
                 Diag.log("web renderer gone (crashed: ${detail.didCrash()})")
+                if (view !== web) {
+                    view.destroy() // an earlier WebView, already replaced
+                    return true
+                }
                 // The page that asked for full screen and a screen kept on
                 // is gone; the new one starts in the normal layout.
                 setState(keepScreenOn = false, fullscreen = false)
-                // The renderer died (or was killed for memory): start over
-                // with a fresh WebView on the same gateway.
+                // The renderer died (or was killed for memory): a fresh
+                // WebView, covered, loads the page again on the same gateway,
+                // now or when the app is back in front.
                 view.destroy()
                 newWebView()
-                startGateway()
+                if (recovery.processTerminated(inBackground = !started)) {
+                    recover("page reloaded after renderer gone")
+                } else {
+                    Diag.log("page will reload on return to the app")
+                    showCover()
+                }
                 return true
             }
         }
@@ -366,12 +529,27 @@ class MainActivity : Activity(), BridgeHost {
         syncLang()
         // The gateway is process wide: check that it answers (it reopens a
         // failed listener, or starts again) before the page needs it. It
-        // also re-establishes host sessions that dropped meanwhile.
-        if (origin != null) ensureGateway {}
-        else if (failed) retryGateway()
+        // also re-establishes host sessions that dropped meanwhile. Then
+        // the page: loaded again if it died or was left half loaded, or
+        // asked whether it is alive.
+        if (failed) retryGateway()
+        else foregroundCheck()
         tellPage()
         main.removeCallbacks(watch)
         main.post(watch)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        started = true
+    }
+
+    override fun onStop() {
+        started = false
+        // A load under way may be cut off in the background: done again on return.
+        recovery.enteredBackground()
+        showCover()
+        super.onStop()
     }
 
     override fun onPause() {
@@ -402,7 +580,7 @@ class MainActivity : Activity(), BridgeHost {
     }
 
     override fun onDestroy() {
-        main.removeCallbacks(watch)
+        main.removeCallbacksAndMessages(null) // the session watch, load and retry timers, probes
         if (::saver.isInitialized) saver.close()
         if (::web.isInitialized) {
             root.removeAllViews()
