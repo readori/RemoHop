@@ -111,10 +111,15 @@ func (p *pooled) close() {
 		p.fsc = nil
 	}
 	p.fsMu.Unlock()
-	p.current().Close()
+	if c := p.current(); c != nil {
+		c.Close()
+	}
 }
 
 func dead(c *peer.Conn) bool {
+	if c == nil {
+		return true // a restored session before its first login (restore.go)
+	}
 	select {
 	case <-c.Done():
 		return true
@@ -294,6 +299,7 @@ func (s *Server) adopt(ws *webSession, p *pooled, release func()) (*pooled, bool
 		defer s.wg.Done()
 		s.keep(ws, p, release)
 	}()
+	s.saveOpen()
 	return p, true
 }
 

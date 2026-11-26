@@ -139,6 +139,13 @@ type Config struct {
 	// same target and the password typed for it (kept in memory), or with
 	// the saved pairing if the connect paired.
 	Redial RedialFunc
+	// Restore, in persistent mode, makes the gateway keep the list of its
+	// open host sessions in ConfigDir and log in to those hosts again when
+	// it starts (an app the system ended while it was in the background;
+	// see restore.go). It is asked, for each, how to log in with what is
+	// saved on this device, and returns nil when nothing is (that session
+	// is not restored). Nil: nothing is kept or restored.
+	Restore func(target string) Redialer
 	// FrameAncestor is the one origin allowed to show the page in a frame
 	// (the desktop app's own page, http://127.0.0.1:PORT; see embed.go).
 	// Empty: the page cannot be framed. Loopback only.
@@ -364,6 +371,7 @@ func New(cfg Config) (*Server, error) {
 	s.mux = s.routes()
 	s.wg.Add(1)
 	go func() { defer s.wg.Done(); s.reapLoop(s.ctx) }()
+	s.restore()
 	s.srv = &http.Server{Handler: s, TLSConfig: tlsConf, ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout: 2 * time.Minute, MaxHeaderBytes: 32 << 10, ErrorLog: slog.NewLogLogger(s.log.Handler(), slog.LevelDebug)}
 	return s, nil
