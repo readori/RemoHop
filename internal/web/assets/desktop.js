@@ -305,15 +305,33 @@
     layout();
   });
 
+  // Sliding window of counter samples for the "last 10 s" HUD values.
+  const WINDOW_MS = 10000;
+  let samples = [];
+  const num = v => (typeof v === 'number' && isFinite(v) && v > 0) ? v : 0;
+  function recentDeltas(t, dropped, skipped) {
+    dropped = num(dropped); skipped = num(skipped);
+    const last = samples[samples.length - 1];
+    if (last && (dropped < last.dropped || skipped < last.skipped)) samples = []; // counter reset
+    samples.push({t, dropped, skipped});
+    // Keep the newest sample at or before now-10s as baseline; drop older ones.
+    let i = 0;
+    while (i + 1 < samples.length && samples[i + 1].t <= t - WINDOW_MS) i++;
+    if (i > 0) samples = samples.slice(i);
+    const base = samples[0];
+    return {dropped: Math.max(0, dropped - base.dropped), skipped: Math.max(0, skipped - base.skipped)};
+  }
+
   setInterval(() => {
     const t = performance.now(), dt = (t - stats.ws) / 1000;
     if (dt >= 0.5) { stats.fps = stats.wf / dt; stats.mbps = stats.wb * 8 / dt / 1e6; stats.wf = 0; stats.wb = 0; stats.ws = t; }
     if (!hello || $('d-hud').hidden) return;
     const h = stats.host || {}, tr = SD.t;
+    const recent = recentDeltas(t, h.dropped, stats.skipped);
     $('d-hud').textContent = `${hello.width}×${hello.height} ${hello.codec}\n${hello.encoder}${hello.hardware ? ' (GPU)' : ' (CPU)'} ${((h.bitrate || hello.bitrate || 0) / 1e6).toFixed(0)} Mbit/s\n` +
       `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s` + (h.pipeline_ms ? ` (${tr('d.hud.encode')} ${h.pipeline_ms.toFixed(0)} ms)` : '') + `\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
-      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), n: h.dropped || 0}) + (h.restarts ? ' ' + tr('d.hud.restarts', {n: h.restarts}) : '') +
-      (stats.skipped ? ' ' + tr('d.hud.skipped', {n: stats.skipped}) : '') + '\n' + tr(inputOK() ? 'd.hud.input' : 'd.hud.viewonly');
+      tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), total: num(h.dropped), recent: recent.dropped}) + (h.restarts ? ' ' + tr('d.hud.restarts', {n: h.restarts}) : '') +
+      (stats.skipped ? ' ' + tr('d.hud.skipped', {total: num(stats.skipped), recent: recent.skipped}) : '') + '\n' + tr(inputOK() ? 'd.hud.input' : 'd.hud.viewonly');
   }, 500);
 
   // ---- input ----
