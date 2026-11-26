@@ -13,6 +13,8 @@ import (
 	"github.com/jezek/xgb/randr"
 	"github.com/jezek/xgb/xinerama"
 	"github.com/jezek/xgb/xproto"
+
+	"github.com/readori/RemoHop/internal/x11disp"
 )
 
 // x11 is an open connection plus what is needed to read the root window.
@@ -89,7 +91,7 @@ func X11Displays(c *xgb.Conn) []Display {
 // resort (single monitor).
 func x11Monitors(c *xgb.Conn, root xproto.Window, width, height int) []Display {
 	var ds []Display
-	if err := randrInit(c); err == nil {
+	if err := x11disp.EnableRandR(c); err == nil {
 		if rep, err := randr.GetMonitors(c, root, true).Reply(); err == nil {
 			for _, m := range rep.Monitors {
 				if m.Width == 0 || m.Height == 0 {
@@ -119,26 +121,6 @@ func x11Monitors(c *xgb.Conn, root xproto.Window, width, height int) []Display {
 		ds = []Display{{Width: width, Height: height, Primary: true}}
 	}
 	return orderDisplays(ds)
-}
-
-// randrInit enables RandR requests on c. randr.Init would also register
-// RandR's event decoders in xgb's process-wide tables: a map write racing
-// with every other X connection of this process that is decoding events
-// (the clipboard, desktop and input services hold some), which the Go
-// runtime may turn into a fatal error. Listing monitors needs no RandR
-// events, so only the extension's opcode is recorded on c.
-func randrInit(c *xgb.Conn) error {
-	rep, err := xproto.QueryExtension(c, 5, "RANDR").Reply()
-	if err != nil {
-		return err
-	}
-	if !rep.Present {
-		return errors.New("no RANDR extension")
-	}
-	c.ExtLock.Lock()
-	c.Extensions["RANDR"] = rep.MajorOpcode
-	c.ExtLock.Unlock()
-	return nil
 }
 
 // grab reads rect (clipped to the root window) in horizontal bands so a 4K
