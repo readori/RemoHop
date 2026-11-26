@@ -85,7 +85,6 @@
     <string name="lang_system">跟随系统</string>
     <string name="diag_title">诊断日志</string>
     <string name="diag_size">日志大小</string>
-    <string name="diag_format">文件格式</string>
     <string name="diag_share">分享诊断日志</string>
     <string name="diag_email">发邮件给支持团队</string>
     <string name="diag_email_subject">RemoHop 诊断日志</string>

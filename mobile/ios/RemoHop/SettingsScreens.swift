@@ -562,7 +562,6 @@ struct PairView: View {
 @MainActor
 struct DiagnosticsView: View {
     @ObservedObject var m: SettingsModel
-    @State private var format = "txt"
     @State private var confirmClear = false
     @State private var error = ""
 
@@ -576,10 +575,6 @@ struct DiagnosticsView: View {
             }
             if m.diagOn || m.diagSize > 0 {
                 Section {
-                    Picker(L("File format"), selection: $format) {
-                        Text(verbatim: "TXT").tag("txt")
-                        Text(verbatim: "JSON").tag("json")
-                    }
                     Button { share() } label: { Label(L("Share diagnostic logs"), systemImage: "square.and.arrow.up") }
                     Button { email() } label: { Label(L("Email support"), systemImage: "envelope") }
                 }
@@ -611,7 +606,8 @@ struct DiagnosticsView: View {
     private func report() -> URL? {
         do {
             error = ""
-            return try Diag.export(format: format)
+            // Always plain text: readable anywhere, the format support asks for.
+            return try Diag.export(format: "txt")
         } catch let e {
             error = e.localizedDescription
             return nil

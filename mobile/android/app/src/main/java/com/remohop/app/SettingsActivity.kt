@@ -79,7 +79,6 @@ class SettingsActivity : AppCompatActivity() {
     private var rendezvousStatus: RendezvousStatus? = null
     /** The key the saved server presented in the last check (offered when none is saved). */
     private var rendezvousKey = ""
-    private var diagFormat = "txt"
     /** Masks a saved password the host page shows (set while that page is built, cleared by [show]). */
     private var hidePassword: (() -> Unit)? = null
 
@@ -966,14 +965,6 @@ class SettingsActivity : AppCompatActivity() {
         if (on) ui.row(c, getString(R.string.diag_size), value = AppInfo.size(Diag.size))
         val size = Diag.size
         val s = ui.section(col, null)
-        val fmt = ui.row(s, getString(R.string.diag_format), summary = diagFormat.uppercase(), icon = R.drawable.ic_doc) {}
-        fmt.view.setOnClickListener {
-            val opts = arrayOf("txt", "json")
-            MaterialAlertDialogBuilder(this).setTitle(R.string.diag_format)
-                .setSingleChoiceItems(arrayOf("TXT", "JSON"), opts.indexOf(diagFormat)) { d, i -> diagFormat = opts[i]; fmt.summary(diagFormat.uppercase()); d.dismiss() }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-        }
         val share = ui.row(s, getString(R.string.diag_share), icon = R.drawable.ic_share) {
             report()?.let { Diag.share(this, it, getString(R.string.diag_share)) }
         }
@@ -991,10 +982,11 @@ class SettingsActivity : AppCompatActivity() {
         }
         // Disabled (not hidden) while there is nothing to share.
         val has = on || size > 0
-        for (r in listOf(fmt, share, email, clear)) r.enabled(has)
+        for (r in listOf(share, email, clear)) r.enabled(has)
     }
 
-    private fun report() = runCatching { Diag.export(this, diagFormat) }
+    // Always plain text: readable anywhere, the format support asks for.
+    private fun report() = runCatching { Diag.export(this, "txt") }
         .onFailure { snack(it.message ?: "") }.getOrNull()
 
     private fun privacy(col: LinearLayout) {

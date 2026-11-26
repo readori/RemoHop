@@ -86,7 +86,6 @@
     <string name="lang_en" translatable="false">English</string>
     <string name="diag_title">Diagnostic logs</string>
     <string name="diag_size">Log size</string>
-    <string name="diag_format">File format</string>
     <string name="diag_share">Share diagnostic logs</string>
     <string name="diag_email">Email support</string>
     <string name="diag_email_subject">RemoHop diagnostic logs</string>
