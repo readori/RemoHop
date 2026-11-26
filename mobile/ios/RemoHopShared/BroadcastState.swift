@@ -4,9 +4,10 @@ import Foundation
 /// `<group>/Library/Broadcast/state.json` whenever it changes and at least
 /// every `heartbeat` seconds, read by the app's "Share this screen" page.
 ///
-/// It holds the temporary password, which the page shows with Copy: the
-/// file lives in the App Group container (only this app and its extension
-/// can read it) and is cleared when sharing stops. Never log it.
+/// It holds the password in force (the temporary one, or the owner's own),
+/// which the page shows with Copy: the file lives in the App Group
+/// container (only this app and its extension can read it) and is cleared
+/// when sharing stops. Never log it.
 struct BroadcastState: Codable, Equatable {
     enum Phase: String, Codable {
         /// The extension runs and the host is starting (no ID yet).
@@ -48,8 +49,12 @@ struct BroadcastState: Codable, Equatable {
     var phase: Phase
     /// The 9-digit ID as shown ("123 456 789"), or "" (none yet, or no server).
     var id: String = ""
-    /// The temporary password (new for every broadcast).
+    /// The password in force: a temporary one (new for every broadcast),
+    /// or the owner's own when `passwordFixed`.
     var password: String = ""
+    /// `password` is the owner's own (shown masked until revealed, with no
+    /// way to replace it but Password settings).
+    var passwordFixed: Bool = false
     /// Direct addresses (host:port), shown when there is no ID.
     var addresses: [String] = []
     /// A short code when phase is failed ("host": host mode could not start or stopped).

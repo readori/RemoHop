@@ -150,6 +150,7 @@ type hostState struct {
 
 	mu        sync.Mutex
 	firstSeen map[int]bool // approval N -> the device never asked before
+	own       string       // the owner's own password given to the host ("": temporary)
 }
 
 // SetHostListener sets (or with nil clears) the receiver of host events.
@@ -394,6 +395,7 @@ func StartHost() error {
 	if hostConfigHook != nil {
 		hostConfigHook(&hc)
 	}
+	run.own = hc.Password
 	h, err := hostd.New(hc)
 	if err != nil {
 		return hostFailLocked(err)
@@ -804,10 +806,49 @@ func SetHostFixedPassword(password string) error {
 	run := hostRun
 	hostMu.Unlock()
 	if run != nil {
+		run.mu.Lock()
+		run.own = pw
+		run.mu.Unlock()
 		return run.h.SetFixedPassword(pw)
 	}
 	notifyHost(nil)
 	return nil
+}
+
+// ReloadHostPassword gives the running host the owner's own password as
+// saved in the configuration directory now, if it changed there since the
+// host started or last got one; nothing when host mode is off (StartHost
+// reads it anyway). It is for a host in another process than the one that
+// calls SetHostFixedPassword, sharing its configuration directory (iOS:
+// the app sets the password, its broadcast extension runs the host). Cheap
+// when nothing changed: one small file read.
+func ReloadHostPassword() error {
+	d, err := configDir()
+	if err != nil {
+		return err
+	}
+	hostMu.Lock()
+	run := hostRun
+	hostMu.Unlock()
+	if run == nil {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(d, hostPasswordFile))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err // unreadable is not "removed": keep the password in force
+	}
+	pw := strings.TrimSpace(string(b)) // as ownHostPassword reads it
+	if auth.NormalizePassword(pw) == "" {
+		pw = ""
+	}
+	run.mu.Lock()
+	same := run.own == pw
+	run.own = pw
+	run.mu.Unlock()
+	if same {
+		return nil
+	}
+	return run.h.SetFixedPassword(pw)
 }
 
 // RegenerateHostPassword replaces the temporary password.

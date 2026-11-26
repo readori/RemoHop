@@ -8,9 +8,13 @@ import Foundation
 ///
 ///   - `configDirectory`: the Go core's configuration directory (identity
 ///     key, saved hosts, settings, the diagnostic log). Both processes use
-///     it, so the shared screen has this device's own identity and ID.
+///     it, so the shared screen has this device's own identity and ID. It
+///     also holds the owner's own password for sharing (the core's
+///     `host-password`, 0600): the app saves it with the core's
+///     SetHostFixedPassword, and the extension's host reads it when it
+///     starts and picks up a change within a second (ReloadHostPassword).
 ///   - `broadcastDirectory`: `state.json`, written by the extension (ID,
-///     temporary password, requests, viewers), and `commands/`, one file per
+///     password, requests, viewers), and `commands/`, one file per
 ///     command from the app (decide, disconnect, stop); see BroadcastStore.
 ///   - `defaults`: the app's language choice, mirrored for the extension's
 ///     notifications.

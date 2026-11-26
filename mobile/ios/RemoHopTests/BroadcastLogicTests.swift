@@ -311,4 +311,62 @@ final class BroadcastLogicTests: XCTestCase {
         }
         XCTAssertEqual(BroadcastPicker.extensionID, (Bundle.main.bundleIdentifier ?? "com.remohop.app") + ".broadcast")
     }
+
+    // MARK: the owner's own password
+
+    /// The core's rule (hostd.CheckOwnPassword): spaces and dashes do not
+    /// count, at least 8 bytes, two of letters, digits, other characters.
+    func testOwnPasswordRule() {
+        XCTAssertTrue(OwnPassword.isStrong("Garden-42-Ok"))
+        XCTAssertTrue(OwnPassword.isStrong("abcd1234"))
+        XCTAssertTrue(OwnPassword.isStrong("abcdefg!"))
+        XCTAssertTrue(OwnPassword.isStrong("1234567."))
+        XCTAssertFalse(OwnPassword.isStrong("password"))    // letters only
+        XCTAssertFalse(OwnPassword.isStrong("12345678"))    // digits only
+        XCTAssertFalse(OwnPassword.isStrong("abc123"))      // too short
+        XCTAssertFalse(OwnPassword.isStrong("abc 12-34"))   // 7 without the space and dash
+        XCTAssertFalse(OwnPassword.isStrong(""))
+        // Bytes, as the core counts: two Chinese characters are 6.
+        XCTAssertTrue(OwnPassword.isStrong("花园花园42"))
+        XCTAssertTrue(OwnPassword.isStrong("花园42"))
+        XCTAssertFalse(OwnPassword.isStrong("花园4"))
+        XCTAssertFalse(OwnPassword.isStrong(String(repeating: "a1", count: 129)))  // over 256
+        XCTAssertTrue(OwnPassword.isStrong(String(repeating: "a1", count: 128)))
+        XCTAssertEqual(OwnPassword.normalized(" Gar-den\t42 "), "Garden42")
+    }
+
+    func testOwnPasswordCheck() {
+        XCTAssertEqual(OwnPassword.check("Garden-42-Ok", "Garden-42-Ok", alreadyFixed: false), .save("Garden-42-Ok"))
+        XCTAssertEqual(OwnPassword.check(" Garden-42-Ok ", " Garden-42-Ok ", alreadyFixed: true), .save("Garden-42-Ok"))
+        XCTAssertEqual(OwnPassword.check("Garden-42-Ok", "Garden-42-OK", alreadyFixed: false), .problem(.mismatch))
+        XCTAssertEqual(OwnPassword.check("Garden-42-Ok", "", alreadyFixed: true), .problem(.mismatch))
+        XCTAssertEqual(OwnPassword.check("password", "password", alreadyFixed: false), .problem(.weak))
+        // Both empty: keeps the own password that is set; none set, nothing to save.
+        XCTAssertEqual(OwnPassword.check("", "", alreadyFixed: true), .unchanged)
+        XCTAssertEqual(OwnPassword.check("", "", alreadyFixed: false), .problem(.weak))
+    }
+
+    func testPasswordModeInStatusAndState() throws {
+        XCTAssertTrue(HostStatus(json: #"{"phase":"ready","password":"Garden-42-Ok","password_mode":"fixed"}"#).passwordFixed)
+        XCTAssertFalse(HostStatus(json: #"{"phase":"ready","password":"123 456","password_mode":"temporary"}"#).passwordFixed)
+        XCTAssertFalse(HostStatus(json: #"{"phase":"off"}"#).passwordFixed)
+        let t0 = Date(timeIntervalSince1970: 1_700_000_000)
+        let s = BroadcastState(phase: .ready, id: "123 456 789", password: "Garden-42-Ok", passwordFixed: true, updated: t0)
+        XCTAssertEqual(try BroadcastStore.decoder.decode(BroadcastState.self, from: BroadcastStore.encoder.encode(s)), s)
+        // Gone stale: neither the password nor its mode is shown.
+        let gone = s.effective(now: t0.addingTimeInterval(30))
+        XCTAssertEqual(gone.password, "")
+        XCTAssertFalse(gone.passwordFixed)
+    }
+
+    func testOwnPasswordTexts() {
+        XCTAssertEqual(L10n.text("My own password", context: "label", lang: "zh"), "固定密码")
+        XCTAssertEqual(L10n.text("My own password", lang: "zh"), "我自己的固定密码")
+        XCTAssertEqual(L10n.text("My own password", context: "label", lang: "en"), "My own password")
+        XCTAssertEqual(L10n.text("Password for incoming connections", lang: "zh"), "连接密码")
+        XCTAssertEqual(L10n.text("Use at least 8 characters, with at least two of: letters, digits, other characters.", lang: "zh"),
+                       "至少 8 位，且包含字母、数字、其他字符中的两种。")
+        // A context with no entry of its own falls back to the plain translation.
+        XCTAssertEqual(L10n.text("Password", context: "nowhere", lang: "zh"), "密码")
+    }
 }

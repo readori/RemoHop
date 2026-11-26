@@ -126,6 +126,26 @@ enum Core {
     /// a suspended app's socket, since the simulator never suspends the app.
     static func breakListenerForTest(stall: Bool) { RemohopcoreBreakGatewayListenerForTest(stall) }
 
+    // ---- screen sharing: the owner's own password ----
+
+    /// Saves the owner's own password for sharing this screen, kept across
+    /// starts ("" goes back to a new temporary password at every start), in
+    /// the configuration directory the broadcast extension shares: its host
+    /// reads it at start and applies a change within a second. Throws the
+    /// core's refusal (a weak password) or a failure to save. Never log it.
+    static func setSharePassword(_ password: String) throws {
+        var err: NSError?
+        if !RemohopcoreSetHostFixedPassword(password, &err) { throw err ?? Failure(message: "could not save the password") }
+    }
+
+    /// Whether the owner's own password is set for sharing (else a
+    /// temporary one is made at every start).
+    static var sharePasswordFixed: Bool {
+        var err: NSError?
+        let s = RemohopcoreHostStateJSON(&err)
+        return err == nil && HostStatus(json: s).passwordFixed
+    }
+
     // ---- settings screen ----
 
     static func settings() throws -> [String: String] {

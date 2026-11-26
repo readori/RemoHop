@@ -7,7 +7,7 @@ import Remohopcore
 /// writes to `<config>/diagnostics`, shared through the App Group, so the
 /// app's Settings → Diagnostic logs shows and shares them). Recorded only
 /// while the user has the log on; the core redacts every line. Never pass
-/// the temporary password or a gateway URL.
+/// the password (temporary or the owner's own) or a gateway URL.
 enum ExtLog {
     static func log(_ message: String) {
         RemohopcoreDiagnosticsLog("ios-broadcast", message)
