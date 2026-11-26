@@ -231,6 +231,8 @@ type serverConn struct {
 	// real is the peer's own address: addr's, or the WebSocket client's.
 	real  netip.Addr
 	moved atomic.Bool // asked to register again (closeMoved)
+	// outcomes counts the outcome reports made on this connection.
+	outcomes atomic.Int64
 }
 
 // current is the address the peer's packets come from now.
@@ -715,6 +717,8 @@ func (s *Server) handleStream(c *serverConn, st *quic.Stream) {
 		s.handleRelay(c, st, &req, fail)
 	case "account":
 		s.handleAccount(c, st, &req, fail)
+	case "outcome":
+		s.handleOutcome(c, st, &req, fail)
 	default:
 		fail(CodeBadRequest, "unknown request", 0)
 	}
