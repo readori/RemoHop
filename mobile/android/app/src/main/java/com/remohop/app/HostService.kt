@@ -46,7 +46,7 @@ class HostService : Service() {
 
     private var shown: Triple<Boolean, String, String>? = null
     private val listener: (HostState) -> Unit = { s ->
-        if (!s.on && !projecting && foreground && !HostModeRunning.now()) stopSelf()
+        if (foreground) stopIfOff()
         val key = Triple(s.controlled, s.sessions.joinToString(", ") { it.label }, s.reachableAs)
         if (key != shown) {
             shown = key
@@ -83,23 +83,36 @@ class HostService : Service() {
                 val code = intent!!.getIntExtra(EXTRA_CODE, 0)
                 @Suppress("DEPRECATION")
                 val data: Intent? = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(EXTRA_DATA, Intent::class.java) else intent.getParcelableExtra(EXTRA_DATA)
-                if (data != null && enterForeground(true)) {
-                    val mp = getSystemService(MediaProjectionManager::class.java)?.getMediaProjection(code, data)
-                    if (mp != null) {
-                        projecting = true
-                        emptySince = System.currentTimeMillis()
-                        ScreenCapture.attach(this, mp) { main.post { onProjectionEnded() } }
-                    } else enterForeground(false)
+                // A start with startForegroundService must reach the
+                // foreground whatever happens, or Android ends the app.
+                val mp = if (data != null && enterForeground(true)) {
+                    runCatching { getSystemService(MediaProjectionManager::class.java)?.getMediaProjection(code, data) }.getOrNull()
+                } else null
+                if (mp != null) {
+                    projecting = true
+                    emptySince = System.currentTimeMillis()
+                    ScreenCapture.attach(this, mp) { main.post { onProjectionEnded() } }
+                } else {
+                    enterForeground(false)
+                    stopIfOff()
                 }
                 return START_NOT_STICKY
             }
         }
-        if (!HostMode.state.on && !HostModeRunning.now()) {
+        // Started with startForegroundService: into the foreground first in
+        // any case (stopping before that makes Android end the app), then
+        // stop if host mode went off meanwhile.
+        if (!enterForeground(projecting)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!enterForeground(projecting)) stopSelf()
+        stopIfOff()
         return START_NOT_STICKY
+    }
+
+    /** Host mode is off and nothing is shared: the service is done. */
+    private fun stopIfOff() {
+        if (!projecting && !HostMode.state.on && !HostModeRunning.now()) stopSelf()
     }
 
     private var foreground = false
@@ -217,10 +230,6 @@ class HostService : Service() {
             } catch (e: Exception) {
                 Diag.log("host service could not start: ${e.javaClass.simpleName}")
             }
-        }
-
-        fun stop(context: Context) {
-            context.stopService(Intent(context, HostService::class.java))
         }
 
         /** The owner allowed screen sharing ([code] and [data] from the consent). */
