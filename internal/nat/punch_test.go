@@ -472,6 +472,26 @@ func TestCandidates(t *testing.T) {
 		}
 	}
 
+	// A port the router forwards comes first, on top of the cap, and fits
+	// in what the rendezvous server accepts. A mapping on an address that
+	// is not public (a router behind another NAT) is left out.
+	mapped := netip.MustParseAddrPort("203.0.113.5:41641")
+	sock.Mapped = func() netip.AddrPort { return mapped }
+	got = sock.Candidates()
+	if len(got) != nat.MaxCandidates+1 || got[0] != mapped || got[1] != netip.AddrPortFrom(netip.MustParseAddr("10.0.0.1"), port) {
+		t.Fatalf("with a mapping: %v", got)
+	}
+	for _, m := range []string{"10.1.1.1:41641", "100.64.1.1:41641", "203.0.113.5:0"} {
+		mapped = netip.MustParseAddrPort(m)
+		if got := sock.Candidates(); len(got) != nat.MaxCandidates || got[0].Port() != port {
+			t.Fatalf("mapping on %s advertised: %v", m, got)
+		}
+	}
+	sock.Mapped = func() netip.AddrPort { return netip.AddrPort{} }
+	if got := sock.Candidates(); len(got) != nat.MaxCandidates {
+		t.Fatalf("without a mapping: %v", got)
+	}
+
 	// A socket bound to loopback has nothing to advertise.
 	lo, err := nat.Listen("127.0.0.1:0")
 	if err != nil {
@@ -638,7 +658,7 @@ func TestPunchThroughConntrackNATs(t *testing.T) {
 
 // A host must not be usable to spray probes at addresses of somebody's
 // choosing: of the globally routable candidates it is handed, it probes
-// only a couple. Private candidates are not limited that way.
+// only a few (maxRoutable). Private candidates are not limited that way.
 func TestPunchProbesFewRoutableAddresses(t *testing.T) {
 	w := newWorld(t)
 	host := w.peer(w.net.Host("192.0.2.50"))
@@ -674,10 +694,10 @@ func TestPunchProbesFewRoutableAddresses(t *testing.T) {
 		}
 		packets += n
 	}
-	if probed != 2 {
-		t.Fatalf("%d of 6 routable candidates were probed, want 2", probed)
+	if probed != 3 {
+		t.Fatalf("%d of 6 routable candidates were probed, want 3", probed)
 	}
-	if packets == 0 || packets > 40 {
+	if packets == 0 || packets > 60 {
 		t.Fatalf("%d probe packets sent in 0.7 s", packets)
 	}
 }

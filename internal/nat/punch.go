@@ -45,9 +45,12 @@ const (
 	// maxRoutable bounds how many globally routable addresses one session
 	// probes on somebody's say-so. The candidates come from the other peer
 	// through the rendezvous server, neither of which is trusted not to
-	// name a third party; an honest peer has one public address, perhaps
-	// two.
-	maxRoutable = 2
+	// name a third party. An honest peer has up to three: the public IPv4
+	// address the server saw, a port its router forwards on that same
+	// address (internal/portmap), and one IPv6 address. The server lets
+	// no more through either: self-reported IPv4 addresses only on the
+	// address it observed, and at most one IPv6 address it cannot check.
+	maxRoutable = 3
 
 	// hostHold is how long a host waits to hear from the client before it
 	// sends normal-TTL probes to the client's public candidates, and
