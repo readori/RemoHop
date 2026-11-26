@@ -375,7 +375,14 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 			}
 			return config.Set(hostd.SettingPassword, strings.TrimSpace(string(pw)))
 		}
-		if err := runService(ctx, "install", "--unattended"); err != nil {
+		// The service has its own settings (in ProgramData), which know
+		// nothing of the rendezvous server chosen in the app (this user's
+		// settings, still the ones this process reads here): it is given
+		// on the service's command line, or the service's host stops at
+		// once ("no rendezvous server configured") and Windows restarts it
+		// over and over.
+		logFrom := fileSize(filepath.Join(dir, "service.log")) // an earlier attempt's lines are not this one's
+		if err := runService(ctx, append([]string{"install", "--unattended"}, serviceSignalArgs()...)...); err != nil {
 			return err
 		}
 		// The service's own settings: point this process at them.
@@ -385,15 +392,14 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		if err := config.Set(hostd.SettingPassword, strings.TrimSpace(string(pw))); err != nil {
 			return err
 		}
-		deadline := time.Now().Add(30 * time.Second)
-		for time.Now().Before(deadline) {
-			if st, _ := hostd.ReadStatus(dir); st != nil && st.ID != "" {
-				r.ID = st.ID
-				return nil
-			}
-			time.Sleep(500 * time.Millisecond)
+		id, err := waitServiceID(ctx, dir, logFrom, 30*time.Second)
+		if err != nil {
+			// A service that cannot run must not stay behind, restarting.
+			runService(ctx, "uninstall")
+			return err
 		}
-		return nil // installed; the ID shows once the service has registered
+		r.ID = id
+		return nil
 	}()
 	if err != nil {
 		r.Error = err.Error()
@@ -407,6 +413,70 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		return cli.ExitError
 	}
 	return cli.ExitOK
+}
+
+// serviceSignalArgs are the `service install` arguments for the rendezvous
+// server chosen in the app: --signal ADDR, or --no-signal when the user
+// chose none (reachable by address only).
+func serviceSignalArgs() []string {
+	all, _ := config.All()
+	if addr := strings.TrimSpace(all[signal.SettingAddr]); addr != "" {
+		return []string{"--signal", addr}
+	}
+	return []string{"--no-signal"}
+}
+
+// waitServiceID waits for the newly started service to register and
+// returns its ID. A service that registers late (a slow network) is not a
+// failure: "" and no error, the ID shows later. A service whose host
+// stopped is: the error is the host's last complaint from its log.
+func waitServiceID(ctx context.Context, dir string, logFrom int64, wait time.Duration) (string, error) {
+	deadline := time.Now().Add(wait)
+	for {
+		if st, _ := hostd.ReadStatus(dir); st != nil && st.ID != "" {
+			return st.ID, nil
+		}
+		if why := hostFailure(dir, logFrom); why != "" {
+			if _, running := serviceStatus(ctx); !running {
+				return "", Errorf("service_failed", "the service could not start: "+why)
+			}
+		}
+		if time.Now().After(deadline) || ctx.Err() != nil {
+			if why := hostFailure(dir, logFrom); why != "" {
+				return "", Errorf("service_failed", "the service could not start: "+why)
+			}
+			return "", nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+// hostFailure is the reason the service's host last stopped, from the
+// service log ("remohop: host: …" before "host stopped") after offset
+// from, or "".
+func hostFailure(dir string, from int64) string {
+	b, err := os.ReadFile(filepath.Join(dir, "service.log"))
+	if err != nil || int64(len(b)) <= from {
+		return ""
+	}
+	b = b[from:]
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	if len(lines) == 0 || !strings.Contains(lines[len(lines)-1], "host stopped") {
+		return ""
+	}
+	for i := len(lines) - 2; i >= 0 && i >= len(lines)-6; i-- {
+		if l := strings.TrimSpace(lines[i]); strings.HasPrefix(l, "remohop: host: ") {
+			return cli.Sanitize(strings.TrimPrefix(l, "remohop: host: "))
+		}
+	}
+	return cli.Sanitize(strings.TrimSpace(lines[len(lines)-1]))
+}
+
+func fileSize(path string) int64 {
+	if fi, err := os.Stat(path); err == nil {
+		return fi.Size()
+	}
+	return 0
 }
 
 // serviceConfigDir is the Windows service's config directory (see

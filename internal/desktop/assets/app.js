@@ -34,7 +34,7 @@
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
       'un.title': 'Unattended access', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
-      'un.setup': 'Set up', 'un.disable': 'Turn off', 'un.busy': 'Working…', 'un.enable': 'Turn on',
+      'un.setup': 'Set up', 'un.disable': 'Turn off', 'un.busy': 'Working…', 'un.wait': 'Turning on… Windows asks for administrator permission first; then it takes a few seconds.', 'un.enable': 'Turn on',
       'un.lead': 'Choose a strong password. Anyone with this ID and password can connect without asking.',
       'un.pw': 'Password', 'un.pw2': 'Repeat', 'un.gen': 'Suggest a strong password', 'un.admin': 'Windows will ask for an administrator.',
       'un.mismatch': 'The passwords differ.', 'un.na': 'Not available on this system',
@@ -93,7 +93,7 @@
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
       'un.title': '无人值守访问', 'un.off': '关闭', 'un.on': '开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
-      'un.setup': '设置', 'un.disable': '关闭', 'un.busy': '处理中…', 'un.enable': '开启',
+      'un.setup': '设置', 'un.disable': '关闭', 'un.busy': '处理中…', 'un.wait': '正在开启… Windows 会先请求管理员权限，确认后几秒内完成。', 'un.enable': '开启',
       'un.lead': '请设一个强密码。知道这个 ID 和密码的人无需你同意即可连接。',
       'un.pw': '密码', 'un.pw2': '再输一次', 'un.gen': '生成强密码', 'un.admin': 'Windows 会要求管理员授权。',
       'un.mismatch': '两次输入的密码不一致。', 'un.na': '此系统不支持',
@@ -533,13 +533,14 @@
     if (ev.submitter && ev.submitter.value !== 'ok') return;
     ev.preventDefault();
     if ($('un-pw1').value !== $('un-pw2').value) { $('un-err').textContent = t('un.mismatch'); return; }
-    $('un-ok').disabled = true;
+    $('un-ok').disabled = true; $('un-err').textContent = ''; $('un-wait').hidden = false;
+    const label = $('un-ok').textContent; $('un-ok').textContent = t('un.busy');
     try {
       await api(pwMode === 'change' ? 'unattended/password' : 'unattended/enable', {password: $('un-pw1').value});
       $('dlg-un').close();
       if (pwMode === 'change') snack(t('un.pwdone'));
     }
-    catch (e) { $('un-err').textContent = errText(e); } finally { $('un-ok').disabled = false; }
+    catch (e) { $('un-err').textContent = errText(e); } finally { $('un-ok').disabled = false; $('un-ok').textContent = label; $('un-wait').hidden = true; }
   });
 
   // The service's connections: on Windows each look and each change is an
