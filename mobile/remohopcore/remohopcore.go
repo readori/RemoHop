@@ -110,3 +110,77 @@ func ForgetSavedPassword(target string) error { return mobile.ForgetSavedPasswor
 
 // Forget discards what is saved for a host.
 func Forget(ref string) (int, error) { return mobile.Forget(ref) }
+
+// --- host mode: this phone can be viewed and controlled (internal/mobile/host.go) ---
+
+// HostListener receives host-mode events: the whole state as JSON when it
+// changes, and each request that starts waiting for the owner.
+type HostListener interface {
+	HostChanged(state string)
+	HostRequest(request string)
+}
+
+// ScreenSource is the native screen capture and H.264 encoder.
+type ScreenSource interface {
+	StartScreen(maxSize, fps int, bitrate int64) error
+	StopScreen()
+	RequestKeyframe()
+	SetBitrate(bitrate int64)
+}
+
+// InputInjector delivers a controller's input (coordinates are 0..1
+// fractions of the shared picture).
+type InputInjector interface {
+	Unavailable() string
+	Move(x, y float64) error
+	Button(button int, down bool, x, y float64) error
+	Wheel(dx, dy float64) error
+	Key(code string, down bool) error
+	TypeText(text string) error
+	ReleaseAll()
+}
+
+// SetHostListener sets (nil clears) the receiver of host events.
+func SetHostListener(l HostListener) { mobile.SetHostListener(l) }
+
+// SetScreenSource sets (nil clears) the native screen capture.
+func SetScreenSource(s ScreenSource) { mobile.SetScreenSource(s) }
+
+// SetInputInjector sets (nil clears) the native input injector.
+func SetInputInjector(i InputInjector) { mobile.SetInputInjector(i) }
+
+// PushScreenFrame hands the core one encoder output buffer (H.264 Annex B).
+func PushScreenFrame(data []byte, captureMicros int64) error {
+	return mobile.PushScreenFrame(data, captureMicros)
+}
+
+// SetScreenInfo reports the screen's size in pixels and rotation in degrees.
+func SetScreenInfo(width, height, rotation int) { mobile.SetScreenInfo(width, height, rotation) }
+
+// StartHost starts host mode (every login asks; temporary password only).
+func StartHost() error { return mobile.StartHost() }
+
+// StopHost stops host mode and ends every session.
+func StopHost() { mobile.StopHost() }
+
+// HostRunning reports whether host mode runs.
+func HostRunning() bool { return mobile.HostRunning() }
+
+// HostStateJSON returns host mode's state as JSON.
+func HostStateJSON() (string, error) { return mobile.HostStateJSON() }
+
+// DecideHostRequest answers request n (control: may also control the phone).
+func DecideHostRequest(n int, allow, control bool) error {
+	return mobile.DecideHostRequest(n, allow, control)
+}
+
+// SetHostSessionControl gives a connected session control or takes it away.
+func SetHostSessionControl(id int, control bool) error {
+	return mobile.SetHostSessionControl(id, control)
+}
+
+// DisconnectHostSession ends a connected session; 0 ends them all.
+func DisconnectHostSession(id int) error { return mobile.DisconnectHostSession(id) }
+
+// RegenerateHostPassword replaces the temporary password.
+func RegenerateHostPassword() error { return mobile.RegenerateHostPassword() }
