@@ -745,8 +745,10 @@ html.app.platform-android .formbuttons button.primary { box-shadow: none; }
 html.app.platform-android #sdm-active { margin: 20px 0 4px; }
 html.app.platform-android .peers { margin-top: 24px; }
 
-/* The notice bar: one line (two at most), its icon, and a close mark; a tap closes it. */
-html.app.platform-android #banner:not(.bad):not([hidden]) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+/* The notice bar: its icon, the message and a close mark; a tap closes it.
+   The whole message shows: it was clamped to two lines, and since overflow
+   clips at the padding edge, half of a third line showed under them. */
+html.app.platform-android #banner:not(.bad):not([hidden]) { display: block;
   position: relative; margin: 8px 12px 0; padding: 10px 44px 10px 44px; min-height: 0; border-radius: 16px; font-size: 14px; line-height: 20px;
   background: var(--md-secondary-container); color: var(--md-on-secondary-container); cursor: pointer; }
 html.app.platform-android #banner:not(.bad):not([hidden])::before { content: ""; position: absolute; left: 14px; top: 10px; width: 20px; height: 20px;
