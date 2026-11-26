@@ -793,7 +793,7 @@ func HostStateJSON() (string, error) {
 				label = id
 			}
 			doc.Sessions = append(doc.Sessions, hostSession{ID: s.ID(), Label: label, Device: cleanLabel(s.Auth.ClientName), Identity: id,
-				From: addrOnly(s.Remote), Path: s.Path, Seconds: int(now.Sub(s.Started) / time.Second),
+				From: addrOnly(s.Remote), Path: s.Path(), Seconds: int(now.Sub(s.Started) / time.Second),
 				Control: all || slices.Contains(fs, perm.Input)})
 		}
 		sort.Slice(doc.Sessions, func(i, j int) bool { return doc.Sessions[i].ID < doc.Sessions[j].ID })

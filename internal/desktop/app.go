@@ -977,7 +977,7 @@ func (a *App) State() State {
 			}
 			id := auth.Fingerprint(s.Auth.ClientKey)
 			in.Sessions = append(in.Sessions, Session{ID: s.ID(), Label: label, Device: clean(s.Auth.ClientName), Identity: id,
-				From: addrOnly(s.Remote), Path: s.Path, Seconds: int(now.Sub(s.Started) / time.Second),
+				From: addrOnly(s.Remote), Path: s.Path(), Seconds: int(now.Sub(s.Started) / time.Second),
 				Control: all || set[perm.Input], Files: all || set[perm.File], Trusted: trusted[id]})
 		}
 		sort.Slice(in.Sessions, func(i, j int) bool { return in.Sessions[i].ID < in.Sessions[j].ID })

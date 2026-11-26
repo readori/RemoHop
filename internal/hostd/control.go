@@ -149,7 +149,7 @@ func (h *Host) control(req controlRequest) controlReply {
 				peer = auth.Fingerprint(s.Auth.ClientKey)
 			}
 			out = append(out, ControlSession{ID: s.ID(), Peer: peer, Device: s.Auth.ClientName, Identity: auth.Fingerprint(s.Auth.ClientKey),
-				From: s.Remote.String(), Path: s.Path, Since: s.Started})
+				From: s.Remote.String(), Path: s.Path(), Since: s.Started})
 		}
 		return controlReply{Sessions: out}
 	case "disconnect":

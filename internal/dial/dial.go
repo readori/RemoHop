@@ -127,6 +127,10 @@ type Options struct {
 	// NoRelay refuses a relayed connection even if the rendezvous server
 	// offers one. The "relay" setting and REMOHOP_RELAY=0 do the same.
 	NoRelay bool
+	// NoUpgrade keeps a relayed session on the relay for its whole life
+	// instead of moving it to a direct path once one works (upgrade.go).
+	// REMOHOP_RELAY_UPGRADE=0 does the same.
+	NoUpgrade bool
 	// PunchTime overrides how long hole punching may take.
 	PunchTime time.Duration
 	// SignalWS overrides the rendezvous server's websocket bridge URL and
@@ -176,7 +180,9 @@ type Info struct {
 	// Target is the canonical target: the 9-digit ID or "host:port".
 	Target string
 	// Path is how the session reaches the host: directly in every case
-	// but PathRelayed.
+	// but PathRelayed. A relayed session that moves to a direct path gets
+	// a new Info (InfoOf returns it) with the new Path and Remote; an Info
+	// itself never changes.
 	Path Path
 	// Transport is how this machine's packets travel: TransportUDP, or
 	// TransportWebSocket through the rendezvous server's websocket bridge
@@ -639,9 +645,19 @@ func (d *dialer) dial(ctx context.Context, t *target) (_ *peer.Conn, err error) 
 					}
 				})
 			}
-			conn := peer.NewConn(peer.QUICMux(q), peer.Options{Role: peer.RoleClient, RemoteID: t.canonical, OnClose: release})
+			conn := peer.NewConn(peer.QUICClientMux(q), peer.Options{Role: peer.RoleClient, RemoteID: t.canonical, OnClose: release})
 			d.markSeen(t)
 			conn.SetValue(infoKey{}, info)
+			if rt.path == PathRelayed && t.id != "" && !d.onWS {
+				// Keep looking for a direct path (upgrade.go).
+				u := &upgrader{d: d, t: t, sock: sock, q: q, conn: conn, release: release, start: time.Now(), timing: currentTiming()}
+				if testHookUpgrader != nil {
+					testHookUpgrader(u)
+				}
+				if !d.opts.NoUpgrade && upgradesAllowed() {
+					go u.run()
+				}
+			}
 			// The socket lives exactly as long as the session. A relay
 			// session is released first, so the relay frees it at once.
 			context.AfterFunc(conn.Context(), func() {

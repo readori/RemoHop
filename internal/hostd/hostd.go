@@ -201,9 +201,9 @@ type Session struct {
 	// approved remembers its owner's approvals of actions (grants.go).
 	grant    string
 	approved actionApprovals
-	// Path is how the client reaches the host: "lan", "direct", "punched"
-	// or "relayed".
-	Path string
+	// path is how the client reaches the host (see Path); guarded by
+	// host.mu.
+	path string
 	// limit, if not nil, is the only features the session may use (on top
 	// of the host's policy): what its owner allowed this one client (see
 	// Host.DecideWith); guarded by host.mu.
@@ -223,6 +223,16 @@ func (s *Session) fields(more ...string) []string {
 		f = append(f, "grant", s.grant)
 	}
 	return append(f, more...)
+}
+
+// Path is how the client reaches the host now: "lan", "direct", "punched",
+// "tailnet", "relayed" or "relayed (websocket)". A relayed session that the
+// client moves to a direct path (internal/dial does when one becomes
+// possible) changes from "relayed" to the kind of that path.
+func (s *Session) Path() string {
+	s.host.mu.Lock()
+	defer s.host.mu.Unlock()
+	return s.path
 }
 
 func (s *Session) setTokenID(id string) {
@@ -875,12 +885,16 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 	// The session was set up and admitted (admit) before the client was
 	// welcomed; only now does it serve the streams the client opens.
 	res, conn, label := sess.Auth, sess.conn, sess.conn.RemoteID()
-	h.log.Info("session opened", "client", label, "identity", auth.Fingerprint(res.ClientKey), "from", remote, "auth", res.Kind, "path", sess.Path)
-	h.audit.add("login", sess.fields("result", "accepted", "path", sess.Path)...)
+	path := sess.Path()
+	h.log.Info("session opened", "client", label, "identity", auth.Fingerprint(res.ClientKey), "from", remote, "auth", res.Kind, "path", path)
+	h.audit.add("login", sess.fields("result", "accepted", "path", path)...)
 	if testHookSessionBuilt != nil {
 		testHookSessionBuilt()
 	}
 	conn.Start()
+	if path == "relayed" {
+		go h.followMove(sess, q)
+	}
 
 	<-conn.Done()
 
@@ -913,7 +927,7 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 // been welcomed, or drops the session if that fails.
 func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limit map[perm.Feature]bool) (*Session, error) {
 	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant, limit: limit,
-		used: map[perm.Feature]bool{}, Path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
+		used: map[perm.Feature]bool{}, path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
 	label := "key " + auth.Fingerprint(res.ClientKey)
 	if res.TokenName != "" {
 		label = res.TokenName
@@ -985,6 +999,48 @@ func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limi
 		h.notify()
 	}
 	return sess, nil
+}
+
+// movedPoll is how often a relayed session's connection is checked for
+// having moved to a direct path. A variable for tests.
+var movedPoll = time.Second
+
+// followMove notices when the client moves a relayed session to a direct
+// path (QUIC connection migration: the client validates the new path, then
+// switches to it, and quic-go follows on this side by itself) and updates
+// the session's Path. The connection's remote address is the relay's until
+// the switch; after it, the client's address on the new path.
+func (h *Host) followMove(sess *Session, q *quic.Conn) {
+	t := time.NewTicker(movedPoll)
+	defer t.Stop()
+	for {
+		select {
+		case <-q.Context().Done():
+			return
+		case <-t.C:
+		}
+		ua, ok := q.RemoteAddr().(*net.UDPAddr)
+		if !ok {
+			return
+		}
+		ap := ua.AddrPort()
+		now := netip.AddrPortFrom(ap.Addr().Unmap().WithZone(""), ap.Port())
+		if now == sess.Remote {
+			continue
+		}
+		path := h.pathOf(now, false)
+		if path == "relayed" {
+			continue // onto another relay: not a move this side tracks
+		}
+		h.mu.Lock()
+		sess.path = path
+		h.mu.Unlock()
+		h.log.Info("relayed session moved to a direct path after "+time.Since(sess.Started).Round(time.Second).String(),
+			"client", sess.conn.RemoteID(), "from", now, "path", path)
+		h.audit.add("path-change", sess.fields("path", path, "now-from", now.String())...)
+		h.notify()
+		return
+	}
 }
 
 // dropSession removes a session from the live ones.

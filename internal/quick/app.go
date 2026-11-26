@@ -438,7 +438,7 @@ func (a *App) State() State {
 	}
 	for _, s := range h.Sessions() {
 		st.Sessions = append(st.Sessions, SessionInfo{ID: s.ID(), Name: clean(s.Auth.TokenName), Device: clean(s.Auth.ClientName),
-			Identity: auth.Fingerprint(s.Auth.ClientKey), From: addrOnly(s.Remote), Path: s.Path,
+			Identity: auth.Fingerprint(s.Auth.ClientKey), From: addrOnly(s.Remote), Path: s.Path(),
 			Seconds: int(now.Sub(s.Started) / time.Second)})
 	}
 	sort.Slice(st.Sessions, func(i, j int) bool { return st.Sessions[i].ID < st.Sessions[j].ID })

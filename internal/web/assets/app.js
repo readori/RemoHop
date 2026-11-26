@@ -544,7 +544,11 @@
       if (st.conns.length) selectConn(st.conns[0].key); else showConnect();
       return;
     }
-    if (st.cur) sel.value = st.cur;
+    if (st.cur) {
+      sel.value = st.cur;
+      const cur = st.conns.find(x => x.key === st.cur);
+      if (cur) showPath(cur);
+    }
     followState();
     embedFollow();
   }
@@ -715,6 +719,17 @@
   // pathVar names a connection path (lan, direct, punched, relayed...).
   SD.pathVar = p => ({k: 'path.' + (p || 'unknown'), fb: p || '?'});
 
+  // showPath puts how the session travels in the host bar. It can change
+  // while the session runs: a relayed session moves to a direct path once
+  // one works.
+  function showPath(c) {
+    const pb = $('pathbadge');
+    const path = SD.pathVar(c.path);
+    I.say(pb, 'join', {a: path, b: c.paired ? {k: 'path.paired'} : ''});
+    pb.classList.toggle('relayed', !!c.relayed);
+    if (c.relayed) I.sayAttr(pb, 'title', 'path.relayed.title'); else I.sayAttr(pb, 'title', 'path.via', {path});
+  }
+
   function selectConn(key) {
     const c = st.conns.find(x => x.key === key);
     if (!c) return;
@@ -725,11 +740,7 @@
     $('newconn').hidden = false;
     const saved = (st.peers || []).find(p => p.target === c.target && p.alias);
     if (saved) I.say($('sessname'), 'sess.alias', {alias: saved.alias, target: c.target}); else I.plain($('sessname'), c.target);
-    const pb = $('pathbadge');
-    const path = SD.pathVar(c.path);
-    I.say(pb, 'join', {a: path, b: c.paired ? {k: 'path.paired'} : ''});
-    pb.classList.toggle('relayed', !!c.relayed);
-    if (c.relayed) I.sayAttr(pb, 'title', 'path.relayed.title'); else I.sayAttr(pb, 'title', 'path.via', {path});
+    showPath(c);
     if (c.new_host) banner('sess.firstkey', {fp: c.host_fingerprint || ''}, false);
     const savedTab = load('sd.tab');
     if (savedTab) { showTab(savedTab); return; }
