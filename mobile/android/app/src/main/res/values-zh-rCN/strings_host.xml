@@ -14,6 +14,25 @@
     <string name="hm_address">地址</string>
     <string name="hm_password">临时密码</string>
     <string name="hm_new_password">换一个密码</string>
+    <string name="hm_password_fixed">固定密码</string>
+    <string name="hm_password_masked">已隐藏</string>
+    <string name="hm_pw_settings">密码设置</string>
+    <string name="hm_pw_mode_temporary">随机密码</string>
+    <string name="hm_pw_mode_fixed">固定密码</string>
+
+    <string name="hm_pwm_title">连接密码</string>
+    <string name="hm_pwm_temp">随机密码</string>
+    <string name="hm_pwm_temp_sub">每次启动时自动生成，随时可点“换一个密码”</string>
+    <string name="hm_pwm_fixed">我自己的固定密码</string>
+    <string name="hm_pwm_fixed_sub">一直不变，直到你修改；至少 8 位，包含字母和数字</string>
+    <string name="hm_pwm_password">密码</string>
+    <string name="hm_pwm_repeat">再输一次</string>
+    <string name="hm_pwm_keep">留空则保持当前密码</string>
+    <string name="hm_pwm_note">无论哪种，每次有人连接都会先问你。</string>
+    <string name="hm_pwm_mismatch">两次输入的密码不一致。</string>
+    <string name="hm_pwm_rule">至少 8 位，且包含字母、数字、其他字符中的两种。</string>
+    <string name="hm_pwm_failed">未保存：%1$s</string>
+    <string name="hm_pwm_saved">密码设置已保存</string>
     <string name="hm_copy">复制</string>
     <string name="hm_copied">已复制</string>
     <string name="hm_control">控制</string>
@@ -30,11 +49,13 @@
     <string name="hm_unknown_device">未命名设备</string>
 
     <string name="hm_info_what_t">这是做什么的</string>
-    <string name="hm_info_what">开启后，其他 RemoHop 设备可以用本机的 ID（或本网络内的地址）和临时密码请求连接这台手机。每个请求都会先问你，你不允许就谁也进不来。</string>
+    <string name="hm_info_what">开启后，其他 RemoHop 设备可以用本机的 ID（或本网络内的地址）和密码请求连接这台手机。每个请求都会先问你，你不允许就谁也进不来。</string>
     <string name="hm_info_access_t">观看与控制</string>
     <string name="hm_info_access">你允许的设备可以看到你的屏幕。只有你在请求里勾选了“控制”，并且 RemoHop 的无障碍服务已开启，它才能点按、滑动和输入。你随时可以收回控制或断开它。</string>
     <string name="hm_info_start_t">开启与关闭</string>
     <string name="hm_info_start">打开“允许远程连接”即可接受请求，关闭即停止。应用每次重新启动后它都会恢复为关闭。“换一个密码”会替换临时密码，旧密码随即失效。</string>
+    <string name="hm_info_password_t">密码</string>
+    <string name="hm_info_password">临时密码在每次打开“允许远程连接”时重新生成，“换一个密码”可随时替换它。在“密码设置”里也可以改用你自己的固定密码：它一直不变，直到你修改；平时显示为圆点，点一下才显示。无论哪种，每次有人连接都会先问你。</string>
     <string name="hm_info_end_t">共享如何结束</string>
     <string name="hm_info_end">共享屏幕之前 Android 会先征得你的同意。最后一台设备断开、你点通知里的“停止”或这里的“断开”，或者在 Android 的屏幕共享指示器里结束时，共享就会结束。</string>
     <string name="hm_info_control_t">无障碍服务</string>
