@@ -658,7 +658,8 @@ func PublicKeyLine() (string, error) {
 }
 
 // DevicesJSON lists the saved hosts as a JSON array of objects with
-// target, alias, login ("pairing", "key" or "password"), presence
+// target, alias, login ("pairing", "key", "saved_password" (a password the
+// user asked to remember, for a host that does not pair) or "password"), presence
 // ("online", "offline", "unknown", "not_checked", "error", ...), error,
 // last_seen and host_identity. With checkOnline it asks the configured
 // rendezvous server which of them are online (bounded to 10 seconds);
@@ -810,6 +811,42 @@ func SetAlias(target, alias string) error {
 		return err
 	}
 	return st.SetAlias(cli.NormalizeTarget(strings.TrimSpace(target)), alias)
+}
+
+// SavedPassword returns the password saved for target (the page saves one
+// when the user asks it to remember a host that does not pair), for the
+// app's Saved hosts screen to show. With none saved it is an error.
+func SavedPassword(target string) (string, error) {
+	d, err := configDir()
+	if err != nil {
+		return "", err
+	}
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		return "", err
+	}
+	p, ok, err := st.Get(cli.NormalizeTarget(strings.TrimSpace(target)))
+	if err != nil {
+		return "", err
+	}
+	if !ok || !p.SavedPassword() {
+		return "", errors.New("no saved password for that host")
+	}
+	return p.Password, nil
+}
+
+// ForgetSavedPassword deletes the password saved for target, keeping the
+// rest of what is saved for it.
+func ForgetSavedPassword(target string) error {
+	d, err := configDir()
+	if err != nil {
+		return err
+	}
+	st, err := dial.OpenStore(d)
+	if err != nil {
+		return err
+	}
+	return st.SetPassword(cli.NormalizeTarget(strings.TrimSpace(target)), "")
 }
 
 // Forget discards what is saved for a host (pinned key, pairing token,
