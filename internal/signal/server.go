@@ -202,8 +202,9 @@ type Server struct {
 	intros      map[string]*intro
 	connSeq     atomic.Uint64
 
-	relayDeny     *denyFile   // nil without a deny list
-	relayUsage    *relayUsage // nil without a relay
+	relayDeny     *denyFile     // nil without a deny list
+	relayUsage    *relayUsage   // nil without a relay
+	outcomes      *outcomeStats // see recordOutcome; nil: reports are dropped
 	relayCounters relayCounters
 	relaySources  map[netip.Addr]int // relayed sessions per source; guarded by mu
 
@@ -307,7 +308,13 @@ func NewServer(cfg Config) (*Server, error) {
 			return nil, err
 		}
 	}
+	outcomes, err := openOutcomeStats(cfg.DataDir, nil, cfg.Logger)
+	if err != nil {
+		store.close()
+		return nil, err
+	}
 	return &Server{
+		outcomes:    outcomes,
 		relayDeny:   deny,
 		relayUsage:  usage,
 		accounts:    accts,
@@ -341,6 +348,9 @@ func (s *Server) Close() error {
 	err := s.store.close()
 	if s.relayUsage != nil {
 		err = errors.Join(err, s.relayUsage.flush())
+	}
+	if s.outcomes != nil {
+		err = errors.Join(err, s.outcomes.save())
 	}
 	if s.accounts != nil {
 		err = errors.Join(err, s.accounts.store.close())
@@ -406,6 +416,9 @@ func (s *Server) Serve(ctx context.Context, main, alt net.PacketConn) error {
 	}
 	go s.housekeeping(ctx)
 	go s.shortHousekeeping(ctx)
+	if s.outcomes != nil {
+		go s.outcomeHousekeeping(ctx)
+	}
 	if s.cfg.Relay != nil {
 		go s.relayHousekeeping(ctx)
 	}
@@ -477,6 +490,22 @@ func (s *Server) relayHousekeeping(ctx context.Context) {
 			}
 		case <-summary.C:
 			s.logRelaySummary()
+		}
+	}
+}
+
+// outcomeHousekeeping saves the outcome aggregate about once a minute.
+func (s *Server) outcomeHousekeeping(ctx context.Context) {
+	t := time.NewTicker(usageFlushEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := s.outcomes.save(); err != nil {
+				s.log.Error("cannot save the connection outcomes", "err", err)
+			}
 		}
 	}
 }
