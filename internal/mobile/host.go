@@ -151,7 +151,24 @@ type hostState struct {
 	mu        sync.Mutex
 	firstSeen map[int]bool // approval N -> the device never asked before
 	own       string       // the owner's own password given to the host ("": temporary)
+	readmit   map[string]readmission
 }
+
+// readmission lets a device the owner allowed come back without asking
+// again, while host mode stays on: a viewing phone whose app went to the
+// background loses its session (iOS suspends it) and logs in again when it
+// returns, and the owner should not have to approve it a second time. It
+// lasts while the device is connected and for ReadmitWindow after, and
+// ends when the owner disconnects it. The device must still prove the
+// same key and know the password.
+type readmission struct {
+	control bool
+	until   time.Time // zero while connected
+}
+
+// ReadmitWindow is how long after its session ended a device the owner
+// allowed may log in again without being asked.
+const ReadmitWindow = 10 * time.Minute
 
 // SetHostListener sets (or with nil clears) the receiver of host events.
 func SetHostListener(l HostListener) {
@@ -366,7 +383,7 @@ func StartHost() error {
 	log := quietLogger()
 	screen := desktop.NewScreen(desktop.ScreenConfig{Source: screenProxy{}, Input: inputProxy{}, Encoder: screenEncoder, MaxFPS: screenMaxFPS, Logger: log})
 	screen.SetScreenInfo(screenInfo[0], screenInfo[1], screenInfo[2])
-	run := &hostState{screen: screen, started: time.Now(), wake: make(chan struct{}, 1), firstSeen: map[int]bool{}}
+	run := &hostState{screen: screen, started: time.Now(), wake: make(chan struct{}, 1), firstSeen: map[int]bool{}, readmit: map[string]readmission{}}
 	hc := hostd.Config{
 		Dir:        d,
 		AskTimeout: HostAskTimeout,
@@ -485,6 +502,7 @@ func (r *hostState) watch(ctx context.Context) {
 	defer t.Stop()
 	last := ""
 	for {
+		r.refreshReadmit(time.Now())
 		if s, err := HostStateJSON(); err == nil && s != last {
 			last = s
 			notifyHost(&s)
@@ -498,6 +516,59 @@ func (r *hostState) watch(ctx context.Context) {
 		case <-t.C:
 		}
 	}
+}
+
+// refreshReadmit keeps the readmission of each connected device open and
+// starts the ReadmitWindow of one whose sessions all ended; expired ones go.
+func (r *hostState) refreshReadmit(now time.Time) {
+	connected := map[string]bool{}
+	for _, s := range r.h.Sessions() {
+		connected[auth.Fingerprint(s.Auth.ClientKey)] = true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, a := range r.readmit {
+		switch {
+		case connected[id]:
+			a.until = time.Time{}
+		case a.until.IsZero():
+			a.until = now.Add(ReadmitWindow)
+		case now.After(a.until):
+			delete(r.readmit, id)
+			continue
+		}
+		r.readmit[id] = a
+	}
+}
+
+// readmitted reports whether identity may log in again without asking, and
+// with control or not.
+func (r *hostState) readmitted(identity string, now time.Time) (control, ok bool) {
+	if identity == "" {
+		return false, false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	a, ok := r.readmit[identity]
+	if !ok || (!a.until.IsZero() && now.After(a.until)) {
+		return false, false
+	}
+	return a.control, true
+}
+
+func (r *hostState) setReadmit(identity string, control bool) {
+	if identity == "" {
+		return
+	}
+	r.mu.Lock()
+	r.readmit[identity] = readmission{control: control}
+	r.mu.Unlock()
+}
+
+func (r *hostState) forget(identity string) {
+	r.mu.Lock()
+	delete(r.readmit, identity)
+	r.mu.Unlock()
 }
 
 // notifyHost calls the listener's HostChanged with state (computed if nil).
@@ -529,6 +600,14 @@ func (r *hostState) onApproval(p hostd.Approval) {
 		return
 	}
 	if login {
+		if control, ok := r.readmitted(p.Identity, time.Now()); ok {
+			quietLogger().Info("host request allowed again: the owner allowed this device in this sharing", "n", p.N, "control", control)
+			go func() {
+				r.h.DecideWith(p.N, true, hostFeatures(control && controlOffered()))
+				r.poke()
+			}()
+			return
+		}
 		first := markSeen(p.Identity)
 		r.mu.Lock()
 		r.firstSeen[p.N] = first
@@ -675,6 +754,9 @@ func HostStateJSON() (string, error) {
 			doc.Addresses = append(doc.Addresses, hs.Direct...)
 		}
 		for _, p := range run.h.Pending() {
+			if _, ok := run.readmitted(p.Identity, now); ok && len(p.Access) == 0 && p.Action == "" {
+				continue // being let in again (onApproval): nothing to ask
+			}
 			doc.Requests = append(doc.Requests, run.requestOf(p, now))
 		}
 		for _, s := range run.h.Sessions() {
@@ -729,8 +811,14 @@ func DecideHostRequest(n int, allow, control bool) error {
 	}
 	if len(p.Access) > 0 || p.Action != "" {
 		err = run.h.Decide(n, allow)
+		if err == nil && allow && slices.Contains(p.Access, perm.Input) && controlOffered() {
+			run.setReadmit(p.Identity, true)
+		}
 	} else {
 		err = run.h.DecideWith(n, allow, hostFeatures(control && controlOffered()))
+		if err == nil && allow {
+			run.setReadmit(p.Identity, control && controlOffered())
+		}
 	}
 	run.mu.Lock()
 	delete(run.firstSeen, n)
@@ -748,8 +836,23 @@ func SetHostSessionControl(id int, control bool) error {
 		return err
 	}
 	err = run.h.SetSessionFeatures(id, false, hostFeatures(control))
+	if err == nil {
+		if identity := run.sessionIdentity(id); identity != "" {
+			run.setReadmit(identity, control)
+		}
+	}
 	run.poke()
 	return err
+}
+
+// sessionIdentity is the key fingerprint of connected session id ("" when gone).
+func (r *hostState) sessionIdentity(id int) string {
+	for _, s := range r.h.Sessions() {
+		if s.ID() == id {
+			return auth.Fingerprint(s.Auth.ClientKey)
+		}
+	}
+	return ""
 }
 
 // DisconnectHostSession ends connected session id; 0 ends them all.
@@ -759,12 +862,15 @@ func DisconnectHostSession(id int) error {
 		return err
 	}
 	defer run.poke()
+	// The owner ended it: the device asks again next time.
 	if id == 0 {
 		for _, s := range run.h.Sessions() {
+			run.forget(auth.Fingerprint(s.Auth.ClientKey))
 			run.h.Disconnect(s.ID(), hostd.ReasonDisconnectedOnPhone)
 		}
 		return nil
 	}
+	run.forget(run.sessionIdentity(id))
 	return run.h.Disconnect(id, hostd.ReasonDisconnectedOnPhone)
 }
 

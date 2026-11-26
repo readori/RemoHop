@@ -679,8 +679,11 @@
         // works, the host still needs its password next time): by its code
         // (pair_refused: the host does not allow it), or for an older gateway
         // by its notice.
-        const notices = (j.notices || []).filter(n => !/^pairing failed/.test(n));
-        const pairFailed = (j.pair && j.pair.ok === false) || notices.length < (j.notices || []).length;
+        // "waiting for approval" was the state while it lasted (said in the
+        // page's own words above), not news once connected.
+        const all = (j.notices || []).filter(n => !/waiting for approval/.test(n));
+        const notices = all.filter(n => !/^pairing failed/.test(n));
+        const pairFailed = (j.pair && j.pair.ok === false) || notices.length < all.length;
         let pairMsg = pairFailed ? (j.pair && j.pair.code === 'pair_refused' ? 'connect.pairrefused' : 'connect.pairfailed') : null;
         if (j.pair && j.pair.ok && j.pair.code === 'password_saved') pairMsg = 'connect.pwsaved';
         if (notices.length) banner('raw', {s: notices.join(' ')}, false);
