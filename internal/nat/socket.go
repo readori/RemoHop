@@ -54,6 +54,11 @@ type Socket struct {
 	reflects   map[[12]byte]reflectWait
 	relayWaits map[netip.AddrPort]relayWait
 	natType    Type
+	// pred is the NAT's port allocation as ProbeNAT saw it (see
+	// predict.go), predAlt the server port it measured the second
+	// mapping with.
+	pred    Prediction
+	predAlt netip.AddrPort
 }
 
 type reflectWait struct {
@@ -268,6 +273,19 @@ func (s *Socket) Reflexive(ctx context.Context, server netip.AddrPort) (netip.Ad
 }
 
 func (s *Socket) reflect(ctx context.Context, server netip.AddrPort) (reflection, error) {
+	return s.reflectSent(ctx, server, nil)
+}
+
+// reflectSent is reflect, closing sent (if not nil) once the first request
+// has been handed to the socket, or reflect has given up before that.
+func (s *Socket) reflectSent(ctx context.Context, server netip.AddrPort, sent chan<- struct{}) (reflection, error) {
+	notify := func() {
+		if sent != nil {
+			close(sent)
+			sent = nil
+		}
+	}
+	defer notify()
 	server = normalize(server)
 	pkt, txid := newReflectReq()
 	w := reflectWait{server: server, ch: make(chan reflection, 1)}
@@ -285,6 +303,7 @@ func (s *Socket) reflect(ctx context.Context, server netip.AddrPort) (reflection
 		if err := s.send(pkt, server); err != nil {
 			return reflection{}, err
 		}
+		notify()
 		t := time.NewTimer(interval)
 		select {
 		case r := <-w.ch:
@@ -318,55 +337,74 @@ func (s *Socket) reflect(ctx context.Context, server netip.AddrPort) (reflection
 // for a cone here, since both observations come from one server address;
 // such NATs are rare and the punch itself is the final judge anyway. When
 // either port does not answer before ctx ends the result is TypeUnknown.
+//
+// For a symmetric NAT the two observations are also two consecutive
+// mappings, which say whether its ports can be predicted (see Prediction).
+// The request to the main port therefore leaves first: the mapping towards
+// it is made by that request or by the rendezvous handshake, never after
+// the one towards the second port.
 func (s *Socket) ProbeNAT(ctx context.Context, server netip.AddrPort) Type {
 	server = normalize(server)
-	typ := s.probeNAT(ctx, server)
+	typ, pred, alt := s.probeNAT(ctx, server)
 	s.mu.Lock()
 	s.natType = typ
+	s.pred, s.predAlt = pred, alt
 	s.mu.Unlock()
 	return typ
 }
 
-func (s *Socket) probeNAT(ctx context.Context, server netip.AddrPort) Type {
+func (s *Socket) probeNAT(ctx context.Context, server netip.AddrPort) (Type, Prediction, netip.AddrPort) {
 	type result struct {
 		r   reflection
 		err error
 	}
+	// ask returns once the first request has gone out.
 	ask := func(to netip.AddrPort) <-chan result {
 		ch := make(chan result, 1)
+		sent := make(chan struct{})
 		go func() {
-			r, err := s.reflect(ctx, to)
+			r, err := s.reflectSent(ctx, to, sent)
 			ch <- result{r, err}
 		}()
+		<-sent
 		return ch
 	}
 	guess := netip.AddrPortFrom(server.Addr(), server.Port()+1)
-	mainCh, guessCh := ask(server), ask(guess)
+	mainCh := ask(server)
+	guessCh := ask(guess)
 
 	primary := <-mainCh
 	if primary.err != nil || primary.r.altPort == 0 {
-		return TypeUnknown
+		return TypeUnknown, Prediction{}, netip.AddrPort{}
 	}
 	second := guessCh
-	if alt := netip.AddrPortFrom(server.Addr(), primary.r.altPort); alt != guess {
+	alt := netip.AddrPortFrom(server.Addr(), primary.r.altPort)
+	between := 0
+	if alt != guess {
+		// The guess has made a mapping of its own in the meantime.
 		second = ask(alt)
+		between = 1
 	}
 	other := <-second
 	if other.err != nil {
-		return TypeUnknown
+		return TypeUnknown, Prediction{}, netip.AddrPort{}
 	}
 	if other.r.addr != primary.r.addr {
-		return TypeSymmetric
+		pred, ok := predictionFrom(primary.r.addr, other.r.addr, between)
+		if !ok {
+			return TypeSymmetric, Prediction{}, netip.AddrPort{}
+		}
+		return TypeSymmetric, pred, alt
 	}
 	if primary.r.addr.Addr().IsLoopback() {
-		return TypeNone
+		return TypeNone, Prediction{}, netip.AddrPort{}
 	}
 	for _, ip := range s.Locals() {
 		if ip == primary.r.addr.Addr() {
-			return TypeNone
+			return TypeNone, Prediction{}, netip.AddrPort{}
 		}
 	}
-	return TypeCone
+	return TypeCone, Prediction{}, netip.AddrPort{}
 }
 
 // NATType returns the result of the last ProbeNAT, or TypeUnknown.

@@ -572,33 +572,78 @@ func (w *vnetWorld) options(h *vnet.Host, password string) Options {
 
 // The full stack across simulated NATs: rendezvous, punch, QUIC, login.
 func TestEndToEndThroughNATs(t *testing.T) {
+	step2 := func(b *vnet.NAT) { b.SetPortStep(2) }
+	random := func(b *vnet.NAT) { b.SetRandomPorts(true) }
 	cases := []struct {
 		name         string
 		client, host vnet.NATKind
 		wantErr      string
+		// clientNAT and hostNAT configure the NATs; burn ports are taken
+		// from the host's allocator after it registered (other traffic
+		// on its LAN), and from the client's once it has measured.
+		clientNAT, hostNAT func(*vnet.NAT)
+		burn               int
+		// auto leaves the punch time to the dialler (nat.PunchTime).
+		auto bool
 	}{
-		{"port-restricted to port-restricted", vnet.PortRestrictedCone, vnet.PortRestrictedCone, ""},
-		{"symmetric client to full-cone host", vnet.Symmetric, vnet.FullCone, ""},
-		{"restricted client to symmetric host", vnet.RestrictedCone, vnet.Symmetric, ""},
-		{"symmetric to symmetric", vnet.Symmetric, vnet.Symmetric, "both sides are behind symmetric NATs"},
-		{"port-restricted client to symmetric host", vnet.PortRestrictedCone, vnet.Symmetric, "the peer is behind a symmetric NAT"},
+		{"port-restricted to port-restricted", vnet.PortRestrictedCone, vnet.PortRestrictedCone, "", nil, nil, 0, false},
+		{"symmetric client to full-cone host", vnet.Symmetric, vnet.FullCone, "", nil, nil, 0, false},
+		{"restricted client to symmetric host", vnet.RestrictedCone, vnet.Symmetric, "", nil, nil, 0, false},
+		{"symmetric to symmetric", vnet.Symmetric, vnet.Symmetric, "both sides are behind symmetric NATs", nil, nil, 0, false},
+		// Port prediction.
+		{"port-restricted client to symmetric host", vnet.PortRestrictedCone, vnet.Symmetric, "", nil, nil, 0, false},
+		{"symmetric client to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone, "", nil, nil, 0, false},
+		{"port-restricted client to symmetric host (step 2), noisy LAN", vnet.PortRestrictedCone, vnet.Symmetric, "", nil, step2, 10, true},
+		{"symmetric client (step 2) to port-restricted host, noisy LAN", vnet.Symmetric, vnet.PortRestrictedCone, "", step2, nil, 10, true},
+		{"symmetric client to conntrack host", vnet.Symmetric, vnet.ConntrackCone, "", nil, nil, 0, true},
+		// Ports that cannot be predicted fail as before, in the time
+		// they always had.
+		{"port-restricted client to symmetric host (random ports)", vnet.PortRestrictedCone, vnet.Symmetric,
+			"the peer is behind a symmetric NAT whose ports cannot be predicted", nil, random, 0, true},
+		{"symmetric client (random ports) to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone,
+			"this side is behind a symmetric NAT whose ports cannot be predicted", random, nil, 0, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			if tc.burn == 0 {
+				t.Parallel() // the others set beforePunch
+			}
 			w := newVnetWorld(t)
-			host := w.host(w.net.NAT("203.0.113.20", tc.host).Host("10.0.0.20"))
+			box := func(ip string, kind vnet.NATKind, setup func(*vnet.NAT)) *vnet.NAT {
+				b := w.net.NAT(ip, kind)
+				if setup != nil {
+					setup(b)
+				}
+				return b
+			}
+			hostNAT := box("203.0.113.20", tc.host, tc.hostNAT)
+			host := w.host(hostNAT.Host("10.0.0.20"))
 			// Give the host a moment to measure its NAT, as a real one has.
 			waitFor(t, func() bool { return host.Status().NAT != string(nat.TypeUnknown) })
+			hostNAT.Burn(tc.burn)
 
-			opts := w.options(w.net.NAT("203.0.113.10", tc.client).Host("192.168.1.10"), host.Password())
+			clientNAT := box("203.0.113.10", tc.client, tc.clientNAT)
+			opts := w.options(clientNAT.Host("192.168.1.10"), host.Password())
+			if tc.auto {
+				opts.PunchTime = 0
+			}
+			if tc.burn > 0 {
+				// Between the client's measurement (as its rendezvous
+				// connection comes up) and its punch.
+				beforePunch = func(int) { clientNAT.Burn(tc.burn) }
+				defer func() { beforePunch = nil }()
+			}
 			start := time.Now()
 			conn, err := Dial(testCtx(t), host.ID(), opts)
 			if tc.wantErr != "" {
 				if !errors.Is(err, nat.ErrNoPath) || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want a no-path error mentioning %q", err, tc.wantErr)
 				}
-				if took := time.Since(start); took > 5*time.Second {
+				limit := 5 * time.Second
+				if tc.auto {
+					limit = nat.PunchTime(nat.TypeCone, nat.TypeSymmetric, false) + 1500*time.Millisecond
+				}
+				if took := time.Since(start); took > limit {
 					t.Errorf("failure took %s", took)
 				}
 				return
@@ -619,6 +664,31 @@ func TestEndToEndThroughNATs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A host behind a symmetric NAT that has been up for a while: the LAN's
+// other traffic has moved the allocator on far past the window the client
+// probes, and the NAT has forgotten the mapping the host measured it with.
+// The host measures again before it answers, and the punch works.
+func TestPredictionRefreshedForOffer(t *testing.T) {
+	w := newVnetWorld(t)
+	box := w.net.NAT("203.0.113.20", vnet.Symmetric)
+	host := w.host(box.Host("10.0.0.20"))
+	waitFor(t, func() bool { return host.Status().NAT != string(nat.TypeUnknown) })
+	box.Burn(10 * nat.MaxCandidates * 16) // well past any window
+	box.Expire(netip.MustParseAddrPort("198.51.100.1:21117"))
+
+	opts := w.options(w.net.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10"), host.Password())
+	opts.PunchTime = 0
+	conn, err := Dial(testCtx(t), host.ID(), opts)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if info := InfoOf(conn); info.Path != PathPunched {
+		t.Errorf("path %s to %s, want punched", info.Path, info.Remote)
+	}
+	echo(t, conn)
 }
 
 // Two symmetric NATs cannot be punched. Both sides know their NAT type

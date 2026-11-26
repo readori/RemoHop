@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/quic-go/quic-go"
@@ -98,6 +99,16 @@ type Session struct {
 	closeOnce sync.Once
 	closed    chan struct{}
 
+	// holding is set while the host holds back normal probes (see
+	// "Who sends first"); the predicted-port sweep reads it.
+	holding atomic.Bool
+	// predicted is the window of predicted ports being probed (fixed
+	// before the session is registered), hit closed when a packet from
+	// one of them has arrived, which ends the sweep.
+	predicted map[netip.AddrPort]bool
+	hit       chan struct{}
+	hitOnce   sync.Once
+
 	mu      sync.Mutex
 	remotes []netip.AddrPort
 	known   map[netip.AddrPort]bool
@@ -118,6 +129,27 @@ func derive(nonce []byte, label string) []byte {
 // same nonce and opposite roles. The caller should Close the session once
 // it has what it wanted.
 func (s *Socket) Punch(nonce []byte, role Role, remote []netip.AddrPort, lifetime time.Duration) (*Session, error) {
+	return s.PunchWith(PunchConfig{Nonce: nonce, Role: role, Remote: remote, Lifetime: lifetime})
+}
+
+// PunchConfig describes a punch session; see Punch.
+type PunchConfig struct {
+	Nonce    []byte
+	Role     Role
+	Remote   []netip.AddrPort
+	Lifetime time.Duration
+	// Predicted is the peer's port prediction (see predict.go) as the
+	// rendezvous exchange delivered it: its IP is the address the server
+	// observed the peer at. When it is valid and our NAT is a cone (or
+	// there is none), the session also probes up to maxPredicted
+	// predicted ports on that address. It is ignored for an address that
+	// is not among Remote or not globally routable.
+	Predicted Prediction
+}
+
+// PunchWith is Punch with the whole configuration.
+func (s *Socket) PunchWith(cfg PunchConfig) (*Session, error) {
+	nonce, role, remote, lifetime := cfg.Nonce, cfg.Role, cfg.Remote, cfg.Lifetime
 	if len(nonce) != NonceSize {
 		return nil, errors.New("nat: bad session nonce")
 	}
@@ -130,6 +162,7 @@ func (s *Socket) Punch(nonce []byte, role Role, remote []netip.AddrPort, lifetim
 		proven:  make(chan struct{}),
 		heard:   make(chan struct{}),
 		closed:  make(chan struct{}),
+		hit:     make(chan struct{}),
 		known:   map[netip.AddrPort]bool{},
 		working: map[netip.AddrPort]bool{},
 	}
@@ -153,6 +186,22 @@ func (s *Socket) Punch(nonce []byte, role Role, remote []netip.AddrPort, lifetim
 		sess.remotes = append(sess.remotes, r)
 	}
 
+	// Port prediction: the window is probed only on an address the peer
+	// was given as a candidate (its observed one), and only from a NAT
+	// that keeps one public port for all destinations. From a symmetric
+	// NAT every probe would take a port of its own, and move our own
+	// allocator on past what the peer may have predicted of us.
+	natType := s.NATType()
+	var sweep []netip.AddrPort
+	if pred := cfg.Predicted; pred.Valid() && (natType == TypeCone || natType == TypeNone) &&
+		Routable(pred.IP) && !s.excludes(pred.IP) && sess.remoteIP(pred.IP) {
+		sweep = pred.targets(maxPredicted)
+		sess.predicted = make(map[netip.AddrPort]bool, len(sweep))
+		for _, t := range sweep {
+			sess.predicted[t] = true
+		}
+	}
+
 	s.mu.Lock()
 	if len(s.sessions) >= maxSessions {
 		s.mu.Unlock()
@@ -170,16 +219,92 @@ func (s *Socket) Punch(nonce []byte, role Role, remote []netip.AddrPort, lifetim
 	// without a NAT (nothing to prime), and not behind a symmetric NAT:
 	// its mapping towards the client is new whoever sends first, so the
 	// client can only learn it from the host's real probes, which then
-	// should not wait.
-	natType := s.NATType()
+	// should not wait. A symmetric host whose ports the client predicts
+	// is no exception: its probes open the mapping at the predicted port
+	// that the client's probes are then let in at.
 	holding := role == RoleHost && s.ttl != nil && natType != TypeSymmetric && natType != TypeNone
+	sess.holding.Store(holding)
 	// The first round goes out before Punch returns. A host calls Punch
 	// before it answers the introduction, so its NAT is primed before the
 	// client can know where to send: the client's first probe can never
 	// arrive ahead of the priming, however the two machines schedule.
 	sess.round(holding)
 	go sess.run(lifetime, holding)
+	if len(sweep) > 0 {
+		passes, lead := predictSweeps, time.Duration(0)
+		switch {
+		case holding:
+			// A host that primes probes the window with low TTLs too,
+			// which opens its NAT for those ports without reaching the
+			// peer's. The first pass goes out at once, unpaced (it only
+			// reaches our own router), for the reason the first round
+			// does: before the client's first probe can arrive, which on
+			// a NAT that remembers unsolicited packets would otherwise
+			// close the very port it came from.
+			for _, to := range sweep {
+				for _, ttl := range primeTTLs {
+					s.ttl(sess.packet(pktProbe, nil), to, ttl)
+				}
+			}
+			passes, lead = predictSweeps-1, predictRepeat
+		case role == RoleHost:
+			// One that cannot prime gives the client time to open its
+			// mapping first.
+			lead = predictLead
+		}
+		go sess.sweep(sweep, passes, lead)
+	}
 	return sess, nil
+}
+
+// remoteIP reports whether ip is the address of one of the candidates.
+func (p *Session) remoteIP(ip netip.Addr) bool {
+	for _, r := range p.remotes {
+		if r.Addr() == ip {
+			return true
+		}
+	}
+	return false
+}
+
+// sweep probes the predicted ports, paced, in up to passes passes (the
+// first after lead), until one of them is heard from or the session ends.
+func (p *Session) sweep(targets []netip.AddrPort, passes int, lead time.Duration) {
+	for i := range passes {
+		wait := predictRepeat
+		if i == 0 {
+			wait = lead
+		}
+		if wait > 0 && !p.pause(wait) {
+			return
+		}
+		for _, to := range targets {
+			if p.holding.Load() {
+				for _, ttl := range primeTTLs {
+					p.sock.ttl(p.packet(pktProbe, nil), to, ttl)
+				}
+			} else {
+				p.sock.send(p.packet(pktProbe, nil), to)
+			}
+			if !p.pause(predictPace) {
+				return
+			}
+		}
+	}
+}
+
+// pause waits for d, and reports false if the sweep should stop instead.
+func (p *Session) pause(d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return true
+	case <-p.hit:
+	case <-p.closed:
+	case <-p.sock.done:
+	}
+	return false
 }
 
 // round sends one probe to every candidate, low-TTL priming probes only to
@@ -245,9 +370,11 @@ func (p *Session) run(lifetime time.Duration, holding bool) {
 		case <-heard:
 			t.Stop()
 			heard, holdEnd, holding = nil, nil, false
+			p.holding.Store(false)
 		case <-holdEnd:
 			t.Stop()
 			heard, holdEnd, holding = nil, nil, false
+			p.holding.Store(false)
 		case <-proven:
 			t.Stop()
 			proven = nil
@@ -304,6 +431,9 @@ func (p *Session) handle(pkt []byte, src netip.AddrPort) {
 	default:
 	}
 	p.heardOnce.Do(func() { close(p.heard) })
+	if p.predicted[src] {
+		p.hitOnce.Do(func() { close(p.hit) })
+	}
 
 	p.mu.Lock()
 	adopt := false
@@ -354,6 +484,8 @@ type ConnectConfig struct {
 	// the same QUIC session and login, whatever the path.
 	Prefer     func(netip.AddrPort) bool
 	PreferWait time.Duration
+	// Predicted is the host's port prediction; see PunchConfig.
+	Predicted Prediction
 	// Logger, if set, gets the timing of each step at debug level: when
 	// each path answered, when each handshake started and how it ended.
 	Logger *slog.Logger
@@ -398,7 +530,8 @@ func (s *Socket) Connect(ctx context.Context, cfg ConnectConfig) (*quic.Conn, ne
 	}
 	// Keep answering and probing a little past the deadline so a handshake
 	// started at the last moment still finds its hole open.
-	sess, err := s.Punch(cfg.Nonce, RoleClient, cfg.Remote, punchTime+5*time.Second)
+	sess, err := s.PunchWith(PunchConfig{Nonce: cfg.Nonce, Role: RoleClient, Remote: cfg.Remote,
+		Lifetime: punchTime + 5*time.Second, Predicted: cfg.Predicted})
 	if err != nil {
 		return nil, netip.AddrPort{}, err
 	}

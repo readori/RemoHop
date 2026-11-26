@@ -64,6 +64,9 @@ type peer struct {
 	reflexive  netip.AddrPort
 	natType    nat.Type
 	candidates []netip.AddrPort
+	// predicted is the port prediction the other side reads from the
+	// candidates, as signal does (zero if there is none).
+	predicted nat.Prediction
 }
 
 func (w *world) peer(h *vnet.Host) *peer {
@@ -86,7 +89,16 @@ func (w *world) peerOn(h *vnet.Host, pc net.PacketConn) *peer {
 	if p.reflexive, err = sock.Reflexive(ctx, reflectMain); err != nil {
 		w.t.Fatalf("reflexive address: %v", err)
 	}
-	p.candidates = append([]netip.AddrPort{p.reflexive}, sock.Candidates()...)
+	// What the rendezvous exchange carries: the self-reported candidates
+	// with the prediction's hint at the end, read back by the other side.
+	local := sock.Candidates()
+	if pred, ok := sock.Prediction(); ok {
+		local = append(local, pred.Hint()...)
+	}
+	if p.natType == nat.TypeSymmetric {
+		p.predicted, local = nat.ReadHint(p.reflexive, local)
+	}
+	p.candidates = append([]netip.AddrPort{p.reflexive}, local...)
 	return p
 }
 
@@ -152,7 +164,8 @@ func connect(t *testing.T, client, host *peer, punchTime time.Duration) (netip.A
 func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duration) (netip.AddrPort, error) {
 	t.Helper()
 	nonce := newNonce()
-	hs, err := host.sock.Punch(nonce, nat.RoleHost, client.candidates, punchTime+time.Second)
+	hs, err := host.sock.PunchWith(nat.PunchConfig{Nonce: nonce, Role: nat.RoleHost, Remote: client.candidates,
+		Lifetime: punchTime + time.Second, Predicted: client.predicted})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,6 +185,7 @@ func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duratio
 		TLS:       tlsConf,
 		QUIC:      quicConf(),
 		PunchTime: punchTime,
+		Predicted: host.predicted,
 	})
 	if err != nil {
 		return netip.AddrPort{}, err
@@ -197,6 +211,13 @@ func connectAfter(t *testing.T, client, host *peer, punchTime, lead time.Duratio
 	return addr, nil
 }
 
+// Symmetric NAT options for the matrix.
+var (
+	step2      = func(b *vnet.NAT) { b.SetPortStep(2) }
+	stepDown   = func(b *vnet.NAT) { b.SetPortStep(-3) }
+	randomPort = func(b *vnet.NAT) { b.SetRandomPorts(true) }
+)
+
 func TestPunchMatrix(t *testing.T) {
 	cases := []struct {
 		name         string
@@ -205,26 +226,66 @@ func TestPunchMatrix(t *testing.T) {
 		// peerReflexive: the working path must be an address the host
 		// never advertised.
 		peerReflexive bool
+		// clientNAT and hostNAT configure the NATs before anything is
+		// measured; burn ports are taken from both allocators between
+		// the measurement and the punch, as other traffic on the LANs
+		// would.
+		clientNAT, hostNAT func(*vnet.NAT)
+		burn               int
 	}{
-		{"full-cone to full-cone", vnet.FullCone, vnet.FullCone, true, false},
-		{"restricted to restricted", vnet.RestrictedCone, vnet.RestrictedCone, true, false},
-		{"port-restricted to port-restricted", vnet.PortRestrictedCone, vnet.PortRestrictedCone, true, false},
-		{"full-cone to port-restricted", vnet.FullCone, vnet.PortRestrictedCone, true, false},
-		{"symmetric client to full-cone host", vnet.Symmetric, vnet.FullCone, true, false},
-		{"full-cone client to symmetric host", vnet.FullCone, vnet.Symmetric, true, true},
-		{"restricted client to symmetric host", vnet.RestrictedCone, vnet.Symmetric, true, true},
-		{"symmetric client to restricted host", vnet.Symmetric, vnet.RestrictedCone, true, false},
-		{"symmetric to symmetric", vnet.Symmetric, vnet.Symmetric, false, false},
-		{"symmetric client to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone, false, false},
-		{"port-restricted client to symmetric host", vnet.PortRestrictedCone, vnet.Symmetric, false, false},
+		{"full-cone to full-cone", vnet.FullCone, vnet.FullCone, true, false, nil, nil, 0},
+		{"restricted to restricted", vnet.RestrictedCone, vnet.RestrictedCone, true, false, nil, nil, 0},
+		{"port-restricted to port-restricted", vnet.PortRestrictedCone, vnet.PortRestrictedCone, true, false, nil, nil, 0},
+		{"full-cone to port-restricted", vnet.FullCone, vnet.PortRestrictedCone, true, false, nil, nil, 0},
+		{"symmetric client to full-cone host", vnet.Symmetric, vnet.FullCone, true, false, nil, nil, 0},
+		{"full-cone client to symmetric host", vnet.FullCone, vnet.Symmetric, true, true, nil, nil, 0},
+		{"restricted client to symmetric host", vnet.RestrictedCone, vnet.Symmetric, true, true, nil, nil, 0},
+		{"symmetric client to restricted host", vnet.Symmetric, vnet.RestrictedCone, true, false, nil, nil, 0},
+		{"symmetric to symmetric", vnet.Symmetric, vnet.Symmetric, false, false, nil, nil, 0},
+		// Port prediction: a symmetric NAT that allocates in sequence
+		// and a port-restricted one connect directly, whichever side
+		// is which, also when the allocator has moved on meanwhile.
+		{"symmetric client to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone, true, false, nil, nil, 0},
+		{"port-restricted client to symmetric host", vnet.PortRestrictedCone, vnet.Symmetric, true, true, nil, nil, 0},
+		{"symmetric client (step 2) to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone, true, false, step2, nil, 0},
+		{"port-restricted client to symmetric host (step 2)", vnet.PortRestrictedCone, vnet.Symmetric, true, true, nil, step2, 0},
+		{"symmetric client to port-restricted host, noisy LAN", vnet.Symmetric, vnet.PortRestrictedCone, true, false, nil, nil, 10},
+		{"port-restricted client to symmetric host, noisy LAN", vnet.PortRestrictedCone, vnet.Symmetric, true, true, nil, nil, 10},
+		{"symmetric client (step 2) to port-restricted host, noisy LAN", vnet.Symmetric, vnet.PortRestrictedCone, true, false, step2, nil, 10},
+		{"port-restricted client to symmetric host (step -3), noisy LAN", vnet.PortRestrictedCone, vnet.Symmetric, true, true, nil, stepDown, 10},
+		{"symmetric client to conntrack host, noisy LAN", vnet.Symmetric, vnet.ConntrackCone, true, false, nil, nil, 10},
+		// Ports that cannot be predicted: as before.
+		{"symmetric client (random ports) to port-restricted host", vnet.Symmetric, vnet.PortRestrictedCone, false, false, randomPort, nil, 0},
+		{"port-restricted client to symmetric host (random ports)", vnet.PortRestrictedCone, vnet.Symmetric, false, false, nil, randomPort, 0},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			w := newWorld(t)
-			client := w.behind("203.0.113.10", "192.168.1.10", tc.client)
-			host := w.behind("203.0.113.20", "10.0.0.20", tc.host)
+			box := func(ip string, kind vnet.NATKind, setup func(*vnet.NAT)) *vnet.NAT {
+				b := w.net.NAT(ip, kind)
+				if setup != nil {
+					setup(b)
+				}
+				return b
+			}
+			clientNAT := box("203.0.113.10", tc.client, tc.clientNAT)
+			hostNAT := box("203.0.113.20", tc.host, tc.hostNAT)
+			client := w.peer(clientNAT.Host("192.168.1.10"))
+			host := w.peer(hostNAT.Host("10.0.0.20"))
 			serve(t, host)
+			clientNAT.Burn(tc.burn)
+			hostNAT.Burn(tc.burn)
+
+			for _, side := range []struct {
+				kind vnet.NATKind
+				p    *peer
+			}{{tc.client, client}, {tc.host, host}} {
+				wantPred := side.kind == vnet.Symmetric && !strings.Contains(tc.name, "random ports")
+				if side.p.predicted.Valid() != wantPred {
+					t.Errorf("%s side: prediction %+v, want one: %v", side.kind, side.p.predicted, wantPred)
+				}
+			}
 
 			wantType := func(k vnet.NATKind) nat.Type {
 				if k == vnet.Symmetric {
@@ -251,7 +312,11 @@ func TestPunchMatrix(t *testing.T) {
 				if took > punchTime+time.Second {
 					t.Errorf("failure took %s, want about %s", took, punchTime)
 				}
-				why := nat.Explain(client.natType, host.natType)
+				predicted := nat.UsesPrediction(client.natType, host.natType, client.predicted.Valid(), host.predicted.Valid())
+				if predicted {
+					t.Errorf("a punch without usable predictions counts as predicted")
+				}
+				why := nat.Explain(client.natType, host.natType, predicted)
 				if !strings.Contains(why, "symmetric") || !strings.Contains(why, "cannot be hole-punched") {
 					t.Errorf("unhelpful diagnostic: %s", why)
 				}
@@ -426,16 +491,19 @@ func TestReflectNoAmplification(t *testing.T) {
 func TestExplain(t *testing.T) {
 	for _, tc := range []struct {
 		local, remote nat.Type
+		predicted     bool
 		want          string
 	}{
-		{nat.TypeSymmetric, nat.TypeSymmetric, "both sides are behind symmetric NATs"},
-		{nat.TypeSymmetric, nat.TypeCone, "this side is behind a symmetric NAT"},
-		{nat.TypeCone, nat.TypeSymmetric, "the peer is behind a symmetric NAT"},
-		{nat.TypeCone, nat.TypeCone, "firewall"},
-		{nat.TypeUnknown, nat.TypeCone, "firewall"},
+		{nat.TypeSymmetric, nat.TypeSymmetric, false, "both sides are behind symmetric NATs"},
+		{nat.TypeSymmetric, nat.TypeCone, false, "this side is behind a symmetric NAT whose ports cannot be predicted"},
+		{nat.TypeCone, nat.TypeSymmetric, false, "the peer is behind a symmetric NAT whose ports cannot be predicted"},
+		{nat.TypeSymmetric, nat.TypeCone, true, "this side is behind a symmetric NAT that seemed to hand out its ports in sequence, so the peer also probed"},
+		{nat.TypeCone, nat.TypeSymmetric, true, "the peer is behind a symmetric NAT that seemed to hand out its ports in sequence, so this side also probed"},
+		{nat.TypeCone, nat.TypeCone, false, "firewall"},
+		{nat.TypeUnknown, nat.TypeCone, false, "firewall"},
 	} {
-		if got := nat.Explain(tc.local, tc.remote); !strings.Contains(got, tc.want) {
-			t.Errorf("Explain(%s, %s) = %q, want it to mention %q", tc.local, tc.remote, got, tc.want)
+		if got := nat.Explain(tc.local, tc.remote, tc.predicted); !strings.Contains(got, tc.want) {
+			t.Errorf("Explain(%s, %s, %v) = %q, want it to mention %q", tc.local, tc.remote, tc.predicted, got, tc.want)
 		}
 	}
 	if nat.ParseType("cone") != nat.TypeCone || nat.ParseType("<script>") != nat.TypeUnknown {
@@ -650,7 +718,7 @@ func TestPunchThroughConntrackNATs(t *testing.T) {
 		if !errors.Is(err, nat.ErrNoPath) {
 			t.Fatalf("err = %v, want ErrNoPath", err)
 		}
-		if why := nat.Explain(client.natType, host.natType); !strings.Contains(why, "unsolicited inbound") {
+		if why := nat.Explain(client.natType, host.natType, false); !strings.Contains(why, "unsolicited inbound") {
 			t.Errorf("diagnostic does not name the likely cause: %s", why)
 		}
 	})
@@ -703,19 +771,42 @@ func TestPunchProbesFewRoutableAddresses(t *testing.T) {
 }
 
 func TestPunchTime(t *testing.T) {
-	if d := nat.PunchTime(nat.TypeSymmetric, nat.TypeSymmetric); d > 1500*time.Millisecond {
+	if d := nat.PunchTime(nat.TypeSymmetric, nat.TypeSymmetric, false); d > 1500*time.Millisecond {
 		t.Errorf("two symmetric NATs: %s, want a quick failure", d)
 	}
-	if d := nat.PunchTime(nat.TypeCone, nat.TypeSymmetric); d >= nat.DefaultPunchTime || d < 2*time.Second {
-		t.Errorf("one symmetric NAT: %s", d)
+	if d := nat.PunchTime(nat.TypeCone, nat.TypeSymmetric, false); d != 4*time.Second {
+		t.Errorf("one symmetric NAT: %s, want 4s as before", d)
+	}
+	// The window takes a few passes (the first possibly after a lead), so
+	// a punch that uses prediction gets somewhat longer, still less than
+	// one between cones.
+	if d := nat.PunchTime(nat.TypeCone, nat.TypeSymmetric, true); d <= nat.PunchTime(nat.TypeCone, nat.TypeSymmetric, false) || d >= nat.DefaultPunchTime {
+		t.Errorf("one predictable symmetric NAT: %s", d)
 	}
 	for _, pair := range [][2]nat.Type{{nat.TypeCone, nat.TypeCone}, {nat.TypeUnknown, nat.TypeSymmetric}, {nat.TypeNone, nat.TypeUnknown}} {
 		want := nat.DefaultPunchTime
 		if pair[1] == nat.TypeSymmetric {
-			want = nat.PunchTime(nat.TypeCone, nat.TypeSymmetric)
+			want = nat.PunchTime(nat.TypeCone, nat.TypeSymmetric, false)
 		}
-		if d := nat.PunchTime(pair[0], pair[1]); d != want {
+		if d := nat.PunchTime(pair[0], pair[1], false); d != want {
 			t.Errorf("PunchTime(%s, %s) = %s, want %s", pair[0], pair[1], d, want)
+		}
+	}
+	for _, tc := range []struct {
+		local, remote         nat.Type
+		localPred, remotePred bool
+		want                  bool
+	}{
+		{nat.TypeSymmetric, nat.TypeCone, true, false, true},
+		{nat.TypeCone, nat.TypeSymmetric, false, true, true},
+		{nat.TypeNone, nat.TypeSymmetric, false, true, true},
+		{nat.TypeCone, nat.TypeSymmetric, false, false, false},
+		{nat.TypeSymmetric, nat.TypeSymmetric, true, true, false},
+		{nat.TypeUnknown, nat.TypeSymmetric, false, true, false},
+		{nat.TypeCone, nat.TypeCone, true, true, false},
+	} {
+		if got := nat.UsesPrediction(tc.local, tc.remote, tc.localPred, tc.remotePred); got != tc.want {
+			t.Errorf("UsesPrediction(%s, %s, %v, %v) = %v", tc.local, tc.remote, tc.localPred, tc.remotePred, got)
 		}
 	}
 }

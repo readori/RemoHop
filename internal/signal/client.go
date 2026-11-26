@@ -363,6 +363,11 @@ type Peer struct {
 	// Bridged: the peer reaches the server through its websocket bridge;
 	// it has no address to punch and only the relay reaches it.
 	Bridged bool
+	// Prediction, when valid, says how the peer's symmetric NAT hands out
+	// ports (see nat.Prediction), always on the Reflexive address. It
+	// travels as a hint at the end of the peer's self-reported candidates
+	// (nat.Prediction.Hint), which is taken out of Local.
+	Prediction nat.Prediction
 }
 
 // Candidates lists every address worth probing: the reflexive one, which
@@ -395,8 +400,39 @@ func parsePeer(pi *peerInfo) (Peer, error) {
 	}
 	if p.Bridged {
 		p.Local = nil
+	} else if p.NAT == nat.TypeSymmetric {
+		// Only on the observed address, whatever the list says.
+		p.Prediction, p.Local = nat.ReadHint(p.Reflexive, p.Local)
 	}
 	return p, nil
+}
+
+// advertise is formatCandidates for our own candidates, followed by the
+// hint of our socket's port prediction if it has one. The hint goes last,
+// where nat.ReadHint looks for it and where a peer that predates it, which
+// probes it like any address, gives it what is left of its bound on
+// routable candidates (after the observed address, a router-mapped one and
+// IPv6). The list stays within what the server accepts, at the cost of a
+// private address (the last one) in the rare case it would not. The hint
+// goes only with a NAT type of symmetric (natType, what we tell the peer),
+// the only one the peer reads it with.
+func advertise(local []netip.AddrPort, natType nat.Type, sock *nat.Socket) []string {
+	var hint []netip.AddrPort
+	if p, ok := sock.Prediction(); ok && natType == nat.TypeSymmetric {
+		hint = p.Hint()
+	}
+	local = slices.Clone(local)
+	for len(local)+len(hint) > maxCandidates {
+		drop := len(local) - 1
+		for i := len(local) - 1; i >= 0; i-- {
+			if local[i].Addr().IsPrivate() {
+				drop = i
+				break
+			}
+		}
+		local = slices.Delete(local, drop, drop+1)
+	}
+	return formatCandidates(slices.Concat(local, hint))
 }
 
 // Introduction is the result of a successful connect request.
@@ -492,7 +528,7 @@ func (c *Client) Presence(ctx context.Context, ids []string) (map[string]string,
 func (c *Client) Connect(ctx context.Context, id string, local []netip.AddrPort, natType nat.Type) (*Introduction, error) {
 	var resp response
 	err := c.roundTrip(ctx, func(st *quic.Stream) error {
-		req := request{T: "connect", V: protoVersion, ID: id, Candidates: formatCandidates(local), NAT: string(natType)}
+		req := request{T: "connect", V: protoVersion, ID: id, Candidates: advertise(local, natType, c.sock), NAT: string(natType)}
 		if err := writeMsg(st, req); err != nil {
 			return err
 		}
@@ -574,7 +610,7 @@ func (c *Client) ServeOffers(ctx context.Context, handle func(Offer) Answer) err
 				writeMsg(st, response{Code: CodeDeclined, Error: ans.Decline})
 				return
 			}
-			writeMsg(st, response{OK: true, Candidates: formatCandidates(ans.Local), NAT: string(ans.NAT)})
+			writeMsg(st, response{OK: true, Candidates: advertise(ans.Local, ans.NAT, c.sock), NAT: string(ans.NAT)})
 		}()
 	}
 }

@@ -848,7 +848,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		}
 		return nil, route{}, fmt.Errorf("rendezvous with %s failed: %w", t.display, err)
 	}
-	d.log.Debug("introduced", "target", t.canonical, "host_candidates", intro.Peer.Candidates(), "host_nat", intro.Peer.NAT, "nat", natType, "public_addr", intro.Reflexive,
+	d.log.Debug("introduced", "target", t.canonical, "host_candidates", intro.Peer.Candidates(), "host_nat", intro.Peer.NAT, "host_port_step", intro.Peer.Prediction.Step, "nat", natType, "public_addr", intro.Reflexive,
 		"bridged", sc.Bridged(), "host_bridged", intro.Peer.Bridged)
 	if sc.Bridged() || intro.Peer.Bridged {
 		// Through the websocket bridge (ours or the host's) no punch
@@ -901,9 +901,14 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 	sameNAT := intro.Reflexive.IsValid() && intro.Reflexive.Addr() == intro.Peer.Reflexive.Addr()
 	retryable := d.mayRetryPunch(natType, intro.Peer.NAT) && !sameNAT && !hinted
 	relayOK := intro.RelayOffered && !d.opts.NoRelay && signal.RelayAllowed(d.opts.Dir)
+	// Port prediction (see internal/nat, predict.go): the host probes our
+	// predicted ports if we are the symmetric side, we probe its ports if
+	// it is.
+	_, ownPred := sock.Prediction()
+	predicted := nat.UsesPrediction(natType, intro.Peer.NAT, ownPred, intro.Peer.Prediction.Valid())
 	punchTime := d.opts.PunchTime
 	if punchTime == 0 {
-		punchTime = nat.PunchTime(natType, intro.Peer.NAT)
+		punchTime = nat.PunchTime(natType, intro.Peer.NAT, predicted)
 		if prefer != nil {
 			// The tailnet path does not depend on the NATs; give it
 			// time to answer even where punching is hopeless.
@@ -931,6 +936,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		QUIC:      peer.QUICConfig(),
 		PunchTime: punchTime,
 		Prefer:    prefer,
+		Predicted: intro.Peer.Prediction,
 		Logger:    d.log,
 	}
 	var q *quic.Conn
@@ -965,7 +971,7 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (*q
 		if !errors.Is(err, nat.ErrNoPath) {
 			return nil, route{}, err
 		}
-		noPath := fmt.Errorf("could not connect to %s: %s: %w", t.display, nat.Explain(natType, intro.Peer.NAT), err)
+		noPath := fmt.Errorf("could not connect to %s: %s: %w", t.display, nat.Explain(natType, intro.Peer.NAT, predicted), err)
 		if ctx.Err() == nil && retryable {
 			return nil, route{}, &errRetryPunch{noPath}
 		}
