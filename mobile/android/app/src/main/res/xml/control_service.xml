@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RemoHop's accessibility service (ControlService): it performs the input
+     of a device the owner allowed to control the phone, during that session
+     only. It reacts to no events (one type must be set); window content is
+     retrieved only to find the focused text field when the controller
+     types. Deliberately not an accessibility tool (isAccessibilityTool is
+     not set). -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/host_ax_description"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagDefault"
+    android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
+    android:notificationTimeout="1000" />

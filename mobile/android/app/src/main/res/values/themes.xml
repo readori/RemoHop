@@ -43,4 +43,13 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+    <!-- Host mode's approval dialog: a Material 3 dialog over whatever is
+         on screen, the window itself invisible. -->
+    <style name="Theme.RemoHop.Approval" parent="Theme.RemoHop.Settings">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>
