@@ -363,8 +363,8 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         // This phone as a host: view and control it from another device.
-        var c = ui.section(col, getString(R.string.host_this_device), SettingsUi.Tone.PRIMARY)
-        ui.row(c, getString(R.string.host_allow), summary = getString(if (HostMode.state.on) R.string.on else R.string.off),
+        var c = ui.section(col, getString(R.string.hm_this_device), SettingsUi.Tone.PRIMARY)
+        ui.row(c, getString(R.string.hm_allow), summary = getString(if (HostMode.state.on) R.string.on else R.string.off),
             icon = R.drawable.ic_s_device, chevron = true) { open(PAGE_THIS_DEVICE) }
         c = ui.section(col, getString(R.string.device_heading), SettingsUi.Tone.SECONDARY)
         ui.row(c, getString(R.string.device_name), summary = name.ifEmpty { Diag.device() }, icon = R.drawable.ic_s_device, chevron = true) { open(PAGE_NAME) }
@@ -383,7 +383,7 @@ class SettingsActivity : AppCompatActivity() {
     private var checkingMain = false
 
     private fun thisDevice(col: LinearLayout) {
-        pageTitle(R.string.host_this_device)
+        pageTitle(R.string.hm_this_device)
         val page = HostPage(this, ui, { t, items -> showInfo(t, items) }, { snack(it) }) {
             if (stack.lastOrNull() == PAGE_THIS_DEVICE && !isDestroyed) show()
         }
@@ -739,13 +739,13 @@ class SettingsActivity : AppCompatActivity() {
         f.counterMaxLength = 63
         f.isCounterEnabled = true
         val d = ui.section(col, null)
-        val idLabel = getString(if (h.isId) R.string.host_id else R.string.host_address)
+        val idLabel = getString(if (h.isId) R.string.hm_id else R.string.hm_address)
         val idRow = ui.row(d, idLabel, summary = h.target, icon = R.drawable.ic_copy) {
             getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(idLabel, h.target))
             if (Build.VERSION.SDK_INT < 33) snack(R.string.copied)
         }
-        idRow.view.contentDescription = getString(R.string.host_copy, h.target)
-        ui.row(d, getString(R.string.host_status), summary = getString(when (h.kind) {
+        idRow.view.contentDescription = getString(R.string.hm_copy, h.target)
+        ui.row(d, getString(R.string.hm_status), summary = getString(when (h.kind) {
             SavedHost.Kind.PAIRED -> R.string.host_status_paired
             SavedHost.Kind.KEY -> R.string.host_status_key
             SavedHost.Kind.SAVED_PASSWORD -> R.string.host_status_savedpw

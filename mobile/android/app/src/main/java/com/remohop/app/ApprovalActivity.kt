@@ -54,7 +54,7 @@ class ApprovalActivity : AppCompatActivity() {
             decide(true, pendingControl)
         } else {
             Diag.log("screen: the owner did not allow screen capture")
-            Toast.makeText(this, R.string.host_consent_denied, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.hm_consent_denied, Toast.LENGTH_LONG).show()
             decide(false, false)
         }
     }
@@ -70,7 +70,7 @@ class ApprovalActivity : AppCompatActivity() {
         n = savedInstanceState?.getInt(EXTRA_N) ?: intent.getIntExtra(EXTRA_N, 0)
         val r = HostMode.state.requests.firstOrNull { it.n == n }
         if (r == null) {
-            Toast.makeText(this, R.string.host_req_gone, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.hm_req_gone, Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -97,20 +97,20 @@ class ApprovalActivity : AppCompatActivity() {
     }
 
     private fun show(r: HostRequest) {
-        val who = r.label.ifEmpty { getString(R.string.host_unknown_device) }
+        val who = r.label.ifEmpty { getString(R.string.hm_unknown_device) }
         val (scroll, col) = ui.page()
         scroll.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         col.setPadding(ui.dp(24), ui.dp(4), ui.dp(24), ui.dp(8))
         // New or known device.
-        col.addView(ui.badge(getString(if (r.firstSeen) R.string.host_req_new else R.string.host_req_known),
+        col.addView(ui.badge(getString(if (r.firstSeen) R.string.hm_req_new else R.string.hm_req_known),
             if (r.firstSeen) SettingsUi.Tone.ERROR else SettingsUi.Tone.PRIMARY),
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        detail(col, R.string.host_req_device, who)
-        detail(col, R.string.host_req_key, AppInfo.shortFingerprint(r.identity))
-        if (r.from.isNotEmpty()) detail(col, R.string.host_req_from, r.from)
+        detail(col, R.string.hm_req_device, who)
+        detail(col, R.string.hm_req_key, AppInfo.shortFingerprint(r.identity))
+        if (r.from.isNotEmpty()) detail(col, R.string.hm_req_from, r.from)
         // The scam warning: always shown.
         col.addView(TextView(this).apply {
-            text = getString(R.string.host_req_scam)
+            text = getString(R.string.hm_req_scam)
             TextViewCompat.setTextAppearance(this, ui.textAppearance(M.attr.textAppearanceBodyMedium))
             setTextColor(ui.color(M.attr.colorOnErrorContainer))
             setPadding(ui.dp(12), ui.dp(10), ui.dp(12), ui.dp(10))
@@ -120,31 +120,31 @@ class ApprovalActivity : AppCompatActivity() {
             id = R.id.host_scam_warning
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12) })
         if (!r.isAccess) {
-            col.addView(body(getString(R.string.host_req_may)), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12) })
+            col.addView(body(getString(R.string.hm_req_may)), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(12) })
             control = MaterialCheckBox(this).apply {
-                text = getString(R.string.host_req_control)
+                text = getString(R.string.hm_req_control)
                 id = R.id.host_req_control
             }
             col.addView(control)
         }
         // Control needs the accessibility service: a short note and a way to turn it on.
         val note = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        note.addView(body(getString(R.string.host_req_control_off)))
-        note.addView(ui.button(getString(R.string.host_req_enable_control), SettingsUi.ButtonStyle.OUTLINED).apply {
+        note.addView(body(getString(R.string.hm_req_control_off)))
+        note.addView(ui.button(getString(R.string.hm_req_enable_control), SettingsUi.ButtonStyle.OUTLINED).apply {
             setOnClickListener { ControlDisclosure.show(this@ApprovalActivity) }
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(4) })
         col.addView(note)
         controlNote = note
-        left = body(getString(R.string.host_req_left, r.left)).also {
+        left = body(getString(R.string.hm_req_left, r.left)).also {
             col.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = ui.dp(8) })
         }
         refreshControl()
         dialog = MaterialAlertDialogBuilder(this)
-            .setTitle(getString(if (r.isAccess) R.string.host_req_title_access else R.string.host_req_title, who))
+            .setTitle(getString(if (r.isAccess) R.string.hm_req_title_access else R.string.hm_req_title, who))
             .setView(scroll)
             .setCancelable(false)
-            .setNegativeButton(R.string.host_deny) { _, _ -> decide(false, false) }
-            .setPositiveButton(R.string.host_allow_btn) { _, _ -> allow(r) }
+            .setNegativeButton(R.string.hm_deny) { _, _ -> decide(false, false) }
+            .setPositiveButton(R.string.hm_allow_btn) { _, _ -> allow(r) }
             .setOnDismissListener { if (!answered && !consentShowing) finish() }
             .show()
     }
@@ -184,7 +184,7 @@ class ApprovalActivity : AppCompatActivity() {
             if (!consentShowing) finish()
             return
         }
-        left?.text = getString(R.string.host_req_left, r.left)
+        left?.text = getString(R.string.hm_req_left, r.left)
         refreshControl()
     }
 
@@ -208,7 +208,7 @@ class ApprovalActivity : AppCompatActivity() {
         answered = true
         consentShowing = false
         HostMode.decide(n, allow, withControl) { err ->
-            if (err != null && allow) Toast.makeText(applicationContext, R.string.host_req_gone, Toast.LENGTH_SHORT).show()
+            if (err != null && allow) Toast.makeText(applicationContext, R.string.hm_req_gone, Toast.LENGTH_SHORT).show()
             next()
         }
     }

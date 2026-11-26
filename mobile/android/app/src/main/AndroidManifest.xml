@@ -119,7 +119,7 @@
         <service
             android:name=".ControlService"
             android:exported="true"
-            android:label="@string/host_ax_label"
+            android:label="@string/hm_ax_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

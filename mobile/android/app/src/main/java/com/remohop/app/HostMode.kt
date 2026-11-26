@@ -168,10 +168,10 @@ object HostMode : HostListener {
     private fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         val c = Lang.localized(context)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_REQUESTS, c.getString(R.string.host_channel_requests), NotificationManager.IMPORTANCE_HIGH).apply {
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_REQUESTS, c.getString(R.string.hm_channel_requests), NotificationManager.IMPORTANCE_HIGH).apply {
             setShowBadge(true)
         })
-        nm.createNotificationChannel(NotificationChannel(CHANNEL_HOST, c.getString(R.string.host_channel_active), NotificationManager.IMPORTANCE_LOW).apply {
+        nm.createNotificationChannel(NotificationChannel(CHANNEL_HOST, c.getString(R.string.hm_channel_active), NotificationManager.IMPORTANCE_LOW).apply {
             setShowBadge(false)
         })
     }
@@ -181,7 +181,7 @@ object HostMode : HostListener {
 
     private fun notifyRequest(r: HostRequest) {
         if (!canNotify()) return
-        val who = r.label.ifEmpty { str(R.string.host_unknown_device) }
+        val who = r.label.ifEmpty { str(R.string.hm_unknown_device) }
         val open = PendingIntent.getActivity(app, REQUEST_BASE + r.n, ApprovalActivity.intent(app, r.n).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val deny = PendingIntent.getService(app, REQUEST_BASE + r.n,
@@ -189,15 +189,15 @@ object HostMode : HostListener {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(app, CHANNEL_REQUESTS)
             .setSmallIcon(R.drawable.ic_remohop_monochrome)
-            .setContentTitle(str(if (r.isAccess) R.string.host_req_title_access else R.string.host_req_title, who))
-            .setContentText(str(R.string.host_req_notification_text))
+            .setContentTitle(str(if (r.isAccess) R.string.hm_req_title_access else R.string.hm_req_title, who))
+            .setContentText(str(R.string.hm_req_notification_text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setContentIntent(open)
             .setAutoCancel(true)
             .setTimeoutAfter(state.askTimeout * 1000L)
-            .addAction(0, str(R.string.host_deny), deny)
-            .addAction(0, str(R.string.host_review), open)
+            .addAction(0, str(R.string.hm_deny), deny)
+            .addAction(0, str(R.string.hm_review), open)
             .build()
         app.getSystemService(NotificationManager::class.java)?.notify(REQUEST_BASE + r.n, n)
     }

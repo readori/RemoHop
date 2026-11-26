@@ -46,9 +46,9 @@ object ScreenCapture : ScreenSource {
     private var listening = false
 
     // What the core last asked for, to restart on rotation.
-    private var maxSize = 0
-    private var fps = 30
-    private var bitrate = 4_000_000L
+    private var limit = 0
+    private var frameRate = 30
+    private var rate = 4_000_000L
     private var running = false
     private var displayW = 0
     private var displayH = 0
@@ -110,9 +110,9 @@ object ScreenCapture : ScreenSource {
     // ---- ScreenSource (core threads) ----
 
     override fun startScreen(maxSize: Long, fps: Long, bitrate: Long) = sync {
-        this.maxSize = maxSize.toInt()
-        this.fps = fps.toInt().coerceIn(5, 60)
-        this.bitrate = bitrate
+        this.limit = maxSize.toInt()
+        this.frameRate = fps.toInt().coerceIn(5, 60)
+        this.rate = bitrate
         running = true
         if (projection == null) throw IllegalStateException("the phone's owner has not started screen sharing yet")
         restart()
@@ -131,7 +131,7 @@ object ScreenCapture : ScreenSource {
     }
 
     override fun setBitrate(bitrate: Long) = sync {
-        this.bitrate = bitrate
+        this.rate = bitrate
         codec?.setParameters(Bundle().apply { putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, clampBitrate(bitrate)) })
         Unit
     }
@@ -160,7 +160,7 @@ object ScreenCapture : ScreenSource {
         displayW = dw
         displayH = dh
         Remohopcore.setScreenInfo(dw.toLong(), dh.toLong(), rotation(app).toLong())
-        var (w, h) = CoordMap.pictureSize(dw, dh, maxSize)
+        var (w, h) = CoordMap.pictureSize(dw, dh, limit)
         val old = codec
         codec = null
         val enc = try {
@@ -191,7 +191,7 @@ object ScreenCapture : ScreenSource {
             app.getSystemService(DisplayManager::class.java)?.registerDisplayListener(displayListener, handler)
             listening = true
         }
-        Diag.log("screen: encoding ${w}x$h at up to $fps fps, ${bitrate / 1000} kbit/s")
+        Diag.log("screen: encoding ${w}x$h at up to $frameRate fps, ${rate / 1000} kbit/s")
     }
 
     private val surfaces = HashMap<MediaCodec, Surface>()
@@ -218,8 +218,8 @@ object ScreenCapture : ScreenSource {
     private fun format(w: Int, h: Int, caps: MediaCodecInfo.CodecCapabilities, rich: Boolean): MediaFormat {
         val f = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h)
         f.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        f.setInteger(MediaFormat.KEY_BIT_RATE, clampBitrate(bitrate))
-        f.setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+        f.setInteger(MediaFormat.KEY_BIT_RATE, clampBitrate(rate))
+        f.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
         // The encoder's own key frames are a fallback: viewers ask for one when they need it.
         f.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10)
         // A still screen produces no frames from the mirror; repeating the
@@ -231,7 +231,7 @@ object ScreenCapture : ScreenSource {
             f.setInteger(MediaFormat.KEY_BITRATE_MODE, MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
         }
         if (Build.VERSION.SDK_INT >= 29) {
-            f.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, fps.toFloat())
+            f.setFloat(MediaFormat.KEY_MAX_FPS_TO_ENCODER, frameRate.toFloat())
             // High profile without B-frames (the protocol has no reordering).
             if (caps.profileLevels.any { it.profile == MediaCodecInfo.CodecProfileLevel.AVCProfileHigh }) {
                 f.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileHigh)

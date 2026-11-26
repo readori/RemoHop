@@ -177,13 +177,13 @@ class HostService : Service() {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         if (s.connected) {
             val names = s.sessions.joinToString(", ") { it.label }
-            b.setContentTitle(str(if (s.controlled) R.string.host_notif_controlled else R.string.host_notif_viewed, names))
-                .setContentText(str(R.string.host_notif_stop_hint))
-                .addAction(0, str(R.string.host_stop), service(ACTION_STOP, 2))
+            b.setContentTitle(str(if (s.controlled) R.string.hm_notif_controlled else R.string.hm_notif_viewed, names))
+                .setContentText(str(R.string.hm_notif_stop_hint))
+                .addAction(0, str(R.string.hm_stop), service(ACTION_STOP, 2))
         } else {
-            b.setContentTitle(str(R.string.host_notif_waiting))
-                .setContentText(if (s.reachableAs.isNotEmpty()) str(R.string.host_notif_id, s.reachableAs) else str(R.string.host_status_starting))
-                .addAction(0, str(R.string.host_turn_off), service(ACTION_OFF, 3))
+            b.setContentTitle(str(R.string.hm_notif_waiting))
+                .setContentText(if (s.reachableAs.isNotEmpty()) str(R.string.hm_notif_id, s.reachableAs) else str(R.string.hm_status_starting))
+                .addAction(0, str(R.string.hm_turn_off), service(ACTION_OFF, 3))
         }
         return b.build()
     }
