@@ -192,11 +192,19 @@ jobs:
           # of the CI repository's main branch, dispatched by this token's account, for this commit.
           # A run's title (its run-name, which carries the commit and the correlation string) is
           # filled in shortly after the run is created; until then it is the workflow's name.
+          # A run just created can answer 404 for a moment (v1.0.4's first attempt failed so,
+          # 3 s after the dispatch): until it is readable, wait as for its title.
+          : >run.json
           for _ in $(seq 1 24); do
-            gh api "repos/$CI_REPO/actions/runs/$id" >run.json
-            jq -e --arg corr "[$corr]" '.display_title | endswith($corr)' run.json >/dev/null && break
+            if gh api "repos/$CI_REPO/actions/runs/$id" >run.json 2>run.err; then
+              jq -e --arg corr "[$corr]" '.display_title | endswith($corr)' run.json >/dev/null && break
+            else
+              grep -q 'HTTP 404' run.err || { cat run.err; exit 1; }
+              : >run.json
+            fi
             sleep 5
           done
+          [ -s run.json ] || { echo "::error::run $id in $CI_REPO never became readable"; cat run.err; exit 1; }
           jq -e --arg wf ".github/workflows/$CI_WORKFLOW" --arg me "$me" --arg corr "[$corr]" --arg sha "$GITHUB_SHA" '
             .path == $wf and .event == "workflow_dispatch" and .head_branch == "main"
             and .triggering_actor.login == $me and (.display_title | endswith($corr))
