@@ -49,7 +49,8 @@ Linux x86_64
 <div>
 <h3>适合</h3>
 <ul>
-<li>要从命令行管理自己的几台机器：家里的主机、办公室的工作站、NAT 后面的开发板。</li>
+<li>要管理自己的几台机器：家里的主机、办公室的工作站、NAT 后面的开发板，用桌面应用、浏览器、手机或命令行都行。</li>
+<li>要远程帮家人朋友看电脑：对方双击“快速协助”，念出 ID 和密码，点“允许”就行。</li>
 <li>想让 AI 代理（Claude Code、Cursor 等）在另一台机器上执行命令、读写文件、看屏幕。</li>
 <li>不想把会话内容交给第三方服务器，愿意自己运行一台很小的汇合服务器。</li>
 <li>需要的不只是屏幕：还要端口转发、挂载目录、串口、剪贴板或一条 VPN 链路。</li>
@@ -58,8 +59,8 @@ Linux x86_64
 <div>
 <h3>目前不适合</h3>
 <ul>
-<li>想要下载即用的图形界面安装包。<!--norel-->现在只有命令行，而且<!--src-->在首个发布版本出来之前要自己编译<!--/src--><!--nosrc-->还没有发布<!--/nosrc--><!--/norel--><!--rel-->现在有命令行和快速协助窗口，但没有安装程序<!--/rel-->。</li>
-<li>要控制 iPhone 或 iPad。iOS 设备暂时不能作为被控端（Android 手机可以）。</li>
+<li>需要经过代码签名的 Windows 程序。Windows 版还没有代码签名，SmartScreen 会提示（macOS 版已签名并经过公证）。</li>
+<li>要控制 iPhone 或 iPad。iOS 不允许任何应用控制设备，<span class="nobr">iPhone 和 iPad</span> 只能共享屏幕给别人看（Android 手机可以被控制）。</li>
 <li>需要经过第三方审计的产品。RemoHop 还没有做过独立审计。</li>
 <li>被控机用的是原生 Wayland 桌面。屏幕采集目前只支持 X11、macOS 和 Windows。</li>
 </ul>
@@ -112,7 +113,7 @@ sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
 <section class="task">
 <div>
 <h3>屏幕和远程桌面</h3>
-<p><code>desktop</code> 在本机浏览器里打开查看器，用 H.264 或 AV1 传输，可以录制成 MP4。被控机需要装有带编码器的 ffmpeg。在一台只有 CPU 的 4 核虚拟机上实测，H.264 的端到端延迟约 20 ms（720p）和 31 ms（1080p）。</p>
+<p><code>desktop</code> 在本机浏览器里打开查看器，用 H.264 或 AV1 传输，可以录制成 MP4。被控机需要装有带编码器的 ffmpeg。在一台只有 CPU 的 4 核虚拟机上实测，H.264 的端到端延迟约 20 ms（720p）和 31 ms（1080p）。查看器可以选画质（原始分辨率或最高 2160p 到 480p）、帧率（30 到 144 fps，“自动”按显示器刷新率，最高 120）和显示器，“统计”按钮显示码率、延迟和近 10 秒的丢帧数。</p>
 </div>
 <div>
 <pre><code>remohop dev desktop --max-height 1080 --fps 30
@@ -229,8 +230,8 @@ remohop log</code></pre>
 <li>双方向对方的候选地址发探测包，在各自的 NAT 上打洞，客户端在第一条有应答的路径上建立 QUIC 连接。</li>
 <li>两端在这条连接上用密码做认证密钥交换（CPace）。中间人，包括汇合服务器，没法完成这一步。</li>
 </ol>
-<p>打洞不一定成功：双方都在对称型 NAT 之后时就打不通。这时如果服务器的运营者开启了中继（<code>remohop signal --relay</code>，默认关闭），会话改走中继；中继转发的仍是同一条加密会话，只是更慢，并且有带宽上限（每个会话默认 8 Mbit/s）。<code>remohop dev ping</code> 会告诉你当前走的是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>。没有中继可用时，连接会在大约一秒内失败并给出诊断信息。</p>
-<p>端口、六步连接流程和打洞前后的对比见<a href="{{L:how-it-works}}">工作原理</a>。</p>
+<p>对称型 NAT 给每个目的地分配新端口，原本最难打通。现在被控端会请路由器转发它的 UDP 端口（PCP、NAT-PMP 或 UPnP），路由器同意时，对方在哪种 NAT 后面都能直连；按顺序分配端口的对称型 NAT，另一边会探测预测出的端口。都不行时，如果服务器的运营者开启了中继（<code>remohop signal --relay</code>，默认关闭），会话改走中继；中继转发的仍是同一条加密会话，只是更慢，并且有带宽上限（每个会话默认 8 Mbit/s）。走中继期间客户端会在后台继续打洞，打通后会话经 QUIC 连接迁移换到直连，不中断，也不用重新登录。<code>remohop dev ping</code> 会告诉你当前走的是 <code>lan</code>、<code>direct</code>、<code>punched</code> 还是 <code>relayed</code>。没有中继可用时，连接会在大约一秒内失败并给出诊断信息。</p>
+<p>各条路径的尝试顺序、端口、六步连接流程和打洞前后的对比见<a href="{{L:how-it-works}}">工作原理</a>。</p>
 <p>只放行 HTTPS 的网络（CI 运行器、企业网络）可以走服务器的 websocket 桥。经过桥没法打洞，所以这类会话一定走中继，内容照样是密文。能直接访问被控机时可以完全不用服务器：<code>remohop host --no-signal --listen :21118</code>，然后用地址代替 ID。</p>
 
 <h2 id="security">安全，用大白话说</h2>
@@ -253,15 +254,15 @@ remohop log</code></pre>
 <tbody>
 <tr><th scope="row">shell</th><td>PTY</td><td>PTY</td><td>ConPTY，命令在 PowerShell 中运行</td></tr>
 <tr><th scope="row">文件、转发、剪贴板、截图</th><td>支持</td><td>支持</td><td>支持；Windows 客户端下载不支持续传</td></tr>
-<tr><th scope="row">挂载</th><td>FUSE</td><td>系统自带的 WebDAV</td><td>WebDAV 盘符；未实际运行过</td></tr>
-<tr><th scope="row">远程桌面（被控端）</th><td>X11；不支持原生 Wayland</td><td>需要“屏幕录制”和“辅助功能”权限；只在托管虚拟机上验证</td><td>ddagrab 采集；输入未实际运行过</td></tr>
-<tr><th scope="row">VPN</th><td>支持（TUN）</td><td>客户端（utun），只在托管虚拟机上验证</td><td>客户端（需自备 Wintun 驱动）；未验证</td></tr>
-<tr><th scope="row">USB/IP</th><td>支持；只在模拟环境测试过</td><td>不支持</td><td>不支持</td></tr>
-<tr><th scope="row">系统服务</th><td>systemd</td><td>launchd</td><td>Windows 服务；看不到桌面</td></tr>
+<tr><th scope="row">挂载</th><td>FUSE</td><td>系统自带的 WebDAV</td><td>WebDAV 盘符；在托管的 Windows 11 运行器上验证</td></tr>
+<tr><th scope="row">远程桌面（被控端）</th><td>X11；不支持原生 Wayland</td><td>需要“屏幕录制”和“辅助功能”权限；VideoToolbox 编码；只在托管虚拟机上验证</td><td>ddagrab 采集，SendInput 输入；在托管运行器上验证</td></tr>
+<tr><th scope="row">VPN</th><td>支持（TUN）</td><td>客户端（utun），只在托管虚拟机上验证</td><td>客户端（需自备 Wintun 驱动），网卡在托管运行器上验证</td></tr>
+<tr><th scope="row">USB/IP</th><td>支持；在托管运行器的真实内核上验证</td><td>不支持</td><td>不支持</td></tr>
+<tr><th scope="row">系统服务</th><td>systemd</td><td>launchd</td><td>Windows 服务；加 <code>--unattended</code> 才能看到控制台、登录界面和锁屏</td></tr>
 </tbody>
 </table>
 </div>
-<p>Android 和 iOS 上有控制端应用，<!--store-->已在 App Store 和 Google Play 上架<!--/store--><!--nostore--><!--ios-->iOS 版已在 App Store 上架，Android 版即将上架 Google Play<!--/ios--><!--noios-->即将上架 App Store 和 Google Play（已提交审核）<!--/noios--><!--/nostore-->，见<a href="{{L:apps}}">移动应用</a>。</p>
+<p>Android 和 iOS 上有手机应用，<!--store-->已在 App Store 和 Google Play 上架<!--/store--><!--nostore--><!--ios-->iOS 版已在 App Store 上架，Android 版即将上架 Google Play<!--/ios--><!--noios-->即将上架 App Store 和 Google Play（已提交审核）<!--/noios--><!--/nostore-->。手机也能作为被控端：Android 可以被观看，经你允许还能被控制；<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕，只能观看。见<a href="{{L:apps}}">移动应用</a>。</p>
 
 <h2 id="install">安装</h2>
 <!--rel-->
@@ -290,13 +291,12 @@ make cross        <span class="c"># 可选：linux、macOS、Windows 各架构�
 
 <h2 id="status">状态与限制</h2>
 <ul>
-<li><!--norel-->还没有发布版本（首个版本正在准备中），<!--/norel-->Windows 程序没有代码签名，没有内置默认服务器。</li>
+<li>Windows 程序没有代码签名。命令行程序没有内置默认服务器（桌面应用和快速协助首次启动时可以选官方服务器）。</li>
 <li>没有经过独立的安全审计。</li>
-<li>NAT 穿透测试用的是 Linux 网络命名空间。真实的家用路由器和 IPv6 路径没有测试过。</li>
-<li>实体 Mac 上的一切、Windows 的 WebDAV 挂载和图形输入、除一台 macOS 虚拟机里的 VideoToolbox 以外的 GPU 编码器、4K 60 fps，都没有测试过。</li>
-<li>串口用伪终端和 picocom 验证过，没有用过真实的 UART。USB/IP 没有在真实内核上运行过。</li>
-<li>手机应用即将上架 App Store 和 Google Play（已提交审核），在此之前需要从源码构建。</li>
+<li>NAT 穿透测试用的是 Linux 网络命名空间。真实的家用路由器和 IPv6 路径没有测试过。两个对称型 NAT，或随机分配端口的对称型 NAT 对上端口受限型 NAT，打不通，除非路由器映射了端口或有中继可用。</li>
+<li>实体 Mac 上的一切、除一台 macOS 虚拟机里的 VideoToolbox 以外的 GPU 编码器、4K 60 fps，都没有测试过。</li>
+<li>串口用伪终端和 picocom 验证过，没有用过真实的 UART。USB/IP 在托管运行器的真实内核上验证过，没有用过实体 USB 设备。</li>
 <li>被控端重启后，shell 会话不会保留。</li>
-<li>Android 手机可以作为被控端，iPhone 和 iPad 暂时不行。真机上的屏幕采集和控制尚未测试。</li>
+<li>手机作为被控端：真机上的屏幕采集和控制尚未测试；<span class="nobr">iPhone 和 iPad</span> 只能被观看。</li>
 </ul>
 <p>以上内容来自文档中的<a href="{{L:docs/platforms}}">平台支持与限制</a>一页，以那里的版本为准。遇到问题请看<a href="{{L:support}}">支持</a>。</p>

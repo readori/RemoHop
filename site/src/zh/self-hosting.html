@@ -1,5 +1,5 @@
 <h1>自建汇合服务器</h1>
-<p>RemoHop 没有内置的默认服务器。汇合服务器（<code>remohop signal</code>）的工作是让两台机器找到彼此：分配 ID、记录在线状态、交换候选地址。它很轻，一台最小规格的虚拟机就够。会话内容不经过它，除非你开启了中继。</p>
+<p>命令行程序 <code>remohop</code> 没有内置的默认服务器（桌面应用和快速协助首次启动时可以选用官方的 <code>signal.remohop.com</code>）。汇合服务器（<code>remohop signal</code>）的工作是让两台机器找到彼此：分配 ID、记录在线状态、交换候选地址。它很轻，一台最小规格的虚拟机就够。会话内容不经过它，除非你开启了中继。</p>
 
 <h2 id="size">需要多大的机器</h2>
 <p>实测数字（来自 <code>remohop help signal</code> 和测量，不是保证）：空闲时约 17 MB 内存，每个在线主机约 70 KB，1000 个主机约 85 MB。Oracle Cloud Always Free 的 1 OCPU / 1 GB 实例足够。中继每 10 Mbit/s 大约消耗 1% 的 CPU 核。</p>

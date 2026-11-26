@@ -101,7 +101,8 @@ Linux x86_64
 <div>
 <h3>A good fit</h3>
 <ul>
-<li>You manage a few machines of your own from a command line: a home server, an office workstation, a board behind NAT.</li>
+<li>You manage a few machines of your own, a home server, an office workstation, a board behind NAT, from the desktop app, a browser, a phone or the command line.</li>
+<li>You help family or friends with their computers: they double-click Quick Support, read you the ID and password, and press Allow.</li>
 <li>You want an AI agent (Claude Code, Cursor and others) to run commands, read and write files, or look at the screen of another machine.</li>
 <li>You would rather not hand session content to someone else's server, and you are willing to run a very small rendezvous server.</li>
 <li>You need more than a screen: port forwards, a mounted directory, a serial port, the clipboard or a VPN link.</li>
@@ -110,8 +111,8 @@ Linux x86_64
 <div>
 <h3>Not a fit yet</h3>
 <ul>
-<li>You want a graphical installer that works after one download. Today there is a command line and the quick-support window, without an installer.</li>
-<li>You want to control an iPhone or iPad. iOS devices cannot be hosts yet (Android phones can).</li>
+<li>You need code-signed Windows programs. The Windows downloads are not code-signed yet and SmartScreen warns (the macOS ones are signed and notarized).</li>
+<li>You want to control an iPhone or iPad. iOS lets no app control the device, so an iPhone or iPad can only share its screen for viewing (Android phones can be controlled).</li>
 <li>You need a product with a third-party audit. RemoHop has not had one.</li>
 <li>Your host runs a native Wayland desktop. Screen capture supports X11, macOS and Windows.</li>
 </ul>
@@ -164,7 +165,7 @@ sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
 <section class="task">
 <div>
 <h3>Screen and remote desktop</h3>
-<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p.</p>
+<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p. The viewer picks the quality (native size, or at most 2160p down to 480p), the frame rate (30 to 144 fps; Auto follows the display's refresh rate, up to 120) and the monitor, and Stats shows bitrate, latency and the frames dropped in the last 10 seconds.</p>
 </div>
 <div>
 <pre tabindex="0"><code>remohop dev desktop --max-height 1080 --fps 30
@@ -282,8 +283,8 @@ remohop log</code></pre>
 <li>Both sides send probes to those addresses, which opens a hole in each NAT. The client sets up a QUIC connection over the first path that answers.</li>
 <li>On that connection the two ends run a password-authenticated key exchange (CPace). A man in the middle, the rendezvous server included, cannot complete it.</li>
 </ol>
-<p>Hole punching can fail, for example when both sides are behind symmetric NAT. If the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8 Mbit/s per session by default). <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
-<p>The ports, the six connection steps and hole punching step by step are on <a href="/en/how-it-works/">How it works</a>.</p>
+<p>Symmetric NATs, which give every destination a new port, used to be the hard case. The host now asks its router to forward its UDP port (PCP, NAT-PMP or UPnP); where the router agrees, a client behind any NAT connects directly. A symmetric NAT that hands out its ports in sequence has its next ports predicted and probed. If nothing works and the server's operator has turned the relay on (<code>remohop signal --relay</code>, off by default), the session goes through it instead. The relay carries the same encrypted session, only slower and under a bandwidth cap (8 Mbit/s per session by default). Meanwhile the client keeps punching in the background, and once a path works the session moves onto it by QUIC connection migration, without a break or a new login. <code>remohop dev ping</code> tells you whether the path is <code>lan</code>, <code>direct</code>, <code>punched</code> or <code>relayed</code>. With no relay available, the connection fails in about a second with a diagnosis.</p>
+<p>The order in which the paths are tried, the ports, the six connection steps and hole punching step by step are on <a href="/en/how-it-works/">How it works</a>.</p>
 <p>Networks that let only HTTPS out, such as CI runners and corporate networks, can use the server's websocket bridge. Hole punching is impossible through the bridge, so those sessions are always relayed, and still ciphertext. If you can reach the host directly you need no server at all: <code>remohop host --no-signal --listen :21118</code>, then use the address in place of an ID.</p>
 
 <h2 id="security">Security in plain words</h2>
@@ -306,15 +307,15 @@ remohop log</code></pre>
 <tbody>
 <tr><th scope="row">Shell</th><td>PTY</td><td>PTY</td><td>ConPTY; commands run in PowerShell</td></tr>
 <tr><th scope="row">Files, forwards, clipboard, screenshot</th><td>Yes</td><td>Yes</td><td>Yes; downloads do not resume on a Windows client</td></tr>
-<tr><th scope="row">Mount</th><td>FUSE</td><td>Built-in WebDAV</td><td>WebDAV on a drive letter; never actually run</td></tr>
-<tr><th scope="row">Remote desktop (host)</th><td>X11; no native Wayland</td><td>Needs Screen Recording and Accessibility permissions; verified on a hosted VM only</td><td>ddagrab capture; input never actually run</td></tr>
-<tr><th scope="row">VPN</th><td>Yes (TUN)</td><td>Client (utun), verified on a hosted VM only</td><td>Client (bring your own Wintun driver); unverified</td></tr>
-<tr><th scope="row">USB/IP</th><td>Yes; tested against simulated systems only</td><td>No</td><td>No</td></tr>
-<tr><th scope="row">System service</th><td>systemd</td><td>launchd</td><td>Windows service; cannot see the desktop</td></tr>
+<tr><th scope="row">Mount</th><td>FUSE</td><td>Built-in WebDAV</td><td>WebDAV on a drive letter; verified on a hosted Windows 11 runner</td></tr>
+<tr><th scope="row">Remote desktop (host)</th><td>X11; no native Wayland</td><td>Needs Screen Recording and Accessibility permissions; VideoToolbox; verified on a hosted VM only</td><td>ddagrab capture, SendInput; verified on hosted runners</td></tr>
+<tr><th scope="row">VPN</th><td>Yes (TUN)</td><td>Client (utun), verified on a hosted VM only</td><td>Client (bring your own Wintun driver); adapter verified on a hosted runner</td></tr>
+<tr><th scope="row">USB/IP</th><td>Yes; verified with the real kernel on a hosted runner</td><td>No</td><td>No</td></tr>
+<tr><th scope="row">System service</th><td>systemd</td><td>launchd</td><td>Windows service; sees the console, sign-in and lock screens only with <code>--unattended</code></td></tr>
 </tbody>
 </table>
 </div>
-<p>There are controller apps for Android and iOS, on the App Store (Android: coming to Google Play). See <a href="/en/apps/">Apps</a>.</p>
+<p>There are phone apps for Android and iOS, on the App Store (Android: coming to Google Play). A phone can be a host too: an Android phone can be viewed and, if you allow it, controlled; an iPhone or iPad can share its screen, view only. See <a href="/en/apps/">Apps</a>.</p>
 
 <h2 id="install">Install</h2>
 <p>Every download is on the <a href="/en/download/">download page</a>: install scripts, archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, all listed in a signed <code>SHA256SUMS</code>. On Linux and macOS:</p>
@@ -328,14 +329,13 @@ sh install.sh</code></pre>
 
 <h2 id="status">Status and limits</h2>
 <ul>
-<li>No code signing for Windows, no built-in default server.</li>
+<li>No code signing for Windows. The command-line program has no built-in default server (the desktop app and quick support offer the official one on first start).</li>
 <li>No independent security audit.</li>
-<li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested.</li>
-<li>Untested: everything on a physical Mac, WebDAV mounts and GUI input on Windows, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
+<li>NAT traversal is tested in Linux network namespaces. Real home routers and IPv6 paths are untested. Two symmetric NATs, or a symmetric NAT with random ports facing a port-restricted one, cannot be punched unless the router maps a port or a relay is available.</li>
+<li>Untested: everything on a physical Mac, GPU encoders other than VideoToolbox in one macOS VM, and 4K at 60 fps.</li>
 <li>Serial ports were verified with pseudo-terminals and picocom, not a real UART. USB/IP was verified with the real kernel on a hosted runner, not on physical USB hardware.</li>
-<li>The phone apps are coming to the App Store and Google Play (submitted for review); until then they are built from source.</li>
 <li>Shell sessions do not survive a restart of the host.</li>
-<li>An Android phone can be a host; an iPhone or iPad cannot yet. Screen capture and control on a real Android phone are not tested yet.</li>
+<li>Phones as hosts: screen capture and control on a real phone are not tested yet, and an iPhone or iPad can only be viewed.</li>
 </ul>
 <p>This list follows the <a href="/en/docs/platforms/">platform support and limitations</a> page of the documentation, which is the authoritative version. If something goes wrong, see <a href="/en/support/">Support</a>.</p>
 </div>

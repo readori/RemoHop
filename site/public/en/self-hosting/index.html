@@ -51,7 +51,7 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Self-hosting the rendezvous server</h1>
-<p>RemoHop has no built-in default server. The rendezvous server (<code>remohop signal</code>) lets two machines find each other: it assigns IDs, tracks presence and passes candidate addresses. It is light enough for the smallest VM you can rent. Session content does not pass through it unless you turn the relay on.</p>
+<p>The <code>remohop</code> command-line program has no built-in default server (the desktop app and quick support offer the official <code>signal.remohop.com</code> on first start). The rendezvous server (<code>remohop signal</code>) lets two machines find each other: it assigns IDs, tracks presence and passes candidate addresses. It is light enough for the smallest VM you can rent. Session content does not pass through it unless you turn the relay on.</p>
 
 <h2 id="size">How big a machine</h2>
 <p>Measured figures, from <code>remohop help signal</code> and from measurement, not guarantees: about 17 MB of memory when idle, about 70 KB per online host, about 85 MB with 1000 hosts. An Oracle Cloud Always Free instance with 1 OCPU and 1 GB is enough. The relay uses roughly 1% of a CPU core per 10 Mbit/s.</p>
