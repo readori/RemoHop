@@ -1,7 +1,8 @@
 // Package mobile is the Go core of the RemoHop Android and iOS apps.
 //
-// The apps are controllers: a native shell around a WebView that shows the
-// `remohop web` page. This package runs that gateway in the app's own process,
+// The apps are controllers first: a native shell around a WebView that
+// shows the `remohop web` page. They can also let the phone itself be
+// viewed and, with its owner's consent, controlled (host mode, host.go). This package runs that gateway in the app's own process,
 // on 127.0.0.1 with a random port and a fresh random token per start, and
 // keeps every piece of state (identity key, saved peers, pairing tokens,
 // settings) in a directory the app passes in: its private files directory.
