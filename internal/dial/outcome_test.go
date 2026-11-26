@@ -2,11 +2,14 @@ package dial
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -180,6 +183,55 @@ func (r *outcomeRecorder) only(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if n := r.started.Load(); n != 1 {
 		t.Fatalf("%d outcome reports, want one", n)
+	}
+}
+
+// The rendezvous server counts what the client reported, and nothing else:
+// the aggregate it saves holds the path and the NAT pair.
+func TestOutcomeCountedByServer(t *testing.T) {
+	rec := recordOutcomes(t, nil)
+	n := vnet.New()
+	sh := n.Host("198.51.100.1")
+	data := t.TempDir()
+	srv, err := signal.NewServer(signal.Config{DataDir: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ctx, sh.MustListen(21116), sh.MustListen(21117)) }()
+	stop := sync.OnceFunc(func() { cancel(); <-done; srv.Close() })
+	t.Cleanup(stop)
+
+	w := &vnetWorld{t: t, net: n}
+	host := w.host(n.NAT("203.0.113.20", vnet.PortRestrictedCone).Host("10.0.0.20"))
+	conn, err := Dial(testCtx(t), host.ID(), w.options(n.NAT("203.0.113.10", vnet.PortRestrictedCone).Host("192.168.1.10"), host.Password()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	if s := rec.next(t); s.err != nil {
+		t.Fatalf("report: %v", s.err)
+	}
+	stop()
+	b, err := os.ReadFile(filepath.Join(data, "outcomes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var agg struct {
+		Paths map[string]int64            `json:"paths"`
+		Pairs map[string]map[string]int64 `json:"pairs"`
+	}
+	if err := json.Unmarshal(b, &agg); err != nil {
+		t.Fatal(err)
+	}
+	if agg.Paths[signal.PathPunched] != 1 || len(agg.Paths) != 1 || agg.Pairs["cone/cone"][signal.PathPunched] != 1 {
+		t.Fatalf("server counted %s", b)
+	}
+	for _, leak := range []string{host.ID(), "203.0.113.", "192.168.", "10.0.0."} {
+		if strings.Contains(string(b), leak) {
+			t.Fatalf("the aggregate holds %q: %s", leak, b)
+		}
 	}
 }
 
