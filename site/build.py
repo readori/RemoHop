@@ -643,9 +643,9 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
             f'<meta property="og:title" content="{html.escape(full_title)}">',
             f'<meta property="og:description" content="{html.escape(desc)}">',
             f'<meta property="og:url" content="{canonical}">',
-            f'<meta property="og:image" content="{SITE_URL}/assets/img/web-desktop-1120.png">',
-            '<meta property="og:image:width" content="1120">',
-            '<meta property="og:image:height" content="700">',
+            f'<meta property="og:image" content="{SITE_URL}/assets/img/web-desktop-v2-1280.png">',
+            '<meta property="og:image:width" content="1280">',
+            '<meta property="og:image:height" content="1006">',
             '<meta name="twitter:card" content="summary_large_image">',
         ]
     head.append("</head>")

@@ -138,15 +138,60 @@ Search for `TODO(owner)` in `site/`. Open items:
 
 ## Screenshots
 
-The two screenshots are real. They were taken with headless Chromium at
-`deviceScaleFactor: 2` from `remohop web`, connected to a `remohop host` on the
-loopback interface of the same Linux machine, with an Xvfb display
-(1280×720) showing two xterm windows. To retake them: start `Xvfb :99`, run
-`DISPLAY=:99 remohop host --no-signal --listen 127.0.0.1:21118`, pair with
-`--name studio`, run `remohop web --no-open`, choose the saved host, capture
-the Desktop and Terminal tabs at 1120×700 CSS pixels, and export 640, 1120 and
-2240 pixel wide AVIF and WebP files plus a 1120 pixel PNG. The terminal samples
-on `features/` are unedited output of a real session.
+All screenshots are real captures, taken with Playwright's headless Chromium
+in the light colour scheme. The terminal samples on `features/` are unedited
+output of a real session.
+
+**Desktop tab** (`web-desktop-v2-*`, on the home page, on `features/` and as
+`og:image`). The page shows it about 34rem wide on a desktop and 22rem on a
+phone, so it is captured at a small viewport (UI text stays readable when
+shrunk) and a high scale factor (the files are true pixels):
+
+1. Remote screen: `Xvfb :99 -screen 0 2560x1440x24 -dpi 192 -noreset`, then
+   `xsetroot -solid '#2f3b55'` with a blank cursor bitmap (`-cursor`) so the
+   pointer does not show over the background. Two xterms with
+   `-fa "JetBrains Mono" -fs 17 -fg "#24292f" -b 14 -bw 3 -bd "#1b2438" +sb`:
+   one at `-geometry 54x17+60+90` (`-bg "#fdf6e3"`) where `ls -l` and
+   `cat Makefile` ran in a small Go project, one at `-geometry 38x5+1478+60`
+   (`-bg "#eef3fb"`, cursor hidden with `printf '\e[?25l'`) running
+   `watch -n 2 -t` on `date`, the load average and `df -h /`. The monitor
+   window sits top right because the floating dialog covers the bottom right.
+2. `DISPLAY=:99 remohop host --no-signal --listen 127.0.0.1:21118`; pair with
+   `--name studio`; `remohop web --no-open`.
+3. Open the page at a 1008×806 CSS pixel viewport, `deviceScaleFactor: 3`
+   (below 1000 px the header wraps to two rows; at this height the stage is
+   16:9, so the remote screen fills it). Choose the saved host, the Desktop
+   tab, "Native size" and automatic frame rate (the HUD then reads 2560×1440
+   H.264 at about 27 Mbit/s). Park the remote pointer in the bottom right
+   corner, move the mouse off the canvas, and wait 20 s so the encoder has
+   refined the still screen. Capture down to 20 px under the stage:
+   1008×792 CSS pixels, 3024×2376 pixels.
+4. Export 640, 1280, 1920 and 2640 pixel wide AVIF (Pillow, quality 70,
+   4:4:4 chroma, speed 2) and WebP (quality 88, method 6) files plus a 1280
+   pixel PNG, all Lanczos downscales of the capture. The `width`/`height`
+   attributes are the CSS size, 1008×792.
+
+**Connection request** (`request-{zh,en}-*`, floating on the home page). Run
+`remohop app --browser --no-open --lang zh` (or `en`) with its own config
+directory (`signal-none on`, `host-listen 127.0.0.1:21942`), finish the first
+run wizard with "Skip for now" and incoming connections on, and read the
+temporary password from "This computer". From a fresh config directory whose
+`name` is `Laptop-2`, run `remohop --password PW 127.0.0.1:21942 info`; the
+dialog then shows a new device with the scam warning. At a 700×900 viewport
+and `deviceScaleFactor: 3`, wait until the countdown reads 20 s, hide
+everything but the dialog (transparent page and backdrop; the context needs
+`bypassCSP`), and take an element screenshot with `omitBackground`. The dialog
+is 440 CSS pixels wide (446 tall in Chinese, 466 in English). Export 440, 880
+and 1320 pixel wide AVIF and WebP files with alpha, as above, plus a 1320 pixel
+PNG.
+
+**Terminal tab** (`web-terminal-*`, on `features/`): captured from the same
+`remohop web` session at 1120×700 CSS pixels and `deviceScaleFactor: 2`, with
+an Xvfb display of 1280×720, and exported 640, 1120 and 2240 pixels wide as
+AVIF and WebP plus a 1120 pixel PNG.
+
+Images under `/assets/` are cached for a year, so a retaken image gets a new
+file name.
 
 ## Guidance applied
 
