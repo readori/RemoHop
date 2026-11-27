@@ -17,16 +17,26 @@ site/
 ```
 
 Pages, each in Chinese (`/…`) and English (`/en/…`): home, `features/`, `how-it-works/`, `docs/`,
-`apps/`, `security/`, `self-hosting/`, `privacy/`, `terms/`, `licensing/`,
-`support/`, plus `404.html`. The documentation is generated from the Markdown
+`apps/`, `security/`, `self-hosting/`, `teams/`, `pricing/`, `privacy/`, `terms/`,
+`licensing/`, `support/`, plus `404.html`. The documentation is generated from the Markdown
 in the repository's `docs/` (see below).
 
-The home page: a dark hero (moving aurora and grid, the browser client with
-the desktop app's connection request floating over it, a platform marquee),
-a row of numbers, an animated picture of how a connection is made, the
-feature cards, the two ways to use it, the downloads and the current status.
-Everything else lives on `features/` (commands, the browser client, how a
-connection is made, platforms, install, limits) and the other pages. The home
+The home page leads with what sets RemoHop apart, in this order: AI agents
+with guardrails (the hero shows a real `remohop host grant` and the refusal an
+agent gets; then a grant explained flag by flag), one tool instead of several
+(the browser client with the connection request floating over it, and what it
+does), trust you can check (the animated picture of how a connection is made,
+what is protected and what is not done yet), and fair pricing (the plans).
+Then the downloads, the current status and links. Everything else lives on
+`features/` (commands, the browser client, how a connection is made,
+platforms, install, limits) and the other pages.
+
+`teams/` describes RemoHop Teams, the commercial self-hosted team edition.
+Its code is private, so the page describes it and links nowhere into it.
+`pricing/` has the plans, a comparison table and questions (`<details>`, no
+script). The prices are in `PRICES` in `build.py` and appear in the pages as
+`{{P:name}}` (the build stops on an unknown name), so a price is changed in
+one place. The home
 fragment lays out its own full-width bands, so `build.py` does not wrap it in
 the prose column the other pages use.
 
@@ -40,7 +50,13 @@ prefix.
 
 Colours are shared with the web client and the quick-support window: cobalt
 `#2546d8`, ink `#141c30`, paper `#f6f7fb`, line `#dce1ec`; green, amber and
-red only ever appear together with words. The icons (`favicon.*`,
+red only ever appear together with words. Section labels are small monospace
+capitals, as in the desktop app (`docs/design/desktop-ui.md`).
+
+The visual layer is in tokens at the top of `site.css` (`--font-display`,
+`--fs-*`, `--label-*`, `--radius*`, `--card-*`, `--band-pad`, `--dark-*`,
+`--term-*`, `--glow`), read by the shared components (`.band`, `.kicker`,
+`.panel`, `.tier`, `.feat`, `.term-win`, ...). Restyling the site starts there. The icons (`favicon.*`,
 `apple-touch-icon.png`, `assets/icon-*.png`) and the header mark are the
 RemoHop mark: two screen corners and an arrow on a cobalt tile.
 
@@ -135,6 +151,9 @@ Search for `TODO(owner)` in `site/`. Open items:
   providers, and the publisher's legal name and address.
 - **Terms.** Governing law and venue, if wanted, after legal review.
 - **App store links** on `apps/` once the apps are released.
+- **Online checkout.** The Teams "Get a license" button on `pricing/` opens
+  an email until the Paddle checkout is live; then link it and remove the
+  note under it.
 
 ## Screenshots
 

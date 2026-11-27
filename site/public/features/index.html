@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>功能与限制 | RemoHop</title>
 <meta name="description" content="RemoHop 的常用命令、浏览器客户端、连接如何建立、平台支持、安装方式和已知限制。">
-<link rel="stylesheet" href="/assets/site.css?v=815f70eba7">
+<link rel="stylesheet" href="/assets/site.css?v=cfee725b2e">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -37,11 +37,11 @@
 <ul>
 <li><a href="/features/" aria-current="page">功能</a></li>
 <li><a href="/how-it-works/">工作原理</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/teams/">团队版</a></li>
+<li><a href="/pricing/">价格</a></li>
 <li><a href="/docs/">文档</a></li>
 <li><a href="/download/">下载</a></li>
-<li><a href="/apps/">移动应用</a></li>
-<li><a href="/security/">安全</a></li>
-<li><a href="/self-hosting/">自建服务器</a></li>
 <li><a href="/support/">支持</a></li>
 </ul>
 </nav>
@@ -55,6 +55,7 @@
 <ul class="toc">
 <li><a href="#session">一次会话</a></li>
 <li><a href="#who">适合谁用</a></li>
+<li><a href="#agents">AI 代理</a></li>
 <li><a href="#commands">常用命令</a></li>
 <li><a href="#web">浏览器客户端</a></li>
 <li><a href="#how">连接怎么建立</a></li>
@@ -123,6 +124,21 @@ Linux x86_64
 <p>远程命令的格式都是 <code>remohop &lt;ID&gt; &lt;命令&gt;</code>。下面用别名 <code>dev</code> 代替 ID，它来自 <code>remohop 276941009 pair --name dev</code>：配对时输入一次密码，之后不再需要。</p>
 
 <div class="tasks">
+<section class="task" id="agents">
+<div>
+<h3>AI 代理</h3>
+<p><code>remohop mcp</code> 是一个 stdio 方式的 MCP 服务器，提供 29&nbsp;个工具（执行命令、读写文件、转发端口、截图、点击和输入）。它只使用你事先保存的配对或授权，不接受密码参数。在被控机上签发的授权（grant）把代理限定在指定的功能、命令和目录内，到期失效，可以要求你批准每条命令或第一条命令，还可以录制会话。仓库里另有六个 Agent Skills。详见<a href="/en/docs/agents/">把机器交给 AI 代理</a>（英文）。</p>
+</div>
+<div>
+<pre tabindex="0"><code><span class="c"># 在被控机上</span>
+remohop host grant claude-session --for 2h \
+    --allow files:read:~/project,screenshot --cmd "go test" --approve first
+<span class="c"># 在代理所在的机器上</span>
+remohop peers redeem 276941009 remohopg1-...
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+</div>
+</section>
+
 <section class="task">
 <div>
 <h3>终端和后台任务</h3>
@@ -197,17 +213,6 @@ remohop dev clip history send 2</code></pre>
 <pre tabindex="0"><code>remohop dev serial -b ttyUSB0 115200 --local /tmp/board
 picocom /tmp/board
 sudo remohop dev usb attach -b 1-2</code></pre>
-</div>
-</section>
-
-<section class="task">
-<div>
-<h3>AI 代理</h3>
-<p><code>remohop mcp</code> 是一个 stdio 方式的 MCP 服务器，提供 28&nbsp;个工具（执行命令、读写文件、转发端口、截图、点击和输入）。它只使用你事先保存的配对，不接受密码参数。仓库里另有六个 Agent Skills。</p>
-</div>
-<div>
-<pre tabindex="0"><code>claude mcp add remohop -- remohop mcp
-claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
 </div>
 </section>
 
@@ -294,7 +299,7 @@ remohop log</code></pre>
 <li><strong>主机密钥首次登录时固定。</strong>之后主机换了密钥，客户端会在发送任何登录信息之前拒绝连接。</li>
 <li><strong>配对代替密码。</strong>配对后客户端保存一个绑定到本机身份的 256&nbsp;位随机令牌，被控机随时可以用 <code>remohop host revoke</code> 撤销。</li>
 </ul>
-<p>也要说清楚它不保护什么：登录成功的客户端，在被控端允许的功能范围内，能做运行 <code>remohop host</code> 的那个用户能做的一切，功能开关以下没有更细的权限模型。汇合服务器看得到元数据：哪些 ID 在线、它们的公网地址、什么时候互相连接。<a href="/security/">安全模型</a>一页有完整说明。</p>
+<p>也要说清楚它不保护什么：登录成功的客户端，在被控端允许的功能范围内，能做运行 <code>remohop host</code> 的那个用户能做的一切。功能开关以下，唯一更细的权限是授权（grant）：它把一个客户端（比如 AI 代理）限定在指定的命令、目录和功能内。汇合服务器看得到元数据：哪些 ID 在线、它们的公网地址、什么时候互相连接。<a href="/security/">安全模型</a>一页有完整说明。</p>
 
 <h2 id="platforms">平台支持</h2>
 <p id="pf-cap">Linux 是参考平台；macOS&nbsp;和&nbsp;Windows 由托管运行器上的自动化测试覆盖，没有人在实体机上逐项验证过。</p>
@@ -347,12 +352,20 @@ sh install.sh</code></pre>
 <ul>
 <li><a href="/features/">功能</a></li>
 <li><a href="/how-it-works/">工作原理</a></li>
-<li><a href="/docs/">文档</a></li>
+<li><a href="/security/">安全</a></li>
 <li><a href="/download/">下载</a></li>
 <li><a href="/apps/">移动应用</a></li>
-<li><a href="/security/">安全</a></li>
 <li><a href="/self-hosting/">自建服务器</a></li>
+<li><a href="/docs/">文档</a></li>
 <li><a href="https://github.com/readori/RemoHop">源码（GitHub）</a></li>
+</ul>
+</div>
+<div>
+<h2>版本</h2>
+<ul>
+<li><a href="/pricing/">价格</a></li>
+<li><a href="/teams/">RemoHop 团队版</a></li>
+<li><a href="/licensing/">许可证</a></li>
 </ul>
 </div>
 <div>
@@ -360,7 +373,6 @@ sh install.sh</code></pre>
 <ul>
 <li><a href="/privacy/">隐私政策</a></li>
 <li><a href="/terms/">使用条款</a></li>
-<li><a href="/licensing/">许可证</a></li>
 </ul>
 </div>
 <div>
