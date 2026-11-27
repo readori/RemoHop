@@ -387,36 +387,51 @@ func (s *Server) decideRelay(client, host relayPeer, account bool) (relayDecisio
 			rate = max(rate/2, 1500)
 		}
 	}
-	sources := []netip.Addr{client.source}
-	if host.source != client.source {
-		sources = append(sources, host.source)
-	}
+	// PerSource is charged to the client that asks, and only to it: were it
+	// charged to the host's address too, anyone who knows a host's ID could
+	// take the host's whole share with two requests. The host's address has
+	// its own, wider cap (hostRelayCap), against one client tying up many
+	// of a host's sessions from many addresses.
+	hostCap := hostRelayCap(rc.PerSource)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.relaySources == nil {
 		s.relaySources = map[netip.Addr]int{}
 	}
-	for _, src := range sources {
-		if s.relaySources[src] >= rc.PerSource {
-			return relayDecision{}, refusedPerSource, fmt.Sprintf("this network already has %d relayed sessions on this server "+
-				"(the most it allows per address); close one and try again", rc.PerSource)
-		}
+	if s.relayHosts == nil {
+		s.relayHosts = map[netip.Addr]int{}
 	}
-	for _, src := range sources {
-		s.relaySources[src]++
+	if s.relaySources[client.source] >= rc.PerSource {
+		return relayDecision{}, refusedPerSource, fmt.Sprintf("this network already has %d relayed sessions on this server "+
+			"(the most it allows per address); close one and try again", rc.PerSource)
 	}
+	if s.relayHosts[host.source] >= hostCap {
+		return relayDecision{}, refusedPerSource, fmt.Sprintf("the host's network already has %d relayed sessions on this server; try again later", hostCap)
+	}
+	s.relaySources[client.source]++
+	s.relayHosts[host.source]++
 	var once sync.Once
 	return relayDecision{rate: rate, account: account, release: func() {
 		once.Do(func() {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			for _, src := range sources {
-				if s.relaySources[src]--; s.relaySources[src] <= 0 {
-					delete(s.relaySources, src)
-				}
+			if s.relaySources[client.source]--; s.relaySources[client.source] <= 0 {
+				delete(s.relaySources, client.source)
+			}
+			if s.relayHosts[host.source]--; s.relayHosts[host.source] <= 0 {
+				delete(s.relayHosts, host.source)
 			}
 		})
 	}}, "", ""
+}
+
+// hostRelayCap is how many relayed sessions one host address may be part of:
+// eight times what one client address may ask for.
+func hostRelayCap(perSource int) int {
+	if perSource > 1<<20 {
+		return perSource
+	}
+	return max(perSource*8, 16)
 }
 
 // logRelaySummary writes the hourly summary: counts only, no addresses.
