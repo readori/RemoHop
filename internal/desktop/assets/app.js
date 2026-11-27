@@ -33,7 +33,7 @@
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
-      'un.title': 'Unattended access', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
+      'un.title': 'Unattended access', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
       'un.setup': 'Set up', 'un.disable': 'Turn off', 'un.busy': 'Working…', 'un.wait': 'Turning on… Windows asks for administrator permission first; then it takes a few seconds.', 'un.enable': 'Turn on',
       'un.lead': 'Choose a strong password. Anyone with this ID and password can connect without asking.',
       'un.pw': 'Password', 'un.pw2': 'Repeat', 'un.gen': 'Suggest a strong password', 'un.admin': 'Windows will ask for an administrator.',
@@ -92,7 +92,7 @@
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
-      'un.title': '无人值守访问', 'un.off': '关闭', 'un.on': '开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
+      'un.title': '无人值守访问', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '关闭', 'un.on': '开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
       'un.setup': '设置', 'un.disable': '关闭', 'un.busy': '处理中…', 'un.wait': '正在开启… Windows 会先请求管理员权限，确认后几秒内完成。', 'un.enable': '开启',
       'un.lead': '请设一个强密码。知道这个 ID 和密码的人无需你同意即可连接。',
       'un.pw': '密码', 'un.pw2': '再输一次', 'un.gen': '生成强密码', 'un.admin': 'Windows 会要求管理员授权。',
@@ -472,6 +472,16 @@
     $('un-btn').dataset.on = u.installed ? '1' : '';
     $('un-manage').hidden = !u.installed || !!u.busy;
     $('un-admin2').hidden = !u.needs_admin;
+    // The service's own ID and password (another ID than this app's on
+    // Windows). The password shows only when asked for, and hides again.
+    $('un-creds').hidden = !u.installed;
+    if (!u.installed) unPw = null;
+    $('un-id').textContent = u.id || '—'; $('un-id').dataset.value = u.id || '';
+    $('un-idcopy').hidden = !u.id; $('un-idget').hidden = !!u.id;
+    $('un-pwv').textContent = unPw === null ? '••••••••' : unPw; $('un-pwv').dataset.value = unPw || '';
+    $('un-pwcopy').hidden = !unPw;
+    $('un-reveal').setAttribute('aria-pressed', String(unPw !== null));
+    $('un-reveal').querySelector('span').textContent = t(unPw !== null ? 'in.hide' : 'in.show');
     // trusted
     const tr = $('trusted'); tr.textContent = '';
     $('trusted-box').hidden = !s.trusted.length;
@@ -515,6 +525,7 @@
   $('regen').addEventListener('click', () => api('regenerate').catch(e => snack(errText(e))));
   // The user's own password shows as dots until "Show password".
   let pwShown = false;
+  let unPw = null, unPwTimer = 0; // the unattended password, while shown
   $('pw-reveal').addEventListener('click', () => { pwShown = !pwShown; if (S) render(S); });
   $('pw-set').addEventListener('click', () => {
     const fixed = S.incoming.password_mode === 'fixed';
@@ -541,6 +552,21 @@
     snack(t('copied'));
   });
 
+  // unattended ID and password
+  $('un-reveal').addEventListener('click', async () => {
+    clearTimeout(unPwTimer);
+    if (unPw !== null) { unPw = null; render(S); return; }
+    try {
+      const r = await api('unattended/reveal');
+      unPw = (r && r.password) || '';
+      if (!unPw) snack(t('un.nopw'));
+      unPwTimer = setTimeout(() => { unPw = null; if (S) render(S); }, 60000);
+    } catch (e) { snack(errText(e)); }
+    if (S) render(S);
+  });
+  $('un-idget').addEventListener('click', async () => {
+    try { await api('unattended/sessions'); } catch (e) { snack(errText(e)); }
+  });
   // unattended dialog
   $('un-btn').addEventListener('click', async () => {
     if ($('un-btn').dataset.on) {

@@ -142,6 +142,14 @@
           <button class="btn text sm" id="un-pw" data-t="un.change">Change password</button>
           <span class="muted small" id="un-admin2" hidden data-t="un.admin">Windows will ask for an administrator.</span></div></div>
       </div>
+      <div class="creds" id="un-creds" hidden>
+        <div class="cred"><div class="muted small" data-t="un.idl">Unattended ID</div><div class="v" id="un-id"></div>
+          <div class="acts"><button class="btn text sm" data-copy="un-id" id="un-idcopy"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
+            <button class="btn text sm" id="un-idget" hidden><svg><use href="#i-refresh"/></svg><span data-t="un.getid">Show ID</span></button></div></div>
+        <div class="cred"><div class="muted small" data-t="un.pwl">Unattended password</div><div class="v" id="un-pwv">••••••••</div>
+          <div class="acts"><button class="btn text sm" id="un-reveal" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
+            <button class="btn text sm" data-copy="un-pwv" id="un-pwcopy" hidden><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
+      </div>
 
       <div id="trusted-box" hidden>
         <h3 class="gh"><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
