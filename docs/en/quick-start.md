@@ -4,6 +4,8 @@
 
 This walkthrough uses a rendezvous server on a machine with a public address (`sig.example.net` below) and two machines: the one you control and your own workstation.
 
+The command line has no built-in rendezvous server. Instead of running your own (step 2), you can use the official one, `signal.remohop.com`, which the desktop app and Quick Support offer on their first start: put it in place of `sig.example.net` below (`remohop config set signal signal.remohop.com`). Without any server, see [Without a rendezvous server](#without-a-rendezvous-server-lan-or-public-ip).
+
 ## 1. Install
 
 Install `remohop` on every machine that uses it (see [Install](install.md)); no other software is needed.

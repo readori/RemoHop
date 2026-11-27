@@ -4,6 +4,8 @@
 
 下面的步骤假设有一台带公网地址的机器运行汇合服务器（下文用 `sig.example.net` 表示），另有两台机器：被控机和你自己的工作机。
 
+命令行没有内置的汇合服务器。除了自己运行一台（第 2 步），也可以使用官方服务器 `signal.remohop.com`，桌面应用和快速协助首次启动时提供的就是它：把下文的 `sig.example.net` 换成它即可（`remohop config set signal signal.remohop.com`）。完全不用服务器的用法见下文“不使用汇合服务器”一节。
+
 ## 1. 安装
 
 在每台要用它的机器上安装 `remohop`（见[安装](install.md)），不需要其他软件。

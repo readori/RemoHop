@@ -11,10 +11,10 @@ There are two ways to give an agent that ability. Use either or both:
 
 ## 1. One-time human setup
 
-There is no built-in rendezvous server: IDs are handed out by a server you run (or that your team runs). Any machine with a public UDP port will do; it only introduces peers and never sees session traffic.
+IDs are handed out by a rendezvous server, and the command line has no built-in one: choose it once on both machines. It only introduces peers and never sees session traffic. Either use the official server, `signal.remohop.com` (the one the desktop app and Quick Support offer: `remohop config set signal signal.remohop.com` in place of `rendezvous.example.net` below, and skip step a), or run your own on any machine with a public UDP port.
 
 ```bash
-# a) once, on a machine with a public UDP port (default :21116, plus the next port)
+# a) once, for your own server, on a machine with a public UDP port (default :21116, plus the next port)
 remohop signal
 
 # b) on the REMOTE machine (the one to be controlled): point it at that server and run the host
@@ -35,7 +35,7 @@ remohop office ping                                   # shows the path: lan / di
 
 On a LAN with no rendezvous server, run the host with `remohop host --no-signal --listen :21118` and use `remohop HOST:21118 pair`.
 
-The password is needed only for pairing; afterwards the agent connects with the saved token and never sees a password. Agents cannot answer prompts: when a command or tool reports a missing pairing, the agent should tell the human to run `remohop <ID> pair`. Revoke on the host with `remohop host paired` / `remohop host revoke NAME`; `remohop peers` lists what this machine has paired, `remohop peers forget` discards a pairing.
+The password is needed only for pairing; afterwards the agent connects with the saved token and never sees a password. Agents cannot answer prompts: when a command or tool reports a missing pairing, the agent should tell the human to run `remohop <ID> pair`. For limited access, the human runs `remohop host grant` on the remote machine and `remohop peers redeem <ID> CODE` here; a full pairing already saved is kept unless `--replace` is given, so an agent with its own grant gets its own configuration directory (`REMOHOP_CONFIG_DIR=~/.config/remohop-agent`, for both `peers redeem` and `remohop mcp`). Revoke on the host with `remohop host paired` / `remohop host revoke NAME`; `remohop peers` lists what this machine has paired, `remohop peers forget` discards a pairing.
 
 ### Host-side switches and troubleshooting
 
