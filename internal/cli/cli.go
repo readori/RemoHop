@@ -608,7 +608,7 @@ Usage:
   remohop [flags] <ID> <command> [args]   act on a remote machine
   remohop [flags] <command> [args]        local commands
 
-Flags:
+Flags (also accepted after <ID> and after the command):
   -v, --verbose        debug logging on stderr (or REMOHOP_DEBUG=1)
       --signal ADDR    rendezvous server (or REMOHOP_SIGNAL)
       --password PW    password for <ID> (or REMOHOP_PASSWORD)
@@ -625,5 +625,5 @@ Flags:
 	}
 	section("Remote commands (remohop <ID> ...):", true)
 	section("Local commands:", false)
-	fmt.Fprintln(w, "Run `remohop help <command>` for details.")
+	fmt.Fprintln(w, "Run `remohop help <command>` for details, and `remohop doctor` when something does not connect.")
 }
