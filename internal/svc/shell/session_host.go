@@ -116,7 +116,7 @@ func handleShell(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawM
 	g := grant.Of(c)
 	owner := ""
 	if g != nil {
-		owner = g.Name()
+		owner = grant.OwnerOf(g)
 	}
 	switch req.Op {
 	case "list":
@@ -169,12 +169,16 @@ func handleAttach(ctx context.Context, s peer.Stream, req *shellReq, g grant.Gua
 	owner := ""
 	var rec grant.Recorder
 	if g != nil {
-		owner = g.Name()
+		owner = grant.OwnerOf(g)
 		if err := g.Terminal(ctx, name); err != nil {
 			return fw.json(frameExit, exitMsg{Code: -1, Error: err.Error()})
 		}
 	}
-	sess, created, err := sessions.open(name, req.New, validTerm(term), rows, cols, owner)
+	grantName := ""
+	if g != nil {
+		grantName = g.Name()
+	}
+	sess, created, err := sessions.open(name, req.New, validTerm(term), rows, cols, owner, grantName)
 	if err != nil {
 		return fw.json(frameExit, exitMsg{Code: -1, Error: err.Error()})
 	}
@@ -199,7 +203,7 @@ var sessions = &sessionManager{m: map[string]*session{}}
 // open returns the session called name, starting it if needed. With fresh,
 // a new session is always started, named name or, if taken, name-2,
 // name-3, ...
-func (sm *sessionManager) open(name string, fresh bool, term string, rows, cols int, owner string) (*session, bool, error) {
+func (sm *sessionManager) open(name string, fresh bool, term string, rows, cols int, owner, grantName string) (*session, bool, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	if fresh {
@@ -212,7 +216,7 @@ func (sm *sessionManager) open(name string, fresh bool, term string, rows, cols 
 		}
 	} else if s := sm.m[name]; s != nil {
 		if owner != "" && s.owner != owner {
-			return nil, false, fmt.Errorf("session %q was not started under grant %s; attaching to it is not allowed by grant %s (start your own with a new name)", name, owner, owner)
+			return nil, false, fmt.Errorf("session %q was not started under grant %s by this identity; attaching to it is not allowed by grant %s (start your own with a new name)", name, grantName, grantName)
 		}
 		return s, false, nil
 	}
@@ -287,8 +291,9 @@ type session struct {
 	keepAlive    time.Duration // in force since detachedAt
 	reap         *time.Timer
 	exit         *exitMsg // set once the session is over
-	// owner is the grant the session was started under ("" for full
-	// access); set before the session is listed, then never changed.
+	// owner is who started the session under a grant (grant.OwnerOf;
+	// "" for full access); set before the session is listed, then never
+	// changed.
 	owner string
 }
 

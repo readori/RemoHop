@@ -22,6 +22,10 @@ type Limits struct {
 	// many hosts behind one carrier-grade NAT address).
 	MaxConns          int
 	MaxConnsPerSource int
+	// MaxConnsPerNet bounds those of one network (an IPv6 /48), so that the
+	// many /64s of one customer cannot fill the table. Default 256. (For
+	// IPv4 the network is the address, so MaxConnsPerSource applies.)
+	MaxConnsPerNet int
 	// Register*: registrations per source. Defaults: burst 10, one more
 	// every 6 s.
 	RegisterBurst int
@@ -90,6 +94,7 @@ func (l *Limits) defaults() {
 	}
 	def(&l.MaxConns, 50000)
 	def(&l.MaxConnsPerSource, 64)
+	def(&l.MaxConnsPerNet, 256)
 	def(&l.RegisterBurst, 10)
 	defDur(&l.RegisterEvery, 6*time.Second)
 	def(&l.MaxIDs, 1_000_000)

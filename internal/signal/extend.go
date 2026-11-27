@@ -50,6 +50,8 @@ type ExtLimits struct {
 	// MaxConcurrent caps extension requests being served at once, over
 	// all sources. Default 64.
 	MaxConcurrent int
+	// PerSourceConcurrent caps those of one source. Default 4.
+	PerSourceConcurrent int
 }
 
 func (l *ExtLimits) defaults() {
@@ -61,6 +63,41 @@ func (l *ExtLimits) defaults() {
 	}
 	if l.MaxConcurrent <= 0 {
 		l.MaxConcurrent = 64
+	}
+	if l.PerSourceConcurrent <= 0 {
+		l.PerSourceConcurrent = 4
+	}
+}
+
+// extBodyTimeout bounds the wait for an extension request's body. The body
+// is read before the request takes a slot, so a client that sends a header
+// and then nothing holds no slot, and only for this long.
+const extBodyTimeout = 3 * time.Second
+
+// extInFlight counts the extension requests of each source being served.
+type extInFlight struct {
+	mu sync.Mutex
+	m  map[netip.Addr]int
+}
+
+func (f *extInFlight) acquire(src netip.Addr, max int) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.m == nil {
+		f.m = map[netip.Addr]int{}
+	}
+	if f.m[src] >= max {
+		return false
+	}
+	f.m[src]++
+	return true
+}
+
+func (f *extInFlight) release(src netip.Addr) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.m[src]--; f.m[src] <= 0 {
+		delete(f.m, src)
 	}
 }
 
@@ -213,6 +250,18 @@ func (s *Server) handleExt(c *serverConn, st *quic.Stream, req *request, fail fa
 		fail(CodeRateLimited, "too many requests from this address", wait)
 		return
 	}
+	// The body before a slot, under a short deadline (extBodyTimeout).
+	st.SetReadDeadline(time.Now().Add(extBodyTimeout))
+	var body extBody
+	if err := readMsgN(st, &body, MaxExtMsg+64); err != nil {
+		return
+	}
+	st.SetReadDeadline(time.Time{})
+	if !s.extFlight.acquire(c.source, s.cfg.Ext.PerSourceConcurrent) {
+		fail(CodeRateLimited, "too many requests from this address at once", time.Second)
+		return
+	}
+	defer s.extFlight.release(c.source)
 	if s.extActive.Add(1) > int64(s.cfg.Ext.MaxConcurrent) {
 		s.extActive.Add(-1)
 		fail(CodeRateLimited, "the server is busy with other requests", time.Second)
@@ -229,10 +278,6 @@ func (s *Server) handleExt(c *serverConn, st *quic.Stream, req *request, fail fa
 			return
 		}
 		r.Key = ed25519.PublicKey(req.Key)
-	}
-	var body extBody
-	if err := readMsgN(st, &body, MaxExtMsg+64); err != nil {
-		return
 	}
 	r.Payload = body.Ext
 	ctx, cancel := context.WithTimeout(c.q.Context(), requestTimeout)

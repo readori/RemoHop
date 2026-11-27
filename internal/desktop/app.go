@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -269,6 +270,7 @@ func (a *App) startGateway() error {
 	}
 	done := make(chan error, 1)
 	go func() { done <- gw.Serve(a.ctx) }()
+	go watchWake(a.ctx, gw.CheckSessions)
 	a.mu.Lock()
 	a.gw, a.gwDone = gw, done
 	a.mu.Unlock()
@@ -840,6 +842,11 @@ type Request struct {
 	// "file"); Session is its ID.
 	Access  []string `json:"access,omitempty"`
 	Session int      `json:"session,omitempty"`
+	// Action is set when a session on a grant asks to run a command or
+	// change a file (hostd.Approval.Action), on one line with control
+	// characters escaped; Grant is the grant's name.
+	Action string `json:"action,omitempty"`
+	Grant  string `json:"grant,omitempty"`
 }
 
 // Session is a connected device.
@@ -914,7 +921,8 @@ func (a *App) requestOf(p hostd.Approval, now time.Time) Request {
 	first := a.firstSeen[p.N]
 	a.mu.Unlock()
 	r := Request{N: p.N, Name: clean(p.Name), Device: clean(p.Device), Identity: p.Identity, From: addrOnly(p.From),
-		Auth: string(p.Auth), Left: max(left, 0), FirstSeen: first, Session: p.Session}
+		Auth: string(p.Auth), Left: max(left, 0), FirstSeen: first, Session: p.Session,
+		Action: cli.OneLine(p.Action), Grant: clean(p.Grant)}
 	for _, f := range p.Access {
 		r.Access = append(r.Access, string(f))
 	}
@@ -993,4 +1001,49 @@ func featureSet(fs []perm.Feature) map[perm.Feature]bool {
 		m[f] = true
 	}
 	return m
+}
+
+// wakeEvery is how often watchWake looks for a sleep or a network change.
+var wakeEvery = 5 * time.Second
+
+// watchWake calls check when the machine wakes from sleep (the wall clock
+// jumped past the monotonic one, or a tick came very late) or its
+// addresses change. The gateway's sessions would otherwise notice a dead
+// path only at QUIC's idle timeout, 20 to 30 seconds later; phones already
+// do this from the app's lifecycle events.
+func watchWake(ctx context.Context, check func()) {
+	t := time.NewTicker(wakeEvery)
+	defer t.Stop()
+	prev, prevNet := time.Now(), addrPrint()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		now := time.Now()
+		wall, mono := now.Round(0).Sub(prev.Round(0)), now.Sub(prev)
+		prev = now
+		netNow := addrPrint()
+		if wall-mono > 3*time.Second || mono > wakeEvery+3*time.Second || netNow != prevNet {
+			prevNet = netNow
+			check()
+		}
+	}
+}
+
+// addrPrint summarises the machine's unicast addresses, sorted.
+func addrPrint() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	var keys []string
+	for _, a := range addrs {
+		if p, err := netip.ParsePrefix(a.String()); err == nil && !p.Addr().IsLoopback() && !p.Addr().IsLinkLocalUnicast() {
+			keys = append(keys, p.Addr().String())
+		}
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ",")
 }

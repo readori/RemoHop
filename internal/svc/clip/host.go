@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/wire"
 )
@@ -43,6 +44,13 @@ func handle(ctx context.Context, conn *peer.Conn, s peer.Stream, raw json.RawMes
 	case opSet:
 		return handleSet(ctx, conn, s, board)
 	case opHistory:
+		// The host's history holds what every session, and the owner,
+		// copied. A session on a grant gets the clipboard as it is now,
+		// not that record.
+		if g := grant.Of(conn); g != nil {
+			return wire.WriteJSON(s, message{Error: (&grant.Refusal{Grant: g.Name(), What: "the clipboard history",
+				Why: "it holds what other sessions and the host's owner copied; a grant gives the current clipboard only"}).Error()})
+		}
 		return handleHistory(ctx, s, board, req)
 	case opSync:
 		return handleSync(ctx, conn, s, board, req)

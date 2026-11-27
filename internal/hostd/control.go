@@ -80,11 +80,26 @@ func (h *Host) serveControl(ctx context.Context) {
 		ln.Close()
 		os.Remove(path)
 	}()
+	backoff := 5 * time.Millisecond
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			return
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+				return
+			}
+			// A passing error (too many open files, say) must not end
+			// `remohop host approve`, `otp` and `sessions` until the
+			// daemon restarts: wait a little and accept again.
+			h.log.Warn("control socket: accept failed; retrying", "err", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			backoff = min(backoff*2, time.Second)
+			continue
 		}
+		backoff = 5 * time.Millisecond
 		go func() {
 			defer c.Close()
 			c.SetDeadline(time.Now().Add(5 * time.Second))
@@ -123,10 +138,15 @@ func (h *Host) control(req controlRequest) controlReply {
 	case "approvals":
 		return controlReply{Approvals: h.Pending()}
 	case "decide":
-		if err := h.Decide(req.N, req.Allow); err != nil {
+		if req.N <= 0 {
+			return controlReply{Error: "name the request to answer by its number"}
+		}
+		a, err := h.DecideShown(req.N, req.Allow)
+		if err != nil {
 			return controlReply{Error: err.Error()}
 		}
-		return controlReply{}
+		// The answered request, for the confirmation.
+		return controlReply{Approvals: []Approval{a}}
 	case "otp-new":
 		if err := h.RotatePassword(); err != nil {
 			return controlReply{Error: err.Error()}

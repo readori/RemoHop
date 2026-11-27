@@ -19,6 +19,9 @@ func (g testGuard) Name() string { return "test" }
 func (g testGuard) Command(context.Context, string, string, bool, []string) error {
 	return &grant.Refusal{Grant: "test", What: "running commands"}
 }
+func (g testGuard) WorkDir(context.Context, string, string) error {
+	return &grant.Refusal{Grant: "test", What: "running commands"}
+}
 func (g testGuard) Terminal(context.Context, string) error {
 	return &grant.Refusal{Grant: "test", What: "a terminal"}
 }

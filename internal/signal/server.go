@@ -196,6 +196,7 @@ type Server struct {
 	offers      *rateTable[string]
 	extSources  *rateTable[netip.Addr] // extension requests per source
 	extActive   atomic.Int64           // extension requests in progress
+	extFlight   extInFlight            // and of each source
 	// handshakes is the budget of new connections accepted without first
 	// making the client prove it owns its source address.
 	handshakes *rateTable[struct{}]
@@ -214,12 +215,14 @@ type Server struct {
 	relayUsage    *relayUsage   // nil without a relay
 	outcomes      *outcomeStats // see recordOutcome; nil: reports are dropped
 	relayCounters relayCounters
-	relaySources  map[netip.Addr]int // relayed sessions per source; guarded by mu
+	relaySources  map[netip.Addr]int // relayed sessions per client source; guarded by mu
+	relayHosts    map[netip.Addr]int // and per host source
 
 	mu        sync.Mutex
 	online    map[string]*serverConn
 	repl      map[string]*replacements // see cloneWindow
 	perSource map[netip.Addr]int
+	perNet    map[netip.Addr]int
 	conns     int
 }
 
@@ -347,6 +350,7 @@ func NewServer(cfg Config) (*Server, error) {
 		online:      map[string]*serverConn{},
 		repl:        map[string]*replacements{},
 		perSource:   map[netip.Addr]int{},
+		perNet:      map[netip.Addr]int{},
 	}, nil
 }
 
@@ -657,6 +661,38 @@ func (s *Server) checkMoves() {
 	}
 }
 
+// admitConn counts a new connection from source (an IPv4 address or IPv6
+// /64) in network (its /48), unless that would pass MaxConns,
+// MaxConnsPerSource or MaxConnsPerNet.
+func (s *Server) admitConn(source, network netip.Addr) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	l := s.cfg.Limits
+	if s.conns >= l.MaxConns || s.perSource[source] >= l.MaxConnsPerSource ||
+		(network != source && s.perNet[network] >= l.MaxConnsPerNet) {
+		return false
+	}
+	s.conns++
+	s.perSource[source]++
+	if network != source {
+		s.perNet[network]++
+	}
+	return true
+}
+
+// releaseConnLocked undoes admitConn. Callers hold s.mu.
+func (s *Server) releaseConnLocked(source, network netip.Addr) {
+	s.conns--
+	if s.perSource[source]--; s.perSource[source] <= 0 {
+		delete(s.perSource, source)
+	}
+	if network != source {
+		if s.perNet[network]--; s.perNet[network] <= 0 {
+			delete(s.perNet, network)
+		}
+	}
+}
+
 func (s *Server) handleConn(ctx context.Context, q *quic.Conn) {
 	addr, ok := remoteAddrPort(q)
 	if !ok {
@@ -671,15 +707,10 @@ func (s *Server) handleConn(ctx context.Context, q *quic.Conn) {
 		c.source, c.net = sourceOf(client)
 	}
 
-	s.mu.Lock()
-	if s.conns >= s.cfg.Limits.MaxConns || s.perSource[c.source] >= s.cfg.Limits.MaxConnsPerSource {
-		s.mu.Unlock()
+	if !s.admitConn(c.source, c.net) {
 		q.CloseWithError(closeBusy, "too many connections")
 		return
 	}
-	s.conns++
-	s.perSource[c.source]++
-	s.mu.Unlock()
 
 	// Dialling peers are done within seconds. Only registered hosts may
 	// hold a connection open.
@@ -693,10 +724,7 @@ func (s *Server) handleConn(ctx context.Context, q *quic.Conn) {
 		idle.Stop()
 		q.CloseWithError(closeNormal, "rendezvous server shutting down")
 		s.mu.Lock()
-		s.conns--
-		if s.perSource[c.source]--; s.perSource[c.source] <= 0 {
-			delete(s.perSource, c.source)
-		}
+		s.releaseConnLocked(c.source, c.net)
 		var offline string
 		if id := c.id.Load(); id != nil && s.online[*id] == c {
 			delete(s.online, *id)

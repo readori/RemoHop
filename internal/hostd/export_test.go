@@ -15,3 +15,6 @@ func SetSessionBuiltHook(f func()) (restore func()) {
 	testHookSessionBuilt = f
 	return func() { testHookSessionBuilt = nil }
 }
+
+// ApprovalAnswer applies a line typed at the host's terminal (cmd.go).
+func ApprovalAnswer(h *Host, text string, shown int) string { return approvalAnswer(h, text, shown) }

@@ -51,7 +51,10 @@ Flags:
                      input, clip, info, forward, vpn, serial, usb
   --for DURATION   how long the grant is valid (default 1h; e.g. 30m, 2h, 24h)
   --cmd COMMAND    allow this command (program and optional leading
-                   arguments); repeatable; implies shell:run-only
+                   arguments); repeatable; implies shell:run-only. Commands
+                   never run at, below or above a files:write root: a
+                   writable root where git, go, make or npm runs means
+                   arbitrary code
   --approve MODE   each: you approve every command and file change
                    first: you approve the first one of each session
                    none: nothing is asked (default)
@@ -66,15 +69,18 @@ The host's feature switches (` + "`remohop config feature`" + `) still apply on 
 Subcommands:
   grants   list grants: state, expiry, limits, live sessions
   revoke   delete a grant; its live sessions end at once
-  panic    suspend every grant and end every granted session (--all: end
-           every session, full-access ones too). Undo with resume.
-  resume   lift the suspension of the named grants, or of all
+  panic    suspend every grant, those an authorizer (RemoHop Teams) gives
+           included, and end every granted session (--all: end every
+           session, full-access ones too). It lasts across restarts of the
+           host. Undo with resume.
+  resume   lift the suspension of the named grants, or of all (and then of
+           the grants authorizers give, too)
   audit    show audit log entries (of one grant with --grant) and its
            recordings; N limits the entries shown (default 100)
 
 Examples:
   remohop host grant claude-session --for 2h --allow shell:run-only,files:read:~/project,screenshot
-  remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --allow files:write:~/src --approve first
+  remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --allow files:read:~/src,files:write:~/ci-reports --approve first
   remohop host revoke claude-session
 `
 
@@ -188,6 +194,7 @@ func runGrant(env *cli.Env, args []string) int {
 	if existed {
 		fmt.Fprintln(w, "  (replaces the earlier grant of that name; its code no longer works)")
 	}
+	warnConfigDir(env, rules, dir)
 	target := "TARGET"
 	if st, _ := LiveStatus(dir); st != nil {
 		switch {
@@ -210,6 +217,30 @@ func runGrant(env *cli.Env, args []string) int {
 	}
 	fmt.Fprintf(w, "\nEnd it early with `remohop host revoke %s`, or everything at once with `remohop host panic`.\n", g.Name)
 	return cli.ExitOK
+}
+
+// warnConfigDir tells whoever issues a grant that its file roots contain
+// the host's config directory. The host refuses every granted access to
+// it (grant.Protect), but the owner may have meant to share less.
+func warnConfigDir(env *cli.Env, rules *grant.Rules, dir string) {
+	if rules == nil {
+		return
+	}
+	dirs := []string{dir}
+	if d, err := config.Dir(); err == nil && d != dir {
+		dirs = append(dirs, d)
+	}
+	roots := rules.RootsContaining(dirs)
+	if rules.ReadAll || rules.WriteAll {
+		roots = []string{"every file (files or files:read)"}
+	}
+	if len(roots) == 0 {
+		return
+	}
+	fmt.Fprintf(env.Stderr, "remohop: warning: the grant's file access (%s) contains RemoHop's configuration directory %s.\n"+
+		"  The host refuses the grant everything in it, and changes to the directories above it, because it holds\n"+
+		"  the grants, the pairings, the identity key and the temporary password. Consider a narrower root.\n",
+		cli.Sanitize(strings.Join(roots, ", ")), cli.Sanitize(dir))
 }
 
 func onOff(b bool) string {
@@ -283,6 +314,9 @@ func runGrants(env *cli.Env, args []string) int {
 	if *asJSON {
 		printJSON(env, rows)
 		return cli.ExitOK
+	}
+	if GrantsHeld(dir) {
+		fmt.Fprintln(env.Stdout, "on hold after `remohop host panic`: every grant given by an authorizer (RemoHop Teams); `remohop host resume` lifts the hold")
 	}
 	if len(rows) == 0 {
 		fmt.Fprintln(env.Stdout, "no grants (issue one with `remohop host grant NAME --allow ...`)")
@@ -374,9 +408,8 @@ func runPanic(env *cli.Env, args []string) int {
 		what = "all"
 	}
 	fmt.Fprintf(env.Stdout, "suspended %d grant(s); ended %d %s session(s)\n", len(changed), closed, what)
-	if len(changed) > 0 {
-		fmt.Fprintln(env.Stdout, "resume with `remohop host resume` (all) or `remohop host resume NAME`")
-	}
+	fmt.Fprintln(env.Stdout, "grants given by an authorizer (RemoHop Teams) are on hold too, also across restarts")
+	fmt.Fprintln(env.Stdout, "resume with `remohop host resume` (all, and the hold) or `remohop host resume NAME`")
 	if serr != nil {
 		return cli.ExitError
 	}
@@ -389,16 +422,23 @@ func runResume(env *cli.Env, args []string) int {
 		env.Errorf("host: %v", err)
 		return cli.ExitError
 	}
+	held := GrantsHeld(dir)
 	changed, err := SuspendGrants(dir, false, args...)
 	if err != nil {
 		env.Errorf("host resume: %v", err)
 		return cli.ExitError
 	}
-	if len(changed) == 0 {
-		fmt.Fprintln(env.Stdout, "no suspended grant to resume")
-		return cli.ExitOK
+	if len(changed) > 0 {
+		fmt.Fprintf(env.Stdout, "resumed %s\n", strings.Join(changed, ", "))
 	}
-	fmt.Fprintf(env.Stdout, "resumed %s\n", strings.Join(changed, ", "))
+	switch {
+	case held && len(args) == 0:
+		fmt.Fprintln(env.Stdout, "lifted the hold on grants given by authorizers (RemoHop Teams)")
+	case held:
+		fmt.Fprintln(env.Stdout, "grants given by authorizers (RemoHop Teams) stay on hold until `remohop host resume` without names")
+	case len(changed) == 0:
+		fmt.Fprintln(env.Stdout, "no suspended grant to resume")
+	}
 	return cli.ExitOK
 }
 

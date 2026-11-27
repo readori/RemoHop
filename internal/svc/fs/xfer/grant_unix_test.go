@@ -22,6 +22,9 @@ func (g rulesGuard) Command(context.Context, string, string, bool, []string) err
 func (g rulesGuard) Terminal(context.Context, string) error {
 	return &grant.Refusal{Grant: "test", What: "terminals"}
 }
+func (g rulesGuard) WorkDir(context.Context, string, string) error {
+	return &grant.Refusal{Grant: "test", What: "commands"}
+}
 func (g rulesGuard) File(_ context.Context, _ string, a grant.Access, p string) error {
 	if err := g.r.CheckPath(p, a); err != nil {
 		return &grant.Refusal{Grant: "test", What: a.String(), Why: err.Error()}

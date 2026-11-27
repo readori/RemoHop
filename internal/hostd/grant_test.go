@@ -472,7 +472,7 @@ func TestGrantApproval(t *testing.T) {
 	}
 	go answer(false)
 	_, err = run(t, conn, "echo denied", false)
-	wantRefusal(t, err, "the host's owner denied: exec: echo denied")
+	wantRefusal(t, err, "the host's owner denied: exec: \"echo denied\"")
 	// Nobody answers: refused once the wait times out.
 	_, err = run(t, conn, "echo unanswered", false)
 	wantRefusal(t, err, "nobody approved", "in time")

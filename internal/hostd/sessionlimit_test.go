@@ -140,7 +140,17 @@ func TestControlSessions(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the session did not end")
 	}
-	if ss, _ := hostd.ControlSessions(dir); len(ss) != 0 {
-		t.Fatalf("sessions after disconnect: %+v", ss)
+	// The host drops the session once its side of the connection has
+	// ended too, which may come a moment after the client's.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		ss, _ := hostd.ControlSessions(dir)
+		if len(ss) == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("sessions after disconnect: %+v", ss)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

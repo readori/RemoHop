@@ -74,7 +74,7 @@
       'req.may': 'They may see your screen, and also:', 'req.control': 'Control the mouse and keyboard', 'req.files': 'Transfer files and use the clipboard',
       'req.remember': 'Remember this device', 'req.left': 'Refused in {n} s', 'req.device': 'Device', 'req.key': 'Key', 'req.from': 'From',
       'req.asks': 'Asks to:', 'req.input': 'control the mouse and keyboard', 'req.file': 'transfer files', 'req.clip': 'use the clipboard',
-      'req.unknown': 'Unnamed device',
+      'req.unknown': 'Unnamed device', 'req.title.action': '{d} asks to act under grant {g}', 'req.action': 'Wants to:',
       'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start automatically', 'set.autostart': 'Start RemoHop when the computer starts (in the tray)',
       'about': '{v} · {e}', 'about.app': 'About RemoHop', 'set.g.conn': 'Connection', 'set.g.general': 'General', 'set.g.support': 'Support', 'upd.version': 'Version', 'browser': 'browser window',
       'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
@@ -159,7 +159,7 @@
       'req.may': '对方可以看到你的屏幕，另外还可以：', 'req.control': '控制鼠标和键盘', 'req.files': '传输文件、使用剪贴板',
       'req.remember': '记住这台设备', 'req.left': '{n} 秒后自动拒绝', 'req.device': '设备', 'req.key': '密钥', 'req.from': '来自',
       'req.asks': '请求：', 'req.input': '控制鼠标和键盘', 'req.file': '传输文件', 'req.clip': '使用剪贴板',
-      'req.unknown': '未命名设备',
+      'req.unknown': '未命名设备', 'req.title.action': '{d} 请求在授权 {g} 下执行操作', 'req.action': '请求：',
       'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '开机自动启动', 'set.autostart': '开机后自动启动 RemoHop（在托盘中运行）',
       'about': '{v} · {e}', 'about.app': '关于 RemoHop', 'set.g.conn': '连接', 'set.g.general': '通用', 'set.g.support': '支持', 'upd.version': '版本', 'browser': '浏览器窗口',
       'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
@@ -886,8 +886,10 @@
     const r = list[0];
     reqShown = r.n;
     const who = r.device || r.name || t('req.unknown');
-    const access = r.access && r.access.length;
-    $('req-title').textContent = t(access ? 'req.title.access' : 'req.title', {d: who});
+    // An action of a session on a grant is answered like a request for
+    // more access: allow or deny, nothing to choose.
+    const access = (r.access && r.access.length) || r.action;
+    $('req-title').textContent = r.action ? t('req.title.action', {d: who, g: r.grant}) : t(access ? 'req.title.access' : 'req.title', {d: who});
     const chips = $('req-chips'); chips.textContent = '';
     if (!access) {
       const c = document.createElement('span'); c.className = 'chip ' + (r.first_seen ? 'bad' : 'ok'); c.textContent = t(r.first_seen ? 'req.new' : 'req.known'); chips.append(c);
@@ -896,7 +898,8 @@
     const kv = $('req-kv'); kv.textContent = '';
     const add = (k, v) => { if (!v) return; const dt = document.createElement('dt'); dt.textContent = t(k); const dd = document.createElement('dd'); dd.textContent = v; kv.append(dt, dd); };
     add('req.device', who); add('req.key', keyText(r.identity)); add('req.from', r.from);
-    if (access) add('req.asks', r.access.map(f => t('req.' + f)).filter(Boolean).join(', '));
+    if (r.action) add('req.action', r.action);
+    else if (access) add('req.asks', r.access.map(f => t('req.' + f)).filter(Boolean).join(', '));
     $('req-choice').hidden = !!access; $('req-remember-row').hidden = !!access;
     // An unknown device gets view only unless the user ticks more.
     $('req-control').checked = false; $('req-files').checked = false; $('req-remember').checked = false;
@@ -921,7 +924,7 @@
     const box = $('queue'); box.textContent = '';
     list.forEach((r, k) => {
       const who = r.device || r.name || t('req.unknown');
-      const access = r.access && r.access.length;
+      const access = (r.access && r.access.length) || r.action;
       const c = document.createElement('article'); c.className = 'qcard' + (k === 0 ? ' first' : '');
       const top = document.createElement('div'); top.className = 'qtop mono';
       const n = document.createElement('span'); n.textContent = 'REQ-' + String(r.n).padStart(3, '0');
@@ -931,9 +934,9 @@
       const left = document.createElement('span'); left.className = 'qleft'; left.textContent = r.left + ' s';
       top.append(n, chip, left);
       const h = document.createElement('div'); h.className = 'qt';
-      h.textContent = t(access ? 'req.title.access' : 'req.title', {d: who});
+      h.textContent = r.action ? t('req.title.action', {d: who, g: r.grant}) : t(access ? 'req.title.access' : 'req.title', {d: who});
       const sub = document.createElement('div'); sub.className = 'muted small';
-      sub.textContent = access ? r.access.map(f => t('req.' + f)).filter(Boolean).join(', ') : [r.from, keyText(r.identity)].filter(Boolean).join(' · ');
+      sub.textContent = r.action ? r.action : access ? r.access.map(f => t('req.' + f)).filter(Boolean).join(', ') : [r.from, keyText(r.identity)].filter(Boolean).join(' · ');
       const bar = document.createElement('div'); bar.className = 'runbar'; bar.setAttribute('aria-hidden', 'true');
       const cells = 24, on = Math.max(0, Math.min(cells, Math.round(r.left / total * cells)));
       for (let j = 0; j < cells; j++) { const i = document.createElement('i'); if (j < on) i.className = r.left <= 10 ? 'on low' : 'on'; bar.append(i); }
