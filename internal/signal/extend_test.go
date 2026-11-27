@@ -66,12 +66,12 @@ func init() {
 		return "done", nil
 	})
 	RegisterRelayPolicy(RelayPolicy{Name: "test",
-		Member: func(key ed25519.PublicKey) bool {
+		Member: func(s *Server, key ed25519.PublicKey) bool {
 			testRelayPolicy.mu.Lock()
 			defer testRelayPolicy.mu.Unlock()
 			return testRelayPolicy.member != nil && bytes.Equal(key, testRelayPolicy.member)
 		},
-		Ended: func(client, host ed25519.PublicKey, n int64, _ time.Duration) {
+		Ended: func(s *Server, client, host ed25519.PublicKey, n int64, _ time.Duration) {
 			testRelayPolicy.mu.Lock()
 			defer testRelayPolicy.mu.Unlock()
 			testRelayPolicy.ended = append(testRelayPolicy.ended, endedRelay{client, host, n})

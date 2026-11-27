@@ -103,18 +103,19 @@ func (e *ExtError) Error() string { return e.Msg }
 // or an error. It runs on the request's stream, within requestTimeout.
 type ExtHandler func(ctx context.Context, s *Server, r ExtRequest) (any, error)
 
-// RelayPolicy gives an extension a say in the relay.
+// RelayPolicy gives an extension a say in the relay. Both functions get
+// the server (its DataDir, for an extension's own records).
 type RelayPolicy struct {
 	Name string
 	// Member reports whether a proven identity key gets the relay's member
 	// tier, as members of an account on this server do (the account rate,
 	// and a relay that --relay-for accounts keeps for members). Must be
 	// quick.
-	Member func(key ed25519.PublicKey) bool
+	Member func(s *Server, key ed25519.PublicKey) bool
 	// Ended is told about every relay session that ran, with the proven
 	// keys of its client and host (nil when not proven) and the bytes it
 	// carried, for metering. Must not block.
-	Ended func(client, host ed25519.PublicKey, bytes int64, d time.Duration)
+	Ended func(s *Server, client, host ed25519.PublicKey, bytes int64, d time.Duration)
 }
 
 var ext struct {
@@ -161,12 +162,12 @@ func relayPolicies() []RelayPolicy {
 }
 
 // extMember reports whether a relay policy gives key the member tier.
-func extMember(key []byte) bool {
+func extMember(s *Server, key []byte) bool {
 	if len(key) != ed25519.PublicKeySize {
 		return false
 	}
 	for _, p := range relayPolicies() {
-		if p.Member != nil && p.Member(ed25519.PublicKey(key)) {
+		if p.Member != nil && p.Member(s, ed25519.PublicKey(key)) {
 			return true
 		}
 	}
@@ -174,7 +175,7 @@ func extMember(key []byte) bool {
 }
 
 // relayEnded tells the relay policies about a finished session.
-func relayEnded(client, host []byte, bytes int64, d time.Duration) {
+func relayEnded(s *Server, client, host []byte, bytes int64, d time.Duration) {
 	k := func(b []byte) ed25519.PublicKey {
 		if len(b) != ed25519.PublicKeySize {
 			return nil
@@ -183,7 +184,7 @@ func relayEnded(client, host []byte, bytes int64, d time.Duration) {
 	}
 	for _, p := range relayPolicies() {
 		if p.Ended != nil {
-			p.Ended(k(client), k(host), bytes, d)
+			p.Ended(s, k(client), k(host), bytes, d)
 		}
 	}
 }

@@ -1112,7 +1112,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		stats := nat.ServeRelay(relayCtx, pc, req.Nonce, nat.RelayLimits{Rate: dec.rate, Global: s.relayBudget, Idle: rc.Idle, Meter: s.relayUsage.add})
 		s.log.Info("relay session ended", "client", c.addr, "host", host.addr, "duration", time.Since(start).Round(time.Second),
 			"bytes", stats.Bytes, "delayed_packets", stats.Delayed, "dropped_packets", stats.Dropped)
-		relayEnded(clientKey, hostKey, stats.Bytes, time.Since(start)) // extend.go
+		relayEnded(s, clientKey, hostKey, stats.Bytes, time.Since(start)) // extend.go
 	}()
 	st.SetDeadline(time.Now().Add(requestTimeout + offerTimeout))
 	answer, err := s.offer(host, request{T: "relay", V: protoVersion, Nonce: req.Nonce, RelayPort: port})
