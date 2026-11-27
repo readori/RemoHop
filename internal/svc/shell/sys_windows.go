@@ -233,3 +233,20 @@ func pipedEnv() []string {
 	}
 	return nil
 }
+
+// shellEnv is environment the host sets for every process it starts
+// through the shell. cmd.exe looks for a program in the current directory
+// before PATH, and Windows' own program search (CreateProcess, SearchPath)
+// does the same for a bare name: a program planted in the working
+// directory under an allowed name would run instead of the real one.
+// NoDefaultCurrentDirectoryInExePath turns that off for cmd.exe, and for
+// PowerShell and what it starts. A client may still name a program in the
+// current directory explicitly (.\prog), which a command allow-list does
+// not match.
+func shellEnv() []string {
+	switch kindOf(userShell()) {
+	case shellCmd, shellPowerShell:
+		return []string{"NoDefaultCurrentDirectoryInExePath=1"}
+	}
+	return nil
+}
