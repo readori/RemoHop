@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 	"os"
@@ -32,6 +33,8 @@ type testNet struct {
 	srv  *Server
 	dir  string
 	stop func()
+	// logger, if set, is the server's logger.
+	logger *slog.Logger
 }
 
 func newTestNet(t *testing.T, limits Limits) *testNet {
@@ -45,7 +48,7 @@ func newTestNet(t *testing.T, limits Limits) *testNet {
 // start (re)starts the server on the same data directory.
 func (tn *testNet) start(limits Limits) {
 	tn.t.Helper()
-	srv, err := NewServer(Config{DataDir: tn.dir, Limits: limits})
+	srv, err := NewServer(Config{DataDir: tn.dir, Limits: limits, Logger: tn.logger})
 	if err != nil {
 		tn.t.Fatal(err)
 	}

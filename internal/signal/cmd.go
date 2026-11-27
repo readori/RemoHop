@@ -20,7 +20,7 @@ import (
 )
 
 const signalUsage = `Usage: remohop signal [--listen ADDR] [--data DIR] [--relay [--relay-ports LO-HI]]
-                      [--ws-listen ADDR] [--accounts ...] [more flags: see below]
+                      [--ws-listen ADDR] [--panel ADDR] [--accounts ...] [more flags: see below]
        remohop signal --print-firewall [same flags]
        remohop signal --show-key [--data DIR]
        remohop signal --status [--data DIR]
@@ -53,6 +53,9 @@ Common flags:
   --show-key      print the server's public key and how to pin it in clients
                   or builds, and exit (creates the key on first use)
   --status        print this month's relay usage from --data and exit
+  --panel ADDR    also serve a read-only web panel for the operator on this
+                  TCP address, e.g. 127.0.0.1:8810 (off by default). More:
+                  ` + "`remohop help signal panel`" + `.
 
 Both UDP ports must be reachable from the internet, through the machine's
 own firewall AND the cloud provider's: ` + "`remohop signal --print-firewall`" + ` prints
@@ -73,6 +76,8 @@ More:
   remohop help signal ws         the websocket bridge for networks that let only
                                  HTTPS out, and Cloudflare Tunnel
   remohop help signal accounts   email accounts (` + "`remohop login`" + `) and SMTP
+  remohop help signal panel      the operator's web panel, SSH tunnel and
+                                 Cloudflare Access
   remohop help signal deploy     small machines, a free public server, and builds
                                  with this server built in
   remohop help signal all        all of it (also ` + "`remohop signal --help-all`" + `)
@@ -248,6 +253,35 @@ docs/public-server.md. On an Oracle Always Free micro VM (10 TB/month):
   line counts sessions, bytes and refusals, without addresses.
 `
 
+const signalPanelHelp = `The web panel of remohop signal (off by default):
+
+  --panel ADDR    serve a read-only web panel on this TCP address, e.g.
+                  127.0.0.1:8810: who is online and how many IDs are stored
+                  (counts only), connections, the relay and its budget,
+                  trends over 24 hours and 7 days, the limits and how close
+                  the server is to each, and recent warnings. It never shows
+                  an address, a host ID, an email or a key. Its history is
+                  kept in panel-history.json in --data.
+
+Who may open it:
+  - From this machine, nothing more is needed. Reach it from yours over SSH:
+      ssh -L 8810:127.0.0.1:8810 SERVER     then open http://127.0.0.1:8810/
+  - Through a Cloudflare Tunnel with Cloudflare Access in front: requests
+    that come through Cloudflare must carry a valid Access token. Set
+      REMOHOP_PANEL_CF_TEAM=myteam.cloudflareaccess.com
+      REMOHOP_PANEL_CF_AUD=<the application's Audience (AUD) tag>
+      REMOHOP_PANEL_CF_EMAILS=ops@example.com,...   (optional allowlist)
+    Without TEAM and AUD, requests through Cloudflare are refused.
+  - REMOHOP_PANEL_PASSWORD=...  every page then asks for this password
+    (HTTP Basic, any user name). Required to listen beyond loopback:
+    without it, a --panel address other than loopback is refused.
+
+Examples:
+  remohop signal --relay --relay-ports 40000-40099 --panel 127.0.0.1:8810
+  sudo remohop service install --role signal --relay --relay-ports 40000-40099 \
+      --panel 127.0.0.1:8810
+`
+
 func init() {
 	cli.Register(&cli.Command{
 		Name:    "signal",
@@ -258,6 +292,7 @@ func init() {
 			"ws":       signalWSHelp,
 			"accounts": signalAccountsHelp,
 			"deploy":   signalDeployHelp,
+			"panel":    signalPanelHelp,
 		},
 		Run: runSignal,
 	})
@@ -302,6 +337,7 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 	maxAccounts := fs.Int("max-accounts", 0, "")
 	devCodes := fs.Bool("accounts-dev-codes", false, "")
 	devCodesPublic := fs.Bool("dev-codes-on-public-address", false, "")
+	panelListen := fs.String("panel", "", "")
 	if err := fs.Parse(args); err != nil {
 		return cli.ExitUsage
 	}
@@ -372,6 +408,14 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 		}
 		return cli.ExitOK
 	}
+	var panelCfg PanelConfig
+	if *panelListen != "" {
+		panelCfg = panelConfigFromEnv(*panelListen, os.Getenv)
+		if err := panelCfg.check(); err != nil {
+			env.Errorf("signal: %v", err)
+			return cli.ExitUsage
+		}
+	}
 	// --data may name a directory that does not exist yet (a manual
 	// deployment; under systemd, StateDirectory creates it).
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -408,7 +452,14 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 		// unset account rate is the per-session rate, and so on.
 		relayCfg.defaults()
 	}
-	logger := slog.New(slog.NewTextHandler(env.Stderr, &slog.HandlerOptions{Level: level}))
+	var handler slog.Handler = slog.NewTextHandler(env.Stderr, &slog.HandlerOptions{Level: level})
+	var panelLogs *logRing
+	if *panelListen != "" {
+		// The panel's health page shows recent records, scrubbed.
+		panelLogs = newLogRing()
+		handler = panelLogs.handler(handler)
+	}
+	logger := slog.New(handler)
 	var accountsCfg *AccountsConfig
 	if *accountsOn {
 		var err error
@@ -510,6 +561,27 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 		if relayCfg == nil {
 			logger.Warn("websocket bridge without --relay: bridged peers can register and look up hosts, but cannot connect to anyone")
 		}
+	}
+
+	if *panelListen != "" {
+		panelCfg.UDP = mainConn.LocalAddr().String()
+		if altConn != nil {
+			panelCfg.Alt = altConn.LocalAddr().String()
+		}
+		panelCfg.WS = *wsListen
+		if ports.Lo != 0 {
+			panelCfg.RelayPorts = ports.String()
+		}
+		stopPanel, err := startPanel(ctx, srv, panelCfg, panelLogs, env.Stdout)
+		if err != nil {
+			mainConn.Close()
+			if altConn != nil {
+				altConn.Close()
+			}
+			env.Errorf("signal: %v", err)
+			return cli.ExitError
+		}
+		defer stopPanel()
 	}
 
 	if relayCfg != nil && relayCfg.DenyFile != "" {
