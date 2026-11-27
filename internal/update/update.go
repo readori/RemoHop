@@ -105,11 +105,17 @@ type Version struct {
 
 var versionRE = regexp.MustCompile(`^v(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})(?:-([0-9A-Za-z.-]{1,40}))?$`)
 
+// describeRE matches what `git describe --tags --dirty` (the Makefile's
+// VERSION) adds to the last tag for a build from source: "-N-gHASH",
+// "-dirty", or both.
+var describeRE = regexp.MustCompile(`(^|[.-])([0-9]+-g[0-9a-f]{4,40}(-dirty)?|dirty)$`)
+
 // ParseVersion parses "v1.2.3" or "v1.2.3-rc.1". Development builds
-// ("dev", or anything else) do not parse.
+// ("dev", a build from source such as "v1.2.3-4-gabc1234" or
+// "v1.2.3-dirty", or anything else) do not parse.
 func ParseVersion(s string) (Version, bool) {
 	m := versionRE.FindStringSubmatch(s)
-	if m == nil {
+	if m == nil || describeRE.MatchString(m[4]) {
 		return Version{}, false
 	}
 	n := func(x string) int { i, _ := strconv.Atoi(x); return i }
@@ -141,7 +147,9 @@ func (v Version) Less(w Version) bool {
 }
 
 // Newer reports whether latest is a newer version than current. A current
-// version that does not parse (a development build) is never out of date.
+// version that does not parse (a development build, including one built
+// from source after a tag, such as v1.0.7-3-gabc1234) is never out of date:
+// offering the last release would be a downgrade.
 func Newer(latest, current string) bool {
 	l, ok1 := ParseVersion(latest)
 	c, ok2 := ParseVersion(current)

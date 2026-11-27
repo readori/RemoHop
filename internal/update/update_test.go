@@ -25,6 +25,13 @@ func TestNewer(t *testing.T) {
 		{"v1.0.2", "", false},
 		{"v1.0.2", "v0.0.0-test.1", true},
 		{"garbage", "v1.0.1", false},
+		// Builds from source (git describe) are never out of date.
+		{"v1.0.7", "v1.0.7-3-gabc1234", false},
+		{"v1.0.7", "v1.0.6-12-g0123456789ab-dirty", false},
+		{"v1.0.7", "v1.0.6-dirty", false},
+		{"v1.0.7", "v1.0.7-rc.1-2-gdeadbee", false},
+		{"v1.0.7", "abc1234", false},
+		{"v1.0.7", "v1.0.7-rc.2", true},
 	} {
 		if got := Newer(c.latest, c.current); got != c.want {
 			t.Errorf("Newer(%q, %q) = %v, want %v", c.latest, c.current, got, c.want)
