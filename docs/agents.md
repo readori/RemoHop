@@ -141,10 +141,10 @@ With `--record`, the output of every command and interactive terminal under the 
 ```bash
 remohop host panic          # suspend every grant and end every granted session now
 remohop host panic --all    # ... and every other session too
-remohop host resume         # lift the suspension of all grants (or: remohop host resume NAME)
+remohop host resume         # lift the suspension of all grants, authorizers' too (or: remohop host resume NAME)
 ```
 
-`panic` suspends first and then ends the sessions, so nothing slips in between. It needs no running GUI and no hotkey; it works from any terminal of the host's user, including over SSH. If the host is not reachable on its control socket, the suspension still applies within five seconds.
+`panic` suspends first and then ends the sessions, so nothing slips in between. It also holds the grants that code built on RemoHop gives through `hostd.RegisterAuthorizer` (RemoHop Teams' team rules): while it is in force no such grant admits a login or keeps a session. The hold is kept in `panic.json` in the config directory, so it lasts across restarts of the host, and only `remohop host resume` without names lifts it (`resume NAME` resumes that grant of yours and leaves the hold in place). It needs no running GUI and no hotkey; it works from any terminal of the host's user, including over SSH. If the host is not reachable on its control socket, the suspension still applies within five seconds.
 
 ## On the agent's machine
 

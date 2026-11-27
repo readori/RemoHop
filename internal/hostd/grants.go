@@ -212,9 +212,62 @@ func RevokeGrant(dir, name string) (bool, error) {
 	return found || n > 0, err
 }
 
+// PanicFile, in the config directory, holds every grant while it exists:
+// `remohop host panic` writes it and `remohop host resume` (of all grants)
+// removes it. It covers what the grants file cannot: the grants that
+// authorizers (RegisterAuthorizer) give keys the owner never paired. While
+// it exists no such grant admits a login or keeps a session. It survives a
+// restart of the host.
+const PanicFile = "panic.json"
+
+// HoldGrants sets (hold true) or lifts the host-wide suspension of
+// PanicFile, and reports whether that changed anything.
+func HoldGrants(dir string, hold bool) (bool, error) {
+	path := filepath.Join(dir, PanicFile)
+	unlock, err := config.Lock(path)
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
+	held := GrantsHeld(dir)
+	if hold == held {
+		return false, nil
+	}
+	if !hold {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return false, err
+		}
+		return true, nil
+	}
+	b, _ := json.Marshal(struct {
+		Since time.Time `json:"since"`
+	}{time.Now().UTC()})
+	return true, config.WriteFileAtomic(path, append(b, '\n'), 0o600)
+}
+
+// GrantsHeld reports whether the host-wide suspension of PanicFile is in
+// force. A file that cannot be looked at counts as there: a broken config
+// directory never opens anything up.
+func GrantsHeld(dir string) bool {
+	_, err := os.Lstat(filepath.Join(dir, PanicFile))
+	return !errors.Is(err, fs.ErrNotExist)
+}
+
+// errHeld refuses a grant an authorizer gives while the host is held.
+func errHeld(authorizer string) error {
+	return fmt.Errorf("access through %s is suspended on this host (remohop host panic); its owner can lift that with `remohop host resume`", authorizer)
+}
+
 // SuspendGrants suspends (or with suspend false, resumes) the named grants,
-// or all of them when names is empty, and returns the names changed.
+// or all of them when names is empty, and returns the names changed. With
+// no names it also sets or lifts the host-wide suspension (PanicFile),
+// which holds the grants authorizers give as well.
 func SuspendGrants(dir string, suspend bool, names ...string) ([]string, error) {
+	if len(names) == 0 {
+		if _, err := HoldGrants(dir, suspend); err != nil {
+			return nil, err
+		}
+	}
 	var changed []string
 	err := OpenGrantStore(dir).update(func(gs []grant.Grant) ([]grant.Grant, error) {
 		changed = changed[:0]

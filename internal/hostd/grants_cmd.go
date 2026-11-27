@@ -66,9 +66,12 @@ The host's feature switches (` + "`remohop config feature`" + `) still apply on 
 Subcommands:
   grants   list grants: state, expiry, limits, live sessions
   revoke   delete a grant; its live sessions end at once
-  panic    suspend every grant and end every granted session (--all: end
-           every session, full-access ones too). Undo with resume.
-  resume   lift the suspension of the named grants, or of all
+  panic    suspend every grant, those an authorizer (RemoHop Teams) gives
+           included, and end every granted session (--all: end every
+           session, full-access ones too). It lasts across restarts of the
+           host. Undo with resume.
+  resume   lift the suspension of the named grants, or of all (and then of
+           the grants authorizers give, too)
   audit    show audit log entries (of one grant with --grant) and its
            recordings; N limits the entries shown (default 100)
 
@@ -309,6 +312,9 @@ func runGrants(env *cli.Env, args []string) int {
 		printJSON(env, rows)
 		return cli.ExitOK
 	}
+	if GrantsHeld(dir) {
+		fmt.Fprintln(env.Stdout, "suspended by `remohop host panic`: every grant given by an authorizer (RemoHop Teams); `remohop host resume` lifts it")
+	}
 	if len(rows) == 0 {
 		fmt.Fprintln(env.Stdout, "no grants (issue one with `remohop host grant NAME --allow ...`)")
 		return cli.ExitOK
@@ -398,10 +404,8 @@ func runPanic(env *cli.Env, args []string) int {
 	if *all {
 		what = "all"
 	}
-	fmt.Fprintf(env.Stdout, "suspended %d grant(s); ended %d %s session(s)\n", len(changed), closed, what)
-	if len(changed) > 0 {
-		fmt.Fprintln(env.Stdout, "resume with `remohop host resume` (all) or `remohop host resume NAME`")
-	}
+	fmt.Fprintf(env.Stdout, "suspended %d grant(s) and every grant given by an authorizer (RemoHop Teams); ended %d %s session(s)\n", len(changed), closed, what)
+	fmt.Fprintln(env.Stdout, "resume with `remohop host resume` (all, authorizers too) or `remohop host resume NAME`")
 	if serr != nil {
 		return cli.ExitError
 	}
@@ -414,16 +418,23 @@ func runResume(env *cli.Env, args []string) int {
 		env.Errorf("host: %v", err)
 		return cli.ExitError
 	}
+	held := GrantsHeld(dir)
 	changed, err := SuspendGrants(dir, false, args...)
 	if err != nil {
 		env.Errorf("host resume: %v", err)
 		return cli.ExitError
 	}
-	if len(changed) == 0 {
-		fmt.Fprintln(env.Stdout, "no suspended grant to resume")
-		return cli.ExitOK
+	if len(changed) > 0 {
+		fmt.Fprintf(env.Stdout, "resumed %s\n", strings.Join(changed, ", "))
 	}
-	fmt.Fprintf(env.Stdout, "resumed %s\n", strings.Join(changed, ", "))
+	switch {
+	case held && len(args) == 0:
+		fmt.Fprintln(env.Stdout, "lifted the suspension of grants given by authorizers (RemoHop Teams)")
+	case held:
+		fmt.Fprintln(env.Stdout, "grants given by authorizers (RemoHop Teams) stay suspended until `remohop host resume` without names")
+	case len(changed) == 0:
+		fmt.Fprintln(env.Stdout, "no suspended grant to resume")
+	}
 	return cli.ExitOK
 }
 

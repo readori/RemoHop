@@ -83,6 +83,9 @@ func (h *Host) grantOf(name, tokenID string, a *Authorizer, key ed25519.PublicKe
 	if a == nil {
 		return h.grantFor(name, tokenID)
 	}
+	if GrantsHeld(h.dir) {
+		return nil, errHeld(a.Name)
+	}
 	g, _, ok := a.Grant(h, key)
 	if !ok {
 		return nil, fmt.Errorf("access through %s was withdrawn", a.Name)
