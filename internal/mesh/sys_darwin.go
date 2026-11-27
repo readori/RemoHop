@@ -63,7 +63,7 @@ func sysSplitDNS(c *vpn.Changes, _ string, server netip.Addr) (string, bool) {
 			"or use `remohop config set net-dns hosts`", err, Domain, server), false
 	}
 	if c != nil {
-		if err := c.Record("rm", "-f", darwinResolverFile); err != nil {
+		if err := c.RecordRemove(darwinResolverFile); err != nil {
 			return "", false
 		}
 	}
