@@ -202,7 +202,8 @@ PAGES = {
     ),
 }
 
-# Header navigation: (slug, zh, en). Apps and Self-hosting are in the footer.
+# Header navigation: (slug, zh, en). Download is the header's button; Apps,
+# Self-hosting and Support are in the footer.
 NAV = [
     ("features", "功能", "Features"),
     ("how-it-works", "工作原理", "How it works"),
@@ -210,8 +211,6 @@ NAV = [
     ("teams", "团队版", "Teams"),
     ("pricing", "价格", "Pricing"),
     ("docs", "文档", "Docs"),
-    ("download", "下载", "Download"),
-    ("support", "支持", "Support"),
 ]
 
 # Footer columns, by T key of the heading: (slug, zh, en). "#src" is the
@@ -235,13 +234,15 @@ FOOT = [
     ("f_legal", [
         ("privacy", "隐私政策", "Privacy policy"),
         ("terms", "使用条款", "Terms of use"),
+        ("support", "支持与联系", "Support and contact"),
     ]),
 ]
 
 T = {
     "zh": {
         "lang": "zh-CN", "prefix": "", "skip": "跳到正文", "nav": "主导航", "home": "RemoHop 首页",
-        "other": ("English", "en", "/en"), "foot_nav": "页脚",
+        "other": ("English", "en", "/en"), "foot_nav": "页脚", "menu": "菜单", "get": "下载", "f_lang": "语言",
+        "tagline": "给人和 AI 代理用的远程控制，端到端加密，权限由你划定。",
         "f_product": "产品", "f_editions": "版本", "f_legal": "条款", "f_contact": "联系",
         "legal": pick("RemoHop 是独立的开源项目，以 GNU AGPL-3.0 开源，另提供商业授权。",
                       "RemoHop 是独立的开源项目。源码将在各平台应用上架后以 GNU AGPL-3.0 公开，另提供商业授权。")
@@ -251,7 +252,8 @@ T = {
     },
     "en": {
         "lang": "en", "prefix": "/en", "skip": "Skip to content", "nav": "Primary", "home": "RemoHop home",
-        "other": ("中文", "zh-CN", ""), "foot_nav": "Footer",
+        "other": ("中文", "zh-CN", ""), "foot_nav": "Footer", "menu": "Menu", "get": "Download", "f_lang": "Language",
+        "tagline": "Remote control for people and AI agents, end to end encrypted, within limits you set.",
         "f_product": "Product", "f_editions": "Editions", "f_legal": "Legal", "f_contact": "Contact",
         "legal": pick("RemoHop is an independent open-source project, published under the GNU AGPL-3.0, with a commercial license available.",
                       "RemoHop is an independent open-source project. The source will be published under the GNU AGPL-3.0 once the apps are out; a commercial license is available.")
@@ -762,19 +764,38 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
     for key, links in FOOT:
         items = "\n".join(x for x in (foot_link(*l) for l in links) if x)
         foot_cols.append(f'<div>\n<h2>{t[key]}</h2>\n<ul>\n{items}\n</ul>\n</div>')
-    support = next(zh if lang == "zh" else en for s, zh, en in NAV if s == "support")
+    # The language column: this page in each language.
+    here = url(lang, slug) if not status404 else url(lang, "")
+    langs_list = [(here, t["lang"], "中文" if lang == "zh" else "English", True), (other_href, olang, oname, False)]
+    if lang == "en":
+        langs_list.reverse()
+    current = ' aria-current="page"'
+    lang_items = "\n".join(
+        f'<li><a href="{h}" lang="{lg}" hreflang="{lg}"{current if cur else ""}>{n}</a></li>' for h, lg, n, cur in langs_list)
+    nav_items = chr(10).join(nav)
+    get_cur = ' aria-current="page"' if slug == "download" else ""
+    menu_icon = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg>')
 
     body_html = f"""<body>
 <a class="skip" href="#main">{t["skip"]}</a>
 <header class="site-head">
-<div class="wrap">
+<div class="bar">
 <a class="brand" href="{url(lang, "")}" aria-label="{t["home"]}"{home_cur}>{LOGO}<span>RemoHop</span></a>
 <nav class="site-nav" aria-label="{t["nav"]}">
 <ul>
-{chr(10).join(nav)}
+{nav_items}
 </ul>
 </nav>
 <p class="lang mt0"><a href="{other_href}" lang="{olang}" hreflang="{olang}">{oname}</a></p>
+<a class="btn ink sm get" href="{url(lang, "download")}"{get_cur}>{t["get"]}</a>
+<details class="menu">
+<summary>{menu_icon}<span class="vh">{t["menu"]}</span></summary>
+<nav aria-label="{t["nav"]}">
+<ul>
+{nav_items}
+</ul>
+</nav>
+</details>
 </div>
 </header>
 <main id="main" tabindex="-1"{' class="home"' if is_home and not status404 else ''}>
@@ -782,14 +803,23 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
 </main>
 <footer class="site-foot">
 <div class="wrap">
+<div class="foot-brand">
+<a class="brand" href="{url(lang, "")}" aria-label="{t["home"]}">{LOGO}<span>RemoHop</span></a>
+<p>{t["tagline"]}</p>
+</div>
 <nav class="cols" aria-label="{t["foot_nav"]}">
 {chr(10).join(foot_cols)}
 <div>
 <h2>{t["f_contact"]}</h2>
 <ul>
-<li><a href="{url(lang, "support")}">{support}</a></li>
 <li><a href="mailto:{EMAIL}">{EMAIL}</a></li>
 <li><a href="{TELEGRAM}" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+<div>
+<h2>{t["f_lang"]}</h2>
+<ul>
+{lang_items}
 </ul>
 </div>
 </nav>

@@ -1,96 +1,113 @@
+<div class="page-head">
 <p class="kicker">Commercial edition · self-hosted</p>
 <h1>RemoHop Teams: one policy for the people, devices and agents of a team</h1>
-<p class="lede">Teams adds groups, policies, single sign-on, admin approvals and central audit to RemoHop. It runs on your own servers, inside your own rendezvous server, and the team's membership and policy are a log signed by your admins' keys, which the server can store but cannot forge.</p>
+<p class="lede">Groups, policies, single sign-on, admin approvals and central audit, on top of RemoHop. It runs on your own servers, inside your own rendezvous server, and the team's membership and policy are a log signed by your admins' keys, which the server can store but cannot forge.</p>
 <div class="actions">
-<a class="btn primary" href="{{L:pricing}}">See pricing</a>
+<a class="btn ink" href="{{L:pricing}}">See pricing</a>
 <a class="btn" href="mailto:{{EMAIL}}?subject=RemoHop%20Teams">Ask about Teams</a>
 </div>
-<p class="small">Free for up to {{P:free_users}} users. Then ${{P:user_month}} per user per month, billed yearly. The Teams code is not open source; it is sold under a commercial license and built on the open-source RemoHop.</p>
+<p class="small">Free for up to {{P:free_users}} users, then ${{P:user_month}} per user per month, billed yearly. The Teams code is not open source; it is sold under a commercial license and built on the open-source RemoHop.</p>
+</div>
 
+<section class="section" aria-labelledby="policy">
+<div class="row">
+<div class="row-text">
 <h2 id="policy">Who may reach what, in one place</h2>
-<p>People and their devices go into groups. A policy says which group of people may reach which group of devices, with which features, and which actions need approval. On each host the rule becomes a grant, which that host enforces like any other <a href="{{L:}}#agents">grant</a>.</p>
-<figure class="policy">
-<figcaption class="kicker">An example policy</figcaption>
+<p>People and their devices go into groups. A policy says which group of people may reach which group of devices, with which features, and which actions need approval. On each host the rule becomes a <a href="{{L:}}#agents">grant</a>, which that host enforces itself.</p>
+<p>AI agents are covered by the same policies, approvals and audit as people. They count as devices, not users.</p>
+</div>
+<figure class="demo policy">
+<figcaption class="demo-cap">An example policy</figcaption>
 <div class="pol-head" aria-hidden="true"><span>People group</span><span>may reach</span><span>with</span></div>
 <ul class="pol" role="list">
 <li class="pol-row"><span><b class="who">Support</b></span><span><span class="arrow">may reach</span> <b class="what">Office PCs</b></span><span><span class="arrow">with</span> <span class="pill">desktop</span><span class="pill">files</span></span></li>
 <li class="pol-row"><span><b class="who">Developers</b></span><span><span class="arrow">may reach</span> <b class="what">Build servers</b></span><span><span class="arrow">with</span> <span class="pill">shell</span><span class="pill">files</span><span class="pill">port forwarding</span></span></li>
 <li class="pol-row"><span><b class="who">Contractors</b></span><span><span class="arrow">may reach</span> <b class="what">Staging</b></span><span><span class="arrow">with</span> <span class="pill">shell</span><span class="pill warn">each command needs approval</span></span></li>
 </ul>
-<p class="down">Every host in a device group gets its rule as a grant and enforces it itself.</p>
+<p class="demo-note">Every host in a device group gets its rule as a grant and enforces it itself.</p>
 </figure>
+</div>
+</section>
 
+<section class="section" aria-labelledby="features">
+<div class="section-head">
 <h2 id="features">What Teams adds</h2>
-<div class="feat-grid">
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><h3>People, devices and groups</h3></div>
-<p>A team of people and their devices, groups of people and groups of devices, and a policy that connects them. Changes reach the hosts as new grants.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h4M7 12h7"/></svg><h3>Admin console and CLI</h3></div>
-<p>The console runs on the admin's own machine and talks to the team server. There is an admin command line too, for scripts and terminals.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></svg><h3>Single sign-on and provisioning</h3></div>
-<p>People sign in with OIDC or SAML 2.0 to enrol a device. SCIM 2.0 provisioning brings the people in from your identity provider.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><h3>Approvals by admins</h3></div>
-<p>When a rule says an action needs approval, a team admin can answer it in the console or the CLI, as well as the host's owner. Each decision is signed with the admin's key, and the host checks the signature.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><h3>Central audit and recordings</h3></div>
-<p>Hosts sign their audit records into a hash chain and ship them, with session recordings, to the team server. How long they are kept is set on the server.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="8.5" y="14" width="7" height="7" rx="1.5"/><path d="M10 7.5h4M6.5 11v3.5h2M17.5 11v3.5h-2"/></svg><h3>A log the server cannot forge</h3></div>
-<p>Membership and policy are an append-only log of entries signed by admin keys. Hosts verify it themselves; checkpoints and join codes let a new host start from a signed snapshot.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg><h3>Inside your rendezvous server</h3></div>
-<p>The team server runs inside your own <code>remohop signal</code>, so there is nothing else to host. It can meter relay traffic per team.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>Agents under the same rules</h3></div>
-<p>AI agents are covered by the same policies, approvals and audit as people. They count as devices, not users.</p>
-</article>
+<p class="lead">Everything an admin needs to run RemoHop for a team, with the team server kept out of the trust.</p>
 </div>
-
-<h2 id="trust">The log is the root of trust</h2>
-<p>The team server is useful but not trusted. Every change to who may do what is an entry in the team log, signed by an admin key the log allows to make it. The server keeps the log and passes it on; hosts check every entry before they act on it.</p>
-<ol class="chain">
-<li><span class="kicker">Admins</span><b>Sign each change</b><span>Adding a person, a device or a rule is an entry signed with an admin's key.</span></li>
-<li><span class="kicker">Team log</span><b>Append-only</b><span>Entries are only ever added. Checkpoints are signed snapshots of the log.</span></li>
-<li class="relay-only"><span class="kicker">Team server</span><b>Stores and relays</b><span>It runs inside <code>remohop signal</code>. It cannot forge an entry or a decision.</span></li>
-<li><span class="kicker">Hosts</span><b>Verify, then enforce</b><span>Each host checks the log itself and turns its rules into grants.</span></li>
-</ol>
-
-<h2 id="facts">Plain facts</h2>
-<div class="facts">
+<div class="bento">
+<article class="tile wide t-slate">
+<svg class="art" viewBox="0 0 120 120" aria-hidden="true"><rect class="f2" x="22" y="10" width="76" height="22" rx="7"/><rect class="f2" x="22" y="40" width="76" height="22" rx="7"/><rect class="f2" x="22" y="70" width="76" height="22" rx="7"/><path class="s" d="M32 21h28M32 51h36M32 81h22"/><circle class="f" cx="86" cy="21" r="5"/><circle class="f" cx="86" cy="51" r="5"/><circle class="f" cx="86" cy="81" r="5"/><path class="s thin" d="M60 32v8M60 62v8"/><path class="s" d="M44 104h32M52 112h16" /></svg>
 <div>
-<h3>What you get</h3>
-<ul class="checks">
-<li><span>Software you run yourself, on your own servers.</span></li>
-<li><span>An offline license file with an end date. Your server never calls us to check it.</span></li>
-<li><span>Email support with a Teams license.</span></li>
-<li><span>The open-source RemoHop underneath: the same encryption, grants and host-side checks.</span></li>
-</ul>
-</div>
-<div>
-<h3>What it is not</h3>
+<p class="k">The team log</p>
+<h3>A log the server cannot forge</h3>
 <ul>
-<li>There is no hosted version. Teams runs only on your servers.</li>
-<li>Support is by email, not around the clock.</li>
-<li>RemoHop has had no independent security audit. Enterprise customers get help with their own security review.</li>
-<li>The Teams code is not public, so this page describes it instead of linking to it.</li>
+<li>Every change to who may do what is an entry signed by an admin key the log allows to make it.</li>
+<li>The log is append-only. The team server stores it and passes it on, but cannot forge an entry or a decision.</li>
+<li>Hosts verify it themselves before they act on it; checkpoints and join codes let a new host start from a signed snapshot.</li>
 </ul>
 </div>
+</article>
+<article class="tile t-blue">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="f2" cx="30" cy="40" r="22"/><circle class="f2" cx="74" cy="64" r="22"/><circle class="f" cx="24" cy="36" r="5"/><circle class="f" cx="36" cy="44" r="5"/><circle class="f" cx="28" cy="50" r="4"/><rect class="s" x="64" y="56" width="10" height="8" rx="1.5"/><rect class="s" x="76" y="64" width="10" height="8" rx="1.5"/><path class="s thin" d="M46 50l14 6"/></svg>
+<p class="k">Groups</p>
+<h3>People, devices and groups</h3>
+<p>A team of people and their devices, groups of each, and a policy that connects them.</p>
+</article>
+<article class="tile t-green">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="s" x="8" y="18" width="88" height="62" rx="9"/><path class="s thin" d="M30 18v62"/><rect class="f2" x="14" y="26" width="10" height="6" rx="2"/><rect class="f2" x="14" y="38" width="10" height="6" rx="2"/><rect class="f2" x="38" y="28" width="48" height="14" rx="3"/><rect class="f2" x="38" y="48" width="48" height="24" rx="3"/><path class="s" d="M40 92h24"/></svg>
+<p class="k">Admin</p>
+<h3>A console and a command line</h3>
+<p>The console runs on the admin's own machine and talks to the team server; the admin CLI does too.</p>
+</article>
+<article class="tile t-violet">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="s" cx="32" cy="52" r="14"/><circle class="f2" cx="32" cy="52" r="7"/><path class="s" d="M46 52h40M74 52v12M84 52v8"/><path class="s thin" d="M62 22a30 30 0 0 1 26 16M42 82a30 30 0 0 1-26-16"/><path class="f" d="M88 38l-8-2 6-6zM16 66l8 2-6 6z"/></svg>
+<p class="k">Identity</p>
+<h3>Single sign-on and provisioning</h3>
+<p>Device enrolment signs in with OIDC or SAML 2.0; SCIM 2.0 brings people in from your identity provider.</p>
+</article>
+<article class="tile t-amber">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><path class="f2" d="M52 10l34 12v26c0 22-15 38-34 44-19-6-34-22-34-44V22z"/><path class="s" d="M52 10l34 12v26c0 22-15 38-34 44-19-6-34-22-34-44V22z"/><path class="s" d="M36 52l11 11 21-22"/></svg>
+<p class="k">Approvals</p>
+<h3>Admins can answer, with a signature</h3>
+<p>Actions a rule says need approval can be answered by a team admin, as well as by the host's owner; the host checks the signed decision.</p>
+</article>
+<article class="tile t-teal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="4" y="24" width="26" height="56" rx="6"/><rect class="f2" x="39" y="24" width="26" height="56" rx="6"/><rect class="s" x="74" y="24" width="26" height="56" rx="6"/><path class="s" d="M30 52h9M65 52h9"/><path class="s thin" d="M10 36h14M10 44h10M45 36h14M45 44h10M80 36h14M80 44h10"/><circle class="f" cx="17" cy="68" r="4"/><circle class="f" cx="52" cy="68" r="4"/><circle class="f" cx="87" cy="68" r="4"/></svg>
+<p class="k">Audit</p>
+<h3>Central audit and recordings</h3>
+<p>Hosts sign audit records into a hash chain and ship them, with session recordings, to the team server; retention is set there.</p>
+</article>
+<article class="tile t-rose">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="16" y="14" width="72" height="22" rx="6"/><rect class="f2" x="16" y="42" width="72" height="22" rx="6"/><rect class="s" x="16" y="70" width="72" height="22" rx="6"/><circle class="f" cx="28" cy="25" r="3"/><circle class="f" cx="28" cy="53" r="3"/><circle class="f" cx="28" cy="81" r="3"/><path class="s thin" d="M40 25h36M40 53h36M40 81h36"/></svg>
+<p class="k">Server</p>
+<h3>Inside your rendezvous server</h3>
+<p>The team server runs inside your own <code>remohop signal</code>, and can meter relay traffic per team.</p>
+</article>
 </div>
+</section>
 
-<h2 id="price">Pricing</h2>
-<div class="tiers mini">
-<article class="tier"><h3>Teams Free</h3><p class="price"><b>Free</b></p><p>All team features for up to {{P:free_users}} users. No license file needed.</p></article>
-<article class="tier featured"><h3>Teams</h3><p class="price"><b>${{P:user_month}}</b> <span>per user per month, billed yearly</span></p><p>{{P:devices_per_user}} devices per user included, email support, an offline license file.</p></article>
-<article class="tier"><h3>Enterprise</h3><p class="price"><b>Contact us</b></p><p>More than {{P:enterprise_users}} users, invoices and purchase orders, custom terms, help with security reviews.</p></article>
+<section class="section" aria-labelledby="facts">
+<div class="section-head">
+<h2 id="facts">Plain facts</h2>
 </div>
-<p class="links"><a href="{{L:pricing}}">Compare the plans</a> <a href="{{L:pricing}}#faq">Questions about licenses</a></p>
+<div class="everyday">
+<div><h3>Your servers</h3><p>Software you run yourself. There is no hosted version.</p></div>
+<div><h3>An offline license</h3><p>A license file with an end date. Your server never calls us to check it.</p></div>
+<div><h3>Email support</h3><p>With a Teams license, by email; not around the clock.</p></div>
+<div><h3>RemoHop underneath</h3><p>The same encryption, grants and checks on each host as the open-source RemoHop.</p></div>
+<div><h3>No audit yet</h3><p>RemoHop has had no independent security audit. Enterprise customers get help with their own security review.</p></div>
+<div><h3>Private code</h3><p>The Teams code is not public, so this page describes it instead of linking to it.</p></div>
+</div>
+</section>
+
+<section class="section" aria-labelledby="price">
+<div class="section-head">
+<h2 id="price">Pricing</h2>
+</div>
+<div class="plans">
+<article class="plan"><h3>Teams Free</h3><p class="price"><b>Free</b></p><p>All team features for up to {{P:free_users}} users and {{P:free_devices}} devices. No license file needed.</p></article>
+<article class="plan featured"><h3>Teams</h3><p class="price"><b>${{P:user_month}}</b> <span>per user per month, billed yearly</span></p><p>{{P:devices_per_user}} devices per user included, email support, an offline license file.</p></article>
+<article class="plan"><h3>Enterprise</h3><p class="price"><b>Contact us</b></p><p>More than {{P:enterprise_users}} users, invoices and purchase orders, custom terms, help with security reviews.</p></article>
+</div>
+<p class="links more-links"><a href="{{L:pricing}}">Compare the plans</a> <a href="{{L:pricing}}#faq">Questions about licenses</a></p>
+</section>

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>支持与联系 | RemoHop</title>
 <meta name="description" content="通过 support@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。">
-<link rel="stylesheet" href="/assets/site.css?v=fd22fdc62d">
+<link rel="stylesheet" href="/assets/site.css?v=b7ca89e676">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -31,7 +31,7 @@
 <body>
 <a class="skip" href="#main">跳到正文</a>
 <header class="site-head">
-<div class="wrap">
+<div class="bar">
 <a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
 <nav class="site-nav" aria-label="主导航">
 <ul>
@@ -41,11 +41,23 @@
 <li><a href="/teams/">团队版</a></li>
 <li><a href="/pricing/">价格</a></li>
 <li><a href="/docs/">文档</a></li>
-<li><a href="/download/">下载</a></li>
-<li><a href="/support/" aria-current="page">支持</a></li>
 </ul>
 </nav>
 <p class="lang mt0"><a href="/en/support/" lang="en" hreflang="en">English</a></p>
+<a class="btn ink sm get" href="/download/">下载</a>
+<details class="menu">
+<summary><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="vh">菜单</span></summary>
+<nav aria-label="主导航">
+<ul>
+<li><a href="/features/">功能</a></li>
+<li><a href="/how-it-works/">工作原理</a></li>
+<li><a href="/security/">安全</a></li>
+<li><a href="/teams/">团队版</a></li>
+<li><a href="/pricing/">价格</a></li>
+<li><a href="/docs/">文档</a></li>
+</ul>
+</nav>
+</details>
 </div>
 </header>
 <main id="main" tabindex="-1">
@@ -104,6 +116,10 @@
 </main>
 <footer class="site-foot">
 <div class="wrap">
+<div class="foot-brand">
+<a class="brand" href="/" aria-label="RemoHop 首页"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<p>给人和 AI 代理用的远程控制，端到端加密，权限由你划定。</p>
+</div>
 <nav class="cols" aria-label="页脚">
 <div>
 <h2>产品</h2>
@@ -131,14 +147,21 @@
 <ul>
 <li><a href="/privacy/">隐私政策</a></li>
 <li><a href="/terms/">使用条款</a></li>
+<li><a href="/support/">支持与联系</a></li>
 </ul>
 </div>
 <div>
 <h2>联系</h2>
 <ul>
-<li><a href="/support/">支持</a></li>
 <li><a href="mailto:info@remohop.com">info@remohop.com</a></li>
 <li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+<div>
+<h2>语言</h2>
+<ul>
+<li><a href="/support/" lang="zh-CN" hreflang="zh-CN" aria-current="page">中文</a></li>
+<li><a href="/en/support/" lang="en" hreflang="en">English</a></li>
 </ul>
 </div>
 </nav>

@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Pricing | RemoHop</title>
 <meta name="description" content="RemoHop pricing: the open-source edition is free for any use; the team edition is free for up to 5 users, then $5 per user per month billed yearly, self-hosted with an offline license file; more than 500 users, contact us.">
-<link rel="stylesheet" href="/assets/site.css?v=fd22fdc62d">
+<link rel="stylesheet" href="/assets/site.css?v=b7ca89e676">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -31,7 +31,7 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head">
-<div class="wrap">
+<div class="bar">
 <a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
 <nav class="site-nav" aria-label="Primary">
 <ul>
@@ -41,63 +41,85 @@
 <li><a href="/en/teams/">Teams</a></li>
 <li><a href="/en/pricing/" aria-current="page">Pricing</a></li>
 <li><a href="/en/docs/">Docs</a></li>
-<li><a href="/en/download/">Download</a></li>
-<li><a href="/en/support/">Support</a></li>
 </ul>
 </nav>
 <p class="lang mt0"><a href="/pricing/" lang="zh-CN" hreflang="zh-CN">中文</a></p>
+<a class="btn ink sm get" href="/en/download/">Download</a>
+<details class="menu">
+<summary><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span class="vh">Menu</span></summary>
+<nav aria-label="Primary">
+<ul>
+<li><a href="/en/features/">Features</a></li>
+<li><a href="/en/how-it-works/">How it works</a></li>
+<li><a href="/en/security/">Security</a></li>
+<li><a href="/en/teams/">Teams</a></li>
+<li><a href="/en/pricing/" aria-current="page">Pricing</a></li>
+<li><a href="/en/docs/">Docs</a></li>
+</ul>
+</nav>
+</details>
 </div>
 </header>
 <main id="main" tabindex="-1">
 <div class="wrap prose">
+<div class="page-head center">
 <p class="kicker">Pricing</p>
 <h1>Free for any use, and a listed price for teams</h1>
-<p class="lede">The open-source edition is free, at home and at work, and never checks how you use it. RemoHop Teams is a self-hosted license, priced per user, with the price on this page.</p>
+<p class="lede">The open-source edition is free, at home and at work, and never checks how you use it. RemoHop Teams is a self-hosted license, priced per user.</p>
+</div>
 
-<div class="tiers full">
-<article class="tier">
+<section class="section first" aria-labelledby="teams-plan">
+<div class="plan-feature">
+<div>
+<p class="tag-top">Self-hosted license</p>
+<h2 id="teams-plan">Teams</h2>
+<p class="lead">All team features on your own servers, with an offline license file.</p>
+<p class="price"><b>$5</b> <span>per user per month, billed yearly</span></p>
+<p class="note-s">$60 per user per year. Online checkout is coming; until then, the button opens an email to us.</p>
+<div class="actions">
+<a class="btn ink" href="mailto:info@remohop.com?subject=RemoHop%20Teams%20license">Get a license</a>
+<a class="btn" href="/en/teams/">What Teams includes</a>
+</div>
+</div>
+<ul class="checks">
+<li>All team features</li>
+<li>10 devices per user included; AI agents count as devices, not users</li>
+<li>Email support</li>
+<li>An offline license file: your server never calls us to check it</li>
+<li>No renewal without your consent</li>
+</ul>
+</div>
+<div class="plans">
+<article class="plan">
 <h2>Community</h2>
 <p class="price"><b>Free</b> <span>AGPL-3.0</span></p>
 <ul class="checks">
-<li><span>Everything in the open-source RemoHop: remote desktop, shell, files, forwarding, mesh network, quick support, phone apps</span></li>
-<li><span>The MCP server and grants for AI agents</span></li>
-<li><span>Any use, commercial use included</span></li>
-<li><span>Self-hosted, or the official rendezvous server</span></li>
+<li>Everything in the open-source RemoHop: remote desktop, shell, files, forwarding, mesh network, quick support, phone apps</li>
+<li>The MCP server and grants for AI agents</li>
+<li>Any use, commercial use included</li>
+<li>Self-hosted, or the official rendezvous server</li>
 </ul>
-<a class="btn" href="/en/download/">Download</a>
+<a class="btn ink" href="/en/download/">Download</a>
 </article>
-<article class="tier">
+<article class="plan">
 <h2>Teams Free</h2>
 <p class="price"><b>Free</b> <span>up to 5 users</span></p>
 <ul class="checks">
-<li><span>All team features</span></li>
-<li><span>Self-hosted</span></li>
-<li><span>Up to 50 devices</span></li>
-<li><span>No license file needed</span></li>
+<li>All team features</li>
+<li>Self-hosted</li>
+<li>Up to 50 devices</li>
+<li>No license file needed</li>
 </ul>
 <a class="btn" href="/en/teams/">What Teams includes</a>
 </article>
-<article class="tier featured">
-<p class="tag-top">Self-hosted license</p>
-<h2>Teams</h2>
-<p class="price"><b>$5</b> <span>per user per month, billed yearly ($60 per user per year)</span></p>
-<ul class="checks">
-<li><span>All team features</span></li>
-<li><span>10 devices per user included; AI agents count as devices, not users</span></li>
-<li><span>Email support</span></li>
-<li><span>An offline license file: your server never calls us to check it</span></li>
-</ul>
-<a class="btn primary" href="mailto:info@remohop.com?subject=RemoHop%20Teams%20license">Get a license</a>
-<p class="sub">Online checkout is coming. Until then, this button opens an email to us.</p>
-</article>
-<article class="tier">
+<article class="plan">
 <h2>Enterprise</h2>
 <p class="price"><b>Contact us</b></p>
 <ul class="checks">
-<li><span>More than 500 users</span></li>
-<li><span>Invoicing and purchase orders</span></li>
-<li><span>Custom terms</span></li>
-<li><span>Help with security reviews</span></li>
+<li>More than 500 users</li>
+<li>Invoicing and purchase orders</li>
+<li>Custom terms</li>
+<li>Help with security reviews</li>
 </ul>
 <a class="btn" href="mailto:info@remohop.com?subject=RemoHop%20Enterprise">Contact us</a>
 </article>
@@ -107,8 +129,10 @@
 <li>No renewal without your consent</li>
 <li>The license file never calls home</li>
 </ul>
+</section>
 
-<h2 id="compare">Compare the plans</h2>
+<section class="section" aria-labelledby="compare">
+<div class="section-head"><h2 id="compare">Compare the plans</h2></div>
 <div class="table-wrap compare" tabindex="0" role="region" aria-labelledby="compare">
 <table>
 <thead><tr><th scope="col"><span class="vh">Feature</span></th><th scope="col">Community</th><th scope="col">Teams Free</th><th scope="col">Teams</th><th scope="col">Enterprise</th></tr></thead>
@@ -131,7 +155,9 @@
 </tbody>
 </table>
 </div>
+</section>
 
+<section class="section faq-wrap" aria-labelledby="faq">
 <h2 id="faq">Questions</h2>
 <div class="faq">
 <details>
@@ -163,10 +189,15 @@
 <p>Online checkout is coming. Until then, write to <a href="mailto:info@remohop.com?subject=RemoHop%20Teams%20license">info@remohop.com</a>. Enterprise customers can pay by invoice or purchase order.</p>
 </details>
 </div>
+</section>
 </div>
 </main>
 <footer class="site-foot">
 <div class="wrap">
+<div class="foot-brand">
+<a class="brand" href="/en/" aria-label="RemoHop home"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="13" fill="#2546d8"/><path d="M13 31V17H34M30 47H51V33M24 32H42M35 25L42 32L35 39" fill="none" stroke="#f7f8ff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RemoHop</span></a>
+<p>Remote control for people and AI agents, end to end encrypted, within limits you set.</p>
+</div>
 <nav class="cols" aria-label="Footer">
 <div>
 <h2>Product</h2>
@@ -194,14 +225,21 @@
 <ul>
 <li><a href="/en/privacy/">Privacy policy</a></li>
 <li><a href="/en/terms/">Terms of use</a></li>
+<li><a href="/en/support/">Support and contact</a></li>
 </ul>
 </div>
 <div>
 <h2>Contact</h2>
 <ul>
-<li><a href="/en/support/">Support</a></li>
 <li><a href="mailto:info@remohop.com">info@remohop.com</a></li>
 <li><a href="https://t.me/remohop" rel="noopener">Telegram</a></li>
+</ul>
+</div>
+<div>
+<h2>Language</h2>
+<ul>
+<li><a href="/pricing/" lang="zh-CN" hreflang="zh-CN">中文</a></li>
+<li><a href="/en/pricing/" lang="en" hreflang="en" aria-current="page">English</a></li>
 </ul>
 </div>
 </nav>

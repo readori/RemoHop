@@ -1,52 +1,62 @@
+<div class="page-head center">
 <p class="kicker">价格</p>
 <h1>任何用途都免费，团队版明码标价</h1>
-<p class="lede">开源版不收费，家里用、公司用都一样，也从不检查你怎么用。RemoHop 团队版是自托管的许可证，按用户计价，价格就写在这一页上。</p>
+<p class="lede">开源版不收费，家里用、公司用都一样，也从不检查你怎么用。RemoHop 团队版是自托管的许可证，按用户计价。</p>
+</div>
 
-<div class="tiers full">
-<article class="tier">
+<section class="section first" aria-labelledby="teams-plan">
+<div class="plan-feature">
+<div>
+<p class="tag-top">自托管许可证</p>
+<h2 id="teams-plan">团队版</h2>
+<p class="lead">在你自己的服务器上使用全部团队功能，附离线许可证文件。</p>
+<p class="price"><b>${{P:user_month}}</b> <span>每用户每月，按年付费</span></p>
+<p class="note-s">每用户每年 {{P:user_year}} 美元。在线购买即将开通；在那之前，按钮会打开一封写给我们的邮件。</p>
+<div class="actions">
+<!-- TODO(owner): point this button at the Paddle checkout once it is live, and drop the note above. -->
+<a class="btn ink" href="mailto:{{EMAIL}}?subject=RemoHop%20Teams%20license">获取授权</a>
+<a class="btn" href="{{L:teams}}">团队版包括什么</a>
+</div>
+</div>
+<ul class="checks">
+<li>全部团队功能</li>
+<li>每个用户含 {{P:devices_per_user}} 台设备；AI 代理算设备，不算用户</li>
+<li>邮件支持</li>
+<li>离线许可证文件：你的服务器从不联系我们来验证它</li>
+<li>未经你同意不会续费</li>
+</ul>
+</div>
+<div class="plans">
+<article class="plan">
 <h2>社区版</h2>
 <p class="price"><b>免费</b> <span>AGPL-3.0</span></p>
 <ul class="checks">
-<li><span>开源 RemoHop 的全部功能：远程桌面、终端、文件、端口转发、虚拟组网、快速协助、手机应用</span></li>
-<li><span>MCP 服务器和给 AI 代理的授权</span></li>
-<li><span>任何用途，包括商用</span></li>
-<li><span>自建服务器，或使用官方汇合服务器</span></li>
+<li>开源 RemoHop 的全部功能：远程桌面、终端、文件、端口转发、虚拟组网、快速协助、手机应用</li>
+<li>MCP 服务器和给 AI 代理的授权</li>
+<li>任何用途，包括商用</li>
+<li>自建服务器，或使用官方汇合服务器</li>
 </ul>
-<a class="btn" href="{{L:download}}">下载</a>
+<a class="btn ink" href="{{L:download}}">下载</a>
 </article>
-<article class="tier">
+<article class="plan">
 <h2>团队版（免费）</h2>
 <p class="price"><b>免费</b> <span>{{P:free_users}} 个用户以内</span></p>
 <ul class="checks">
-<li><span>全部团队功能</span></li>
-<li><span>自托管</span></li>
-<li><span>最多 {{P:free_devices}} 台设备</span></li>
-<li><span>不需要许可证文件</span></li>
+<li>全部团队功能</li>
+<li>自托管</li>
+<li>最多 {{P:free_devices}} 台设备</li>
+<li>不需要许可证文件</li>
 </ul>
 <a class="btn" href="{{L:teams}}">团队版包括什么</a>
 </article>
-<article class="tier featured">
-<p class="tag-top">自托管许可证</p>
-<h2>团队版</h2>
-<p class="price"><b>${{P:user_month}}</b> <span>每用户每月，按年付费（每用户每年 {{P:user_year}} 美元）</span></p>
-<ul class="checks">
-<li><span>全部团队功能</span></li>
-<li><span>每个用户含 {{P:devices_per_user}} 台设备；AI 代理算设备，不算用户</span></li>
-<li><span>邮件支持</span></li>
-<li><span>离线许可证文件：你的服务器从不联系我们来验证它</span></li>
-</ul>
-<!-- TODO(owner): point this button at the Paddle checkout once it is live, and drop the note under it. -->
-<a class="btn primary" href="mailto:{{EMAIL}}?subject=RemoHop%20Teams%20license">获取授权</a>
-<p class="sub">在线购买即将开通。在那之前，这个按钮会打开一封写给我们的邮件。</p>
-</article>
-<article class="tier">
+<article class="plan">
 <h2>企业版</h2>
 <p class="price"><b>联系我们</b></p>
 <ul class="checks">
-<li><span>超过 {{P:enterprise_users}} 个用户</span></li>
-<li><span>发票和采购单</span></li>
-<li><span>定制条款</span></li>
-<li><span>配合安全评审</span></li>
+<li>超过 {{P:enterprise_users}} 个用户</li>
+<li>发票和采购单</li>
+<li>定制条款</li>
+<li>配合安全评审</li>
 </ul>
 <a class="btn" href="mailto:{{EMAIL}}?subject=RemoHop%20Enterprise">联系我们</a>
 </article>
@@ -56,8 +66,10 @@
 <li>未经你同意不会续费</li>
 <li>许可证文件从不联网验证</li>
 </ul>
+</section>
 
-<h2 id="compare">比较各个版本</h2>
+<section class="section" aria-labelledby="compare">
+<div class="section-head"><h2 id="compare">比较各个版本</h2></div>
 <div class="table-wrap compare" tabindex="0" role="region" aria-labelledby="compare">
 <table>
 <thead><tr><th scope="col"><span class="vh">功能</span></th><th scope="col">社区版</th><th scope="col">团队版（免费）</th><th scope="col">团队版</th><th scope="col">企业版</th></tr></thead>
@@ -80,7 +92,9 @@
 </tbody>
 </table>
 </div>
+</section>
 
+<section class="section faq-wrap" aria-labelledby="faq">
 <h2 id="faq">常见问题</h2>
 <div class="faq">
 <details>
@@ -112,3 +126,4 @@
 <p>在线购买即将开通。在那之前，请写信到 <a href="mailto:{{EMAIL}}?subject=RemoHop%20Teams%20license">{{EMAIL}}</a>。企业版客户可以用发票或采购单付款。</p>
 </details>
 </div>
+</section>

@@ -1,290 +1,260 @@
-<section class="hero-x" aria-labelledby="hero-h">
-<div class="hero-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="grid"></span></div>
-<div class="wrap home-hero">
-<div class="hero-text">
-<p class="h-pill"><a href="{{L:teams}}"><span class="h-pill-tag">新</span>RemoHop 团队版：人和代理用同一套策略</a></p>
-<h1 id="hero-h"><span>让 AI 代理</span> <span>操作你的电脑</span> <span class="glow-text">权限由你划定</span></h1>
-<p class="lede">RemoHop 内置 MCP 服务器，提供 29 个工具，Claude Code、Cursor 等代理可以在另一台机器上执行命令、传文件、看屏幕和操作鼠标键盘。那台机器上的授权（grant）决定它能用哪些命令和目录、能用多久、每一步要不要你批准、要不要录制。</p>
+<section class="hero wrap" aria-labelledby="hero-h">
+<h1 id="hero-h"><span><span class="nb">让 AI 代理</span><span class="nb">操作你的电脑，</span></span> <span>权限由你划定。</span></h1>
+<p class="sub">RemoHop 内置 MCP 服务器，Claude Code、Cursor 等代理可以在另一台机器上干活。那台机器上的授权决定它能用哪些命令和目录、能用多久、每一步要不要你批准。</p>
+<ul class="fact-row">
+<li><!--src-->开源（AGPL-3.0）<!--/src--><!--nosrc-->源码将以 AGPL-3.0 公开<!--/nosrc--></li><li>任何用途都免费</li><li>Windows、macOS、Linux、iOS、Android</li><li>不用注册账号</li>
+</ul>
 <div class="actions">
-<a class="btn primary glow" href="{{L:download}}">免费下载</a>
-<a class="btn ghost" href="{{L:docs/ai-agents}}">把一台机器交给代理</a>
+<a class="btn ink" href="{{L:download}}">免费下载</a>
+<a class="btn" href="#agents">看看授权怎么用</a>
 </div>
-<p class="meta"><!--src-->开源（AGPL-3.0）· 任何用途都免费 · 不用注册账号 · <a class="nobr" href="{{REPO}}">源码在 GitHub</a><!--/src--><!--nosrc-->任何用途都免费 · 不用注册账号 · 源码将在各平台应用上架后以 AGPL-3.0 公开<!--/nosrc--></p>
+<p class="alt-link"><a href="{{L:teams}}">新：RemoHop 团队版，整个团队用同一套策略</a></p>
+<figure class="window reveal">
+<div class="window-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 66rem) 62rem, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 66rem) 62rem, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" decoding="async" alt="浏览器客户端里的远程桌面：远程 Linux 机器的屏幕上开着两个终端窗口；顶部显示被控机名称和连接路径 direct。">
+</picture>
+</figure>
+<div class="strip reveal">
+<p><b>可以配合</b> <span>任何能启动 stdio 服务器的 MCP 客户端</span></p>
+<ul><li>Claude Code</li><li>Claude Desktop</li><li>Cursor</li><li>VS Code</li></ul>
 </div>
-<div class="stage agent-stage">
-<figure class="term-win">
-<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>在代理要使用的机器上</figcaption>
-<pre class="term"><code><span class="p">$ </span>remohop host grant claude-session --for 2h \
+<p class="caption">浏览器客户端的原样截图，直连一台 Linux 被控机。</p>
+</section>
+
+<section class="section wrap" id="agents" aria-labelledby="agents-h">
+<div class="section-head">
+<h2 id="agents-h">有边界的 AI 代理</h2>
+<p class="lead">授权是一份带限制的凭据，在代理要操作的那台机器上签发。那台机器在每条命令、每次文件操作时检查它，代理那边怎么做都扩大不了权限。</p>
+</div>
+
+<div class="row reveal">
+<div class="row-text">
+<h3>授权允许什么，代理就只能做什么</h3>
+<p>写明功能、命令、目录和时限。没列出的一律拒绝，包括给自己创建一个比授权活得更久的配对。</p>
+<p class="keys" aria-label="授权的参数"><kbd>--allow</kbd> <kbd>--cmd</kbd> <kbd>--for</kbd> <kbd>--approve</kbd> <kbd>--record</kbd></p>
+</div>
+<figure class="demo">
+<figcaption class="demo-cap">在代理要使用的机器上</figcaption>
+<pre class="soft-code first"><code><span class="p">$ </span>remohop host grant claude-session --for 2h \
     --allow files:read:~/project,screenshot \
-    --cmd "go test" --approve first --record
-<span class="ok">granted claude-session until 2026-11-27 13:10 (2h0m0s)</span>
-<span class="hang">  allows   shell:run-only, only these commands (program and leading arguments): go test
-</span>  allows   files:read under /home/me/project
-  allows   screenshot
-  approve  first; at most 2 session(s); recording on
+    --cmd "go test" --approve first --record</code></pre>
+<dl class="kv-rows">
+<div><dt>granted</dt><dd>claude-session until 2026-11-27 13:10 (2h0m0s)</dd></div>
+<div><dt>allows</dt><dd>shell:run-only, only these commands (program and leading arguments): go test</dd></div>
+<div><dt>allows</dt><dd>files:read under /home/me/project</dd></div>
+<div><dt>allows</dt><dd>screenshot</dd></div>
+<div><dt>approve</dt><dd>first; at most 2 session(s); recording on</dd></div>
+</dl>
+<p class="demo-note"><code>remohop host grant</code> 的真实输出。接着它会打印一个给代理那台机器用的一次性授权码。</p>
+</figure>
+</div>
 
-<span class="c">Code (shown once; the first machine to redeem it is bound to it):</span>
-  remohopg1-…</code></pre>
-</figure>
-<figure class="ask-card">
-<p class="ask-top"><span class="mono">remohop_exec</span><span class="chip bad">被控机拒绝</span></p>
-<p class="ask-q"><code>git push</code></p>
-<p class="ask-why">command "git push" is not allowed by grant claude-session (allowed commands: go test)</p>
-<figcaption>代理收到的回复。RemoHop 的真实输出，授权码有删节。</figcaption>
+<div class="row flip reveal">
+<div class="row-text">
+<h3>你批准，否则谁也不行</h3>
+<p>用 <code>--approve each</code>，每条命令、每次文件改动都等你批准；用 <code>first</code>，每个会话的第一次要批准。被控机的终端会问你，Linux 和 macOS 会弹出通知，在任何终端里都能用 <code>remohop host approve</code> 回答。30 秒没人回答就自动拒绝。</p>
+</div>
+<figure class="demo">
+<figcaption class="demo-cap">在被控机上等待</figcaption>
+<div class="ask">
+<p class="ask-head"><span class="ref">请求 1</span><span class="chip wait">等你处理</span><span class="left">30 s</span></p>
+<p class="ask-q">授权 claude-session 想执行 <code>exec: go test ./...</code></p>
+<span class="runbar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+</div>
+<pre class="soft-code"><code><span class="p">$ </span>remohop host approve
+1  grant claude-session wants to exec: go test ./...  (since 11:12:40)
+<span class="p">$ </span>remohop host approve 1</code></pre>
 </figure>
 </div>
+
+<div class="row reveal">
+<div class="row-text">
+<h3>拒绝时说明原因，一条命令全部停下</h3>
+<p>代理可以查询自己能做什么；每次拒绝都写明是哪条限制、哪个授权，代理就能待在边界之内。<code>remohop host panic</code> 在被控机的任何终端里都能执行，立即暂停所有授权、结束所有代理会话。</p>
+<p class="small">命令白名单是护栏，不是沙箱：能启动别的程序的命令会把这种能力一起带进来。<a href="{{E:docs/agents}}#limits-of-the-protection">保护的边界</a>（英文）</p>
 </div>
-<div class="marquee">
-<ul class="marquee-track" aria-label="可以配合使用">
-<li>Claude Code</li><li>Claude Desktop</li><li>Cursor</li><li>VS Code</li><li>任何 MCP 客户端</li><li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone 和 iPad</li><li>Android</li><li>浏览器</li><li>命令行</li>
-</ul>
-<ul class="marquee-track" aria-hidden="true">
-<li>Claude Code</li><li>Claude Desktop</li><li>Cursor</li><li>VS Code</li><li>任何 MCP 客户端</li><li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone 和 iPad</li><li>Android</li><li>浏览器</li><li>命令行</li>
-</ul>
+<figure class="demo">
+<figcaption class="demo-cap">代理收到的回复</figcaption>
+<p class="tool"><span class="mono">remohop_exec</span> <code>git push</code> <span class="chip bad">已拒绝</span></p>
+<p class="refusal">command "git push" is not allowed by grant claude-session (allowed commands: go test)</p>
+<pre class="soft-code"><code><span class="p">$ </span>remohop host panic
+suspended 1 grant(s); ended 1 granted session(s)</code></pre>
+</figure>
 </div>
 </section>
 
-<section class="h-stats" aria-label="一些数字">
-<div class="wrap h-stat-row">
-<div class="h-stat reveal"><p class="h-num n29"><span class="vh">29</span></p><p>个给代理用的 MCP 工具，另有六个 Agent Skills</p></div>
-<div class="h-stat reveal"><p class="h-num">1</p><p>个静态链接的程序：客户端、被控端、服务器、浏览器网关和 MCP 服务器</p></div>
-<div class="h-stat reveal"><p class="h-num n60"><span class="vh">60 ms</span></p><p>局域网里 2K 画面从变化到显示的实测延迟</p></div>
-<div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>需要注册的账号，也不检查是否商用</p></div>
+<section class="section wrap" id="tool" aria-labelledby="tool-h">
+<div class="section-head">
+<h2 id="tool-h">一个工具顶几个</h2>
+<p class="lead">给代理用，也给你自己用：桌面应用、浏览器、手机或命令行都能连接，另一端是同一个 <code>remohop</code>。</p>
 </div>
-</section>
-
-<section class="wrap band" id="agents" aria-labelledby="agents-h">
-<p class="kicker reveal">1 · 有边界的 AI 代理</p>
-<h2 id="agents-h" class="reveal">授权允许什么，代理就只能做什么</h2>
-<p class="section-lede reveal">授权是一份带限制的凭据，在代理要操作的那台机器上签发。那台机器在每条命令、每次文件操作时检查它，代理那边怎么做都扩大不了权限。</p>
-<div class="grant">
-<div class="grant-cmd">
-<figure class="term-win light-edge reveal">
-<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>一份授权，逐项说明</figcaption>
-<pre class="term"><code><span class="p">$ </span>remohop host grant claude-session \
-  <span class="gn">1</span> <span class="k">--allow</span> files:read:~/project,screenshot \
-  <span class="gn">2</span> <span class="k">--cmd</span> "go test" \
-  <span class="gn">3</span> <span class="k">--for</span> 2h \
-  <span class="gn">4</span> <span class="k">--approve</span> first \
-  <span class="gn">5</span> <span class="k">--record</span></code></pre>
-</figure>
-<figure class="term-win light-edge reveal">
-<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>某个操作在等你批准</figcaption>
-<pre class="term"><code><span class="p">$ </span>remohop host approve
-<span class="hang3">1  grant claude-session wants to exec: go test ./...  (since 11:12:40)
-</span><span class="p">$ </span>remohop host approve 1</code></pre>
-<figcaption class="term-foot">也可以在运行 <code>remohop host</code> 的终端里输入 <code>y</code>，Linux 和 macOS 上还会弹出桌面通知。</figcaption>
-</figure>
-</div>
-<ol class="grant-notes">
-<li class="reveal"><h3>哪些功能、哪些路径</h3><p>执行命令、读写指定目录下的文件（只读或可写）、截图、桌面、剪贴板、端口转发。没列出的一律拒绝，包括给自己创建一个比授权活得更久的配对。</p></li>
-<li class="reveal"><h3>哪些命令</h3><p>只允许以指定程序开头的命令。管道、重定向和 <code>$</code> 都会被拒绝，一条命令没法再启动别的命令。</p></li>
-<li class="reveal"><h3>能用多久</h3><p>授权到期自动失效，它的会话随之结束；<code>remohop host revoke</code> 可以提前结束。</p></li>
-<li class="reveal"><h3>要不要你批准</h3><p><code>each</code>：每条命令、每次文件改动都要你批准；<code>first</code>：每个会话的第一次要批准。30 秒没人回答就自动拒绝。</p></li>
-<li class="reveal"><h3>留下记录</h3><p>每个操作都以授权名记入被控机的审计日志；加上 <code>--record</code>，命令和终端的输出也会录下来。</p></li>
-</ol>
-</div>
-<div class="cards three">
-<article class="panel reveal">
-<p class="kicker">一键全停</p>
-<h3><code>remohop host panic</code></h3>
-<p>立即暂停所有授权，结束所有代理会话。不需要窗口或快捷键，在被控机的任何终端里都能执行，通过 SSH 也行。</p>
-</article>
-<article class="panel reveal">
-<p class="kicker">代理知道自己的边界</p>
-<h3><code>remohop_limits</code></h3>
-<p>代理可以查询自己能做什么；每次拒绝都会写明是哪条限制、哪个授权，并告诉代理不要想办法绕过。</p>
-</article>
-<article class="panel reveal">
-<p class="kicker">接入任何 MCP 客户端</p>
-<h3>Claude Code、Cursor、VS Code</h3>
-<pre class="cmd typing"><code><span class="t t1"><span class="p">$ </span>remohop peers redeem 276941009 remohopg1-…</span>
-<span class="t t2"><span class="p">$ </span>claude mcp add remohop -- remohop mcp</span><span class="caret" aria-hidden="true"></span></code></pre>
-</article>
-</div>
-<div class="note reveal">
-<p><strong>授权做不到的事。</strong>命令白名单是护栏，不是沙箱：能启动别的程序的命令（<code>make</code>、git 钩子、任何解释器）会把这种能力一起带进来；批准 <code>./deploy.sh</code>，就是批准了这个脚本做的一切。详见<a href="{{E:docs/agents}}#limits-of-the-protection">保护的边界</a>（英文）。整个团队用的话，<a href="{{L:teams}}">RemoHop 团队版</a>按一套策略签发同样的授权，管理员也可以批准操作。</p>
-</div>
-</section>
-
-<section class="band alt" id="tool" aria-labelledby="tool-h">
-<div class="wrap">
-<p class="kicker reveal">2 · 一个工具顶几个</p>
-<h2 id="tool-h" class="reveal">远程桌面、终端、文件、端口转发和组网，都在一个程序里</h2>
-<p class="section-lede reveal">给代理用，也给你自己用。桌面应用、浏览器、手机或命令行都能连接，另一端运行的是同一个 <code>remohop</code>。</p>
-<div class="showcase">
-<div class="stage light">
-<figure class="stage-main">
-<picture>
-<source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 72rem) 36rem, (min-width: 60rem) 50vw, calc(100vw - 32px)">
-<source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 72rem) 36rem, (min-width: 60rem) 50vw, calc(100vw - 32px)">
-<img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" loading="lazy" decoding="async" alt="远程桌面：页面中间是远程 Linux 机器的屏幕，上面开着两个终端窗口；页面顶部显示被控机名称和连接路径 direct。">
-</picture>
-</figure>
-<figure class="stage-float">
-<picture>
-<source type="image/avif" srcset="/assets/img/request-zh-440.avif 440w, /assets/img/request-zh-880.avif 880w, /assets/img/request-zh-1320.avif 1320w" sizes="(min-width: 72rem) 14rem, (min-width: 60rem) 20vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
-<source type="image/webp" srcset="/assets/img/request-zh-440.webp 440w, /assets/img/request-zh-880.webp 880w, /assets/img/request-zh-1320.webp 1320w" sizes="(min-width: 72rem) 14rem, (min-width: 60rem) 20vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
-<img src="/assets/img/request-zh-1320.png" width="440" height="446" loading="lazy" decoding="async" alt="桌面应用的连接请求：Laptop-2 请求连接，标着“新设备”和防诈骗提醒，默认只能看屏幕，勾选后才能控制鼠标键盘或传输文件。">
-</picture>
-</figure>
-<p class="stage-tag" aria-hidden="true"><span class="dot"></span>direct · 端到端加密</p>
-</div>
-<ul class="caps">
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><div><b>远程桌面</b><span>在桌面应用或浏览器里：2K 和 4K，局域网约 60 ms，最高 144 fps，有声音，支持多显示器。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg><div><b>终端和后台任务</b><span>断开后仍在运行的终端、单条命令、带日志的后台任务。Windows 上是 PowerShell。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><div><b>文件</b><span>复制、同步、把远程目录挂载到本地；大文件中断后接着传。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M13 7l5 5-5 5"/><path d="M4 7v10"/></svg><div><b>端口转发和 VPN</b><span>像 <code>ssh -L</code>、<code>-R</code> 一样转发 TCP 和 UDP，网络唤醒，还能用 VPN 连进被控机所在的网络。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M11 7l-5 9M13 7l5 9M7.2 18h9.6"/></svg><div><b>虚拟组网</b><span>你的设备组成一个私有网络，名字像 <code>nas.remohop</code>。可以和 Tailscale 一起用，共同的 tailnet 也算一条直连路径。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/></svg><div><b>快速协助</b><span>被协助的人双击一个程序，把 ID 和密码念给你，每次连接都由他点“允许”。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg><div><b>Android 和 iOS 应用</b><span>用手机控制你的电脑。Android 手机也能被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕。</span></div></li>
-<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><div><b>一个静态程序</b><span>客户端、被控端、汇合服务器、浏览器网关和 MCP 服务器都是同一个 <code>remohop</code>，支持 Linux、macOS 和 Windows。</span></div></li>
+<div class="bento">
+<article class="tile wide t-slate reveal">
+<svg class="art" viewBox="0 0 120 120" aria-hidden="true"><rect class="f2" x="24" y="24" width="72" height="72" rx="18"/><path class="s" d="M42 58V44h22M56 76h22V62M48 60h22M63 53l7 7-7 7"/><circle class="f" cx="16" cy="60" r="5"/><circle class="f" cx="104" cy="60" r="5"/><circle class="f" cx="60" cy="10" r="5"/><circle class="f" cx="60" cy="110" r="5"/><path class="s thin" d="M21 60h3M96 60h3M60 15v9M60 96v9"/></svg>
+<div>
+<p class="k">一个程序</p>
+<h3>客户端、被控端、服务器和代理接口，都在一个程序里</h3>
+<ul>
+<li>一个静态链接的 <code>remohop</code>，支持 Linux、macOS 和 Windows：客户端、被控端、汇合服务器、浏览器网关和 MCP 服务器。</li>
+<li>在它之上还有桌面应用、浏览器客户端，以及 Android 和 iOS 应用。</li>
+<li>换网络、休眠唤醒之后，会话会自己连回来。</li>
 </ul>
 </div>
-<p class="links reveal"><a href="{{L:features}}">全部功能和限制</a></p>
+</article>
+<article class="tile t-blue reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="s" x="10" y="18" width="84" height="56" rx="8"/><path class="s" d="M38 90h28M52 74v16"/><rect class="f2" x="20" y="28" width="38" height="26" rx="4"/><rect class="f2" x="62" y="28" width="22" height="36" rx="4"/><path class="f" d="M60 50l14 6-6 2-2 6z"/></svg>
+<p class="k">远程桌面</p>
+<h3>画面清晰，响应快</h3>
+<p>2K 和 4K，局域网约 60 ms，最高 144 fps，有声音，支持多显示器。</p>
+<p class="more"><a href="{{L:docs/remote-desktop}}">详细了解</a></p>
+</article>
+<article class="tile t-green reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="8" y="16" width="88" height="72" rx="10"/><path class="s" d="M22 38l10 8-10 8"/><path class="s" d="M38 56h16"/><path class="s thin" d="M22 70h44M22 30h60"/><rect class="f" x="58" y="50" width="8" height="12" rx="1"/></svg>
+<p class="k">终端和后台任务</p>
+<h3>断开后照样运行</h3>
+<p>交互式终端和后台任务在你断开之后继续运行。</p>
+<p class="more"><a href="{{L:docs/shell-and-jobs}}">详细了解</a></p>
+</article>
+<article class="tile t-amber reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="34" y="10" width="46" height="58" rx="6"/><rect class="f2" x="26" y="20" width="46" height="58" rx="6"/><rect class="s" x="18" y="30" width="46" height="60" rx="6"/><path class="s thin" d="M28 48h26M28 58h26M28 68h16"/><path class="s" d="M72 78c12 0 18-8 18-20M84 64l6-6 6 6"/></svg>
+<p class="k">文件</p>
+<h3>复制、同步、挂载</h3>
+<p>大文件中断后接着传，远程目录可以挂载到本地。</p>
+<p class="more"><a href="{{L:docs/files}}">详细了解</a></p>
+</article>
+<article class="tile t-violet reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="f2" cx="20" cy="52" r="14"/><circle class="f2" cx="84" cy="52" r="14"/><circle class="s" cx="20" cy="52" r="6"/><circle class="s" cx="84" cy="52" r="6"/><path class="s" d="M34 46h36M34 58h36"/><circle class="f" cx="46" cy="46" r="3"/><circle class="f" cx="58" cy="58" r="3"/><circle class="f" cx="64" cy="46" r="3"/></svg>
+<p class="k">端口转发和 VPN</p>
+<h3>把端口接过去</h3>
+<p>像 <code>ssh -L</code>、<code>-R</code> 一样转发 TCP 和 UDP，还有网络唤醒和 VPN。</p>
+<p class="more"><a href="{{L:docs/forwarding}}">详细了解</a></p>
+</article>
+<article class="tile t-teal reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><path class="s thin" d="M52 14L88 40 74 84H30L16 40zM52 14L74 84M52 14L30 84M16 40h72M16 40l58 44M88 40L30 84"/><circle class="f" cx="52" cy="14" r="6"/><circle class="f" cx="88" cy="40" r="6"/><circle class="f" cx="74" cy="84" r="6"/><circle class="f" cx="30" cy="84" r="6"/><circle class="f" cx="16" cy="40" r="6"/></svg>
+<p class="k">虚拟组网</p>
+<h3>你的设备在同一个网络里</h3>
+<p>名字像 <code>nas.remohop</code>，可以和 Tailscale 一起用。</p>
+<p class="more"><a href="{{L:docs/mesh-and-tailscale}}">详细了解</a></p>
+</article>
+<article class="tile t-rose reveal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="s" cx="52" cy="52" r="38"/><circle class="s" cx="52" cy="52" r="16"/><path class="f2" d="M52 14a38 38 0 0 1 26.9 11.1L63.3 40.7A16 16 0 0 0 52 36zM52 90a38 38 0 0 1-26.9-11.1l15.6-15.6A16 16 0 0 0 52 68z"/><path class="f" d="M90 52a38 38 0 0 1-11.1 26.9L63.3 63.3A16 16 0 0 0 68 52zM14 52a38 38 0 0 1 11.1-26.9l15.6 15.6A16 16 0 0 0 36 52z"/></svg>
+<p class="k">快速协助</p>
+<h3>一分钟帮上忙</h3>
+<p>对方双击一个程序，把 ID 念给你，再点“允许”。</p>
+<p class="more"><a href="{{L:docs/quick-support}}">详细了解</a></p>
+</article>
 </div>
 </section>
 
-<section class="wrap band h-p2p" id="trust" aria-labelledby="trust-h">
-<p class="kicker reveal">3 · 可以验证的信任</p>
-<h2 id="trust-h" class="reveal">端到端加密，默认直连，开源，每台服务器都可以自己运行</h2>
-<p class="section-lede reveal">汇合服务器按 ID 帮两台机器找到对方。之后画面、键盘、文件和命令都走 QUIC 直连，只有两端能读。实在打不通时，中继转发的也是同样的密文。</p>
-<figure class="flow reveal">
+<section class="section wrap" id="trust" aria-labelledby="trust-h">
+<div class="row reveal">
+<div class="row-text">
+<h2 id="trust-h">可以验证的信任</h2>
+<p>汇合服务器按 ID 帮两台机器找到对方。之后画面、键盘、文件和命令都走 QUIC 直连，只有两端能读。实在打不通时，中继转发的也是同样的密文。</p>
+<p class="links"><a href="{{L:how-it-works}}">工作原理</a> <a href="{{L:security}}">安全模型</a></p>
+</div>
+<figure class="demo flow">
 <svg viewBox="0 0 960 400" role="img" aria-labelledby="flow-t">
 <title id="flow-t">连接示意：两台电脑先经汇合服务器交换地址，然后直接建立端到端加密的连接；打不通时改走中继。</title>
-<defs>
-<linearGradient id="beam-g" x1="0" x2="1"><stop offset="0" stop-color="#5b7bff"/><stop offset="0.5" stop-color="#7fe3ff"/><stop offset="1" stop-color="#5b7bff"/></linearGradient>
-<radialGradient id="halo-g"><stop offset="0" stop-color="#5b7bff" stop-opacity="0.55"/><stop offset="1" stop-color="#5b7bff" stop-opacity="0"/></radialGradient>
-</defs>
 <path id="sig-a" class="sig" d="M190 230 C 260 120, 360 92, 440 92"/>
 <path id="sig-b" class="sig" d="M520 92 C 600 92, 700 120, 770 230"/>
 <path id="relay" class="relay" d="M190 290 C 330 380, 630 380, 770 290"/>
 <path id="direct" class="direct-base" d="M206 262 L 754 262"/>
-<path class="direct-glow" d="M206 262 L 754 262" pathLength="100"/>
 <path class="direct-beam" d="M206 262 L 754 262" pathLength="100"/>
 <circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#sig-a"/></animateMotion></circle>
 <circle class="pkt sigdot" r="5"><animateMotion dur="3.2s" begin="1.6s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#sig-b"/></animateMotion></circle>
 <g aria-hidden="true">
-<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
-<circle class="pkt" r="6"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
-<circle class="pkt-glow" r="13"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
-<circle class="pkt" r="6"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="7"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#direct"/></animateMotion></circle>
+<circle class="pkt" r="7"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#direct"/></animateMotion></circle>
 </g>
 <g class="h-node srv">
-<circle class="halo" cx="480" cy="92" r="70" fill="url(#halo-g)"/>
-<rect x="436" y="56" width="88" height="72" rx="14"/>
-<path class="ico" d="M456 78h48M456 92h48M456 106h48"/><circle class="led" cx="462" cy="78" r="2.5"/><circle class="led" cx="462" cy="92" r="2.5"/><circle class="led" cx="462" cy="106" r="2.5"/>
+<rect x="436" y="56" width="88" height="72" rx="16"/>
+<path class="ico" d="M456 78h48M456 92h48M456 106h48"/>
 <text x="480" y="30" text-anchor="middle" class="lbl">汇合服务器</text>
 </g>
 <g class="h-node">
-<rect x="96" y="214" width="110" height="78" rx="12"/>
+<rect x="96" y="214" width="110" height="78" rx="16"/>
 <path class="ico" d="M124 236h54v30h-54zM140 280h22M151 266v14"/>
-<text x="151" y="326" text-anchor="middle" class="lbl">你的电脑</text>
+<text x="151" y="330" text-anchor="middle" class="lbl">你的电脑</text>
 </g>
 <g class="h-node">
-<rect x="754" y="214" width="110" height="78" rx="12"/>
+<rect x="754" y="214" width="110" height="78" rx="16"/>
 <path class="ico" d="M782 236h54v30h-54zM798 280h22M809 266v14"/>
-<text x="809" y="326" text-anchor="middle" class="lbl">远程电脑</text>
+<text x="809" y="330" text-anchor="middle" class="lbl">远程电脑</text>
 </g>
 <g class="lock">
-<circle class="ring" cx="480" cy="262" r="26"/>
-<circle class="core" cx="480" cy="262" r="22"/>
+<circle class="core" cx="480" cy="262" r="24"/>
 <path class="ico" d="M471 262v-6a9 9 0 0 1 18 0v6M468 262h24v15h-24z"/>
 </g>
 <text x="480" y="222" text-anchor="middle" class="tag">QUIC 直连 · 端到端加密</text>
-<text x="480" y="388" text-anchor="middle" class="tag dim">打不通时：经中继转发（内容仍是加密的）</text>
+<text x="480" y="390" text-anchor="middle" class="tag dim">打不通时经中继转发，内容仍是加密的</text>
 </svg>
 </figure>
-<div class="trust">
-<ul class="checks reveal">
-<li><span><strong>QUIC 加 TLS 1.3，登录用 CPace。</strong>密码从不在网上传输；中间人，包括汇合服务器，都无法完成登录。</span></li>
-<li><span><strong>默认点对点直连。</strong>先打洞、请路由器映射端口；只有运营者开启了中继、其他办法都不行时才走中继。</span></li>
-<li><span><strong>服务器只看到密文和元数据。</strong>哪些 ID 在线、它们的地址、何时互相连接；看不到内容。</span></li>
-<li><span><strong>每次连接都先问你。</strong>新设备附防诈骗提醒；允许的设备默认只能看屏幕，其余的要你勾选。</span></li>
-<li><span><strong><!--src-->以 AGPL-3.0 开源。<!--/src--><!--nosrc-->源码将以 AGPL-3.0 公开。<!--/nosrc--></strong>汇合服务器、中继和浏览器网关都可以自己运行；局域网里甚至不需要服务器。</span></li>
-</ul>
-<div class="note warn reveal">
-<p><strong>还没做到的，直接说明。</strong></p>
-<ul>
-<li>没有经过独立的安全审计。</li>
-<li>Windows 下载尚未代码签名，SmartScreen 会提示；macOS 下载已签名并经过公证。</li>
-<li>Linux 是参考平台。macOS 和 Windows 由托管机器上的自动化测试覆盖，还没有人在实体机上逐项检查。</li>
-</ul>
 </div>
+<div class="everyday">
+<div><h3>端到端加密</h3><p>QUIC 加 TLS 1.3，登录用 CPace：密码从不在网上传输，中间人无法完成登录。</p></div>
+<div><h3>默认直连</h3><p>先打洞、请路由器映射端口；只有运营者开启了中继、其他办法都不行时才走中继。</p></div>
+<div><h3>服务器看不到内容</h3><p>它知道哪些 ID 在线、它们的地址和何时连接，但看不到两端之间传的东西。</p></div>
+<div><h3>每次连接都先问你</h3><p>新设备附防诈骗提醒；允许的设备默认只能看屏幕，其余的要你勾选。</p></div>
+<div><h3><!--src-->开源<!--/src--><!--nosrc-->源码将公开<!--/nosrc--></h3><p>以 AGPL-3.0 许可，任何用途都免费，不检查你是不是在公司用。</p></div>
+<div><h3>每台服务器都可以自己运行</h3><p>汇合服务器、中继和浏览器网关都可以自建；局域网里甚至不需要服务器。</p></div>
 </div>
-<p class="links reveal"><a href="{{L:security}}">安全模型</a> <a href="{{L:how-it-works}}">工作原理</a> <a href="{{L:self-hosting}}">自建服务器</a></p>
-</section>
-
-<section class="band alt" id="pricing" aria-labelledby="price-h">
-<div class="wrap">
-<p class="kicker reveal">4 · 公道、明白的价格</p>
-<h2 id="price-h" class="reveal">任何用途都免费，团队版明码标价</h2>
-<p class="section-lede reveal">开源版不收费，家里用、公司用都一样，也从不检查你怎么用。团队版是自托管的授权许可。</p>
-<div class="tiers mini">
-<article class="tier reveal"><h3>社区版</h3><p class="price"><b>免费</b></p><p>开源 RemoHop 的全部功能，任何用途。AGPL-3.0。</p></article>
-<article class="tier reveal"><h3>团队版（免费）</h3><p class="price"><b>免费</b></p><p>{{P:free_users}} 个用户以内，全部团队功能。不需要许可证文件。</p></article>
-<article class="tier featured reveal"><h3>团队版</h3><p class="price"><b>${{P:user_month}}</b> <span>每用户每月，按年付费</span></p><p>每个用户含 {{P:devices_per_user}} 台设备，邮件支持，离线许可证文件。</p></article>
-<article class="tier reveal"><h3>企业版</h3><p class="price"><b>联系我们</b></p><p>超过 {{P:enterprise_users}} 个用户、发票和采购单、定制条款。</p></article>
-</div>
-<ul class="promises reveal">
-<li>不检查是否商用</li>
-<li>未经你同意不会续费</li>
-<li>许可证文件从不联网验证</li>
-</ul>
-<p class="links reveal"><a href="{{L:pricing}}">比较各个版本</a> <a href="{{L:teams}}">团队版多了什么</a></p>
+<div class="aside-row">
+<p class="aside-label">还没做到的</p>
+<p>没有经过独立的安全审计。Windows 下载尚未代码签名，SmartScreen 会提示；macOS 下载已签名并经过公证。Linux 是参考平台；macOS 和 Windows 由托管机器上的自动化测试覆盖，还没有人在实体机上逐项检查。</p>
 </div>
 </section>
 
-<section class="wrap band" id="get" aria-labelledby="get-h">
-<h2 id="get-h" class="reveal">获取 RemoHop</h2>
-<p class="section-lede reveal">全部下载以及校验和、签名，都在<a href="{{L:download}}">下载页</a>上。</p>
-<div class="cards">
-<article class="panel get reveal">
-<p class="chip">可以下载</p>
-<h3>RemoHop 桌面应用</h3>
-<p class="platforms">Windows · macOS · Linux</p>
-<p>一个窗口：连接你的其他电脑，也让别人连接这台电脑，每次有人连接都先问你。macOS 版已签名并经过公证。</p>
-<p class="links"><a href="{{L:download}}">下载</a><a href="{{L:docs/desktop-app}}">桌面应用说明</a></p>
-</article>
-<article class="panel get reveal">
-<p class="chip">可以下载</p>
-<h3>快速协助（免安装）</h3>
-<p class="platforms">Windows · macOS · Linux</p>
-<p>给被协助的人双击打开的窗口，什么都不用装，关掉窗口就结束。</p>
-<p class="links"><a href="{{L:download}}#quick">下载</a><a href="{{L:docs/quick-support}}">快速协助说明</a></p>
-</article>
-<article class="panel get reveal">
-<!--store--><p class="chip">可以下载</p><!--/store--><!--nostore--><!--ios--><p class="chip">iOS 可以下载</p><!--/ios--><!--noios--><p class="chip wait">即将上架</p><!--/noios--><!--/nostore-->
-<h3>手机应用</h3>
-<p class="platforms">Android · iOS / iPadOS</p>
-<p>在手机或平板上连接并操作你的电脑，断线自动重连。<!--store-->已在 App Store 和 Google Play 上架。<!--/store--><!--nostore--><!--ios-->iOS 版已在 App Store 上架，Android 版即将上架 Google Play。<!--/ios--><!--noios-->即将上架 App Store 和 Google Play（已提交审核）。<!--/noios--><!--/nostore--></p>
-<p class="links"><a href="{{L:download}}#mobile">下载</a><a href="{{L:apps}}">移动应用</a></p>
-</article>
-<article class="panel get reveal">
-<p class="chip">可以下载</p>
-<h3>命令行程序 <code>remohop</code></h3>
-<p class="platforms">Linux · macOS · Windows</p>
-<p>被控端、客户端、MCP 服务器、浏览器网关和汇合服务器都在这一个程序里。在 Linux 和 macOS 上：</p>
-<pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
-sh install.sh</code></pre>
-<p class="links"><a href="{{L:download}}#cli">下载</a><a href="{{L:features}}#platforms">平台支持</a></p>
-</article>
+<section class="section wrap" id="pricing" aria-labelledby="price-h">
+<div class="plan-feature reveal">
+<div>
+<h2 id="price-h">任何用途都免费，团队版明码标价。</h2>
+<p class="lead">开源版不收费，家里用、公司用都一样。RemoHop 团队版是自托管的许可证，价格写在页面上。</p>
+<p class="price"><b>${{P:user_month}}</b> <span>团队版每用户每月，按年付费</span></p>
+<p class="note-s">{{P:free_users}} 个用户以内免费。未经你同意不会续费。</p>
+<div class="actions">
+<a class="btn ink" href="{{L:pricing}}">查看价格</a>
+<a class="btn" href="{{L:teams}}">团队版多了什么</a>
 </div>
-<div class="note status-note reveal">
-<p><strong>现状（2026 年 11 月）：</strong>已经发布，见<a href="{{L:download}}">下载</a>。桌面应用首次启动时可以选用官方汇合服务器，也可以填自己的；命令行程序没有内置默认服务器。<a href="{{L:features}}#status">完整的限制清单</a></p>
+</div>
+<ul class="checks">
+<li>开源的 RemoHop，任何用途都免费</li>
+<li>分组和策略，在每台被控机上变成授权</li>
+<li>OIDC 或 SAML 2.0 登录，SCIM 同步</li>
+<li>管理员审批，带签名，由被控机核验</li>
+<li>集中审计和会话录像</li>
+<li>离线许可证文件，从不联网验证</li>
+</ul>
 </div>
 </section>
 
-<section class="band alt more" aria-labelledby="more-h">
-<div class="wrap">
-<h2 id="more-h">接着看</h2>
-<ul class="more-list">
-<li><a href="{{L:docs/ai-agents}}">AI 代理</a><span>注册 MCP 服务器、签发授权、批准、审计和紧急停止。</span></li>
-<li><a href="{{L:teams}}">RemoHop 团队版</a><span>分组、策略、单点登录、管理员审批和集中审计。</span></li>
-<li><a href="{{L:features}}">功能与限制</a><span>常用命令、平台支持、已知限制。</span></li>
-<li><a href="{{L:how-it-works}}">工作原理</a><span>一张图看懂汇合服务器、P2P 打洞和端到端加密。</span></li>
-<li><a href="{{L:security}}">安全模型</a><span>保护什么、不保护什么，包括浏览器网关这个例外。</span></li>
-<li><a href="{{L:pricing}}">价格</a><span>任何用途都免费，团队版明码标价。</span></li>
-</ul>
+<section class="section wrap" id="get" aria-labelledby="get-h">
+<div class="section-head">
+<h2 id="get-h">获取 RemoHop</h2>
+<p class="lead">全部下载以及校验和、签名，都在<a href="{{L:download}}">下载页</a>上。</p>
+</div>
+<div class="everyday two">
+<div><h3>桌面应用</h3><p>Windows、macOS 和 Linux。连接你的其他电脑，也让别人连接这台电脑，每次有人连接都先问你。</p><p class="links"><a href="{{L:download}}">下载</a> <a href="{{L:docs/desktop-app}}">桌面应用说明</a></p></div>
+<div><h3>快速协助</h3><p>给被协助的人用：什么都不用装，关掉窗口就结束。</p><p class="links"><a href="{{L:download}}#quick">下载</a> <a href="{{L:docs/quick-support}}">快速协助说明</a></p></div>
+<div><h3>手机应用</h3><p>Android 和 iOS。<!--store-->已在 App Store 和 Google Play 上架。<!--/store--><!--nostore--><!--ios-->iOS 版已在 App Store 上架，Android 版即将上架 Google Play。<!--/ios--><!--noios-->即将上架 App Store 和 Google Play。<!--/noios--><!--/nostore-->Android 手机也能被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕。</p><p class="links"><a href="{{L:download}}#mobile">下载</a> <a href="{{L:apps}}">移动应用</a></p></div>
+<div><h3>命令行程序 <code>remohop</code></h3><p>被控端、客户端、MCP 服务器、浏览器网关和汇合服务器都在这一个程序里，适合服务器和脚本。</p><p class="links"><a href="{{L:download}}#cli">下载</a> <a href="{{L:docs}}">快速开始</a></p></div>
+</div>
+<div class="aside-row">
+<p class="aside-label">现状</p>
+<p>已经发布（2026 年 11 月）。桌面应用首次启动时可以选用官方汇合服务器，也可以填自己的；命令行程序没有内置默认服务器。<a href="{{L:features}}#status">完整的限制清单</a></p>
+</div>
+</section>
+
+<section class="section wrap faq-wrap" aria-labelledby="faq-h">
+<h2 id="faq-h">常见问题</h2>
+<div class="faq">
+<details><summary>在公司用 RemoHop 要付费吗？</summary><p>不用。开源版任何用途都免费，包括商用，也从不检查你怎么用。用来管理整个团队的 RemoHop 团队版才是付费版本。</p></details>
+<details><summary>需要注册账号吗？</summary><p>不需要。账号是可选的，只用来把你自己的设备归到一起；同在一个账号里，不会因此获得任何访问权限。</p></details>
+<details><summary>汇合服务器能看到我的屏幕吗？</summary><p>不能。它只负责牵线，需要中继时转发的也是密文。它能看到元数据：哪些 ID 在线、它们的地址、何时连接。</p></details>
+<details><summary>哪些 AI 代理能用？</summary><p>任何能启动 stdio 服务器的 MCP 客户端，例如 Claude Code、Claude Desktop、Cursor 和 VS Code。另有六个 Agent Skills，教代理使用命令行。</p></details>
+<details><summary>支持哪些系统？</summary><p>Windows、macOS 和 Linux 既能被控也能控制别人，另有 Android 和 iOS 应用。Android 手机可以被控制；iPhone 和 iPad 只能共享屏幕。Linux 上的屏幕采集需要 X11，不支持原生 Wayland 桌面。</p></details>
 </div>
 </section>

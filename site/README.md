@@ -21,44 +21,60 @@ Pages, each in Chinese (`/…`) and English (`/en/…`): home, `features/`, `how
 `licensing/`, `support/`, plus `404.html`. The documentation is generated from the Markdown
 in the repository's `docs/` (see below).
 
-The home page leads with what sets RemoHop apart, in this order: AI agents
-with guardrails (the hero shows a real `remohop host grant` and the refusal an
-agent gets; then a grant explained flag by flag), one tool instead of several
-(the browser client with the connection request floating over it, and what it
-does), trust you can check (the animated picture of how a connection is made,
-what is protected and what is not done yet), and fair pricing (the plans).
-Then the downloads, the current status and links. Everything else lives on
-`features/` (commands, the browser client, how a connection is made,
-platforms, install, limits) and the other pages.
+The look is calm and light: a pale sage-grey page, lots of space, a centred
+column about 70rem wide and few borders. Headings use the system's serif
+fonts, body text the system sans; there are no web fonts. Buttons are ink
+pills; cobalt `#2546d8`, the RemoHop colour, is kept for links, small labels
+and the logo. Panels are translucent tints of the ink, and only the feature
+cards carry pastel tints. Dark mode is its own set of values, and the site
+follows the system setting (there is no theme switch, as there is no script).
+
+Header: a floating pill with the logo, the section links, the other language
+and an ink Download button. Below 64rem the links move behind a Menu button,
+which is a `<details>` element, so it works without script. Footer: the
+brand, then columns of links and the language list.
+
+The home page leads with what sets RemoHop apart, in this order:
+1. A centred serif hero about AI agents, a row of facts separated by middots,
+   two pill buttons, a link to Teams, and the browser client in a window frame.
+2. AI agents with guardrails, as rows of text beside a demo card: a real
+   `remohop host grant` and its output, an approval waiting on the host, and
+   the refusal an agent gets with `remohop host panic`.
+3. One tool instead of several: a bento of one wide card and six tinted
+   cards, each with its own small inline SVG drawing.
+4. Trust you can check: the animated picture of how a connection is made, a
+   three-column list of what is protected, and what is not done yet.
+5. Pricing as a soft panel, the downloads, the current status and questions.
+
+Everything else lives on `features/` (commands, the browser client, how a
+connection is made, platforms, install, limits) and the other pages.
 
 `teams/` describes RemoHop Teams, the commercial self-hosted team edition.
 Its code is private, so the page describes it and links nowhere into it.
-`pricing/` has the plans, a comparison table and questions (`<details>`, no
-script). The prices are in `PRICES` in `build.py` and appear in the pages as
-`{{P:name}}` (the build stops on an unknown name), so a price is changed in
-one place. The home
-fragment lays out its own full-width bands, so `build.py` does not wrap it in
-the prose column the other pages use.
+`pricing/` has Teams as a featured panel, the other plans as lighter cards, a
+comparison table and questions (`<details>`, no script). The prices are in
+`PRICES` in `build.py` and appear in the pages as `{{P:name}}` (the build
+stops on an unknown name), so a price is changed in one place. The home
+fragment lays out its own sections, so `build.py` does not wrap it in the
+prose column the other pages use.
 
-Motion is CSS only (plus SMIL inside the home page's inline SVG): keyframes,
-`@property` for the rotating rims and the counting numbers, and scroll-driven
-animations (`animation-timeline: view()`) for the sections that slide in and
-the terminal that types. Browsers without scroll-driven animations show
-everything in place, and `prefers-reduced-motion: reduce` stops all of it.
-Home-page classes that could clash with the How it works page carry an `h-`
-prefix.
+Motion is CSS only (plus SMIL inside the home page's inline SVG): titles rise
+once on load, sections fade up as they scroll into view
+(`animation-timeline: view()`), and the connection picture's packets move.
+Browsers without scroll-driven animations show everything in place, and
+`prefers-reduced-motion: reduce` stops all of it.
 
-Colours are shared with the web client and the quick-support window: cobalt
-`#2546d8`, ink `#141c30`, paper `#f6f7fb`, line `#dce1ec`; green, amber and
-red only ever appear together with words. Section labels are small monospace
-capitals, as in the desktop app (`docs/design/desktop-ui.md`).
-
-The visual layer is in tokens at the top of `site.css` (`--font-display`,
-`--fs-*`, `--label-*`, `--radius*`, `--card-*`, `--band-pad`, `--dark-*`,
-`--term-*`, `--glow`), read by the shared components (`.band`, `.kicker`,
-`.panel`, `.tier`, `.feat`, `.term-win`, ...). Restyling the site starts there. The icons (`favicon.*`,
-`apple-touch-icon.png`, `assets/icon-*.png`) and the header mark are the
-RemoHop mark: two screen corners and an arrow on a cobalt tile.
+The visual layer is in tokens at the top of `site.css`: ground and text
+(`--paper`, `--soft`, `--raised`, `--ink*`, `--rule`), buttons (`--btn-*`),
+the card tints (`--t-*`), type (`--serif`, `--font-display`, `--fs-*`,
+`--label-*`), shapes and space (`--radius*`, `--space`, `--page`). The shared
+components (`.section`, `.row`, `.demo`, `.bento`/`.tile`, `.everyday`,
+`.plan-feature`/`.plan`, `.faq`) read them, so restyling starts there.
+`light-dark()` takes colours only, so shadows vary through a colour token
+(`--shadow-c`). Green, amber and red only ever appear together with words.
+The icons (`favicon.*`, `apple-touch-icon.png`, `assets/icon-*.png`) and the
+header mark are the RemoHop mark: two screen corners and an arrow on a cobalt
+tile.
 
 ## Editing
 
@@ -162,7 +178,7 @@ in the light colour scheme. The terminal samples on `features/` are unedited
 output of a real session.
 
 **Desktop tab** (`web-desktop-v2-*`, on the home page, on `features/` and as
-`og:image`). The page shows it about 34rem wide on a desktop and 22rem on a
+`og:image`). The home page shows it about 62rem wide on a desktop and 22rem on a
 phone, so it is captured at a small viewport (UI text stays readable when
 shrunk) and a high scale factor (the files are true pixels):
 
@@ -190,7 +206,8 @@ shrunk) and a high scale factor (the files are true pixels):
    pixel PNG, all Lanczos downscales of the capture. The `width`/`height`
    attributes are the CSS size, 1008×792.
 
-**Connection request** (`request-{zh,en}-*`, floating on the home page). Run
+**Connection request** (`request-{zh,en}-*`; no page shows it since the
+redesign, and the files are kept for reuse). Run
 `remohop app --browser --no-open --lang zh` (or `en`) with its own config
 directory (`signal-none on`, `host-listen 127.0.0.1:21942`), finish the first
 run wizard with "Skip for now" and incoming connections on, and read the

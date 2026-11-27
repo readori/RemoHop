@@ -1,96 +1,113 @@
+<div class="page-head">
 <p class="kicker">商业版 · 自托管</p>
 <h1>RemoHop 团队版：团队里的人、设备和代理，用同一套策略</h1>
-<p class="lede">团队版在 RemoHop 之上加了分组、策略、单点登录、管理员审批和集中审计。它运行在你自己的服务器上，就在你自己的汇合服务器里；团队的成员和策略是一份由管理员密钥签名的日志，服务器能保存，但无法伪造。</p>
+<p class="lede">在 RemoHop 之上加了分组、策略、单点登录、管理员审批和集中审计。它运行在你自己的服务器上，就在你自己的汇合服务器里；团队的成员和策略是一份由管理员密钥签名的日志，服务器能保存，但无法伪造。</p>
 <div class="actions">
-<a class="btn primary" href="{{L:pricing}}">查看价格</a>
+<a class="btn ink" href="{{L:pricing}}">查看价格</a>
 <a class="btn" href="mailto:{{EMAIL}}?subject=RemoHop%20Teams">咨询团队版</a>
 </div>
 <p class="small">{{P:free_users}} 个用户以内免费；超过后每用户每月 {{P:user_month}} 美元，按年付费。团队版的代码不开源，以商业许可证出售，构建在开源的 RemoHop 之上。</p>
+</div>
 
+<section class="section" aria-labelledby="policy">
+<div class="row">
+<div class="row-text">
 <h2 id="policy">谁能连到哪里，在一处设定</h2>
-<p>人和他们的设备都编入分组。策略规定哪一组人可以连到哪一组设备、能用哪些功能、哪些操作需要批准。在每台被控机上，规则变成一份授权（grant），由那台机器像其他<a href="{{L:}}#agents">授权</a>一样自己执行。</p>
-<figure class="policy">
-<figcaption class="kicker">一个策略示例</figcaption>
+<p>人和他们的设备都编入分组。策略规定哪一组人可以连到哪一组设备、能用哪些功能、哪些操作需要批准。在每台被控机上，规则变成一份<a href="{{L:}}#agents">授权</a>，由那台机器自己执行。</p>
+<p>AI 代理和人一样，受同样的策略、审批和审计约束。代理算设备，不算用户。</p>
+</div>
+<figure class="demo policy">
+<figcaption class="demo-cap">一个策略示例</figcaption>
 <div class="pol-head" aria-hidden="true"><span>人员分组</span><span>可以连到</span><span>可以使用</span></div>
 <ul class="pol" role="list">
 <li class="pol-row"><span><b class="who">客服</b></span><span><span class="arrow">可以连到</span> <b class="what">办公室电脑</b></span><span><span class="arrow">可以使用</span> <span class="pill">桌面</span><span class="pill">文件</span></span></li>
 <li class="pol-row"><span><b class="who">开发</b></span><span><span class="arrow">可以连到</span> <b class="what">构建服务器</b></span><span><span class="arrow">可以使用</span> <span class="pill">终端</span><span class="pill">文件</span><span class="pill">端口转发</span></span></li>
 <li class="pol-row"><span><b class="who">外包</b></span><span><span class="arrow">可以连到</span> <b class="what">预发布环境</b></span><span><span class="arrow">可以使用</span> <span class="pill">终端</span><span class="pill warn">每条命令都要批准</span></span></li>
 </ul>
-<p class="down">设备分组里的每台被控机都会收到对应的规则，变成授权，由它自己执行。</p>
+<p class="demo-note">设备分组里的每台被控机都会收到对应的规则，变成授权，由它自己执行。</p>
 </figure>
+</div>
+</section>
 
+<section class="section" aria-labelledby="features">
+<div class="section-head">
 <h2 id="features">团队版多了什么</h2>
-<div class="feat-grid">
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><h3>人员、设备和分组</h3></div>
-<p>团队里的人和他们的设备、人员分组和设备分组，以及把它们连起来的策略。改动以新授权的形式送到被控机。</p>
+<p class="lead">管理员为团队运行 RemoHop 所需的一切，而团队服务器不在信任链里。</p>
+</div>
+<div class="bento">
+<article class="tile wide t-slate">
+<svg class="art" viewBox="0 0 120 120" aria-hidden="true"><rect class="f2" x="22" y="10" width="76" height="22" rx="7"/><rect class="f2" x="22" y="40" width="76" height="22" rx="7"/><rect class="f2" x="22" y="70" width="76" height="22" rx="7"/><path class="s" d="M32 21h28M32 51h36M32 81h22"/><circle class="f" cx="86" cy="21" r="5"/><circle class="f" cx="86" cy="51" r="5"/><circle class="f" cx="86" cy="81" r="5"/><path class="s thin" d="M60 32v8M60 62v8"/><path class="s" d="M44 104h32M52 112h16" /></svg>
+<div>
+<p class="k">团队日志</p>
+<h3>服务器伪造不了的日志</h3>
+<ul>
+<li>谁能做什么的每一项改动，都是一条由日志允许的管理员密钥签名的记录。</li>
+<li>日志只追加。团队服务器保存并转发它，但伪造不了记录，也伪造不了审批决定。</li>
+<li>被控机照做之前自己核验；检查点和加入码让新的被控机从一份签名快照开始。</li>
+</ul>
+</div>
 </article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h4M7 12h7"/></svg><h3>管理控制台和命令行</h3></div>
-<p>控制台运行在管理员自己的电脑上，与团队服务器通信。另有管理命令行，方便脚本和终端使用。</p>
+<article class="tile t-blue">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="f2" cx="30" cy="40" r="22"/><circle class="f2" cx="74" cy="64" r="22"/><circle class="f" cx="24" cy="36" r="5"/><circle class="f" cx="36" cy="44" r="5"/><circle class="f" cx="28" cy="50" r="4"/><rect class="s" x="64" y="56" width="10" height="8" rx="1.5"/><rect class="s" x="76" y="64" width="10" height="8" rx="1.5"/><path class="s thin" d="M46 50l14 6"/></svg>
+<p class="k">分组</p>
+<h3>人员、设备和分组</h3>
+<p>团队里的人和他们的设备、人员分组和设备分组，以及把它们连起来的策略。</p>
 </article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.5"/><path d="M11.5 12H21M17 12v3M20 12v2"/></svg><h3>单点登录和用户同步</h3></div>
+<article class="tile t-green">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="s" x="8" y="18" width="88" height="62" rx="9"/><path class="s thin" d="M30 18v62"/><rect class="f2" x="14" y="26" width="10" height="6" rx="2"/><rect class="f2" x="14" y="38" width="10" height="6" rx="2"/><rect class="f2" x="38" y="28" width="48" height="14" rx="3"/><rect class="f2" x="38" y="48" width="48" height="24" rx="3"/><path class="s" d="M40 92h24"/></svg>
+<p class="k">管理</p>
+<h3>控制台和命令行</h3>
+<p>控制台运行在管理员自己的电脑上，与团队服务器通信；管理命令行也一样。</p>
+</article>
+<article class="tile t-violet">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><circle class="s" cx="32" cy="52" r="14"/><circle class="f2" cx="32" cy="52" r="7"/><path class="s" d="M46 52h40M74 52v12M84 52v8"/><path class="s thin" d="M62 22a30 30 0 0 1 26 16M42 82a30 30 0 0 1-26-16"/><path class="f" d="M88 38l-8-2 6-6zM16 66l8 2-6 6z"/></svg>
+<p class="k">身份</p>
+<h3>单点登录和用户同步</h3>
 <p>登记设备时用 OIDC 或 SAML 2.0 登录；通过 SCIM 2.0 从你的身份提供商同步人员。</p>
 </article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><h3>管理员审批</h3></div>
-<p>规则要求批准的操作，除了被控机的主人，团队管理员也可以在控制台或命令行里批准。每个决定都用管理员的密钥签名，由被控机核验。</p>
+<article class="tile t-amber">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><path class="f2" d="M52 10l34 12v26c0 22-15 38-34 44-19-6-34-22-34-44V22z"/><path class="s" d="M52 10l34 12v26c0 22-15 38-34 44-19-6-34-22-34-44V22z"/><path class="s" d="M36 52l11 11 21-22"/></svg>
+<p class="k">审批</p>
+<h3>管理员也能批准，带签名</h3>
+<p>规则要求批准的操作，除了被控机的主人，团队管理员也能批准；被控机核验签名后的决定。</p>
 </article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg><h3>集中审计和录像</h3></div>
-<p>被控机把审计记录签名后串成哈希链，连同会话录像一起送到团队服务器。保留多久在服务器上设定。</p>
+<article class="tile t-teal">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="4" y="24" width="26" height="56" rx="6"/><rect class="f2" x="39" y="24" width="26" height="56" rx="6"/><rect class="s" x="74" y="24" width="26" height="56" rx="6"/><path class="s" d="M30 52h9M65 52h9"/><path class="s thin" d="M10 36h14M10 44h10M45 36h14M45 44h10M80 36h14M80 44h10"/><circle class="f" cx="17" cy="68" r="4"/><circle class="f" cx="52" cy="68" r="4"/><circle class="f" cx="87" cy="68" r="4"/></svg>
+<p class="k">审计</p>
+<h3>集中审计和录像</h3>
+<p>被控机把审计记录签名后串成哈希链，连同会话录像送到团队服务器；保留多久在那里设定。</p>
 </article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="8.5" y="14" width="7" height="7" rx="1.5"/><path d="M10 7.5h4M6.5 11v3.5h2M17.5 11v3.5h-2"/></svg><h3>服务器伪造不了的日志</h3></div>
-<p>成员和策略是一份只追加的日志，每条都由管理员密钥签名，被控机自己核验。检查点和加入码让新的被控机从一份签名快照开始。</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg><h3>就在你的汇合服务器里</h3></div>
-<p>团队服务器运行在你自己的 <code>remohop signal</code> 里，不用另外部署。它可以按团队统计中继流量。</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>代理遵守同样的规则</h3></div>
-<p>AI 代理和人一样，受同样的策略、审批和审计约束。代理算设备，不算用户。</p>
+<article class="tile t-rose">
+<svg class="art" viewBox="0 0 104 104" aria-hidden="true"><rect class="f2" x="16" y="14" width="72" height="22" rx="6"/><rect class="f2" x="16" y="42" width="72" height="22" rx="6"/><rect class="s" x="16" y="70" width="72" height="22" rx="6"/><circle class="f" cx="28" cy="25" r="3"/><circle class="f" cx="28" cy="53" r="3"/><circle class="f" cx="28" cy="81" r="3"/><path class="s thin" d="M40 25h36M40 53h36M40 81h36"/></svg>
+<p class="k">服务器</p>
+<h3>就在你的汇合服务器里</h3>
+<p>团队服务器运行在你自己的 <code>remohop signal</code> 里，可以按团队统计中继流量。</p>
 </article>
 </div>
+</section>
 
-<h2 id="trust">信任的根基是这份日志</h2>
-<p>团队服务器有用，但不被信任。谁能做什么的每一项改动，都是团队日志里的一条记录，由日志允许做这项改动的管理员密钥签名。服务器保存并转发日志；被控机在照做之前逐条核验。</p>
-<ol class="chain">
-<li><span class="kicker">管理员</span><b>为每项改动签名</b><span>加一个人、一台设备或一条规则，都是一条用管理员密钥签名的记录。</span></li>
-<li><span class="kicker">团队日志</span><b>只追加</b><span>记录只会增加。检查点是日志的签名快照。</span></li>
-<li class="relay-only"><span class="kicker">团队服务器</span><b>保存和转发</b><span>运行在 <code>remohop signal</code> 里，伪造不了记录，也伪造不了审批决定。</span></li>
-<li><span class="kicker">被控机</span><b>先核验，再执行</b><span>每台被控机自己核验日志，把其中的规则变成授权。</span></li>
-</ol>
-
+<section class="section" aria-labelledby="facts">
+<div class="section-head">
 <h2 id="facts">实话实说</h2>
-<div class="facts">
-<div>
-<h3>你得到的</h3>
-<ul class="checks">
-<li><span>在你自己的服务器上运行的软件。</span></li>
-<li><span>离线许可证文件，带到期日。你的服务器从不联系我们来验证它。</span></li>
-<li><span>团队版许可证附带邮件支持。</span></li>
-<li><span>底层就是开源的 RemoHop：同样的加密、授权和被控端检查。</span></li>
-</ul>
 </div>
-<div>
-<h3>它不是什么</h3>
-<ul>
-<li>没有托管版。团队版只在你的服务器上运行。</li>
-<li>支持通过邮件，不是全天候。</li>
-<li>RemoHop 没有经过独立的安全审计。企业版客户可以得到配合安全评审的帮助。</li>
-<li>团队版的代码不公开，所以这一页只做说明，不放链接。</li>
-</ul>
+<div class="everyday">
+<div><h3>你的服务器</h3><p>由你自己运行的软件。没有托管版。</p></div>
+<div><h3>离线许可证</h3><p>许可证文件带到期日。你的服务器从不联系我们来验证它。</p></div>
+<div><h3>邮件支持</h3><p>团队版许可证附带邮件支持，不是全天候。</p></div>
+<div><h3>底层就是 RemoHop</h3><p>与开源 RemoHop 相同的加密、授权和被控端检查。</p></div>
+<div><h3>还没有审计</h3><p>RemoHop 没有经过独立的安全审计。企业版客户可以得到配合安全评审的帮助。</p></div>
+<div><h3>代码不公开</h3><p>团队版的代码不公开，所以这一页只做说明，不放链接。</p></div>
 </div>
-</div>
+</section>
 
+<section class="section" aria-labelledby="price">
+<div class="section-head">
 <h2 id="price">价格</h2>
-<div class="tiers mini">
-<article class="tier"><h3>团队版（免费）</h3><p class="price"><b>免费</b></p><p>{{P:free_users}} 个用户以内，全部团队功能。不需要许可证文件。</p></article>
-<article class="tier featured"><h3>团队版</h3><p class="price"><b>${{P:user_month}}</b> <span>每用户每月，按年付费</span></p><p>每个用户含 {{P:devices_per_user}} 台设备，邮件支持，离线许可证文件。</p></article>
-<article class="tier"><h3>企业版</h3><p class="price"><b>联系我们</b></p><p>超过 {{P:enterprise_users}} 个用户、发票和采购单、定制条款、配合安全评审。</p></article>
 </div>
-<p class="links"><a href="{{L:pricing}}">比较各个版本</a> <a href="{{L:pricing}}#faq">关于许可证的问题</a></p>
+<div class="plans">
+<article class="plan"><h3>团队版（免费）</h3><p class="price"><b>免费</b></p><p>{{P:free_users}} 个用户、{{P:free_devices}} 台设备以内，全部团队功能。不需要许可证文件。</p></article>
+<article class="plan featured"><h3>团队版</h3><p class="price"><b>${{P:user_month}}</b> <span>每用户每月，按年付费</span></p><p>每个用户含 {{P:devices_per_user}} 台设备，邮件支持，离线许可证文件。</p></article>
+<article class="plan"><h3>企业版</h3><p class="price"><b>联系我们</b></p><p>超过 {{P:enterprise_users}} 个用户、发票和采购单、定制条款、配合安全评审。</p></article>
+</div>
+<p class="links more-links"><a href="{{L:pricing}}">比较各个版本</a> <a href="{{L:pricing}}#faq">关于许可证的问题</a></p>
+</section>
