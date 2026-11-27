@@ -69,7 +69,8 @@ and <a href="/docs/#more">zh/</a>; this page is for people reading the code.</p>
 <tbody>
 <tr><td>Framing</td><td><code>internal/wire</code></td><td>length-prefixed JSON messages and typed binary frames</td></tr>
 <tr><td>Session</td><td><code>internal/peer</code></td><td><code>Conn</code>: an authenticated session multiplexing service streams</td></tr>
-<tr><td>Rendezvous</td><td><code>internal/signal</code></td><td>ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts (<code>remohop signal</code>)</td></tr>
+<tr><td>Rendezvous</td><td><code>internal/signal</code></td><td>ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts, the operator's web panel (<code>remohop signal</code>)</td></tr>
+<tr><td>Cloudflare Access</td><td><code>internal/cfaccess</code></td><td>checks Cloudflare Access tokens for the rendezvous server's web panel</td></tr>
 <tr><td>NAT traversal</td><td><code>internal/nat</code></td><td>candidate gathering, UDP hole punching</td></tr>
 <tr><td>Router port mapping</td><td><code>internal/portmap</code></td><td>PCP, NAT-PMP and UPnP IGD: the host's UDP port forwarded by its router, offered as a candidate</td></tr>
 <tr><td>Websocket bridge</td><td><code>internal/wsdgram</code></td><td>UDP datagrams over a WebSocket (HTTPS proxy aware), for networks without UDP</td></tr>
