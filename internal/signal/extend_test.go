@@ -26,7 +26,7 @@ type endedRelay struct {
 
 func init() {
 	RegisterRequest("x-test-echo", func(_ context.Context, s *Server, r ExtRequest) (any, error) {
-		return map[string]any{"key": []byte(r.Key), "payload": r.Payload, "source": r.Source.String(), "server": s != nil}, nil
+		return map[string]any{"key": []byte(r.Key), "payload": r.Payload, "source": r.Source.String(), "server": s != nil && s.DataDir() != "" && s.Logger() != nil}, nil
 	})
 	RegisterRequest("x-test-fail", func(context.Context, *Server, ExtRequest) (any, error) {
 		return nil, &ExtError{Code: CodeRateLimited, Msg: "slow down", RetryAfter: 3 * time.Second}

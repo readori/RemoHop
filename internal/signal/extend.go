@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"strings"
@@ -42,6 +43,13 @@ const (
 	extProofLabel    = "remohop-signal-ext/1"
 	extExporterLabel = "EXPORTER-remohop-signal-ext"
 )
+
+// DataDir is the server's data directory (Config.DataDir), where an
+// extension keeps its own files, in a subdirectory named after it.
+func (s *Server) DataDir() string { return s.cfg.DataDir }
+
+// Logger is the server's logger.
+func (s *Server) Logger() *slog.Logger { return s.log }
 
 // ExtRequest is one extension request as its handler sees it.
 type ExtRequest struct {
