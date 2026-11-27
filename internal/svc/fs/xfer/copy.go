@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -20,6 +21,22 @@ import (
 
 // DefaultParallel is how many files are transferred at once by default.
 const DefaultParallel = 8
+
+// smallParallel is how many requests that take one round trip each (a
+// small file, a directory listing, a mkdir, a chmod) run at once, at least.
+// They are bound by the round trip, not by bandwidth, and the host serves
+// up to 64 requests of a session at once; files that stream keep Parallel.
+// Measured at 40 ms round trip, 500 files of 4 KB took 2.8 s each way at 8
+// at once and 0.76 s at 48. A variable for tests.
+var smallParallel = 48
+
+// metaParallel is how many one-round-trip requests run at once when par
+// files transfer at once.
+func metaParallel(par int) int { return max(par, smallParallel) }
+
+// isSmall reports whether copying e takes one round trip: a symlink, or a
+// file that goes over the control channel whole (see transferFile).
+func isSmall(e *entry) bool { return !e.isRegular() || e.size <= rfs.SmallFile }
 
 // Progress holds live counters of a transfer. All fields are updated
 // atomically; read them with Load.
@@ -271,7 +288,7 @@ func (cp *copier) nameOf(s Path) (string, error) {
 // times are applied after their contents by run.
 func (cp *copier) planTree(srcRoot, dstRoot string, se *entry) []job {
 	ctx := cp.ctx
-	items, errs := walk(ctx, cp.src, srcRoot, nil, cp.o.Parallel)
+	items, errs := walk(ctx, cp.src, srcRoot, nil, metaParallel(cp.o.Parallel))
 	for _, err := range errs {
 		cp.fail(err)
 	}
@@ -282,7 +299,7 @@ func (cp *copier) planTree(srcRoot, dstRoot string, se *entry) []job {
 	}
 	var dirs []dirFix
 	if created {
-		dirs = append(dirs, dirFix{path: dstRoot, e: se})
+		dirs = append(dirs, dirFix{path: dstRoot, e: se, depth: 0})
 	}
 
 	// Create directories level by level: parents always exist before
@@ -307,7 +324,7 @@ func (cp *copier) planTree(srcRoot, dstRoot string, se *entry) []job {
 	}
 	for d := 0; d <= maxDepth; d++ {
 		var mu sync.Mutex
-		parallelDo(len(byDepth[d]), cp.o.Parallel, func(i int) {
+		parallelDo(len(byDepth[d]), metaParallel(cp.o.Parallel), func(i int) {
 			it := byDepth[d][i]
 			if isBlocked(it.rel) {
 				return
@@ -322,7 +339,7 @@ func (cp *copier) planTree(srcRoot, dstRoot string, se *entry) []job {
 				return
 			}
 			if created {
-				dirs = append(dirs, dirFix{path: p, e: it.e})
+				dirs = append(dirs, dirFix{path: p, e: it.e, depth: d + 1})
 			}
 		})
 	}
@@ -347,10 +364,11 @@ func (cp *copier) planTree(srcRoot, dstRoot string, se *entry) []job {
 }
 
 // dirFix is a directory whose final mode and time are set after its
-// contents are written.
+// contents are written. depth is how far below the top of its tree it is.
 type dirFix struct {
-	path string
-	e    *entry
+	path  string
+	e     *entry
+	depth int
 }
 
 // ensureDir creates a destination directory, or accepts an existing one
@@ -415,8 +433,7 @@ func (cp *copier) run(jobs []job) {
 	// Big files first, so one large file does not start last and run
 	// alone at the end.
 	sort.SliceStable(jobs, func(a, b int) bool { return jobs[a].e.size > jobs[b].e.size })
-	parallelDo(len(jobs), cp.o.Parallel, func(i int) {
-		j := jobs[i]
+	parallelBySize(jobs, func(j job) bool { return isSmall(j.e) }, cp.o.Parallel, func(j job) {
 		if cp.ctx.Err() != nil {
 			return
 		}
@@ -446,9 +463,7 @@ func (cp *copier) run(jobs []job) {
 	}
 	// Directory modes and times last, deepest first, so a read-only
 	// directory is only locked once its contents are in.
-	fixes := cp.dirFixes
-	sort.SliceStable(fixes, func(a, b int) bool { return len(fixes[a].path) > len(fixes[b].path) })
-	for _, d := range fixes {
+	deepestFirst(cp.dirFixes, func(d dirFix) int { return d.depth }, metaParallel(cp.o.Parallel), func(d dirFix) {
 		if err := cp.dst.chmod(cp.ctx, d.path, cp.filePerm(d.e)); err != nil {
 			cp.fail(err)
 		}
@@ -457,7 +472,7 @@ func (cp *copier) run(jobs []job) {
 				cp.fail(err)
 			}
 		}
-	}
+	})
 }
 
 // replaceSymlink creates a symlink at p, replacing an existing
@@ -601,6 +616,45 @@ func (cp *copier) fromStdin(dst Path) error {
 	}
 	cp.count(func(r *CopyResult) { r.Files++ })
 	return nil
+}
+
+// parallelBySize runs fn on every job: the small ones (see isSmall) up to
+// metaParallel(par) at a time, alongside the others, par at a time. Jobs
+// keep their order within each group.
+func parallelBySize[T any](jobs []T, small func(T) bool, par int, fn func(T)) {
+	var big, little []T
+	for _, j := range jobs {
+		if small(j) {
+			little = append(little, j)
+		} else {
+			big = append(big, j)
+		}
+	}
+	var wg sync.WaitGroup
+	wg.Go(func() { parallelDo(len(little), metaParallel(par), func(i int) { fn(little[i]) }) })
+	parallelDo(len(big), par, func(i int) { fn(big[i]) })
+	wg.Wait()
+}
+
+// deepestFirst runs fn on every item one depth level at a time, deepest
+// first, each level's items up to par at a time: an item is only reached
+// once everything deeper is done. Directory fixes and deletes go this way,
+// so that a directory is locked (made read-only) or removed after what is
+// in it, and a tree of many directories still costs a round trip per level
+// rather than one per directory. Measured at 40 ms round trip, copying 315
+// directories took 20.5 s one at a time, 3.1 s by levels.
+func deepestFirst[T any](items []T, depth func(T) int, par int, fn func(T)) {
+	sorted := slices.Clone(items)
+	sort.SliceStable(sorted, func(a, b int) bool { return depth(sorted[a]) > depth(sorted[b]) })
+	for i := 0; i < len(sorted); {
+		j := i + 1
+		for j < len(sorted) && depth(sorted[j]) == depth(sorted[i]) {
+			j++
+		}
+		level := sorted[i:j]
+		parallelDo(len(level), par, func(k int) { fn(level[k]) })
+		i = j
+	}
 }
 
 // parallelDo runs fn(0..n-1) on up to par goroutines.
