@@ -9,60 +9,88 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<!-- Icons: 24 px line icons drawn with the text colour (style.css gives
+     every svg.i a 1.75 px round stroke). -->
 <svg width="0" height="0" class="vh" aria-hidden="true">
-  <symbol id="i-connect" viewBox="0 0 24 24"><path fill="currentColor" d="M4 5h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-6v2h3v2H7v-2h3v-2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Zm0 2v9h16V7H4Zm9.5 1.5L17 12l-3.5 3.5-1.4-1.4 1.1-1.1H8v-2h5.2l-1.1-1.1 1.4-1.4Z"/></symbol>
-  <symbol id="i-computer" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6v2h3v2H7v-2h3v-2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v10h16V6H4Zm8 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM8 15c.6-1.5 2.2-2 4-2s3.4.5 4 2H8Z"/></symbol>
-  <symbol id="i-settings" viewBox="0 0 24 24"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6c-.6.3-1.2.6-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5-2.3-1.6ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><path fill="currentColor" d="M11 7h2v2h-2V7Zm0 4h2v6h-2v-6Zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><path fill="currentColor" d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1Zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 16H8V7h11v14Z"/></symbol>
-  <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/></symbol>
-  <symbol id="i-close" viewBox="0 0 24 24"><path fill="currentColor" d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19l5.6-5.6 5.6 5.6 1.4-1.4-5.6-5.6L19 6.4Z"/></symbol>
-  <symbol id="i-popout" viewBox="0 0 24 24"><path fill="currentColor" d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7ZM14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3h-7Z"/></symbol>
-  <symbol id="i-more" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></symbol>
-  <symbol id="i-warn" viewBox="0 0 24 24"><path fill="currentColor" d="M1 21h22L12 2 1 21Zm12-3h-2v-2h2v2Zm0-4h-2v-4h2v4Z"/></symbol>
-  <symbol id="i-eye" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5C6.5 5 2.7 9 1.5 12c1.2 3 5 7 10.5 7s9.3-4 10.5-7C21.3 9 17.5 5 12 5Zm0 11.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9Zm0-2.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></symbol>
-  <symbol id="i-eye-off" viewBox="0 0 24 24"><path fill="currentColor" d="M2.3 3.7 3.7 2.3l18 18-1.4 1.4-3.2-3.2A11.4 11.4 0 0 1 12 19c-5.5 0-9.3-4-10.5-7 .6-1.5 1.8-3.3 3.5-4.8L2.3 3.7Zm5.4 5.4A4.5 4.5 0 0 0 14.9 15.3l-1.6-1.6A2 2 0 0 1 10.3 10.7L7.7 9.1ZM12 5c5.5 0 9.3 4 10.5 7-.5 1.3-1.5 2.8-2.8 4.1l-3.3-3.3A4.5 4.5 0 0 0 11.2 7.6L8.9 5.4C9.9 5.1 10.9 5 12 5Z"/></symbol>
-  <symbol id="i-chev" viewBox="0 0 24 24"><path fill="currentColor" d="M9.3 5.3 8 6.7l5.3 5.3L8 17.3l1.3 1.4L16 12z"/></symbol>
-  <symbol id="i-globe" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 6h-3a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8ZM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.8 1.9-4ZM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4H4.3Zm.8 2h3c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16Zm3-8h-3a8 8 0 0 1 4.4-3.6C8.9 5.5 8.4 6.7 8.1 8ZM12 20c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.8-1.9 4Zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4Zm.2 5.6c.6-1.1 1.1-2.3 1.4-3.6h3a8 8 0 0 1-4.4 3.6Zm1.8-5.6a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4h-3.4Z"/></symbol>
-  <symbol id="i-lang" viewBox="0 0 24 24"><path fill="currentColor" d="m12.9 15.1-2.5-2.5h.1A17.4 17.4 0 0 0 14.1 6H17V4h-7V2H8v2H1v2h11.2c-.7 1.9-1.7 3.8-3.2 5.4-1-1.1-1.8-2.3-2.4-3.4h-2c.7 1.6 1.7 3.2 3 4.6l-5.1 5L4 19l5-5 3.1 3.1.8-2ZM18.5 10h-2L12 22h2l1.1-3h4.8l1.1 3h2l-4.5-12Zm-2.6 7 1.6-4.3 1.6 4.3h-3.2Z"/></symbol>
-  <symbol id="i-theme" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3a9 9 0 1 0 9 9c0-.5 0-1-.1-1.4A5.5 5.5 0 0 1 13.4 3.1L12 3Z"/></symbol>
-  <symbol id="i-download" viewBox="0 0 24 24"><path fill="currentColor" d="M11 3h2v9.2l3.3-3.3 1.4 1.4L12 16l-5.7-5.7 1.4-1.4 3.3 3.3V3ZM4 18h16v2H4v-2Z"/></symbol>
-  <symbol id="i-diag" viewBox="0 0 24 24"><path fill="currentColor" d="M3 13h4l2-5 4 10 2.5-6H21v2h-4.2L13 23 9 13l-.7 2H3v-2Zm3-11h12a2 2 0 0 1 2 2v6h-2V4H6v6H4V4a2 2 0 0 1 2-2Z"/></symbol>
-  <symbol id="i-help" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 17h-2v-2h2v2Zm2.1-7.8-.9.9c-.7.7-1.2 1.3-1.2 2.9h-2v-.5c0-1.1.5-2.1 1.2-2.8l1.2-1.3A2 2 0 0 0 12 7a2 2 0 0 0-2 2H8a4 4 0 1 1 8 0c0 .9-.4 1.7-.9 2.2Z"/></symbol>
-  <symbol id="i-telegram" viewBox="0 0 24 24"><path fill="currentColor" d="M21.4 3.6 2.9 10.7c-1.3.5-1.2 1.3-.2 1.6l4.7 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.5l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5ZM9.4 13.4l8.9-5.6c.4-.3.8-.1.5.2l-7.3 6.6-.3 3.2-1.8-4.4Z"/></symbol>
-  <symbol id="i-hand" viewBox="0 0 24 24"><path fill="currentColor" d="M21 7.5V17a6 6 0 0 1-6 6h-2.2a6 6 0 0 1-4.3-1.8l-5.3-5.4s.8-.9.9-.9c.2-.2.4-.2.7-.1L8 15.6V4.5a1.5 1.5 0 0 1 3 0V11h1V2.5a1.5 1.5 0 0 1 3 0V11h1V3.5a1.5 1.5 0 0 1 3 0V11h1V7.5a1.5 1.5 0 0 1 3 0Z"/></symbol>
-  <symbol id="i-doc" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm4 18H6V4h7v5h5v11ZM8 12h8v2H8v-2Zm0 4h8v2H8v-2Z"/></symbol>
-  <symbol id="i-license" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5l-8-3Zm-1.5 14.5-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7Z"/></symbol>
-  <symbol id="i-key" viewBox="0 0 24 24"><path fill="currentColor" d="M12.7 10A6 6 0 1 0 12.7 14H17v4h4v-4h2v-4H12.7ZM7 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/></symbol>
-  <symbol id="i-device" viewBox="0 0 24 24"><path fill="currentColor" d="M4 6h18V4H4a2 2 0 0 0-2 2v11H0v3h14v-3H4V6Zm19 2h-6a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1Zm-1 9h-4v-7h4v7Z"/></symbol>
-  <symbol id="i-power" viewBox="0 0 24 24"><path fill="currentColor" d="M13 3h-2v10h2V3Zm4.8 2.2-1.4 1.4A6 6 0 1 1 6 12c0-1.7.7-3.2 1.8-4.3L6.4 6.2A8 8 0 1 0 20 12a8 8 0 0 0-2.2-6.8Z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-connect" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4M7.5 10.5h8M12.5 7.5l3 3-3 3"/></symbol>
+  <symbol id="i-computer" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-sessions" viewBox="0 0 24 24"><path d="M3.5 13.5 6 5.5a1 1 0 0 1 1-.7h10a1 1 0 0 1 1 .7l2.5 8V19a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1z"/><path d="M3.5 13.5H8l1.2 2.5h5.6l1.2-2.5h4.5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 6.5h9M18 6.5h2M4 12h3M11 12h9M4 17.5h9M18 17.5h2"/><circle cx="15.5" cy="6.5" r="2.2"/><circle cx="8.5" cy="12" r="2.2"/><circle cx="15.5" cy="17.5" r="2.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v9A1.5 1.5 0 0 0 5 15.5h3.5"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5M20 4v4.5h-4.5"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-popout" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path d="M12 5.5v.01M12 12v.01M12 18.5v.01" stroke-width="3"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 4.2 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0zM12 9.5v4.5M12 17.2v.1"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3.5 3.5l17 17M10.4 5.7A9 9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.9 3.6M6.6 6.9C4 8.6 2.5 12 2.5 12S6 18.5 12 18.5c1.8 0 3.3-.5 4.6-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"/></symbol>
+  <symbol id="i-lang" viewBox="0 0 24 24"><path d="M3.5 5.5h9M8 3.5v2M10.5 5.5c0 4-2.5 7.5-6 9M5.5 9c1 2.2 3 4.2 5.5 5.5M12.5 20.5l4-9 4 9M14 17h5"/></symbol>
+  <symbol id="i-theme" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v12M7 10.5l5 5 5-5M4.5 20.5h15"/></symbol>
+  <symbol id="i-diag" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6.5 5 13L17 12h4"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8M12 17v.1"/></symbol>
+  <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M21 4 3 11.2l6.3 2.3L19 7l-8 8.2.4 5.3 3.3-3.8 4.3 3.3z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3.5H6.5a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V8z"/><path d="M14 3.5V8h4.5M8.5 12.5h7M8.5 16.5h5"/></symbol>
+  <symbol id="i-license" viewBox="0 0 24 24"><path d="M12 3 19.5 6v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.5"/><path d="M11.2 11.8 20 3M16.5 6.5l3 3M14 9l2 2"/></symbol>
+  <symbol id="i-device" viewBox="0 0 24 24"><path d="M14 17.5H2.5M4 6.5h11a1 1 0 0 1 1 1v3"/><path d="M4 6.5a1 1 0 0 0-1 1v10"/><rect x="16" y="10" width="5.5" height="10" rx="1.2"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-sidebar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/></symbol>
+  <symbol id="i-activity" viewBox="0 0 24 24"><path d="M4 20V10M9 20V4M14 20v-7M19 20V8"/></symbol>
 </svg>
 
-<header class="bar" id="bar">
-  <div class="brand"><img src="assets/icon.svg" alt=""><span>RemoHop</span></div>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="RemoHop">
-    <button class="tab" role="tab" id="tab-connect" data-view="connect" aria-selected="true"><svg class="ic"><use href="#i-connect"/></svg><span class="lbl" data-t="tab.connect">Connect</span></button>
-    <button class="tab" role="tab" id="tab-computer" data-view="computer" aria-selected="false"><svg class="ic"><use href="#i-computer"/></svg><span class="lbl" data-t="tab.computer">This computer</span><span class="badge" id="badge" hidden></span></button>
+<div class="shell" id="shell">
+<!-- The sidebar: the app's places, then every computer open in this window
+     (closable, like a browser's tabs), then Settings and this computer's
+     status. It folds into an icon rail in narrow windows. -->
+<aside class="side" id="bar" aria-label="RemoHop">
+  <div class="side-head">
+    <div class="brand"><img src="assets/icon.svg" alt=""><span class="brand-t">RemoHop</span></div>
+    <button class="icon-btn side-toggle" id="side-toggle" aria-pressed="false" data-ta="nav.collapse"><svg class="i"><use href="#i-sidebar"/></svg></button>
+  </div>
+  <nav class="nav" id="tabs" aria-label="RemoHop">
+    <div class="nav-sec mono" data-t="nav.main">Main menu</div>
+    <button class="tab" id="tab-computer" data-view="computer"><svg class="i ic"><use href="#i-home"/></svg><span class="lbl" data-t="tab.home">Home</span></button>
+    <button class="tab" id="tab-connect" data-view="connect"><svg class="i ic"><use href="#i-connect"/></svg><span class="lbl" data-t="tab.connect">Connect</span><span class="count" id="nav-peers" hidden></span></button>
+    <button class="tab" id="tab-sessions" data-view="sessions"><svg class="i ic"><use href="#i-sessions"/></svg><span class="lbl" data-t="tab.sessions">Sessions</span><span class="count warn" id="nav-queue" hidden></span><span class="badge" id="badge" hidden></span></button>
+    <div class="nav-sec mono" id="host-sec" hidden data-t="nav.open">Open computers</div>
+    <div class="host-tabs" id="host-tabs"></div>
   </nav>
-  <button class="icon-btn" id="tab-settings" data-view="settings" aria-pressed="false" data-ta="tab.settings" aria-label="Settings" title="Settings"><svg><use href="#i-settings"/></svg></button>
-</header>
+  <div class="side-foot">
+    <button class="tab" id="tab-settings" data-view="settings"><svg class="i ic"><use href="#i-settings"/></svg><span class="lbl" data-t="tab.settings">Settings</span></button>
+    <button class="me" id="me" data-view="computer"><span class="me-av"><svg class="i"><use href="#i-computer"/></svg><span class="pres" id="me-pres"></span></span>
+      <span class="me-txt"><span class="me-t" data-t="me.title">This computer</span><span class="me-s mono" id="me-s"></span></span></button>
+  </div>
+</aside>
 
+<div class="col">
 <!-- a newer release (update.go) -->
 <div class="upd" id="upd" role="status" hidden>
-  <svg class="ic"><use href="#i-refresh"/></svg>
-  <div class="grow"><b id="upd-title"></b> <span class="muted small" id="upd-how"></span> <code class="upd-cmd" id="upd-cmd" hidden></code></div>
+  <svg class="i ic"><use href="#i-refresh"/></svg>
+  <div class="grow"><b id="upd-title"></b> <span class="small" id="upd-how"></span> <code class="upd-cmd" id="upd-cmd" hidden></code></div>
   <button class="btn sm tonal" id="upd-copy" data-copy="upd-cmd" data-t="copy" hidden>Copy</button>
   <button class="btn sm" id="upd-install" data-t="upd.install" hidden>Upgrade now</button>
   <button class="btn sm" id="upd-get" data-t="upd.get">Download</button>
   <button class="btn sm text" id="upd-notes" data-t="upd.notes">What's new</button>
-  <button class="icon-btn" id="upd-skip" data-ta="upd.skip" aria-label="Skip this version"><svg><use href="#i-close"/></svg></button>
+  <button class="icon-btn" id="upd-skip" data-ta="upd.skip" aria-label="Skip this version"><svg class="i"><use href="#i-close"/></svg></button>
 </div>
 
 <main id="main">
   <!-- first-run wizard -->
   <section class="view" id="v-wizard" hidden>
     <div class="wizard">
+      <div class="wiz-card">
       <img class="logo" src="assets/icon.svg" alt="">
+      <div class="eyebrow mono" data-t="wiz.eyebrow">First start</div>
       <h1 data-t="wiz.title">Welcome to RemoHop</h1>
       <p class="muted" data-t="wiz.lead">Connect to your computers, or let someone help you.</p>
       <div class="steps"><i class="on"></i><i id="wiz-s2"></i></div>
@@ -72,7 +100,7 @@
         <div class="row end mt"><button class="btn" id="wiz-next" data-t="next">Next</button></div>
       </div>
       <div id="wiz-2" hidden>
-        <h3 data-t="wiz.server">Rendezvous server <button class="info" data-help="h-server" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+        <h3 data-t="wiz.server">Rendezvous server <button class="info" data-help="h-server" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h3>
         <p class="help" id="h-server" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
         <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
         <label class="opt"><input type="radio" name="wsrv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
@@ -82,85 +110,188 @@
         <p class="err" id="wiz-err"></p>
         <div class="row between mt"><button class="btn text" id="wiz-back" data-t="back">Back</button><button class="btn" id="wiz-done" data-t="done">Done</button></div>
       </div>
+      </div>
     </div>
   </section>
 
-  <!-- connect -->
-  <section class="view" id="v-connect" role="tabpanel" aria-labelledby="tab-connect">
+  <!-- home: this computer, who is connected, the computers it reaches -->
+  <section class="view" id="v-computer" aria-labelledby="h-home" hidden>
     <div class="page">
-      <form class="connect-form" id="connect-form" autocomplete="off">
-        <label class="field"><span class="lbl-sm" data-t="c.target">Computer ID or address</span>
-          <input id="target" class="mono" placeholder="123 456 789" inputmode="url" spellcheck="false" autocapitalize="off" autocorrect="off" required></label>
-        <button class="btn tall" data-t="c.connect">Connect</button>
-      </form>
-      <p class="err" id="c-err"></p>
-      <h3><span data-t="c.saved">Saved computers</span> <button class="info" data-help="h-saved" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+      <header class="ph"><div class="grow"><div class="eyebrow mono" id="home-date"></div><h1 id="h-home" data-t="tab.home">Home</h1>
+        <p class="lead" data-t="home.lead">This computer, who is connected to it, and the computers you reach.</p></div></header>
+      <div class="grid home">
+        <section class="card hero" aria-labelledby="in-allow-l">
+          <div class="card-h">
+            <span class="tile"><svg class="i"><use href="#i-computer"/></svg></span>
+            <div class="grow"><h2 class="ct" id="in-allow-l" data-t="in.allow">Allow incoming connections</h2>
+              <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div></div>
+            <button class="info" data-help="h-incoming" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button>
+            <input type="checkbox" class="switch" id="incoming" role="switch" aria-labelledby="in-allow-l">
+          </div>
+          <p class="help" id="h-incoming" hidden data-t="help.incoming">While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.</p>
+          <div class="creds" id="creds" hidden>
+            <div class="cred"><div class="mlabel mono" data-t="in.id">ID</div><div class="v num" id="in-id"></div>
+              <div class="acts"><button class="btn text sm" data-copy="in-id"><svg class="i"><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
+            <div class="cred"><div class="mlabel mono" id="in-pw-l">Temporary password</div><div class="v" id="in-pw"></div>
+              <div class="acts"><button class="btn text sm" data-copy="in-pw"><svg class="i"><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
+                <button class="btn text sm" id="regen"><svg class="i"><use href="#i-refresh"/></svg><span data-t="in.new">New</span></button>
+                <button class="btn text sm" id="pw-reveal" hidden aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg><span>Show</span></button>
+                <button class="btn text sm" id="pw-set"><svg class="i"><use href="#i-settings"/></svg><span data-t="in.setpw">Password settings</span></button></div></div>
+          </div>
+          <div class="off-note" id="in-offnote"><svg class="i"><use href="#i-power"/></svg><span data-t="in.offnote">Switch on to show this computer's ID and a password to give to whoever helps you.</span></div>
+          <p class="muted small mono" id="in-addr" hidden></p>
+          <p class="err" id="in-err"></p>
+        </section>
+
+        <section class="card qc" aria-labelledby="qc-h">
+          <div class="card-h"><span class="tile"><svg class="i"><use href="#i-bolt"/></svg></span><h2 class="ct grow" id="qc-h" data-t="qc.title">Quick connect</h2></div>
+          <form class="qc-form" id="qc-form" autocomplete="off">
+            <label class="field"><span class="vh" data-t="c.target">Computer ID or address</span>
+              <input id="qc-target" class="mono" placeholder="123 456 789" inputmode="url" spellcheck="false" autocapitalize="off" autocorrect="off" required></label>
+            <button class="btn" data-t="c.connect">Connect</button>
+          </form>
+          <div class="mlabel mono mt16" id="recent-l" data-t="qc.recent">Recently seen</div>
+          <div class="recent" id="recent"></div>
+          <p class="muted small" id="recent-empty" hidden data-t="qc.none">Computers you connect to appear here.</p>
+          <div class="card-f"><button class="link" data-view="connect"><span data-t="qc.all">All saved computers</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+        </section>
+
+        <section class="card kpi k1">
+          <div class="kpi-h"><span class="kdot ok" id="k-live-dot"></span><span data-t="kpi.live">Connected now</span></div>
+          <div class="kpi-v num" id="k-live">0</div><div class="kpi-s" id="k-live-s"></div>
+          <div class="card-f"><button class="link" data-view="sessions"><span data-t="link.sessions">Sessions</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+        </section>
+        <section class="card kpi k2">
+          <div class="kpi-h"><span class="kdot warn" id="k-queue-dot"></span><span data-t="kpi.queue">Needs you</span></div>
+          <div class="kpi-v num" id="k-queue">0</div><div class="kpi-s" id="k-queue-s"></div>
+          <div class="card-f"><button class="link" data-view="sessions"><span data-t="link.queue">Approval queue</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+        </section>
+        <section class="card kpi k3">
+          <div class="kpi-h"><span class="kdot acc"></span><span data-t="kpi.saved">Saved computers</span></div>
+          <div class="kpi-v num" id="k-saved">0</div><div class="kpi-s" id="k-saved-s"></div>
+          <div class="card-f"><button class="link" data-view="connect"><span data-t="link.connect">Address book</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+        </section>
+
+        <section class="card un" aria-labelledby="un-h">
+          <div class="card-h"><span class="tile"><svg class="i"><use href="#i-key"/></svg></span>
+            <h2 class="ct grow" id="un-h"><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+            <input type="checkbox" class="switch onoff" id="un-switch" role="switch" data-ta="un.title"></div>
+          <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
+          <div class="un-st"><div class="status" id="un-status"><span class="d"></span><span id="un-state"></span></div><div class="note" id="un-sub"></div></div>
+          <div class="row wrap" id="un-manage" hidden><button class="btn tonal sm" id="un-sess" data-t="un.sessions">Connections</button>
+            <button class="btn tonal sm" id="un-pw" data-t="un.change">Change password</button>
+            <span class="muted small" id="un-admin2" hidden data-t="un.admin">Windows will ask for an administrator.</span></div>
+        </section>
+
+        <section class="card act" aria-labelledby="act-h">
+          <div class="card-h"><span class="tile"><svg class="i"><use href="#i-activity"/></svg></span>
+            <div class="grow"><h2 class="ct" id="act-h" data-t="act.title">Activity</h2><div class="note" data-t="act.sub">Devices connected to this computer, per minute, last hour</div></div>
+            <span class="chip" id="act-peak"></span></div>
+          <div class="dm-wrap" id="act-chart"></div>
+          <div class="dm-axis mono"><span data-t="act.ago">60 min ago</span><span id="act-since"></span><span data-t="act.now">now</span></div>
+          <p class="muted small" id="act-none" data-t="act.none">Nobody has connected in the last hour.</p>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- connect: the address book -->
+  <section class="view" id="v-connect" aria-labelledby="h-connect">
+    <div class="page">
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="c.eyebrow">Address book</div><h1 id="h-connect" data-t="tab.connect">Connect</h1>
+        <p class="lead" data-t="c.lead">Type an ID, a name you gave a computer, or host:port.</p></div></header>
+      <section class="card connect-card">
+        <form class="connect-form" id="connect-form" autocomplete="off">
+          <label class="field"><span class="lbl-sm" data-t="c.target">Computer ID or address</span>
+            <input id="target" class="mono big" placeholder="123 456 789" inputmode="url" spellcheck="false" autocapitalize="off" autocorrect="off" required></label>
+          <button class="btn lg" data-t="c.connect">Connect</button>
+        </form>
+        <p class="err" id="c-err"></p>
+      </section>
+      <div class="sec-h">
+        <h2 class="st"><span data-t="c.saved">Saved computers</span> <span class="count" id="peers-count"></span> <button class="info" data-help="h-saved" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+        <div class="tools">
+          <div class="seg pill" id="peer-filter"><button data-f="" aria-pressed="true" data-t="f.all">All</button><button data-f="online" aria-pressed="false" data-t="p.online">Online</button><button data-f="paired" aria-pressed="false" data-t="p.paired">Paired</button></div>
+          <label class="search"><svg class="i"><use href="#i-search"/></svg><span class="vh" data-t="c.search">Search saved computers</span><input id="peer-q" type="search" data-tp="c.search" autocomplete="off" spellcheck="false"></label>
+          <button class="icon-btn bordered" id="peers-refresh" data-ta="c.refresh"><svg class="i"><use href="#i-refresh"/></svg></button>
+        </div>
+      </div>
       <p class="help" id="h-saved" hidden data-t="help.saved">Computers you connected to or paired with. A paired computer needs no password.</p>
-      <div class="peers" id="peers"></div>
-      <div class="empty" id="peers-empty" hidden data-t="c.none">No saved computers yet.</div>
+      <section class="card table">
+        <div class="thead mono" id="peers-head"><span data-t="col.name">Computer</span><span data-t="col.platform">System</span><span data-t="col.seen">Last seen online</span><span></span></div>
+        <div class="peers" id="peers"></div>
+        <div class="empty" id="peers-empty" hidden><span class="empty-ic"><svg class="i"><use href="#i-connect"/></svg></span>
+          <div class="empty-t" data-t="c.none">No saved computers yet.</div><div class="muted small" data-t="c.none.sub">The computers you connect to or pair with, and your account's devices, are listed here.</div></div>
+        <div class="empty" id="peers-nomatch" hidden><div class="muted" data-t="c.nomatch">No saved computer matches.</div></div>
+      </section>
     </div>
   </section>
 
-  <!-- this computer -->
-  <section class="view" id="v-computer" role="tabpanel" aria-labelledby="tab-computer" hidden>
+  <!-- sessions: requests waiting for an answer, who is connected, the
+       computers open here, and the devices let in without asking -->
+  <section class="view" id="v-sessions" aria-labelledby="h-sessions" hidden>
     <div class="page">
-      <div class="card">
-        <div class="row">
-          <div class="grow"><div class="title-m" id="in-allow-l" data-t="in.allow">Allow incoming connections</div>
-            <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div></div>
-          <button class="info" data-help="h-incoming" aria-expanded="false"><svg><use href="#i-info"/></svg></button>
-          <input type="checkbox" class="switch" id="incoming" role="switch" aria-labelledby="in-allow-l">
-        </div>
-        <p class="help" id="h-incoming" hidden data-t="help.incoming">While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.</p>
-        <div class="creds" id="creds" hidden>
-          <div class="cred"><div class="muted small" data-t="in.id">ID</div><div class="v" id="in-id"></div>
-            <div class="acts"><button class="btn text sm" data-copy="in-id"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
-          <div class="cred"><div class="muted small" id="in-pw-l">Temporary password</div><div class="v" id="in-pw"></div>
-            <div class="acts"><button class="btn text sm" data-copy="in-pw"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
-              <button class="btn text sm" id="regen"><svg><use href="#i-refresh"/></svg><span data-t="in.new">New</span></button>
-              <button class="btn text sm" id="pw-reveal" hidden aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
-              <button class="btn text sm" id="pw-set"><svg><use href="#i-settings"/></svg><span data-t="in.setpw">Password settings</span></button></div></div>
-        </div>
-        <p class="muted small" id="in-addr" hidden></p>
-        <p class="err" id="in-err"></p>
-      </div>
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="sess.eyebrow">Sessions and approvals</div><h1 id="h-sessions" data-t="tab.sessions">Sessions</h1>
+        <p class="lead" data-t="sess.lead">Who is waiting, who is connected, and who may come back without asking.</p></div></header>
+      <div class="grid sessgrid">
+        <section class="card queue" aria-labelledby="q-h">
+          <div class="card-h"><h2 class="ct grow" id="q-h"><span data-t="q.title">Needs you</span> <span class="count warn" id="q-count" hidden></span></h2></div>
+          <div class="qlist" id="queue"></div>
+          <div class="empty" id="queue-empty"><span class="empty-ic ok"><svg class="i"><use href="#i-check"/></svg></span>
+            <div class="empty-t" data-t="q.none">Nothing needs you</div><div class="muted small" data-t="q.none.sub">When someone asks to connect, the question appears in front of every window and waits here.</div></div>
+          <div class="card-f mono small muted" id="q-foot"></div>
+        </section>
 
-      <div id="sessions-box" hidden>
-        <h3 class="gh" data-t="in.sessions">Connected now</h3>
-        <div id="sessions"></div>
-        <button class="btn danger sm" id="disc-all"><svg><use href="#i-power"/></svg><span data-t="in.discall">Disconnect everyone</span></button>
-      </div>
+        <section class="card live" aria-labelledby="live-h">
+          <div class="card-h"><h2 class="ct grow" id="live-h"><span data-t="in.sessions">Connected now</span> <span class="count ok" id="live-count" hidden></span></h2></div>
+          <div id="sessions-box" hidden>
+            <div id="sessions"></div>
+            <div class="row end mt12"><button class="btn danger sm" id="disc-all"><svg class="i"><use href="#i-power"/></svg><span data-t="in.discall">Disconnect everyone</span></button></div>
+          </div>
+          <div class="empty" id="sessions-empty"><span class="empty-ic"><svg class="i"><use href="#i-computer"/></svg></span>
+            <div class="empty-t" data-t="sess.none">Nobody is connected to this computer.</div></div>
+          <div class="svc-row" id="svc-row" hidden><svg class="i"><use href="#i-key"/></svg><span class="grow" data-t="un.svc">Connections through unattended access are listed apart.</span>
+            <button class="btn tonal sm" id="un-sess2" data-t="un.sessions">Connections</button></div>
+        </section>
 
-      <h3 class="gh"><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
-      <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
-      <div class="group">
-        <div class="item"><span class="tile purple"><svg><use href="#i-key"/></svg></span>
-          <div class="lbl"><div class="status" id="un-status"><span class="d"></span><span id="un-state"></span></div><div class="note" id="un-sub"></div></div>
-          <input type="checkbox" class="switch onoff" id="un-switch" role="switch" data-ta="un.title"></div>
-        <div class="item" id="un-manage" hidden><span class="tile gray"><svg><use href="#i-computer"/></svg></span>
-          <div class="lbl row wrap"><button class="btn text sm" id="un-sess" data-t="un.sessions">Connections</button>
-          <button class="btn text sm" id="un-pw" data-t="un.change">Change password</button>
-          <span class="muted small" id="un-admin2" hidden data-t="un.admin">Windows will ask for an administrator.</span></div></div>
-      </div>
+        <section class="card out" aria-labelledby="out-h">
+          <div class="card-h"><h2 class="ct grow" id="out-h"><span data-t="out.title">Computers open here</span> <span class="count" id="out-count" hidden></span></h2></div>
+          <div id="out-list"></div>
+          <div class="empty" id="out-empty"><span class="empty-ic"><svg class="i"><use href="#i-connect"/></svg></span>
+            <div class="empty-t" data-t="out.none">No computer is open.</div><div class="muted small" data-t="out.none.sub">Computers you open from Connect show here and in the sidebar.</div></div>
+        </section>
 
-      <div id="trusted-box" hidden>
-        <h3 class="gh"><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
-        <p class="help" id="h-tr" hidden data-t="help.tr">These devices connect without asking, with the access you chose, while incoming connections are on.</p>
-        <div class="group" id="trusted"></div>
+        <section class="card trust" aria-labelledby="tr-h">
+          <div class="card-h"><h2 class="ct grow" id="tr-h"><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2></div>
+          <p class="help" id="h-tr" hidden data-t="help.tr">These devices connect without asking, with the access you chose, while incoming connections are on.</p>
+          <div id="trusted-box" hidden><div id="trusted"></div></div>
+          <div class="empty" id="trusted-empty"><span class="empty-ic"><svg class="i"><use href="#i-license"/></svg></span>
+            <div class="empty-t" data-t="tr.none">No remembered devices.</div><div class="muted small" data-t="tr.none.sub">Tick "Remember this device" when you allow one, and it is let in next time without asking.</div></div>
+        </section>
       </div>
     </div>
   </section>
 
-  <!-- settings: grouped lists, an icon tile per row (as in the phone apps) -->
-  <section class="view" id="v-settings" hidden>
-    <div class="page narrow">
-      <h2 data-t="tab.settings">Settings</h2>
-
-      <h3 class="gh"><span data-t="set.g.conn">Connection</span> <button class="info" data-help="h-server2" aria-expanded="false"><svg><use href="#i-info"/></svg></button></h3>
+  <!-- settings: grouped lists, a row per setting -->
+  <section class="view" id="v-settings" aria-labelledby="h-settings" hidden>
+    <div class="page">
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="set.eyebrow">Preferences</div><h1 id="h-settings" data-t="tab.settings">Settings</h1>
+        <p class="lead" data-t="set.lead">How RemoHop works on this computer.</p></div></header>
+      <div class="set-layout">
+      <nav class="set-index" id="set-index" aria-label="Settings">
+        <button data-sec="sg-conn" data-t="set.g.conn">Connection</button>
+        <button data-sec="sg-gen" data-t="set.g.general">General</button>
+        <button data-sec="sg-un" data-t="un.title">Unattended access</button>
+        <button data-sec="sg-upd" data-t="upd.h">Updates</button>
+        <button data-sec="sg-sup" data-t="set.g.support">Support</button>
+        <button data-sec="sg-about" data-t="about.h">About</button>
+      </nav>
+      <div class="set-body">
+      <h3 class="gh" id="sg-conn"><span data-t="set.g.conn">Connection</span> <button class="info" data-help="h-server2" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h3>
       <p class="help" id="h-server2" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
       <div class="group">
-        <button class="item" id="srv-row" aria-expanded="false" aria-controls="srv-panel"><span class="tile blue"><svg><use href="#i-globe"/></svg></span>
-          <span class="lbl" data-t="wiz.server">Rendezvous server</span><span class="val" id="srv-val"></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <button class="item" id="srv-row" aria-expanded="false" aria-controls="srv-panel"><span class="tile"><svg class="i"><use href="#i-globe"/></svg></span>
+          <span class="lbl" data-t="wiz.server">Rendezvous server</span><span class="val mono" id="srv-val"></span><svg class="i chev"><use href="#i-chev"/></svg></button>
         <div class="sub" id="srv-panel" hidden>
           <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
           <label class="opt"><input type="radio" name="srv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
@@ -171,69 +302,74 @@
         </div>
       </div>
 
-      <h3 class="gh" data-t="set.g.general">General</h3>
+      <h3 class="gh" id="sg-gen" data-t="set.g.general">General</h3>
       <div class="group">
-        <div class="item"><span class="tile blue"><svg><use href="#i-lang"/></svg></span><span class="lbl" data-t="set.lang">Language</span>
-          <div class="seg" id="set-lang"><button data-lang="" data-t="auto">Auto</button><button data-lang="zh" lang="zh-CN">中文</button><button data-lang="en" lang="en">English</button></div></div>
-        <div class="item"><span class="tile indigo"><svg><use href="#i-theme"/></svg></span><span class="lbl" data-t="set.theme">Theme</span>
-          <div class="seg" id="set-theme"><button data-theme="" data-t="auto">Auto</button><button data-theme="light" data-t="set.light">Light</button><button data-theme="dark" data-t="set.dark">Dark</button></div></div>
-        <label class="item" id="autostart-box"><span class="tile green"><svg><use href="#i-power"/></svg></span>
+        <div class="item"><span class="tile"><svg class="i"><use href="#i-lang"/></svg></span><span class="lbl" data-t="set.lang">Language</span>
+          <div class="seg pill" id="set-lang"><button data-lang="" data-t="auto">Auto</button><button data-lang="zh" lang="zh-CN">中文</button><button data-lang="en" lang="en">English</button></div></div>
+        <div class="item"><span class="tile"><svg class="i"><use href="#i-theme"/></svg></span><span class="lbl" data-t="set.theme">Theme</span>
+          <div class="seg pill" id="set-theme"><button data-theme="" data-t="auto">Auto</button><button data-theme="light" data-t="set.light">Light</button><button data-theme="dark" data-t="set.dark">Dark</button></div></div>
+        <label class="item" id="autostart-box"><span class="tile"><svg class="i"><use href="#i-power"/></svg></span>
           <span class="lbl"><span data-t="set.start">Start automatically</span><span class="note" data-t="set.autostart">Start RemoHop when the computer starts (in the tray)</span></span>
           <input type="checkbox" class="switch" id="autostart" role="switch"></label>
       </div>
 
-      <h3 class="gh" data-t="un.title">Unattended access</h3>
+      <h3 class="gh" id="sg-un" data-t="un.title">Unattended access</h3>
       <div class="group">
-        <button class="item" id="un-open"><span class="tile purple"><svg><use href="#i-key"/></svg></span><span class="lbl" data-t="un.creds">Unattended ID and password</span>
-          <span class="status" id="un-open-st"><span class="d"></span><span id="un-open-t"></span></span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <button class="item" id="un-open"><span class="tile"><svg class="i"><use href="#i-key"/></svg></span><span class="lbl" data-t="un.creds">Unattended ID and password</span>
+          <span class="status" id="un-open-st"><span class="d"></span><span id="un-open-t"></span></span><svg class="i chev"><use href="#i-chev"/></svg></button>
       </div>
 
-      <h3 class="gh" data-t="upd.h">Updates</h3>
+      <h3 class="gh" id="sg-upd" data-t="upd.h">Updates</h3>
       <div class="group">
-        <label class="item"><span class="tile orange"><svg><use href="#i-refresh"/></svg></span><span class="lbl" data-t="upd.auto">Check for updates automatically (once a day)</span>
+        <label class="item"><span class="tile"><svg class="i"><use href="#i-refresh"/></svg></span><span class="lbl" data-t="upd.auto">Check for updates automatically (once a day)</span>
           <input type="checkbox" class="switch" id="upd-auto" role="switch"></label>
-        <div class="item"><span class="tile orange"><svg><use href="#i-download"/></svg></span><span class="lbl"><span data-t="upd.version">Version</span><span class="note" id="upd-status"></span></span><button class="btn sm tonal" id="upd-now" data-t="upd.now">Check now</button></div>
+        <div class="item"><span class="tile"><svg class="i"><use href="#i-download"/></svg></span><span class="lbl"><span data-t="upd.version">Version</span><span class="note" id="upd-status"></span></span><button class="btn sm tonal" id="upd-now" data-t="upd.now">Check now</button></div>
       </div>
       <p class="gfoot" data-t="upd.privacy">Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.</p>
 
-      <h3 class="gh" data-t="set.g.support">Support</h3>
+      <h3 class="gh" id="sg-sup" data-t="set.g.support">Support</h3>
       <div class="group">
-        <div class="item"><span class="tile teal"><svg><use href="#i-diag"/></svg></span><span class="lbl" data-t="diag.h">Diagnostic logs</span>
-          <button class="info" data-help="h-diag" aria-expanded="false"><svg><use href="#i-info"/></svg></button>
+        <div class="item"><span class="tile"><svg class="i"><use href="#i-diag"/></svg></span><span class="lbl" data-t="diag.h">Diagnostic logs</span>
+          <button class="info" data-help="h-diag" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button>
           <button class="btn sm tonal" id="diag-export" data-t="diag.export">Export</button></div>
         <p class="help in" id="h-diag" hidden data-t="diag.help">A text file with the app's version, the system, its state and its recent log, to send to support when something does not work. Passwords, tokens and keys are removed; IDs, names and addresses stay. It is saved in your Downloads folder and goes nowhere unless you send it.</p>
-        <button class="item" data-page="support"><span class="tile blue"><svg><use href="#i-help"/></svg></span><span class="lbl" data-t="about.support">Help and support</span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="item" data-page="telegram"><span class="tile sky"><svg><use href="#i-telegram"/></svg></span><span class="lbl">Telegram</span><span class="val">@remohop</span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <button class="item" data-page="support"><span class="tile"><svg class="i"><use href="#i-help"/></svg></span><span class="lbl" data-t="about.support">Help and support</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+        <button class="item" data-page="telegram"><span class="tile"><svg class="i"><use href="#i-telegram"/></svg></span><span class="lbl">Telegram</span><span class="val mono">@remohop</span><svg class="i chev"><use href="#i-chev"/></svg></button>
       </div>
 
-      <h3 class="gh" data-t="about.h">About</h3>
+      <h3 class="gh" id="sg-about" data-t="about.h">About</h3>
       <div class="group">
-        <button class="item" data-page="privacy"><span class="tile blue"><svg><use href="#i-hand"/></svg></span><span class="lbl" data-t="about.privacy">Privacy policy</span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="item" data-page="terms"><span class="tile gray"><svg><use href="#i-doc"/></svg></span><span class="lbl" data-t="about.terms">Terms of use</span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <button class="item" data-page="licensing"><span class="tile gray"><svg><use href="#i-license"/></svg></span><span class="lbl" data-t="about.licensing">Licenses</span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <div class="item"><span class="tile gray"><svg><use href="#i-info"/></svg></span><span class="lbl" data-t="about.app">About RemoHop</span><span class="val" id="about"></span></div>
+        <button class="item" data-page="privacy"><span class="tile"><svg class="i"><use href="#i-hand"/></svg></span><span class="lbl" data-t="about.privacy">Privacy policy</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+        <button class="item" data-page="terms"><span class="tile"><svg class="i"><use href="#i-doc"/></svg></span><span class="lbl" data-t="about.terms">Terms of use</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+        <button class="item" data-page="licensing"><span class="tile"><svg class="i"><use href="#i-license"/></svg></span><span class="lbl" data-t="about.licensing">Licenses</span><svg class="i chev"><use href="#i-chev"/></svg></button>
+        <div class="item"><span class="tile"><svg class="i"><use href="#i-info"/></svg></span><span class="lbl" data-t="about.app">About RemoHop</span><span class="val mono" id="about"></span></div>
+      </div>
+      </div>
       </div>
     </div>
   </section>
 
   <div id="hostviews"></div>
 </main>
+</div>
+</div>
 
-<!-- connection request -->
+<!-- connection request: the approval card, in front of everything -->
 <dialog id="dlg-req" aria-labelledby="req-title">
   <form method="dialog" class="dlg" id="req-form">
+    <div class="dlg-eyebrow mono"><span data-t="req.eyebrow">Connection request</span><span class="count-down" id="req-left"></span></div>
     <h2 id="req-title"></h2>
     <div id="req-chips" class="row wrap"></div>
-    <div class="warnbox" id="req-warn"><svg><use href="#i-warn"/></svg><span data-t="req.scam">Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.</span></div>
+    <div class="warnbox" id="req-warn"><svg class="i"><use href="#i-warn"/></svg><span data-t="req.scam">Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.</span></div>
     <dl class="kv" id="req-kv"></dl>
     <div class="choice" id="req-choice">
-      <div class="muted small pt8" data-t="req.may">They may see your screen, and also:</div>
+      <div class="mlabel mono" data-t="req.may">They may see your screen, and also:</div>
       <label class="check"><input type="checkbox" id="req-control"><span data-t="req.control">Control the mouse and keyboard</span></label>
       <label class="check"><input type="checkbox" id="req-files"><span data-t="req.files">Transfer files and use the clipboard</span></label>
     </div>
     <label class="check" id="req-remember-row"><input type="checkbox" id="req-remember"><span data-t="req.remember">Remember this device</span></label>
-    <div class="acts"><span class="muted small count left" id="req-left"></span>
-      <button class="btn outline" value="deny" id="req-deny" autofocus data-t="deny">Deny</button>
+    <div class="acts">
+      <button class="btn outline" value="deny" id="req-deny" autofocus><span data-t="deny">Deny</span><kbd>Esc</kbd></button>
       <button class="btn" value="allow" id="req-allow" data-t="allow">Allow</button></div>
   </form>
 </dialog>
@@ -271,14 +407,14 @@
 <dialog id="dlg-uncreds" aria-labelledby="uncreds-title">
   <form method="dialog" class="dlg">
     <h2 id="uncreds-title" data-t="un.creds">Unattended ID and password</h2>
-    <p class="muted small" id="un-creds-off" data-t="un.credsoff">Unattended access is off. Turn it on under This computer.</p>
+    <p class="muted small" id="un-creds-off" data-t="un.credsoff">Unattended access is off. Turn it on from Home.</p>
     <div class="creds" id="un-creds">
-      <div class="cred"><div class="muted small" data-t="un.idl">Unattended ID</div><div class="v" id="un-id"></div>
-        <div class="acts"><button type="button" class="btn text sm" data-copy="un-id" id="un-idcopy"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
-          <button type="button" class="btn text sm" id="un-idget" hidden><svg><use href="#i-refresh"/></svg><span data-t="un.getid">Show ID</span></button></div></div>
-      <div class="cred"><div class="muted small" data-t="un.pwl">Unattended password</div><div class="v" id="un-pwv">••••••••</div>
-        <div class="acts"><button type="button" class="btn text sm" id="un-reveal" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
-          <button type="button" class="btn text sm" data-copy="un-pwv" id="un-pwcopy" hidden><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
+      <div class="cred"><div class="mlabel mono" data-t="un.idl">Unattended ID</div><div class="v num" id="un-id"></div>
+        <div class="acts"><button type="button" class="btn text sm" data-copy="un-id" id="un-idcopy"><svg class="i"><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
+          <button type="button" class="btn text sm" id="un-idget" hidden><svg class="i"><use href="#i-refresh"/></svg><span data-t="un.getid">Show ID</span></button></div></div>
+      <div class="cred"><div class="mlabel mono" data-t="un.pwl">Unattended password</div><div class="v" id="un-pwv">••••••••</div>
+        <div class="acts"><button type="button" class="btn text sm" id="un-reveal" aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg><span>Show</span></button>
+          <button type="button" class="btn text sm" data-copy="un-pwv" id="un-pwcopy" hidden><svg class="i"><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
     </div>
     <p class="muted small" id="un-admin3" hidden data-t="un.admin3">Show asks Windows for an administrator.</p>
     <div class="acts"><button class="btn" value="close" data-t="done">Done</button></div>

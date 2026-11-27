@@ -12,6 +12,31 @@
   const T = {
     en: {
       'tab.connect': 'Connect', 'tab.computer': 'This computer', 'tab.settings': 'Settings',
+      'tab.home': 'Home', 'tab.sessions': 'Sessions', 'nav.main': 'Main menu', 'nav.open': 'Open computers',
+      'nav.collapse': 'Collapse the sidebar', 'nav.expand': 'Expand the sidebar',
+      'me.title': 'This computer', 'me.off': 'Not reachable', 'me.on': 'Reachable', 'wiz.eyebrow': 'First start',
+      'home.lead': 'This computer, who is connected to it, and the computers you reach.',
+      'in.offnote': "Switch on to show this computer's ID and a password to give to whoever helps you.",
+      'qc.title': 'Quick connect', 'qc.recent': 'Recently seen', 'qc.all': 'All saved computers', 'qc.none': 'Computers you connect to appear here.',
+      'kpi.live': 'Connected now', 'kpi.live.s0': 'Nobody is connected', 'kpi.live.s': 'Control {c} · Files {f}',
+      'kpi.queue': 'Needs you', 'kpi.queue.s0': 'Nobody is waiting', 'kpi.queue.s': 'Refused in {n} s without an answer',
+      'kpi.saved': 'Saved computers', 'kpi.saved.s': '{n} online now', 'kpi.saved.s0': 'None saved yet',
+      'link.sessions': 'Sessions', 'link.queue': 'Approval queue', 'link.connect': 'Address book',
+      'act.title': 'Activity', 'act.sub': 'Devices connected to this computer in the last hour', 'act.ago': '60 min ago', 'act.now': 'now',
+      'act.since': 'recorded since {t}', 'act.none': 'Nobody has connected in the last hour.', 'act.tip': '{t}: {n} connected', 'act.nodata': '{t}: not recorded',
+      'act.peak': 'Peak {n}',
+      'c.eyebrow': 'Address book', 'c.lead': 'Type an ID, a name you gave a computer, or host:port.',
+      'c.none.sub': "The computers you connect to or pair with, and your account's devices, are listed here.",
+      'f.all': 'All', 'c.search': 'Search saved computers', 'c.refresh': 'Check who is online', 'c.nomatch': 'No saved computer matches.',
+      'col.name': 'Computer', 'col.platform': 'System', 'col.seen': 'Last seen online',
+      'sess.eyebrow': 'Sessions and approvals', 'sess.lead': 'Who is waiting, who is connected, and who may come back without asking.',
+      'q.title': 'Needs you', 'q.none': 'Nothing needs you', 'q.none.sub': 'When someone asks to connect, the question appears in front of every window and waits here.',
+      'q.foot': 'Unanswered requests are refused after {n} s · Esc denies', 'q.open': 'Answer in the dialog', 'q.next': 'Waiting its turn',
+      'sess.none': 'Nobody is connected to this computer.', 'un.svc': 'Connections through unattended access are listed apart.',
+      'out.title': 'Computers open here', 'out.none': 'No computer is open.', 'out.none.sub': 'Computers you open from Connect show here and in the sidebar.',
+      'out.show': 'Show', 'out.connected': 'Connected', 'out.wait': 'Connecting…', 'out.closed': 'Not connected',
+      'tr.none': 'No remembered devices.', 'tr.none.sub': 'Tick "Remember this device" when you allow one, and it is let in next time without asking.',
+      'req.eyebrow': 'Connection request', 'set.eyebrow': 'Preferences', 'set.lead': 'How RemoHop works on this computer.',
       'wiz.title': 'Welcome to RemoHop', 'wiz.lead': 'Connect to your computers, or let someone help you.',
       'wiz.server': 'Rendezvous server', 'wiz.incoming': 'Let others connect to this computer now (each connection asks me)', 'next': 'Next', 'back': 'Back', 'done': 'Done', 'save': 'Save', 'cancel': 'Cancel',
       'auto': 'Auto', 'copy': 'Copy', 'copied': 'Copied', 'allow': 'Allow', 'deny': 'Deny', 'saved': 'Saved',
@@ -25,7 +50,7 @@
       'p.forgetpw.done': 'Saved password deleted', 'close': 'Close', 'pw.show': 'Show password', 'pw.hide': 'Hide password',
       'p.rename': 'Rename', 'p.wake': 'Wake up', 'p.mac': 'Wake-on-LAN address', 'p.forget': 'Forget', 'p.woke': 'Wake-up packet sent',
       'p.rename.t': 'Name for {t}', 'p.name': 'Name', 'p.mac.t': 'Wake-on-LAN for {t}', 'p.mac.l': 'MAC address (empty removes it)',
-      'p.forget.q': 'Forget {t}? Its pairing is deleted.',
+      'p.forget.q': 'Forget {t}? Its pairing is deleted.', 'p.more': 'More for {t}',
       'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New', 'in.pwfixed': 'My own password', 'in.setpw': 'Password settings', 'pwm.title': 'Password for incoming connections', 'pwm.temp': 'A new random password', 'pwm.temp.sub': 'Made each time RemoHop starts; "New" replaces it whenever you like', 'pwm.fixed': 'My own password', 'pwm.fixed.sub': 'Stays the same until you change it; at least 8 characters, with letters and digits', 'pwm.note': 'Either way, every connection still asks you first.', 'pwm.saved': 'Password settings saved',
       'in.off': 'Off: nobody can connect', 'in.starting': 'Connecting to the server…', 'in.ready': 'Ready: every connection asks you',
       'in.offline': 'Offline: trying again…', 'in.noserver': 'No server: reachable by address on this network',
@@ -33,7 +58,7 @@
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
-      'un.title': 'Unattended access', 'un.creds': 'Unattended ID and password', 'un.credsoff': 'Unattended access is off. Turn it on under This computer.', 'un.admin3': 'Show asks Windows for an administrator.', 'un.runok': 'Running', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
+      'un.title': 'Unattended access', 'un.creds': 'Unattended ID and password', 'un.credsoff': 'Unattended access is off. Turn it on from Home.', 'un.admin3': 'Show asks Windows for an administrator.', 'un.runok': 'Running', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
       'un.setup': 'Set up', 'un.disable': 'Turn off', 'un.busy': 'Working…', 'un.wait': 'Turning on… Windows asks for administrator permission first; then it takes a few seconds.', 'un.enable': 'Turn on',
       'un.lead': 'Choose a strong password. Anyone with this ID and password can connect without asking.',
       'un.pw': 'Password', 'un.pw2': 'Repeat', 'un.gen': 'Suggest a strong password', 'un.admin': 'Windows will ask for an administrator.',
@@ -71,6 +96,31 @@
     },
     zh: {
       'tab.connect': '连接', 'tab.computer': '这台电脑', 'tab.settings': '设置',
+      'tab.home': '首页', 'tab.sessions': '会话', 'nav.main': '主菜单', 'nav.open': '已打开的电脑',
+      'nav.collapse': '收起侧栏', 'nav.expand': '展开侧栏',
+      'me.title': '这台电脑', 'me.off': '不可连接', 'me.on': '可连接', 'wiz.eyebrow': '首次启动',
+      'home.lead': '这台电脑、谁连着它，以及你要连接的电脑。',
+      'in.offnote': '打开后会显示这台电脑的 ID 和密码，把它们告诉帮你的人。',
+      'qc.title': '快速连接', 'qc.recent': '最近在线', 'qc.all': '全部已保存的电脑', 'qc.none': '连接过的电脑会出现在这里。',
+      'kpi.live': '当前连接', 'kpi.live.s0': '没有人连接', 'kpi.live.s': '控制 {c} · 文件 {f}',
+      'kpi.queue': '待你处理', 'kpi.queue.s0': '没有人在等待', 'kpi.queue.s': '{n} 秒内不回应将自动拒绝',
+      'kpi.saved': '已保存的电脑', 'kpi.saved.s': '{n} 台在线', 'kpi.saved.s0': '还没有保存',
+      'link.sessions': '会话', 'link.queue': '审批队列', 'link.connect': '通讯录',
+      'act.title': '活动', 'act.sub': '最近一小时连接到这台电脑的设备数', 'act.ago': '60 分钟前', 'act.now': '现在',
+      'act.since': '自 {t} 起记录', 'act.none': '最近一小时没有人连接。', 'act.tip': '{t}：{n} 个连接', 'act.nodata': '{t}：未记录',
+      'act.peak': '峰值 {n}',
+      'c.eyebrow': '通讯录', 'c.lead': '输入 ID、你给电脑起的名字，或 主机:端口。',
+      'c.none.sub': '你连接过、配对过的电脑，以及账号下的设备，都会列在这里。',
+      'f.all': '全部', 'c.search': '搜索已保存的电脑', 'c.refresh': '刷新在线状态', 'c.nomatch': '没有匹配的电脑。',
+      'col.name': '电脑', 'col.platform': '系统', 'col.seen': '最近在线',
+      'sess.eyebrow': '会话与审批', 'sess.lead': '谁在等待、谁已连接，以及谁可以不经询问再次连接。',
+      'q.title': '待你处理', 'q.none': '没有待处理的请求', 'q.none.sub': '有人请求连接时，问题会出现在所有窗口最前面，并在这里排队。',
+      'q.foot': '无人回应的请求 {n} 秒后自动拒绝 · Esc 拒绝', 'q.open': '请在对话框中回答', 'q.next': '排队中',
+      'sess.none': '没有人连接这台电脑。', 'un.svc': '通过无人值守访问的连接单独列出。',
+      'out.title': '在这里打开的电脑', 'out.none': '没有打开的电脑。', 'out.none.sub': '从“连接”打开的电脑会显示在这里和侧栏中。',
+      'out.show': '显示', 'out.connected': '已连接', 'out.wait': '正在连接…', 'out.closed': '未连接',
+      'tr.none': '没有已记住的设备。', 'tr.none.sub': '允许连接时勾选“记住这台设备”，下次它无需询问即可连接。',
+      'req.eyebrow': '连接请求', 'set.eyebrow': '偏好设置', 'set.lead': 'RemoHop 在这台电脑上的工作方式。',
       'wiz.title': '欢迎使用 RemoHop', 'wiz.lead': '连接你的电脑，或者让别人帮你。',
       'wiz.server': '汇合服务器', 'wiz.incoming': '现在就允许别人连接这台电脑（每次连接都先问我）', 'next': '下一步', 'back': '上一步', 'done': '完成', 'save': '保存', 'cancel': '取消',
       'auto': '自动', 'copy': '复制', 'copied': '已复制', 'allow': '允许', 'deny': '拒绝', 'saved': '已保存',
@@ -84,7 +134,7 @@
       'p.forgetpw.done': '已删除保存的密码', 'close': '关闭', 'pw.show': '显示密码', 'pw.hide': '隐藏密码',
       'p.rename': '重命名', 'p.wake': '唤醒', 'p.mac': '网络唤醒地址', 'p.forget': '移除', 'p.woke': '已发送唤醒包',
       'p.rename.t': '为 {t} 命名', 'p.name': '名称', 'p.mac.t': '{t} 的网络唤醒', 'p.mac.l': 'MAC 地址（留空则删除）',
-      'p.forget.q': '移除 {t}？它的配对会被删除。',
+      'p.forget.q': '移除 {t}？它的配对会被删除。', 'p.more': '{t} 的更多操作',
       'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个', 'in.pwfixed': '固定密码', 'in.setpw': '密码设置', 'pwm.title': '连接密码', 'pwm.temp': '随机密码', 'pwm.temp.sub': '每次启动 RemoHop 时自动生成，随时可点“换一个”', 'pwm.fixed': '我自己的固定密码', 'pwm.fixed.sub': '一直不变，直到你修改；至少 8 位，包含字母和数字', 'pwm.note': '无论哪种，每次有人连接都会先问你。', 'pwm.saved': '密码设置已保存',
       'in.off': '已关闭：谁都连不上', 'in.starting': '正在连接服务器…', 'in.ready': '已就绪：每次连接都会先问你',
       'in.offline': '离线：正在重试…', 'in.noserver': '没有服务器：同一网络内可按地址连接',
@@ -92,7 +142,7 @@
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
-      'un.title': '无人值守访问', 'un.creds': '无人值守 ID 与密码', 'un.credsoff': '无人值守访问未开启，请先在“这台电脑”页面打开开关。', 'un.admin3': '点“显示”时 Windows 会要求管理员授权。', 'un.runok': '运行中', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '未开启', 'un.on': '已开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
+      'un.title': '无人值守访问', 'un.creds': '无人值守 ID 与密码', 'un.credsoff': '无人值守访问未开启，请先在“首页”打开开关。', 'un.admin3': '点“显示”时 Windows 会要求管理员授权。', 'un.runok': '运行中', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '未开启', 'un.on': '已开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
       'un.setup': '设置', 'un.disable': '关闭', 'un.busy': '处理中…', 'un.wait': '正在开启… Windows 会先请求管理员权限，确认后几秒内完成。', 'un.enable': '开启',
       'un.lead': '请设一个强密码。知道这个 ID 和密码的人无需你同意即可连接。',
       'un.pw': '密码', 'un.pw2': '再输一次', 'un.gen': '生成强密码', 'un.admin': 'Windows 会要求管理员授权。',
@@ -141,6 +191,13 @@
     document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
     for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
     for (const el of document.querySelectorAll('[data-ta]')) { el.setAttribute('aria-label', t(el.dataset.ta)); el.title = t(el.dataset.ta); }
+    for (const el of document.querySelectorAll('[data-tp]')) el.placeholder = t(el.dataset.tp);
+    // Fixed places in the sidebar keep their name as a tooltip for the
+    // icon rail.
+    for (const el of document.querySelectorAll('.side .tab:not(.host)')) el.title = el.querySelector('.lbl').textContent;
+    sideLabel();
+    homeDate();
+    if (S && S.setup) { renderPeers(); renderOut(); renderActivity(); }
   }
 
   // ---- API ----
@@ -168,21 +225,54 @@
     const h = $(b.dataset.help); h.hidden = !h.hidden; b.setAttribute('aria-expanded', String(!h.hidden));
   });
 
-  // ---- views and tabs ----
-  let view = 'connect';
+  // ---- views and the sidebar ----
+  // "computer" is Home: this computer's ID and password, its sessions in
+  // short, quick connect and the activity of the last hour.
+  let view = 'computer';
   const hosts = new Map(); // target -> {tab, viewEl, iframe, origin, title}
   function show(v) {
     view = v;
     for (const el of document.querySelectorAll('#main > .view')) el.hidden = el.id !== 'v-' + v;
     for (const h of hosts.values()) h.viewEl.hidden = v !== 'host:' + h.target;
-    for (const b of document.querySelectorAll('#tabs .tab')) b.setAttribute('aria-selected', String(b.dataset.view === v));
-    $('tab-settings').setAttribute('aria-pressed', String(v === 'settings'));
+    for (const b of document.querySelectorAll('.side .tab')) {
+      if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    }
+    document.body.classList.toggle('on-host', v.startsWith('host:'));
     if (S && S.update) renderUpdate(S.update);
-    if (v === 'connect') loadPeers(false);
+    if (v === 'connect' || v === 'computer') loadPeers(false);
     const h = v.startsWith('host:') && hosts.get(v.slice(5));
     if (h) h.tab.scrollIntoView({block: 'nearest', inline: 'nearest'});
+    else { const el = $('v-' + v); if (el) el.scrollTop = 0; }
   }
-  for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => show(b.dataset.view === view && b.dataset.view === 'settings' ? 'connect' : b.dataset.view));
+  for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => show(b.dataset.view));
+
+  // The sidebar folds into an icon rail: by choice (remembered on this
+  // computer), and always in narrow windows (style.css).
+  let railed = false;
+  try { railed = localStorage.getItem('remohop.rail') === '1'; } catch (e) { /* no storage */ }
+  function sideLabel() {
+    const b = $('side-toggle'); if (!b) return;
+    document.body.classList.toggle('rail', railed);
+    b.setAttribute('aria-pressed', String(railed));
+    const k = railed ? 'nav.expand' : 'nav.collapse';
+    b.setAttribute('aria-label', t(k)); b.title = t(k);
+  }
+  $('side-toggle').addEventListener('click', () => {
+    railed = !railed; sideLabel();
+    try { localStorage.setItem('remohop.rail', railed ? '1' : '0'); } catch (e) { /* no storage */ }
+  });
+  // Home's date line.
+  function homeDate() {
+    const d = new Date();
+    $('home-date').textContent = d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en', {weekday: 'long', month: 'long', day: 'numeric'}) +
+      ' · ' + d.toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en', {hour: '2-digit', minute: '2-digit'});
+  }
+  setInterval(() => { homeDate(); if (S && S.setup) { sampleActivity(); renderActivity(); renderPeerTimes(); } }, 30000);
+  // Settings' index scrolls to its group.
+  for (const b of document.querySelectorAll('#set-index [data-sec]')) b.addEventListener('click', () => {
+    const el = $(b.dataset.sec); el.scrollIntoView({block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth'});
+  });
+  const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---- state ----
   let S = null, S0theme;
@@ -199,17 +289,16 @@
     if ((s.lang || sysLang()) !== lang || first) applyLang(s.lang);
     $('bar').hidden = !s.setup;
     if (!s.setup) { for (const el of document.querySelectorAll('#main > .view')) el.hidden = el.id !== 'v-wizard'; renderWizard(); return; }
-    if (first || !$('v-wizard').hidden) { show(view); if (first) defaultView(); }
+    // The app opens on Home, which has this computer's ID and password for
+    // someone who is here to be helped and quick connect for everyone
+    // else; right after the first-run wizard it opens where that left off.
+    if (first || !$('v-wizard').hidden) show(view);
     renderComputer(s);
     renderSettings(s);
     renderRequests(s);
+    renderQueue(s);
+    sampleActivity(); renderActivity();
     if (s.smoke && s.smoke !== lastSmoke) { lastSmoke = s.smoke; smokeView(s.smoke); }
-  }
-  // The first tab: Connect when there are saved computers, else This
-  // computer (someone who has nothing to connect to is here to be helped).
-  async function defaultView() {
-    await loadPeers(false);
-    if (view === 'connect' && !peers.length && S.setup) show('computer');
   }
   let lastSmoke = '';
   function smokeView(v) {
@@ -244,6 +333,8 @@
     try {
       await api('setup', {mode, addr: $('wiz-addr').value, lang: wizLang});
       if ($('wiz-incoming').checked) { await api('incoming', {on: true}); view = 'computer'; } else view = 'connect';
+      // The new state may have arrived before the answer did.
+      if (S && S.setup) show(view);
     }
     catch (e) { $('wiz-err').textContent = errText(e); }
   });
@@ -257,34 +348,115 @@
     try { const j = await api('peers', {refresh}); peers = j.peers || []; renderPeers(); }
     catch (e) { /* keep the old list */ } finally { peersBusy = false; }
   }
-  setInterval(() => { if (view === 'connect') loadPeers(false); }, 30000);
+  setInterval(() => { if (view === 'connect' || view === 'computer') loadPeers(false); }, 30000);
   function peerTitle(p) { return p.alias || p.name || p.target; }
+  // An ID is shown in groups of three, as this computer's own.
+  const fmtID = s => /^\d{9}$/.test(s || '') ? s.replace(/(\d{3})(?=\d)/g, '$1 ') : (s || '');
+  const PLATFORMS = {windows: 'Windows', darwin: 'macOS', macos: 'macOS', linux: 'Linux', android: 'Android', ios: 'iOS', freebsd: 'FreeBSD'};
+  const platformName = p => p ? (PLATFORMS[String(p).toLowerCase().split('/')[0]] || p) : '—';
+  function ago(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso); if (isNaN(d)) return '—';
+    const s = Math.round((d.getTime() - Date.now()) / 1000);
+    try {
+      const rtf = new Intl.RelativeTimeFormat(lang === 'zh' ? 'zh-CN' : 'en', {numeric: 'auto'});
+      const a = Math.abs(s);
+      if (a < 60) return rtf.format(0, 'second');
+      if (a < 3600) return rtf.format(Math.round(s / 60), 'minute');
+      if (a < 86400) return rtf.format(Math.round(s / 3600), 'hour');
+      if (a < 86400 * 45) return rtf.format(Math.round(s / 86400), 'day');
+    } catch (e) { /* old engine: a date */ }
+    return d.toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en', {dateStyle: 'medium'});
+  }
+  // avatar is a computer's initial with its presence dot.
+  function avatar(title, online) {
+    const av = document.createElement('div'); av.className = 'avatar'; av.textContent = (title[0] || '?').toUpperCase();
+    const pr = document.createElement('span'); pr.className = 'pres' + (online ? ' online' : ''); av.append(pr);
+    return av;
+  }
+  function icon(name) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'i');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#' + name);
+    svg.append(use); return svg;
+  }
+  let peerFilter = '';
+  function peerMatches(p) {
+    if (peerFilter === 'online' && p.presence !== 'online') return false;
+    if (peerFilter === 'paired' && p.login !== 'pairing') return false;
+    const q = $('peer-q').value.trim().toLowerCase().replace(/\s+/g, '');
+    if (!q) return true;
+    return [p.alias, p.name, p.target].some(x => x && x.toLowerCase().replace(/\s+/g, '').includes(q));
+  }
   function renderPeers() {
     const box = $('peers'); box.textContent = '';
     $('peers-empty').hidden = peers.length > 0;
-    for (const p of peers) {
+    const shown = peers.filter(peerMatches);
+    $('peers-nomatch').hidden = !peers.length || shown.length > 0;
+    $('peers-head').hidden = !shown.length;
+    for (const p of shown) {
       const el = document.createElement('div'); el.className = 'peer';
-      const av = document.createElement('div'); av.className = 'avatar'; av.textContent = (peerTitle(p)[0] || '?').toUpperCase();
-      const pr = document.createElement('span'); pr.className = 'pres' + (p.presence === 'online' ? ' online' : ''); av.append(pr);
+      const av = avatar(peerTitle(p), p.presence === 'online');
       const txt = document.createElement('div'); txt.className = 'grow';
       const a = document.createElement('div'); a.className = 't'; a.textContent = peerTitle(p);
       const b = document.createElement('div'); b.className = 's';
       const bits = [];
-      if (p.alias || p.name) bits.push(p.target);
+      if (p.alias || p.name) bits.push(fmtID(p.target));
       bits.push(t(p.presence === 'online' ? 'p.online' : p.presence === 'offline' ? 'p.offline' : 'p.unknown'));
       if (p.login === 'pairing') bits.push(t('p.paired'));
       if (p.login === 'saved_password') bits.push(t('p.savedpw'));
+      if (p.account) bits.push(t('p.account'));
       b.textContent = bits.join(' · ');
       txt.append(a, b);
+      const name = document.createElement('div'); name.className = 'pc-name'; name.append(av, txt);
+      const plat = document.createElement('div'); plat.className = 'pc-col'; plat.textContent = platformName(p.platform);
+      const seen = document.createElement('div'); seen.className = 'pc-col seen'; seen.dataset.at = p.last_seen || '';
+      seen.textContent = p.presence === 'online' ? t('p.online') : ago(p.last_seen);
+      const acts = document.createElement('div'); acts.className = 'pc-acts';
       const go = document.createElement('button'); go.className = 'btn tonal sm'; go.textContent = t('c.connect');
       go.addEventListener('click', () => openHost(p.target, peerTitle(p)));
-      const more = document.createElement('button'); more.className = 'icon-btn'; more.setAttribute('aria-label', '…');
-      more.innerHTML = '<svg><use href="#i-more"/></svg>';
+      const more = document.createElement('button'); more.className = 'icon-btn'; more.setAttribute('aria-label', t('p.more', {t: peerTitle(p)})); more.title = '…';
+      more.append(icon('i-more'));
       more.addEventListener('click', () => peerMenu(p));
-      el.append(av, txt, go, more);
+      acts.append(go, more);
+      el.append(name, plat, seen, acts);
       box.append(el);
     }
+    // counts: the sidebar, the section, Home
+    const online = peers.filter(p => p.presence === 'online').length;
+    $('nav-peers').hidden = !peers.length; $('nav-peers').textContent = peers.length;
+    $('peers-count').hidden = !peers.length; $('peers-count').textContent = peers.length;
+    $('k-saved').textContent = peers.length;
+    $('k-saved-s').textContent = peers.length ? t('kpi.saved.s', {n: online}) : t('kpi.saved.s0');
+    // Home: the computers seen most recently, online ones first.
+    const rec = $('recent'); rec.textContent = '';
+    const order = [...peers].sort((x, y) => (y.presence === 'online') - (x.presence === 'online') ||
+      (Date.parse(y.last_seen || 0) || 0) - (Date.parse(x.last_seen || 0) || 0));
+    $('recent-empty').hidden = peers.length > 0; $('recent-l').hidden = !peers.length;
+    for (const p of order.slice(0, 4)) {
+      const r = document.createElement('button'); r.type = 'button'; r.className = 'rec';
+      const txt = document.createElement('span'); txt.className = 'grow';
+      const a = document.createElement('span'); a.className = 't'; a.textContent = peerTitle(p);
+      const b = document.createElement('span'); b.className = 's mono'; b.textContent = fmtID(p.target);
+      txt.append(a, b);
+      const st = document.createElement('span'); st.className = 'rec-st'; st.textContent = p.presence === 'online' ? t('p.online') : ago(p.last_seen);
+      r.append(avatar(peerTitle(p), p.presence === 'online'), txt, st, icon('i-chev'));
+      r.title = t('c.connect') + ' · ' + peerTitle(p);
+      r.addEventListener('click', () => openHost(p.target, peerTitle(p)));
+      rec.append(r);
+    }
   }
+  // The "last seen" times age without a new list.
+  function renderPeerTimes() {
+    for (const el of document.querySelectorAll('#peers .seen[data-at]')) if (el.dataset.at && el.textContent !== t('p.online')) el.textContent = ago(el.dataset.at);
+  }
+  $('peer-filter').addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    peerFilter = b.dataset.f;
+    for (const x of $('peer-filter').children) x.setAttribute('aria-pressed', String(x === b));
+    renderPeers();
+  });
+  $('peer-q').addEventListener('input', renderPeers);
+  $('peers-refresh').addEventListener('click', () => loadPeers(true));
   async function ask(title, label, value) {
     $('ask-title').textContent = title; $('ask-label').textContent = label; $('ask-input').value = value || ''; $('ask-err').textContent = '';
     const d = $('dlg-ask'); d.returnValue = ''; d.showModal(); $('ask-input').focus();
@@ -335,13 +507,15 @@
       if (a) loadPeers(true);
     } catch (e) { snack(errText(e)); }
   }
-  $('connect-form').addEventListener('submit', ev => {
-    ev.preventDefault();
-    const v = $('target').value.trim(); if (!v) return;
+  // Connect (and Home's quick connect): an ID, a saved name or host:port.
+  function connectTo(input) {
+    const v = input.value.trim(); if (!v) return;
     $('c-err').textContent = '';
     const p = peers.find(x => x.target === v.replace(/\s+/g, '') || x.alias === v);
     openHost(p ? p.target : v, p ? peerTitle(p) : v);
-  });
+  }
+  $('connect-form').addEventListener('submit', ev => { ev.preventDefault(); connectTo($('target')); });
+  $('qc-form').addEventListener('submit', ev => { ev.preventDefault(); connectTo($('qc-target')); });
 
   // ---- host tabs ----
   async function openHost(target, title) {
@@ -350,28 +524,35 @@
     if (hosts.has(target)) { show('host:' + target); return; }
     let url;
     try { url = (await api('console', {target})).url; } catch (e) { $('c-err').textContent = errText(e); show('connect'); return; }
-    const h = {target, title: title || target, origin: new URL(url).origin};
-    const tab = document.createElement('div'); tab.className = 'tab host'; tab.setAttribute('role', 'tab'); tab.dataset.view = 'host:' + target;
+    const h = {target, title: title || target, origin: new URL(url).origin, state: 'wait'};
+    // A computer open in this window: a closable row of the sidebar (an
+    // avatar with its connection dot in the icon rail).
+    const tab = document.createElement('div'); tab.className = 'tab host'; tab.setAttribute('role', 'button'); tab.dataset.view = 'host:' + target;
     tab.tabIndex = 0;
+    const hav = document.createElement('span'); hav.className = 'hav';
+    const letter = document.createElement('span'); letter.className = 'hav-l'; letter.textContent = (h.title[0] || '?').toUpperCase();
     const dot = document.createElement('span'); dot.className = 'dot wait';
+    hav.append(letter, dot);
     const name = document.createElement('span'); name.className = 'name lbl'; name.textContent = h.title;
-    const pop = document.createElement('button'); pop.className = 'x'; pop.title = t('h.popout'); pop.setAttribute('aria-label', t('h.popout'));
-    pop.innerHTML = '<svg><use href="#i-popout"/></svg>';
-    const x = document.createElement('button'); x.className = 'x'; x.title = t('h.close'); x.setAttribute('aria-label', t('h.close'));
-    x.innerHTML = '<svg><use href="#i-close"/></svg>';
-    tab.append(dot, name, pop, x);
+    const pop = document.createElement('button'); pop.className = 'x pop'; pop.title = t('h.popout'); pop.setAttribute('aria-label', t('h.popout'));
+    pop.append(icon('i-popout'));
+    const x = document.createElement('button'); x.className = 'x close'; x.title = t('h.close'); x.setAttribute('aria-label', t('h.close'));
+    x.append(icon('i-close'));
+    tab.append(hav, name, pop, x);
+    tab.title = h.title;
     tab.addEventListener('click', ev => { if (!ev.target.closest('.x')) show('host:' + target); });
-    tab.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') show('host:' + target); });
+    tab.addEventListener('keydown', ev => { if (ev.target === tab && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); show('host:' + target); } });
     x.addEventListener('click', () => closeHost(target, true));
     pop.addEventListener('click', () => popOut(target));
-    $('tabs').append(tab);
-    const v = document.createElement('section'); v.className = 'view host'; v.setAttribute('role', 'tabpanel');
+    $('host-tabs').append(tab);
+    const v = document.createElement('section'); v.className = 'view host'; v.setAttribute('aria-label', h.title);
     const f = document.createElement('iframe');
     f.title = h.title; f.allow = 'fullscreen; clipboard-read; clipboard-write; autoplay';
     f.src = url;
     v.append(f); $('hostviews').append(v);
-    Object.assign(h, {tab, dot, name, viewEl: v, iframe: f});
+    Object.assign(h, {tab, dot, name, letter, viewEl: v, iframe: f});
     hosts.set(target, h);
+    renderOut();
     show('host:' + target);
   }
   function closeHost(target, disconnect) {
@@ -381,7 +562,31 @@
       api('console/close', {target}).catch(() => {});
     }
     h.tab.remove(); h.viewEl.remove(); hosts.delete(target);
+    renderOut();
     if (view === 'host:' + target) show(hosts.size ? 'host:' + [...hosts.keys()].pop() : 'connect');
+  }
+  // The computers open in this window, on the Sessions page.
+  function renderOut() {
+    $('host-sec').hidden = !hosts.size;
+    $('out-count').hidden = !hosts.size; $('out-count').textContent = hosts.size;
+    $('out-empty').hidden = hosts.size > 0;
+    const box = $('out-list'); box.textContent = '';
+    for (const h of hosts.values()) {
+      const r = document.createElement('div'); r.className = 'list-row';
+      const av = avatar(h.title, h.state === 'connected');
+      const g = document.createElement('div'); g.className = 'grow';
+      const a = document.createElement('div'); a.className = 't'; a.textContent = h.title;
+      const b = document.createElement('div'); b.className = 'muted small';
+      b.textContent = [fmtID(h.target) !== h.title ? fmtID(h.target) : '', t(h.state === 'connected' ? 'out.connected' : h.state === 'closed' ? 'out.closed' : 'out.wait')].filter(Boolean).join(' · ');
+      g.append(a, b);
+      const sh = document.createElement('button'); sh.type = 'button'; sh.className = 'btn tonal sm'; sh.textContent = t('out.show');
+      sh.addEventListener('click', () => show('host:' + h.target));
+      const pop = document.createElement('button'); pop.type = 'button'; pop.className = 'icon-btn'; pop.title = t('h.popout'); pop.setAttribute('aria-label', t('h.popout'));
+      pop.append(icon('i-popout')); pop.addEventListener('click', () => popOut(h.target));
+      const x = document.createElement('button'); x.type = 'button'; x.className = 'btn text sm'; x.textContent = t('s.disc');
+      x.addEventListener('click', () => closeHost(h.target, true));
+      r.append(av, g, sh, pop, x); box.append(r);
+    }
   }
   // Popping out moves the host into a window of its own: the window joins
   // this page's gateway session (the console hands over its session id),
@@ -400,7 +605,12 @@
       // A page that loaded while the theme changed gets it now.
       if (h.theme !== (S && S.theme || '')) { h.theme = S && S.theme || ''; h.iframe.contentWindow.postMessage({type: 'remohop-theme', theme: h.theme}, h.origin); }
       h.dot.className = 'dot' + (m.state === 'connected' ? ' on' : m.state === 'closed' ? '' : ' wait');
-      if (m.title && typeof m.title === 'string') { h.title = m.title.slice(0, 80); h.name.textContent = h.title; }
+      h.state = m.state === 'connected' ? 'connected' : m.state === 'closed' ? 'closed' : 'wait';
+      if (m.title && typeof m.title === 'string') {
+        h.title = m.title.slice(0, 80); h.name.textContent = h.title; h.tab.title = h.title;
+        h.letter.textContent = (h.title[0] || '?').toUpperCase(); h.viewEl.setAttribute('aria-label', h.title);
+      }
+      renderOut();
     } else if (m.type === 'remohop-closed') {
       closeHost(h.target, false);
     } else if (m.type === 'remohop-sid' && pendingPop.get(h.target) && typeof m.sid === 'string') {
@@ -426,6 +636,11 @@
     $('in-status').className = 'status ' + cls; $('in-status-t').textContent = txt;
     const showCreds = i.on && (i.phase === 'ready' || i.phase === 'starting' || i.phase === 'no_server');
     $('creds').hidden = !showCreds;
+    $('in-offnote').hidden = i.on;
+    // The sidebar's foot: this computer, reachable or not, and its ID.
+    $('me-pres').className = 'pres' + (cls === 'ok' ? ' online' : cls === 'wait' ? ' wait' : cls === 'bad' ? ' bad' : '');
+    $('me-s').textContent = showCreds && i.id ? i.id : t(i.on && cls !== 'bad' ? 'me.on' : 'me.off');
+    $('me').title = t('me.title') + ' · ' + txt;
     const id = $('in-id');
     id.textContent = i.id || (i.phase === 'no_server' ? '—' : '…'); id.classList.toggle('pending', !i.id);
     const fixed = i.password_mode === 'fixed';
@@ -441,9 +656,15 @@
     // sessions
     const box = $('sessions'); box.textContent = '';
     $('sessions-box').hidden = !i.sessions.length;
+    $('sessions-empty').hidden = i.sessions.length > 0;
     $('badge').hidden = !i.sessions.length;
+    $('live-count').hidden = !i.sessions.length; $('live-count').textContent = i.sessions.length;
+    $('k-live').textContent = i.sessions.length;
+    $('k-live-s').textContent = i.sessions.length ? t('kpi.live.s', {c: i.sessions.filter(x => x.control).length, f: i.sessions.filter(x => x.files).length}) : t('kpi.live.s0');
+    $('k-live-dot').classList.toggle('on', i.sessions.length > 0);
     for (const x of i.sessions) {
       const el = document.createElement('div'); el.className = 'sess';
+      el.append(avatar(x.label || '?', true));
       const g = document.createElement('div'); g.className = 'grow';
       const a = document.createElement('div'); a.className = 't'; a.textContent = x.label;
       const b = document.createElement('div'); b.className = 'muted small';
@@ -472,6 +693,7 @@
     $('un-switch').checked = !!u.installed; $('un-switch').disabled = !u.available || !!u.busy;
     $('un-open-st').className = 'status ' + ucls; $('un-open-t').textContent = us;
     $('un-manage').hidden = !u.installed || !!u.busy;
+    $('svc-row').hidden = !u.installed;
     $('un-admin2').hidden = !u.needs_admin;
     // The service's own ID and password (another ID than this app's on
     // Windows). The password shows only when asked for, and hides again.
@@ -487,12 +709,13 @@
     // trusted
     const tr = $('trusted'); tr.textContent = '';
     $('trusted-box').hidden = !s.trusted.length;
+    $('trusted-empty').hidden = s.trusted.length > 0;
     for (const d of s.trusted) {
       const r = document.createElement('div'); r.className = 'item';
-      r.append(tile('purple', 'i-device'));
+      r.append(tile('', 'i-device'));
       const g = document.createElement('div'); g.className = 'lbl';
       const a = document.createElement('div'); a.textContent = d.name || t('req.unknown');
-      const b = document.createElement('div'); b.className = 'muted small';
+      const b = document.createElement('div'); b.className = 'muted small mono';
       b.textContent = shortKey(d.identity);
       g.append(a, b);
       // The access it gets next time: the same chips as Connected now.
@@ -511,15 +734,14 @@
       });
       const f = document.createElement('button'); f.className = 'btn text sm'; f.textContent = t('tr.forget');
       f.addEventListener('click', () => api('forget-device', {identity: d.identity}).catch(e => snack(errText(e))));
-      r.append(g, chips, rn, f); tr.append(r);
+      const acts = document.createElement('div'); acts.className = 'tr-acts'; acts.append(chips, rn, f);
+      r.append(g, acts); tr.append(r);
     }
   }
   // tile is a list row's coloured icon (style.css .tile).
-  function tile(colour, icon) {
-    const sp = document.createElement('span'); sp.className = 'tile ' + colour;
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', '#' + icon);
-    svg.append(use); sp.append(svg); return sp;
+  function tile(colour, name) {
+    const sp = document.createElement('span'); sp.className = ('tile ' + colour).trim();
+    sp.append(icon(name)); return sp;
   }
   function fmtDur(s) { const m = Math.floor(s / 60); return m < 60 ? m + ':' + String(s % 60).padStart(2, '0') : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); }
   function shortKey(k) { return (k || '').slice(0, 16); }
@@ -632,7 +854,7 @@
       $('svc-all').hidden = !ss.length;
     } catch (e) { box.textContent = ''; $('svc-err').textContent = errText(e); }
   }
-  $('un-sess').addEventListener('click', () => { $('dlg-svc').showModal(); loadSvc(); });
+  for (const id of ['un-sess', 'un-sess2']) $(id).addEventListener('click', () => { $('dlg-svc').showModal(); loadSvc(); });
   $('svc-all').addEventListener('click', async () => { try { await api('unattended/disconnect', {id: 0}); loadSvc(); } catch (e) { $('svc-err').textContent = errText(e); } });
   $('un-pw').addEventListener('click', () => {
     pwMode = 'change';
@@ -675,6 +897,105 @@
     $('req-deny').focus();
   }
   function updateLeft(r) { $('req-left').textContent = t('req.left', {n: r.left}); }
+
+  // ---- the approval queue (Sessions) ----
+  // Every request waiting for an answer, the first one also in the dialog,
+  // with the time it has left as a bar of cells.
+  function renderQueue(s) {
+    const list = s.incoming.requests, total = s.ask_timeout || 60;
+    for (const id of ['q-count', 'nav-queue']) { $(id).hidden = !list.length; $(id).textContent = list.length; }
+    $('queue-empty').hidden = list.length > 0;
+    $('k-queue').textContent = list.length;
+    $('k-queue-dot').classList.toggle('on', list.length > 0);
+    $('k-queue-s').textContent = list.length ? t('kpi.queue.s', {n: Math.min(...list.map(r => r.left))}) : t('kpi.queue.s0');
+    $('q-foot').textContent = t('q.foot', {n: total});
+    const box = $('queue'); box.textContent = '';
+    list.forEach((r, k) => {
+      const who = r.device || r.name || t('req.unknown');
+      const access = r.access && r.access.length;
+      const c = document.createElement('article'); c.className = 'qcard' + (k === 0 ? ' first' : '');
+      const top = document.createElement('div'); top.className = 'qtop mono';
+      const n = document.createElement('span'); n.textContent = 'REQ-' + String(r.n).padStart(3, '0');
+      const chip = document.createElement('span');
+      chip.className = 'chip ' + (access ? 'warn' : r.first_seen ? 'bad' : 'ok');
+      chip.textContent = access ? t('req.asks').replace(/[:：]\s*$/, '') : t(r.first_seen ? 'req.new' : 'req.known');
+      const left = document.createElement('span'); left.className = 'qleft'; left.textContent = r.left + ' s';
+      top.append(n, chip, left);
+      const h = document.createElement('div'); h.className = 'qt';
+      h.textContent = t(access ? 'req.title.access' : 'req.title', {d: who});
+      const sub = document.createElement('div'); sub.className = 'muted small';
+      sub.textContent = access ? r.access.map(f => t('req.' + f)).filter(Boolean).join(', ') : [r.from, shortKey(r.identity)].filter(Boolean).join(' · ');
+      const bar = document.createElement('div'); bar.className = 'runbar'; bar.setAttribute('aria-hidden', 'true');
+      const cells = 24, on = Math.max(0, Math.min(cells, Math.round(r.left / total * cells)));
+      for (let j = 0; j < cells; j++) { const i = document.createElement('i'); if (j < on) i.className = r.left <= 10 ? 'on low' : 'on'; bar.append(i); }
+      const foot = document.createElement('div'); foot.className = 'qfoot small';
+      foot.textContent = t(k === 0 ? 'q.open' : 'q.next');
+      c.append(top, h, sub, bar, foot);
+      box.append(c);
+    });
+  }
+
+  // ---- activity: devices connected to this computer, last hour ----
+  // Only what this window saw (from when it opened) or can tell from the
+  // sessions that are still open (each knows how long it has lasted): a
+  // minute before that is drawn as "not recorded", never as zero.
+  // Kept per minute, drawn as 30 columns of two minutes each.
+  const ACT_MIN = 60, ACT_COLS = 30, ACT_ROWS = 5;
+  const act = new Map(); // minute number -> most devices connected in it
+  let actFrom = Math.floor(Date.now() / 60000);
+  function sampleActivity() {
+    if (!S || !S.incoming) return;
+    const now = Math.floor(Date.now() / 60000);
+    const ss = S.incoming.sessions || [];
+    act.set(now, Math.max(act.get(now) || 0, ss.length));
+    for (const x of ss) {
+      const from = Math.max(now - ACT_MIN + 1, Math.floor((Date.now() - (x.seconds || 0) * 1000) / 60000));
+      if (from < actFrom) actFrom = from;
+    }
+    // Minutes since a still-open session began had at least the sessions
+    // that were open then.
+    for (let m = now - ACT_MIN + 1; m < now; m++) {
+      const n = ss.filter(x => Date.now() - (x.seconds || 0) * 1000 <= (m + 1) * 60000).length;
+      if (n) act.set(m, Math.max(act.get(m) || 0, n));
+    }
+    for (const m of act.keys()) if (m <= now - ACT_MIN) act.delete(m);
+  }
+  function renderActivity() {
+    const box = $('act-chart'); if (!box) return;
+    const now = Math.floor(Date.now() / 60000), rows = ACT_ROWS, step = 12, r = 4.6, per = ACT_MIN / ACT_COLS;
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'dm'); svg.setAttribute('viewBox', `0 0 ${ACT_COLS * step} ${rows * step}`);
+    svg.setAttribute('role', 'img');
+    const hm = m => new Date(m * 60000).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en', {hour: '2-digit', minute: '2-digit'});
+    let peak = 0, any = false;
+    for (let c = 0; c < ACT_COLS; c++) {
+      const m0 = now - ACT_MIN + 1 + c * per, m1 = m0 + per - 1;
+      const known = m1 >= actFrom;
+      let n = 0; for (let m = m0; m <= m1; m++) n = Math.max(n, act.get(m) || 0);
+      peak = Math.max(peak, n); if (n) any = true;
+      const g = document.createElementNS(ns, 'g');
+      const tip = document.createElementNS(ns, 'title');
+      const when = hm(m0) + '–' + hm(m1 + 1);
+      tip.textContent = known ? t('act.tip', {t: when, n}) : t('act.nodata', {t: when});
+      g.append(tip);
+      for (let k = 0; k < rows; k++) {
+        const rect = document.createElementNS(ns, 'rect');
+        const level = rows - k; // rows from the top: 5 ... 1
+        rect.setAttribute('x', c * step + (step - 2 * r) / 2); rect.setAttribute('y', k * step + (step - 2 * r) / 2);
+        rect.setAttribute('width', 2 * r); rect.setAttribute('height', 2 * r); rect.setAttribute('rx', 2);
+        rect.setAttribute('class', !known ? 'nd' : n >= level ? 'v' + Math.min(n, 4) : 'z');
+        g.append(rect);
+      }
+      svg.append(g);
+    }
+    const label = t('act.title') + ': ' + (any ? t('act.peak', {n: peak}) : t('act.none'));
+    svg.setAttribute('aria-label', label);
+    box.textContent = ''; box.append(svg);
+    $('act-none').hidden = any;
+    $('act-peak').hidden = !any; $('act-peak').textContent = t('act.peak', {n: peak});
+    $('act-since').textContent = actFrom > now - ACT_MIN + 1 ? t('act.since', {t: hm(actFrom)}) : '';
+  }
   $('dlg-req').addEventListener('close', async () => {
     const n = reqShown, v = $('dlg-req').returnValue;
     if (!n || v === 'gone') return;
@@ -768,7 +1089,7 @@
     const b = document.createElement('button'); b.type = 'button'; b.className = 'icon-btn pweye';
     const set = shown => {
       input.type = shown ? 'text' : 'password';
-      b.innerHTML = '<svg><use href="#' + (shown ? 'i-eye-off' : 'i-eye') + '"/></svg>';
+      b.textContent = ''; b.append(icon(shown ? 'i-eye-off' : 'i-eye'));
       b.setAttribute('aria-pressed', String(shown));
       b.setAttribute('aria-label', t(shown ? 'pw.hide' : 'pw.show')); b.title = t(shown ? 'pw.hide' : 'pw.show');
     };
