@@ -1,7 +1,6 @@
 package dial
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -32,8 +31,7 @@ func Redeem(store *Store, target, code, alias string) error {
 }
 
 func runPeersRedeem(env *cli.Env, store *Store, args []string) int {
-	fs := flag.NewFlagSet("peers redeem", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "peers redeem", "")
 	alias := fs.String("alias", "", "")
 	var pos []string
 	for {

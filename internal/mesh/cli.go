@@ -117,9 +117,7 @@ func (l *routeList) String() string     { return strings.Join(*l, ",") }
 func (l *routeList) Set(v string) error { *l = append(*l, v); return nil }
 
 func runUp(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("net up", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "net up", usage)
 	exit := fs.Bool("exit", false, "")
 	var routes routeList
 	fs.Var(&routes, "route", "")

@@ -6,7 +6,6 @@ package doctor
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/netip"
@@ -77,9 +76,7 @@ type SignalReport struct {
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "doctor", usage)
 	asJSON := fs.Bool("json", false, "")
 	offline := fs.Bool("offline", false, "")
 	if err := fs.Parse(args); err != nil {

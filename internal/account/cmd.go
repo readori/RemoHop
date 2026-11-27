@@ -139,9 +139,7 @@ func init() {
 }
 
 func newFlags(env *cli.Env, name, usage string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, name, usage)
 	return fs
 }
 

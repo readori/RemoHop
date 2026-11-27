@@ -212,9 +212,7 @@ func scopeFlags(fs *flag.FlagSet) func() (Scope, error) {
 }
 
 func newFlags(env *cli.Env, name string) *flag.FlagSet {
-	fs := flag.NewFlagSet("service "+name, flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "service "+name, usage)
 	return fs
 }
 

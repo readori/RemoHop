@@ -186,9 +186,7 @@ type flags struct {
 }
 
 func newFlags(env *cli.Env, name string, pointer bool) *flags {
-	f := &flags{fs: flag.NewFlagSet(name, flag.ContinueOnError)}
-	f.fs.SetOutput(env.Stderr)
-	f.fs.Usage = func() { fmt.Fprint(env.Stderr, cli.Lookup(name).Usage) }
+	f := &flags{fs: cli.NewFlagSet(env, name, cli.Lookup(name).Usage)}
 	f.fs.StringVar(&f.display, "display", "", "")
 	f.fs.StringVar(&f.display, "d", "", "")
 	f.fs.BoolVar(&f.asJSON, "json", false, "")

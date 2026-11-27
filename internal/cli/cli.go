@@ -5,11 +5,13 @@ package cli
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -147,6 +149,10 @@ type Command struct {
 	// Remote commands are invoked as `remohop <ID> <name> ...` and use env.Conn.
 	Remote bool
 	Hidden bool
+	// Topics are further help pages, shown by `remohop help <name> <topic>`
+	// (and all of them by `remohop help <name> all` or `remohop <name>
+	// --help-all`), so that Usage can stay short.
+	Topics map[string]string
 	// RemoteRun, on a local command, is what `remohop <ID> <name> ...` runs: the
 	// same verb done by the remote machine (`remohop wake MAC` sends the packet
 	// from here, `remohop <ID> wake MAC` asks that host to send it).
@@ -209,6 +215,31 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		env.Errorf("%v", err)
 		return ExitUsage
 	}
+	// The global flags are also accepted after the target and after the
+	// command (`remohop 123456789 shell -v`), as long as the command does
+	// not have a flag of the same name.
+	if len(args) > 0 && Lookup(args[0]) == nil && args[0] != "help" {
+		var rest []string
+		if rest, err = parseGlobals(&env.Globals, args[1:]); err == nil {
+			args = append(args[:1:1], rest...)
+		}
+	}
+	if err == nil && len(args) > 0 {
+		at := 0
+		if Lookup(args[0]) == nil && len(args) > 1 {
+			at = 1
+		}
+		if c := Lookup(args[at]); c != nil {
+			var rest []string
+			if rest, err = stripGlobals(&env.Globals, c.Name, args[at+1:]); err == nil {
+				args = append(args[:at+1:at+1], rest...)
+			}
+		}
+	}
+	if err != nil {
+		env.Errorf("%v", err)
+		return ExitUsage
+	}
 	level := slog.LevelWarn
 	if env.Globals.Verbose {
 		level = slog.LevelDebug
@@ -233,7 +264,7 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	// `--help` (or -h) right after a command shows that command's help on
 	// stdout and succeeds, whichever way the command parses its flags.
 	if c := Lookup(args[0]); c != nil && wantsHelp(args[1:]) {
-		return printUsage(env.Stdout, c)
+		return printUsage(env.Stdout, c, wantsAllHelp(args[1:]))
 	}
 	if c := Lookup(args[0]); c != nil && !c.Remote {
 		return c.Run(ctx, env, args[1:])
@@ -251,7 +282,7 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 		return ExitUsage
 	}
 	if wantsHelp(args[2:]) {
-		return printUsage(env.Stdout, c)
+		return printUsage(env.Stdout, c, wantsAllHelp(args[2:]))
 	}
 	run := c.Run
 	if !c.Remote {
@@ -266,6 +297,71 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 	return run(ctx, env, args[2:])
 }
 
+// ownFlags lists the global flags that a command defines itself, with
+// another meaning or its own default: after these commands they are left
+// to the command (`remohop host --password PW` sets the host's password).
+var ownFlags = map[string][]string{
+	"host":    {"--signal", "--password"},
+	"service": {"--signal"},
+	"sync":    {"-v"},
+}
+
+// passThrough are the commands whose arguments, after their own leading
+// flags, are a command line or text for the remote machine: global flags
+// are looked for only before the first of those arguments.
+var passThrough = map[string]bool{"shell": true, "spawn": true, "type": true, "press": true}
+
+// stripGlobals takes the global flags out of a command's arguments: any of
+// -v, --verbose, --signal and --password, up to "--" (and, for a command
+// in passThrough, up to its first argument that is not a flag), except
+// those the command defines itself (ownFlags).
+func stripGlobals(g *Globals, cmd string, args []string) ([]string, error) {
+	var out []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" || (passThrough[cmd] && !strings.HasPrefix(a, "-")) {
+			return append(out, args[i:]...), nil
+		}
+		name, val, hasVal := strings.Cut(a, "=")
+		if !isGlobal(name) || slices.Contains(ownFlags[cmd], canonicalGlobal(name)) {
+			out = append(out, a)
+			continue
+		}
+		if canonicalGlobal(name) == "-v" {
+			g.Verbose = true
+			continue
+		}
+		if !hasVal {
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("flag %s needs a value", name)
+			}
+			i++
+			val = args[i]
+		}
+		if name == "--signal" {
+			g.Signal = val
+		} else {
+			g.Password = val
+		}
+	}
+	return out, nil
+}
+
+func isGlobal(name string) bool {
+	switch name {
+	case "-v", "--verbose", "--signal", "--password":
+		return true
+	}
+	return false
+}
+
+func canonicalGlobal(name string) string {
+	if name == "--verbose" {
+		return "-v"
+	}
+	return name
+}
+
 // wantsHelp reports whether the arguments ask for help before anything
 // else: -h, -help or --help among the leading flags. It stops at the first
 // argument that is not a flag and at "--", so `remohop <ID> shell -c 'ls
@@ -273,7 +369,7 @@ func Main(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io
 func wantsHelp(args []string) bool {
 	for _, a := range args {
 		switch {
-		case a == "-h" || a == "-help" || a == "--help":
+		case a == "-h" || a == "-help" || a == "--help" || a == "--help-all" || a == "-help-all":
 			return true
 		case a == "--" || !strings.HasPrefix(a, "-"):
 			return false
@@ -282,9 +378,28 @@ func wantsHelp(args []string) bool {
 	return false
 }
 
-func printUsage(w io.Writer, c *Command) int {
+// wantsAllHelp reports whether the leading flags ask for every help topic
+// (--help-all).
+func wantsAllHelp(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "--help-all" || a == "-help-all":
+			return true
+		case a == "--" || !strings.HasPrefix(a, "-"):
+			return false
+		}
+	}
+	return false
+}
+
+func printUsage(w io.Writer, c *Command, all bool) int {
 	if c.Usage != "" {
 		fmt.Fprintln(w, strings.TrimRight(c.Usage, "\n"))
+		if all {
+			for _, name := range topicNames(c) {
+				fmt.Fprintf(w, "\n%s\n", strings.TrimRight(c.Topics[name], "\n"))
+			}
+		}
 	} else if c.Remote {
 		fmt.Fprintf(w, "usage: remohop <ID> %s ...\n\n%s\n", c.Name, c.Summary)
 	} else {
@@ -412,7 +527,78 @@ func runHelp(env *Env, args []string) int {
 		env.Errorf("unknown command %q", args[0])
 		return ExitUsage
 	}
-	return printUsage(env.Stdout, c)
+	if len(args) > 1 {
+		if args[1] == "all" && len(c.Topics) > 0 {
+			return printUsage(env.Stdout, c, true)
+		}
+		page, ok := c.Topics[args[1]]
+		if !ok {
+			if len(c.Topics) == 0 {
+				env.Errorf("%s has no further help topics", c.Name)
+			} else {
+				env.Errorf("no help topic %q for %s; there are: %s, all", args[1], c.Name, strings.Join(topicNames(c), ", "))
+			}
+			return ExitUsage
+		}
+		fmt.Fprintln(env.Stdout, strings.TrimRight(page, "\n"))
+		return ExitOK
+	}
+	return printUsage(env.Stdout, c, false)
+}
+
+func topicNames(c *Command) []string {
+	names := make([]string, 0, len(c.Topics))
+	for n := range c.Topics {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// NewFlagSet returns a flag set for a command whose errors take one line,
+// the problem and where to read more ("remohop: cp: flag provided but not
+// defined: -x (see `remohop help cp`)"), rather than the whole usage. name
+// is the command, optionally with its subcommand ("net up"). -h after
+// other flags prints usage in full.
+func NewFlagSet(env *Env, name, usage string) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	w := &flagErrors{env: env, name: name}
+	fs.SetOutput(w)
+	fs.Usage = func() {
+		if w.wrote {
+			return // the one line said it
+		}
+		if usage == "" {
+			if c := Lookup(strings.Fields(name + " x")[0]); c != nil {
+				usage = c.Usage
+			}
+		}
+		fmt.Fprintln(env.Stderr, strings.TrimRight(usage, "\n"))
+	}
+	return fs
+}
+
+// FlagHint is the pointer to a command's full help that follows a one-line
+// usage error.
+func FlagHint(name string) string {
+	return "see `remohop help " + strings.Fields(name + " x")[0] + "`"
+}
+
+// flagErrors turns what the flag package prints about a bad flag into one
+// "remohop: ..." line.
+type flagErrors struct {
+	env   *Env
+	name  string
+	wrote bool
+}
+
+func (w *flagErrors) Write(p []byte) (int, error) {
+	msg := strings.TrimSpace(string(p))
+	if msg != "" {
+		w.wrote = true
+		w.env.Errorf("%s: %s (%s)", w.name, msg, FlagHint(w.name))
+	}
+	return len(p), nil
 }
 
 func printHelp(w io.Writer) {

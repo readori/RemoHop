@@ -304,8 +304,7 @@ func DefaultLocalPath(target, port string) (string, error) {
 }
 
 func runAttach(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("serial", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "serial", serialUsage)
 	var local, format string
 	var background, asJSON, rtscts bool
 	var dtr, rts *bool
@@ -317,7 +316,6 @@ func runAttach(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&rtscts, "rtscts", false, "")
 	fs.Var(onOff{&dtr}, "dtr", "")
 	fs.Var(onOff{&rts}, "rts", "")
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, serialUsage) }
 
 	var pos []string
 	rest := args

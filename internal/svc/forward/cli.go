@@ -127,8 +127,7 @@ type live struct {
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("forward", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "forward", forwardUsage)
 	var locals, reverses specList
 	var background, asJSON, udp bool
 	fs.BoolVar(&background, "b", false, "")
@@ -137,7 +136,6 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&udp, "udp", false, "")
 	fs.Var(&locals, "L", "")
 	fs.Var(&reverses, "R", "")
-	fs.Usage = func() { fmt.Fprint(env.Stderr, forwardUsage) }
 
 	// Flags may follow the specs (`forward 8080:80 -b`); the stdlib parser
 	// stops at the first positional, so parse in rounds.

@@ -137,3 +137,97 @@ func TestHelpAndTargetOnly(t *testing.T) {
 		t.Error("wantsHelp")
 	}
 }
+
+// TestGlobalsAnywhere: -v, --signal and --password are taken after the
+// target and after the command too, but not past "--", not inside a
+// remote command line, and not from a command that defines them itself.
+func TestGlobalsAnywhere(t *testing.T) {
+	var gotArgs []string
+	var gotGlobals Globals
+	record := func(ctx context.Context, env *Env, args []string) int {
+		gotArgs, gotGlobals = args, env.Globals
+		return 0
+	}
+	Register(&Command{Name: "t-any", Remote: true, Run: record})
+	Register(&Command{Name: "t-anylocal", Run: record})
+	run := func(args ...string) (int, string) {
+		gotArgs, gotGlobals = nil, Globals{}
+		var out, errb bytes.Buffer
+		code := Main(context.Background(), args, strings.NewReader(""), &out, &errb)
+		return code, errb.String()
+	}
+	cases := []struct {
+		args []string
+		want string
+		g    Globals
+	}{
+		{[]string{"123456789", "-v", "t-any", "a"}, "a", Globals{Verbose: true}},
+		{[]string{"123456789", "--signal", "s:1", "t-any", "a"}, "a", Globals{Signal: "s:1"}},
+		{[]string{"123456789", "t-any", "-x", "--password=pw", "a", "-v"}, "-x a", Globals{Verbose: true, Password: "pw"}},
+		{[]string{"123456789", "t-any", "--signal", "s:2", "--", "-v"}, "-- -v", Globals{Signal: "s:2"}},
+		{[]string{"t-anylocal", "--verbose", "b"}, "b", Globals{Verbose: true}},
+	}
+	for _, c := range cases {
+		if code, msg := run(c.args...); code != 0 || strings.Join(gotArgs, " ") != c.want || gotGlobals.Verbose != c.g.Verbose ||
+			gotGlobals.Signal != c.g.Signal || gotGlobals.Password != c.g.Password {
+			t.Errorf("%q: code %d %q, args %q, globals %+v", c.args, code, msg, gotArgs, gotGlobals)
+		}
+	}
+	if code, msg := run("123456789", "t-any", "--signal"); code != ExitUsage || !strings.Contains(msg, "needs a value") {
+		t.Errorf("missing value: %d %q", code, msg)
+	}
+	// A remote command line keeps its flags.
+	if got, _ := stripGlobals(&Globals{}, "shell", []string{"-v", "ls", "-v"}); strings.Join(got, " ") != "ls -v" {
+		t.Errorf("shell: %q", got)
+	}
+	// A command's own flag of the same name stays its own.
+	g := Globals{}
+	if got, _ := stripGlobals(&g, "host", []string{"--password", "pw", "-v"}); strings.Join(got, " ") != "--password pw" || g.Password != "" || !g.Verbose {
+		t.Errorf("host: %q %+v", got, g)
+	}
+}
+
+// TestFlagErrorsOneLine: a bad flag is reported in one line that says
+// where the full help is, not with the whole usage.
+func TestFlagErrorsOneLine(t *testing.T) {
+	var errb bytes.Buffer
+	env := &Env{Stderr: &errb}
+	fs := NewFlagSet(env, "net up", "Usage: remohop net up [--x]\n\nlong text")
+	fs.Bool("x", false, "")
+	if err := fs.Parse([]string{"--nope"}); err == nil {
+		t.Fatal("no error")
+	}
+	got := errb.String()
+	if strings.Count(got, "\n") != 1 || !strings.Contains(got, "-nope") || !strings.Contains(got, "see `remohop help net`") {
+		t.Errorf("got %q", got)
+	}
+	errb.Reset()
+	fs = NewFlagSet(env, "net up", "Usage: remohop net up [--x]\n\nlong text")
+	if err := fs.Parse([]string{"-h"}); err == nil || !strings.Contains(errb.String(), "long text") {
+		t.Errorf("-h: %v %q", err, errb.String())
+	}
+}
+
+func TestHelpTopics(t *testing.T) {
+	Register(&Command{Name: "t-topics", Usage: "Usage: short\n\nMore: remohop help t-topics deep", Topics: map[string]string{"deep": "DEEP PAGE"},
+		Run: func(ctx context.Context, env *Env, args []string) int { return 0 }})
+	run := func(args ...string) (int, string, string) {
+		var out, errb bytes.Buffer
+		code := Main(context.Background(), args, strings.NewReader(""), &out, &errb)
+		return code, out.String(), errb.String()
+	}
+	if code, out, _ := run("help", "t-topics"); code != 0 || strings.Contains(out, "DEEP") {
+		t.Errorf("help: %d %q", code, out)
+	}
+	if code, out, _ := run("help", "t-topics", "deep"); code != 0 || strings.TrimSpace(out) != "DEEP PAGE" {
+		t.Errorf("topic: %d %q", code, out)
+	}
+	for _, args := range [][]string{{"help", "t-topics", "all"}, {"t-topics", "--help-all"}} {
+		if code, out, _ := run(args...); code != 0 || !strings.Contains(out, "Usage: short") || !strings.Contains(out, "DEEP PAGE") {
+			t.Errorf("%q: %d %q", args, code, out)
+		}
+	}
+	if code, _, msg := run("help", "t-topics", "nope"); code != ExitUsage || !strings.Contains(msg, "deep") {
+		t.Errorf("unknown topic: %d %q", code, msg)
+	}
+}

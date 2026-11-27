@@ -3,7 +3,6 @@ package vpn
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -159,9 +158,7 @@ func runRemote(ctx context.Context, env *cli.Env, args []string) int {
 		env.Errorf("vpn: unknown subcommand %q (up, down)", args[0])
 		return cli.ExitUsage
 	}
-	fs := flag.NewFlagSet("vpn up", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "vpn up", usage)
 	var routes, bypass prefixList
 	fs.Var(&routes, "route", "")
 	fs.Var(&bypass, "bypass", "")

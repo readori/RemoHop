@@ -71,8 +71,7 @@ type result struct {
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("screenshot", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "screenshot", "")
 	var (
 		out, display, format, region string
 		quality, maxWidth            int
@@ -88,7 +87,6 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 	fs.IntVar(&maxWidth, "max-width", 0, "")
 	fs.BoolVar(&list, "list", false, "")
 	fs.BoolVar(&asJSON, "json", false, "")
-	fs.Usage = func() { fmt.Fprint(env.Stderr, cli.Lookup("screenshot").Usage) }
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return cli.ExitOK

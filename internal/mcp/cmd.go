@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -90,9 +89,7 @@ func init() {
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "mcp", usage)
 	target := fs.String("target", "", "")
 	idle := fs.Duration("idle-timeout", DefaultIdleTimeout, "")
 	readOnly := fs.Bool("read-only", false, "")

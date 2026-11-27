@@ -3,7 +3,6 @@ package desktop
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -151,8 +150,7 @@ type desktopResult struct {
 }
 
 func runDesktop(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("desktop", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "desktop", "")
 	var (
 		opts    Options
 		rate    string
@@ -188,9 +186,6 @@ func runDesktop(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&asJSON, "json", false, "JSON output")
 	fs.BoolVar(&backgr, "b", false, "run in the background")
 	fs.BoolVar(&backgr, "background", false, "run in the background")
-	fs.Usage = func() {
-		fmt.Fprintln(env.Stderr, "usage: remohop <ID> desktop [--fps N] [--bitrate RATE] [--max-height PX] [--scale F] [--display N|all] [--audio] [--upload-dir DIR] [--bench [--bench-duration D]] [--view-only] [--codec av1|h264] [--encoder NAME] [--record FILE [--force]] [--port P] [--no-open] [--json] [-b]")
-	}
 	if err := fs.Parse(args); err != nil {
 		return cli.ExitUsage
 	}
