@@ -158,6 +158,9 @@ func runSmoke(ctx context.Context, env *cli.Env, app *App, srv *Server, o runOpt
 			}
 		}
 		step("session")
+		// The Sessions page, with that session live on it.
+		srv.setSmokeView("sessions")
+		step("sessions")
 
 		// The address book: this computer saved under a name, and its tab.
 		if id != "" {

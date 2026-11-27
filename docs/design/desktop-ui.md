@@ -454,7 +454,7 @@ The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial license) u
   in attributes, colour in classes.
 - IDs that other code relies on: the views `v-wizard`, `v-computer`,
   `v-connect`, `v-sessions`, `v-settings` (the smoke test shows `computer`,
-  `connect`, `settings` and `open:ID`); `bar` (hidden during the wizard),
+  `sessions`, `connect`, `settings` and `open:ID`); `bar` (hidden during the wizard),
   `tabs` with `tab-computer`, `tab-connect`, `tab-settings` and the
   `.tab.host` rows (`.dot`, `.name`, `.x`); `badge`; `incoming`, `creds`,
   `in-id`, `in-pw`, `in-pw-l`, `regen`, `pw-reveal`, `pw-set`; `sessions`,
