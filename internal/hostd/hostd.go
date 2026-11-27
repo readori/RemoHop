@@ -520,6 +520,15 @@ func (h *Host) Sessions() []*Session {
 // Run serves until ctx is cancelled, then closes every session and the
 // socket. A Host cannot be restarted.
 func (h *Host) Run(ctx context.Context) error {
+	// No grant reaches into the config directory: it holds the grants
+	// file, the tokens, the identity and the temporary password (see
+	// grant.Protect). The process's own config directory is protected
+	// too when the host was given another one: the CLI of the host's user
+	// acts on it.
+	defer grant.Protect(h.dir)()
+	if d, err := config.Dir(); err == nil && d != h.dir {
+		defer grant.Protect(d)()
+	}
 	if pm := h.startPortmap(); pm != nil {
 		defer pm.Close() // deletes the mapping
 	}

@@ -188,6 +188,7 @@ func runGrant(env *cli.Env, args []string) int {
 	if existed {
 		fmt.Fprintln(w, "  (replaces the earlier grant of that name; its code no longer works)")
 	}
+	warnConfigDir(env, rules, dir)
 	target := "TARGET"
 	if st, _ := LiveStatus(dir); st != nil {
 		switch {
@@ -210,6 +211,30 @@ func runGrant(env *cli.Env, args []string) int {
 	}
 	fmt.Fprintf(w, "\nEnd it early with `remohop host revoke %s`, or everything at once with `remohop host panic`.\n", g.Name)
 	return cli.ExitOK
+}
+
+// warnConfigDir tells whoever issues a grant that its file roots contain
+// the host's config directory. The host refuses every granted access to
+// it (grant.Protect), but the owner may have meant to share less.
+func warnConfigDir(env *cli.Env, rules *grant.Rules, dir string) {
+	if rules == nil {
+		return
+	}
+	dirs := []string{dir}
+	if d, err := config.Dir(); err == nil && d != dir {
+		dirs = append(dirs, d)
+	}
+	roots := rules.RootsContaining(dirs)
+	if rules.ReadAll || rules.WriteAll {
+		roots = []string{"every file (files or files:read)"}
+	}
+	if len(roots) == 0 {
+		return
+	}
+	fmt.Fprintf(env.Stderr, "remohop: warning: the grant's file access (%s) contains RemoHop's configuration directory %s.\n"+
+		"  The host refuses the grant everything in it, and changes to the directories above it, because it holds\n"+
+		"  the grants, the pairings, the identity key and the temporary password. Consider a narrower root.\n",
+		cli.Sanitize(strings.Join(roots, ", ")), cli.Sanitize(dir))
 }
 
 func onOff(b bool) string {

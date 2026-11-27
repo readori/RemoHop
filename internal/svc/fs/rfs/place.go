@@ -211,7 +211,32 @@ func sameRoot(a, b loc) error {
 	return nil
 }
 
+// checkMovedLink refuses to rename or hard-link a symbolic link to where
+// it would lead into the host's config directory, or to a directory above
+// it (grant.CheckLinkTarget): where a relative link leads depends on where
+// it is. Without a grant (no scope) nothing is checked.
+func checkMovedLink(from, to loc) error {
+	if from.scope == nil {
+		return nil
+	}
+	fi, err := from.lstat()
+	if err != nil || fi.Mode()&fs.ModeSymlink == 0 {
+		return nil // the operation reports a missing source itself
+	}
+	t, err := from.readlink()
+	if err != nil {
+		return err
+	}
+	if err := grant.CheckLinkTarget(to.pl.Path, t); err != nil {
+		return &guardError{&grant.Refusal{Grant: from.grant, What: "moving this symbolic link", Why: err.Error()}}
+	}
+	return nil
+}
+
 func renameLoc(from, to loc, flags int) error {
+	if err := checkMovedLink(from, to); err != nil {
+		return err
+	}
 	if !from.confined() && !to.confined() {
 		return rename(from.pl.Path, to.pl.Path, flags)
 	}
@@ -231,6 +256,9 @@ func renameLoc(from, to loc, flags int) error {
 }
 
 func linkLoc(old, nw loc) error {
+	if err := checkMovedLink(old, nw); err != nil {
+		return err
+	}
 	if !old.confined() && !nw.confined() {
 		return os.Link(old.pl.Path, nw.pl.Path)
 	}
@@ -246,14 +274,18 @@ func linkLoc(old, nw loc) error {
 // symlink makes l a symbolic link to target. Under a grant the target must
 // lead inside l's root (grant.Scope.CheckLink).
 func (l loc) symlink(target string) error {
+	if l.scope != nil {
+		// Under a grant: inside the root, and never into the host's
+		// config directory (also for a grant that may write anywhere).
+		if err := l.notRoot(); err != nil {
+			return err
+		}
+		if err := l.scope.CheckLink(l.pl, target); err != nil {
+			return &guardError{&grant.Refusal{Grant: l.grant, What: "this symbolic link", Why: err.Error()}}
+		}
+	}
 	if !l.confined() {
 		return os.Symlink(target, l.pl.Path)
-	}
-	if err := l.notRoot(); err != nil {
-		return err
-	}
-	if err := l.scope.CheckLink(l.pl, target); err != nil {
-		return &guardError{&grant.Refusal{Grant: l.grant, What: "this symbolic link", Why: err.Error()}}
 	}
 	return rootErr(l.pl.Root.Symlink(target, l.pl.Rel))
 }
