@@ -62,7 +62,7 @@ remohop config otp on</code></pre>
 <tbody>
 <tr><td>功能开关</td><td><code>remohop config feature NAME on|off</code></td><td>NAME 可以是 <code>shell</code>、<code>file</code>、<code>forward</code>、<code>clip</code>、<code>screen</code>、<code>input</code>、<code>info</code>、<code>vpn</code>、<code>serial</code>、<code>usb</code>，默认全部开启</td></tr>
 <tr><td>VPN 路由</td><td><code>remohop config vpn-exit on</code></td><td>允许 VPN 客户端访问被控机自身局域网以外的网络，并把被控机当作出口；默认关闭</td></tr>
-<tr><td>连接审批</td><td><code>remohop config ask on</code></td><td>每次密码登录都要在被控机上确认：在 <code>remohop host</code> 所在的终端回答，或用 <code>remohop host approve N</code> / <code>remohop host deny N</code></td></tr>
+<tr><td>连接审批</td><td><code>remohop config ask on</code></td><td>每次密码登录都要在被控机上确认：在 <code>remohop host</code> 所在的终端回答，或用 <code>remohop host approve N</code> / <code>remohop host deny N</code>。终端里只有一个请求在等待时才能直接输入 <code>y</code> 或 <code>n</code>；有多个时请输入 <code>y N</code> 或 <code>n N</code></td></tr>
 <tr><td>已知客户端也要审批</td><td><code>remohop config ask-paired on</code></td><td>在 <code>ask on</code> 的基础上，已配对的客户端和已授权的密钥也需要审批</td></tr>
 <tr><td>一次性密码</td><td><code>remohop config otp on</code></td><td>临时密码每次登录后更换，多个同时使用它的登录只有一个能成功；被拒绝、无人应答或中途放弃的登录不会消耗它；<code>remohop otp</code> 打印当前密码，<code>remohop otp new</code> 立即更换</td></tr>
 <tr><td>固定密码</td><td><code>remohop passwd</code></td><td>设置固定密码，<code>--clear</code> 清除；<code>remohop status</code> 从不打印固定密码</td></tr>

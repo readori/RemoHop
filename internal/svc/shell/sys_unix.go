@@ -121,3 +121,7 @@ const exitShowsSignal = true
 // pipedEnv is extra environment for commands that run without a terminal;
 // unix shells need none.
 func pipedEnv() []string { return nil }
+
+// shellEnv is environment for every process the shell starts; only
+// Windows needs any (see sys_windows.go).
+func shellEnv() []string { return nil }

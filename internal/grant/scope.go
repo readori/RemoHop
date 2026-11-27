@@ -239,6 +239,11 @@ func (s *Scope) unconfined(a Access) bool {
 }
 
 func (s *Scope) resolve(p string, a Access, follow bool) (Place, error) {
+	// The host's config directory is out of every grant's reach (see
+	// Protect), also where the grant allows files anywhere.
+	if err := CheckProtected(p, a); err != nil {
+		return Place{}, err
+	}
 	if s.unconfined(a) {
 		return Place{Path: p}, nil
 	}
@@ -358,12 +363,19 @@ func (s *Scope) IsRoot(fi fs.FileInfo) (string, bool) {
 // an absolute one outside the root's path: what is left points at the
 // link's own directory or below it (or at a fixed place in the root),
 // wherever the link is moved to within the root.
+//
+// Wherever the grant lets a session make links (also outside roots, when it
+// may change files anywhere), the link may not lead into the host's config
+// directory or to a directory above it (CheckLinkTarget).
 func (s *Scope) CheckLink(link Place, target string) error {
-	if link.Root == nil {
-		return nil
-	}
 	if target == "" {
 		return errors.New("empty link target")
+	}
+	if err := CheckLinkTarget(link.Path, target); err != nil {
+		return err
+	}
+	if link.Root == nil {
+		return nil
 	}
 	for _, c := range strings.FieldsFunc(target, func(r rune) bool { return r < 0x80 && os.IsPathSeparator(uint8(r)) }) {
 		if c == ".." {

@@ -195,7 +195,7 @@ func runApprove(env *cli.Env, allow bool, args []string) int {
 		tw.Flush()
 		for _, a := range rep.Approvals {
 			if a.Action != "" {
-				fmt.Fprintf(env.Stdout, "%d  grant %s wants to %s  (since %s)\n", a.N, cli.Sanitize(a.Grant), cli.Sanitize(a.Action), a.Since.Local().Format("15:04:05"))
+				fmt.Fprintf(env.Stdout, "%d  grant %s wants to %s  (since %s)\n", a.N, cli.Sanitize(a.Grant), cli.OneLine(a.Action), a.Since.Local().Format("15:04:05"))
 			}
 		}
 		fmt.Fprintln(env.Stdout, "answer with `remohop host approve N` or `remohop host deny N`")
@@ -206,7 +206,8 @@ func runApprove(env *cli.Env, allow bool, args []string) int {
 		env.Errorf("usage: remohop host approve [--json] | remohop host approve N | remohop host deny N")
 		return cli.ExitUsage
 	}
-	if _, err := controlCall(dir, controlRequest{Op: "decide", N: n, Allow: allow}); err != nil {
+	rep, err := controlCall(dir, controlRequest{Op: "decide", N: n, Allow: allow})
+	if err != nil {
 		env.Errorf("host: %v", err)
 		return cli.ExitError
 	}
@@ -214,7 +215,11 @@ func runApprove(env *cli.Env, allow bool, args []string) int {
 	if allow {
 		verb = "approved"
 	}
-	fmt.Fprintf(env.Stdout, "%s connection %d\n", verb, n)
+	if len(rep.Approvals) == 1 && rep.Approvals[0].N == n {
+		fmt.Fprintf(env.Stdout, "%s %s\n", verb, describeApproval(rep.Approvals[0]))
+	} else {
+		fmt.Fprintf(env.Stdout, "%s request %d\n", verb, n)
+	}
 	return cli.ExitOK
 }
 

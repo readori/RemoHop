@@ -82,6 +82,10 @@ func buildEnv(term, dir string, extra []string) []string {
 			set(k, v)
 		}
 	}
+	for _, kv := range shellEnv() {
+		k, v, _ := strings.Cut(kv, "=")
+		set(k, v)
+	}
 	for _, kv := range extra {
 		k, v, _ := strings.Cut(kv, "=")
 		set(k, v)

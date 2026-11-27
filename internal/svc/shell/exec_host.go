@@ -105,6 +105,12 @@ func handleExec(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawMe
 	// owner to approve); the grant may also record the output.
 	var rec grant.Recorder
 	if g := grant.Of(c); g != nil {
+		// Where it runs matters as much as what runs: an allowed
+		// program reads its configuration from there. Checked first, so
+		// the owner is not asked to approve what is refused anyway.
+		if err := g.WorkDir(ctx, "exec", resolveDir(req.Cwd)); err != nil {
+			return fw.json(frameExit, exitMsg{Code: -1, Error: err.Error()})
+		}
 		if err := g.Command(ctx, "exec", req.Command, req.TTY, req.Env); err != nil {
 			return fw.json(frameExit, exitMsg{Code: -1, Error: err.Error()})
 		}

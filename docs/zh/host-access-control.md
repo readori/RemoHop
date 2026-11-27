@@ -14,7 +14,7 @@ remohop config otp on
 |---|---|---|
 | 功能开关 | `remohop config feature NAME on\|off` | NAME 可以是 `shell`、`file`、`forward`、`clip`、`screen`、`input`、`info`、`vpn`、`serial`、`usb`，默认全部开启 |
 | VPN 路由 | `remohop config vpn-exit on` | 允许 VPN 客户端访问被控机自身局域网以外的网络，并把被控机当作出口；默认关闭 |
-| 连接审批 | `remohop config ask on` | 每次密码登录都要在被控机上确认：在 `remohop host` 所在的终端回答，或用 `remohop host approve N` / `remohop host deny N` |
+| 连接审批 | `remohop config ask on` | 每次密码登录都要在被控机上确认：在 `remohop host` 所在的终端回答，或用 `remohop host approve N` / `remohop host deny N`。终端里只有一个请求在等待时才能直接输入 `y` 或 `n`；有多个时请输入 `y N` 或 `n N` |
 | 已知客户端也要审批 | `remohop config ask-paired on` | 在 `ask on` 的基础上，已配对的客户端和已授权的密钥也需要审批 |
 | 一次性密码 | `remohop config otp on` | 临时密码每次登录后更换，多个同时使用它的登录只有一个能成功；被拒绝、无人应答或中途放弃的登录不会消耗它；`remohop otp` 打印当前密码，`remohop otp new` 立即更换 |
 | 固定密码 | `remohop passwd` | 设置固定密码，`--clear` 清除；`remohop status` 从不打印固定密码 |

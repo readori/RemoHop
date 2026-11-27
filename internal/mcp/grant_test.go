@@ -135,7 +135,7 @@ func TestGrantApprovalThroughMCP(t *testing.T) {
 		}
 	}()
 	msg := hs.fail("remohop_exec", map[string]any{"command": "echo please"})
-	if !strings.Contains(msg, "the host's owner denied: exec: echo please") || !strings.Contains(msg, "Do not repeat the action") {
+	if !strings.Contains(msg, "the host's owner denied: exec: \"echo please\"") || !strings.Contains(msg, "Do not repeat the action") {
 		t.Fatalf("denied: %s", msg)
 	}
 }

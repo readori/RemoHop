@@ -26,6 +26,11 @@ type Guard interface {
 	// "spawn", tty whether it gets a terminal, env the extra environment
 	// the client asked for.
 	Command(ctx context.Context, kind, command string, tty bool, env []string) error
+	// WorkDir is asked before a command (kind "exec" or "spawn") starts
+	// in host directory dir, after Command allowed it: a grant with a
+	// command allow-list refuses directories its file roots let the
+	// session write (see Rules.CheckWorkDir).
+	WorkDir(ctx context.Context, kind, dir string) error
 	// Terminal is asked before an interactive terminal is attached.
 	Terminal(ctx context.Context, session string) error
 	// File is asked before a file operation on host path p. op names the
@@ -42,6 +47,27 @@ type Guard interface {
 	// Record returns a recorder for a terminal or command's output, or
 	// nil if the grant does not record.
 	Record(kind, title string, cols, rows int) Recorder
+}
+
+// Owned is a Guard that tells apart the identities using its grant. A grant
+// an authorizer gives (RemoHop Teams' team rules) can be used by many
+// client keys at once; what one of them leaves running must not be the
+// others'.
+type Owned interface {
+	// Owner names who owns the background jobs and terminals a session
+	// starts: the grant's name and the client's identity.
+	Owner() string
+}
+
+// OwnerOf is the owner of what a session under g starts (see Owned), or
+// the grant's name when g does not say.
+func OwnerOf(g Guard) string {
+	if o, ok := g.(Owned); ok {
+		if s := o.Owner(); s != "" {
+			return s
+		}
+	}
+	return g.Name()
 }
 
 // Recorder receives a terminal stream as it happens. Implementations are
@@ -112,10 +138,12 @@ func (noGrantState) Is(target error) bool { return target == fs.ErrPermission }
 
 func (unset) refuse() error { return ErrNoGrantState }
 
-func (unset) Name() string { return unsetName }
+func (unset) Name() string  { return unsetName }
+func (unset) Owner() string { return unsetName }
 func (u unset) Command(context.Context, string, string, bool, []string) error {
 	return u.refuse()
 }
+func (u unset) WorkDir(context.Context, string, string) error      { return u.refuse() }
 func (u unset) Terminal(context.Context, string) error             { return u.refuse() }
 func (u unset) File(context.Context, string, Access, string) error { return u.refuse() }
 func (unset) Log(string, ...string)                                {}

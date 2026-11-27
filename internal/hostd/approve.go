@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/readori/RemoHop/internal/perm"
 	"net/netip"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/readori/RemoHop/internal/auth"
+	"github.com/readori/RemoHop/internal/cli"
+	"github.com/readori/RemoHop/internal/perm"
 )
 
 const (
@@ -64,8 +67,17 @@ func (h *Host) Pending() []Approval {
 	return out
 }
 
-// Decide answers pending approval n; n == 0 means the oldest one.
+// Decide answers pending approval n. n == 0 answers the one request that
+// is waiting, and is refused when more than one is: an answer must not
+// land on a request other than the one its giver read.
 func (h *Host) Decide(n int, allow bool) error {
+	_, err := h.decide(n, decision{allow: allow})
+	return err
+}
+
+// DecideShown is Decide, and returns the request it answered, so that the
+// answer can be confirmed with its number and what it was about.
+func (h *Host) DecideShown(n int, allow bool) (Approval, error) {
 	return h.decide(n, decision{allow: allow})
 }
 
@@ -79,25 +91,38 @@ func (h *Host) DecideWith(n int, allow bool, features []perm.Feature) error {
 	if n <= 0 {
 		return errors.New("no such connection request")
 	}
-	return h.decide(n, decision{allow: allow, limited: true, features: features})
+	_, err := h.decide(n, decision{allow: allow, limited: true, features: features})
+	return err
 }
 
-func (h *Host) decide(n int, d decision) error {
+func (h *Host) decide(n int, d decision) (Approval, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if n == 0 {
+		switch len(h.approvals) {
+		case 0:
+			return Approval{}, errors.New("no request is waiting for approval")
+		case 1:
+			n = h.approvals[0].N
+		default:
+			nums := make([]string, len(h.approvals))
+			for i, a := range h.approvals {
+				nums[i] = strconv.Itoa(a.N)
+			}
+			return Approval{}, fmt.Errorf("%d requests are waiting (%s); name the one you mean, for example `y %s` or `n %s`",
+				len(h.approvals), strings.Join(nums, ", "), nums[len(nums)-1], nums[len(nums)-1])
+		}
+	}
 	for _, a := range h.approvals {
-		if a.N == n || n == 0 {
+		if a.N == n {
 			select {
 			case a.decide <- d:
 			default:
 			}
-			return nil
+			return *a, nil
 		}
 	}
-	if n == 0 {
-		return errors.New("no connection is waiting for approval")
-	}
-	return fmt.Errorf("no pending connection %d (it may have timed out)", n)
+	return Approval{}, fmt.Errorf("no pending request %d (it may have timed out)", n)
 }
 
 // needsApproval reports whether the owner wants to be asked about res.
@@ -132,9 +157,6 @@ func (h *Host) ask(ctx context.Context, done <-chan struct{}, res *auth.Result, 
 func (h *Host) askAction(ctx context.Context, s *Session, action string) error {
 	a := &Approval{From: s.Remote, Identity: auth.Fingerprint(s.Auth.ClientKey), Name: s.Auth.TokenName, Device: s.Auth.ClientName,
 		Auth: s.Auth.Kind, Grant: s.grant, Action: action, Since: time.Now(), decide: make(chan decision, 1)}
-	if notifyDesktop != nil {
-		go notifyDesktop("RemoHop: approval needed", fmt.Sprintf("Grant %s wants to %s. Answer with `remohop host approve` or `remohop host deny`.", s.grant, action))
-	}
 	decision, _, err := h.wait(ctx, s.conn.Done(), a)
 	h.audit.add("approval", s.fields("decision", decision, "action", action)...)
 	h.log.Info("action approval "+decision, "n", a.N, "grant", s.grant, "action", action)
@@ -173,6 +195,10 @@ func (h *Host) wait(ctx context.Context, done <-chan struct{}, a *Approval) (out
 		h.mu.Unlock()
 	}()
 
+	if a.Action != "" && notifyDesktop != nil {
+		go notifyDesktop("RemoHop: approval needed", fmt.Sprintf("Request #%d: grant %s wants to %s. Answer with `remohop host approve %d` or `remohop host deny %d`.",
+			a.N, a.Grant, cli.OneLine(a.Action), a.N, a.N))
+	}
 	h.log.Info("waiting for approval", "n", a.N, "from", a.From, "identity", a.Identity, "name", a.Name, "device", a.Device, "action", a.Action)
 	if h.cfg.OnApproval != nil {
 		h.cfg.OnApproval(*a)

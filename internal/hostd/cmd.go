@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"text/tabwriter"
 	"time"
 
@@ -237,7 +238,9 @@ func runHost(ctx context.Context, env *cli.Env, args []string) int {
 	// right here; without one they use `remohop host approve`.
 	tty, interactive := env.Stdin.(*os.File)
 	interactive = interactive && term.IsTerminal(int(tty.Fd()))
+	var shown atomic.Int64 // the request the terminal asked about last
 	cfg.OnApproval = func(a Approval) {
+		shown.Store(int64(a.N))
 		who := "identity " + a.Identity
 		if a.Name != "" {
 			who = fmt.Sprintf("%q, %s", cli.Sanitize(a.Name), who)
@@ -246,18 +249,20 @@ func runHost(ctx context.Context, env *cli.Env, args []string) int {
 			who = fmt.Sprintf("calls itself %q, %s", cli.Sanitize(a.Device), who)
 		}
 		if a.Action != "" {
+			// The action is the client's text: shown on one line, with
+			// line breaks and other control characters escaped.
 			if interactive {
-				fmt.Fprintf(env.Stderr, "\nRequest #%d: grant %s (%s) wants to %s.\nAllow? Type y or n and Enter (refused in %s): ",
-					a.N, a.Grant, who, cli.Sanitize(a.Action), askTimeout(cfg))
+				fmt.Fprintf(env.Stderr, "\nRequest #%d: grant %s (%s) wants to %s\n%s",
+					a.N, a.Grant, who, cli.OneLine(a.Action), allowPrompt(a.N, askTimeout(cfg)))
 			} else {
 				fmt.Fprintf(env.Stderr, "remohop: request #%d: grant %s wants to %s: `remohop host approve %d` or `remohop host deny %d`\n",
-					a.N, a.Grant, cli.Sanitize(a.Action), a.N, a.N)
+					a.N, a.Grant, cli.OneLine(a.Action), a.N, a.N)
 			}
 			return
 		}
 		if interactive {
-			fmt.Fprintf(env.Stderr, "\nConnection request #%d from %s (%s, %s login).\nAllow? Type y or n and Enter (refused in %s): ",
-				a.N, a.From, who, a.Auth, askTimeout(cfg))
+			fmt.Fprintf(env.Stderr, "\nConnection request #%d from %s (%s, %s login).\n%s",
+				a.N, a.From, who, a.Auth, allowPrompt(a.N, askTimeout(cfg)))
 		} else {
 			fmt.Fprintf(env.Stderr, "remohop: connection request #%d from %s (%s) is waiting: `remohop host approve %d` or `remohop host deny %d`\n",
 				a.N, a.From, who, a.N, a.N)
@@ -317,7 +322,7 @@ func runHost(ctx context.Context, env *cli.Env, args []string) int {
 	done := make(chan error, 1)
 	go func() { done <- h.Run(ctx) }()
 	if interactive {
-		go answerApprovals(env, h, tty)
+		go answerApprovals(env, h, tty, func() int { return int(shown.Load()) })
 	}
 
 	if cfg.Signal != "" {
@@ -357,31 +362,86 @@ func askTimeout(cfg Config) time.Duration {
 	return DefaultAskTimeout
 }
 
-// answerApprovals reads the owner's y/n answers from the terminal. An
-// answer applies to the oldest waiting request; "y 3" names one.
-func answerApprovals(env *cli.Env, h *Host, tty *os.File) {
+// allowPrompt asks for the answer to request n at the terminal.
+func allowPrompt(n int, timeout time.Duration) string {
+	return fmt.Sprintf("Allow #%d? Type y or n and Enter; while other requests wait, y %d or n %d (refused in %s): ", n, n, n, timeout)
+}
+
+// answerApprovals reads the owner's answers from the terminal: "y N" or
+// "n N" answers request N. A bare "y" or "n" answers only when exactly one
+// request is waiting and it is the one the terminal asked about last;
+// otherwise the owner is asked to name it, so an answer never lands on a
+// request other than the one just read. Every answer is confirmed with the
+// request's number and what it was about.
+func answerApprovals(env *cli.Env, h *Host, tty *os.File, shown func() int) {
 	sc := bufio.NewScanner(tty)
 	for sc.Scan() {
-		f := strings.Fields(strings.ToLower(sc.Text()))
-		if len(f) == 0 {
-			continue
-		}
-		var allow bool
-		switch f[0] {
-		case "y", "yes":
-			allow = true
-		case "n", "no":
-		default:
-			continue
-		}
-		n := 0
-		if len(f) > 1 {
-			n, _ = strconv.Atoi(f[1])
-		}
-		if err := h.Decide(n, allow); err != nil {
-			fmt.Fprintf(env.Stderr, "remohop: %v\n", err)
+		if line := approvalAnswer(h, sc.Text(), shown()); line != "" {
+			fmt.Fprintln(env.Stderr, line)
 		}
 	}
+}
+
+// approvalAnswer applies one line typed at the host's terminal and returns
+// what to tell the owner ("" for a line that is no answer).
+func approvalAnswer(h *Host, text string, shown int) string {
+	f := strings.Fields(strings.ToLower(text))
+	if len(f) == 0 {
+		return ""
+	}
+	var allow bool
+	switch f[0] {
+	case "y", "yes":
+		allow = true
+	case "n", "no":
+	default:
+		return ""
+	}
+	n := 0
+	if len(f) > 1 {
+		var err error
+		if n, err = strconv.Atoi(f[1]); err != nil || n <= 0 {
+			return fmt.Sprintf("remohop: %q is no request number; type y N or n N", f[1])
+		}
+	} else {
+		pending := h.Pending()
+		switch {
+		case len(pending) == 0:
+			return "remohop: no request is waiting"
+		case len(pending) > 1:
+			nums := make([]string, len(pending))
+			for i, a := range pending {
+				nums[i] = strconv.Itoa(a.N)
+			}
+			return fmt.Sprintf("remohop: %d requests are waiting (%s); type y N or n N for the one you mean (`remohop host approve` lists them)",
+				len(pending), strings.Join(nums, ", "))
+		case pending[0].N != shown:
+			return fmt.Sprintf("remohop: the request asked about last is no longer waiting; request #%d is: type y %d or n %d",
+				pending[0].N, pending[0].N, pending[0].N)
+		}
+		n = pending[0].N
+	}
+	a, err := h.DecideShown(n, allow)
+	if err != nil {
+		return "remohop: " + err.Error()
+	}
+	verb := "denied"
+	if allow {
+		verb = "approved"
+	}
+	return "remohop: " + verb + " " + describeApproval(a)
+}
+
+// describeApproval names a request for a confirmation: its number and
+// what it asked for, on one line.
+func describeApproval(a Approval) string {
+	switch {
+	case a.Action != "":
+		return fmt.Sprintf("request #%d: grant %s wants to %s", a.N, cli.Sanitize(a.Grant), cli.OneLine(a.Action))
+	case len(a.Access) > 0:
+		return fmt.Sprintf("request #%d: session %d asks for %s", a.N, a.Session, featureList(a.Access))
+	}
+	return fmt.Sprintf("connection request #%d from %s (identity %s)", a.N, a.From, a.Identity)
 }
 
 func passwordLine(password, mode string) string {

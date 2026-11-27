@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -178,4 +179,49 @@ func (a Access) String() string {
 		return "files:read"
 	}
 	return "files:write"
+}
+
+// CheckWorkDir decides whether a command may run in host directory dir
+// (absolute) under the rules. Without a command allow-list anything goes:
+// such a grant runs whatever it likes anyway. With one, the directory may
+// not be at or below a root the grant may write, nor contain one: the
+// allowed programs read files there that decide what they run (git reads
+// .git/config and its hooks, go test compiles every package below it, make
+// reads its Makefile, npm its package.json), so a session that may write
+// there could make an allowed command run a program of its own. A grant
+// that may write anywhere (files) can therefore run its commands nowhere.
+func (r *Rules) CheckWorkDir(dir string) error {
+	if len(r.Commands) == 0 {
+		return nil
+	}
+	if r.WriteAll {
+		return errors.New("the grant may change files anywhere (files), so with a command allow-list no working directory is safe: " +
+			"an allowed program could run what the session wrote; give write access to a narrower root (files:write:PATH) outside the directories the commands work in")
+	}
+	if len(r.WriteRoots) == 0 {
+		return nil
+	}
+	if !filepath.IsAbs(dir) {
+		return fmt.Errorf("working directory %s is not an absolute path", dir)
+	}
+	dir = filepath.Clean(dir)
+	rd, err := RealPath(dir)
+	if err != nil {
+		return err
+	}
+	for _, root := range r.WriteRoots {
+		rr, err := RealPath(root)
+		if err != nil {
+			rr = root
+		}
+		switch {
+		case withinFold(dir, root) || withinFold(rd, rr):
+			return fmt.Errorf("the working directory %s is in the writable root %s; with a command allow-list commands may not run where the session can write "+
+				"(an allowed program could run what it wrote there): run them in a directory outside the writable roots", dir, root)
+		case withinFold(root, dir) || withinFold(rr, rd):
+			return fmt.Errorf("the working directory %s contains the writable root %s; with a command allow-list commands may not run above files the session can write "+
+				"(an allowed program could run what it wrote there): run them in a directory that holds no writable root", dir, root)
+		}
+	}
+	return nil
 }

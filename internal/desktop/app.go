@@ -842,6 +842,11 @@ type Request struct {
 	// "file"); Session is its ID.
 	Access  []string `json:"access,omitempty"`
 	Session int      `json:"session,omitempty"`
+	// Action is set when a session on a grant asks to run a command or
+	// change a file (hostd.Approval.Action), on one line with control
+	// characters escaped; Grant is the grant's name.
+	Action string `json:"action,omitempty"`
+	Grant  string `json:"grant,omitempty"`
 }
 
 // Session is a connected device.
@@ -916,7 +921,8 @@ func (a *App) requestOf(p hostd.Approval, now time.Time) Request {
 	first := a.firstSeen[p.N]
 	a.mu.Unlock()
 	r := Request{N: p.N, Name: clean(p.Name), Device: clean(p.Device), Identity: p.Identity, From: addrOnly(p.From),
-		Auth: string(p.Auth), Left: max(left, 0), FirstSeen: first, Session: p.Session}
+		Auth: string(p.Auth), Left: max(left, 0), FirstSeen: first, Session: p.Session,
+		Action: cli.OneLine(p.Action), Grant: clean(p.Grant)}
 	for _, f := range p.Access {
 		r.Access = append(r.Access, string(f))
 	}

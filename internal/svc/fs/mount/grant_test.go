@@ -23,7 +23,8 @@ func (g rulesGuard) Name() string { return "test" }
 func (g rulesGuard) Command(context.Context, string, string, bool, []string) error {
 	return errors.New("no")
 }
-func (g rulesGuard) Terminal(context.Context, string) error { return errors.New("no") }
+func (g rulesGuard) Terminal(context.Context, string) error        { return errors.New("no") }
+func (g rulesGuard) WorkDir(context.Context, string, string) error { return errors.New("no") }
 func (g rulesGuard) File(_ context.Context, _ string, a grant.Access, p string) error {
 	if err := g.r.CheckPath(p, a); err != nil {
 		return &grant.Refusal{Grant: "test", What: a.String(), Why: err.Error()}

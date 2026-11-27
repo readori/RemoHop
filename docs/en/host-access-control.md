@@ -14,7 +14,7 @@ remohop config otp on
 |---|---|---|
 | Feature switches | `remohop config feature NAME on\|off` | NAME is `shell`, `file`, `forward`, `clip`, `screen`, `input`, `info`, `vpn`, `serial` or `usb`; all are on by default |
 | VPN routing | `remohop config vpn-exit on` | let VPN clients reach networks beyond the host's own LAN, and use the host as an exit; off by default |
-| Approval | `remohop config ask on` | every password login waits for a yes at the host: answer in the `remohop host` terminal, or with `remohop host approve N` / `remohop host deny N` |
+| Approval | `remohop config ask on` | every password login waits for a yes at the host: answer in the `remohop host` terminal, or with `remohop host approve N` / `remohop host deny N`. In the terminal a bare `y` or `n` answers only when one request is waiting; with more, type `y N` or `n N` |
 | Approval for known clients | `remohop config ask-paired on` | with `ask on`, paired clients and authorised keys need approval too |
 | One-time password | `remohop config otp on` | the temporary password is replaced after each login, and only one of several logins presenting it at once gets in; a denied, unanswered or abandoned login does not use it up; `remohop otp` prints the current one, `remohop otp new` replaces it |
 | Fixed password | `remohop passwd` | set or (`--clear`) remove it; `remohop status` never prints a fixed password |

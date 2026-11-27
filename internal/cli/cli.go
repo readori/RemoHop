@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -119,6 +120,41 @@ func Sanitize(s string) string {
 			continue
 		}
 		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// OneLine shows text from an untrusted peer on one line, with nothing
+// hidden: line breaks, tabs, other control characters, characters that
+// do not print (bidirectional overrides, zero-width and format
+// characters, line and paragraph separators) and invalid bytes are
+// written as Go escapes (\n, \t, \x1b, \u202e). Use it where the reader
+// decides on what the text says, such as an approval prompt: Sanitize
+// keeps line breaks, which can push the start of a request off the screen.
+func OneLine(s string) string {
+	clean := utf8.ValidString(s)
+	for _, r := range s {
+		if r != ' ' && !strconv.IsPrint(r) {
+			clean = false
+			break
+		}
+	}
+	if clean {
+		return s
+	}
+	var b strings.Builder
+	for len(s) > 0 {
+		r, size := utf8.DecodeRuneInString(s)
+		switch {
+		case r == utf8.RuneError && size == 1:
+			fmt.Fprintf(&b, `\x%02x`, s[0])
+		case r == ' ' || strconv.IsPrint(r):
+			b.WriteString(s[:size])
+		default:
+			q := strconv.QuoteRune(r) // '\n', '\u202e'
+			b.WriteString(q[1 : len(q)-1])
+		}
+		s = s[size:]
 	}
 	return b.String()
 }

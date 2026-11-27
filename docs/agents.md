@@ -65,7 +65,7 @@ Allow-list items:
 | `screen` | Screenshots and desktop viewing, without keyboard and mouse. |
 | `desktop` | `screen` plus keyboard and mouse. |
 | `input` | Keyboard and mouse. |
-| `clip` | The clipboard. |
+| `clip` | The clipboard as it is now: reading, setting and syncing it. Not the host's clipboard history, which holds what the owner and other sessions copied; a granted session is refused it. |
 | `info` | System information. |
 | `forward`, `vpn`, `serial`, `usb` | Port forwarding (and Wake-on-LAN), the VPN, serial ports, USB devices. Never included unless named. |
 
@@ -73,14 +73,19 @@ Anything not listed is refused, including pairing: a granted session cannot mint
 
 File roots are checked after resolving symbolic links (and, on Windows, junctions), both of the path and of its parent directory, so a link inside a root cannot lead out of it; a link whose target does not exist yet counts as the place a file created through it would land. Paths containing `..` are refused. Directories above a root may be looked at (stat) so a client can find its way to the root, but not listed.
 
+No grant reaches into the host's own config directory (`~/.config/remohop`, `/var/lib/remohop` for a service, or `REMOHOP_CONFIG_DIR`), whatever its roots: not with `files`, not with `files:read`, not with a root such as `~` that contains it. It holds the grants file, the pairings, the identity key, the settings and the temporary password, so access to it would be full access. Every file operation of a granted session (reading, writing, listing, stat, downloads and uploads, mounts) is refused for a path that leads into it, compared after resolving links (and without regard to case on Windows and macOS). A grant that may write is also refused changes to the directories above it (renaming, removing or replacing `~/.config`, for example) and links that lead into it or to a directory above it, so the directory cannot be moved aside, edited under another name and put back. `remohop host grant` warns when a root contains it; prefer a narrower root.
+
 Each root is pinned when the host loads the grant: the file service does its work through a handle on that directory (Go's `os.Root`), which cannot be led out of it by a link or junction, even one swapped in after the check, and it remembers the directory's identity. If the root's path later names a different directory (it was moved, deleted or replaced by a link), everything below it is refused until you reissue the grant. Within a root, a granted session:
 
 - may not remove, rename or replace the root itself (its contents are fine);
 - may create symbolic links only if they point inside the same root and their target has no `..` component: a relative target names the link's own directory or something below it, an absolute one a place under the root's path. Where a link with `..` leads depends on where it sits, so moving it (or replacing a directory it climbs out of) could make it lead out; without `..`, a link made under the grant leads inside the root wherever it is moved to within the root. Links that already exist and point outside are not followed;
+- creates, uploads and changes files and directories without the setuid, setgid and sticky bits: they are removed from any mode it asks for, so a host running as root never gets a setuid-root program from a grant;
 - may create hard links only between files inside the same root; renames and hard links between two different roots fail with `EXDEV` (tools then copy);
 - resumes uploads (`cp`, `sync`) through partial files the host names itself, bound to the destination and to the grant's credential: a reissued grant starts such uploads over, and a partial file is used only if it is a regular file with a single link. Older clients cannot resume under a grant and upload whole files instead.
 
 With a command allow-list, a command must be a single simple command: `;`, `&`, `|`, `<`, `>`, parentheses and braces outside quotes, and `$`, backticks or line breaks anywhere, are refused, and custom environment variables are not accepted. Quotes group words as usual (`git commit -m "fix: x"` is fine).
+
+With a command allow-list, commands (and background jobs) also may not run in a directory the grant can write: not at or below a `files:write:PATH` root, and not in a directory that contains one. The programs people allow read their instructions from where they run (`git` reads `.git/config` and its hooks, `go test ./...` compiles every package below, `make` its Makefile, `npm` its `package.json`), so a session that could write there could make an allowed command run a program of its own. A grant with `files` (write anywhere) and an allow-list can therefore run its commands nowhere. The default working directory is the home directory, so with a writable root in your home the agent has to name a working directory outside it. **A writable root where git, go, make, npm or a similar tool runs means arbitrary code**, whatever the allow-list says: keep the roots the agent may write apart from the directories its commands work in.
 
 Examples:
 
@@ -88,9 +93,10 @@ Examples:
 # Read-only code review of one repository, with screenshots
 remohop host grant reviewer --for 4h --allow files:read:~/src/app,screenshot
 
-# A CI-style agent that may only test and inspect git, writing to one directory
+# A CI-style agent that may only test and inspect git in ~/src/app (read-only),
+# and write its reports to a directory outside the source tree
 remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --cmd "git diff" \
-    --allow files:write:~/src/app/out,files:read:~/src/app
+    --allow files:read:~/src/app,files:write:~/ci-reports
 
 # Full shell, but the owner approves every command and file change, and it is recorded
 remohop host grant pairing-session --for 1h --allow shell,files --approve each --record
@@ -115,9 +121,11 @@ Code built on RemoHop can also hand out grants without a code: `hostd.RegisterAu
 
 With `--approve each` (or `first`), a command or file change waits until the owner answers. The request reaches the owner in three ways:
 
-- the terminal running `remohop host` asks `Allow? Type y or n`;
+- the terminal running `remohop host` asks `Allow #N? Type y or n`;
 - `remohop host approve` lists waiting requests; `remohop host approve N` or `remohop host deny N` answers one;
-- a desktop notification, where one can be shown (`notify-send` on Linux desktops, the notification centre on macOS; not on Windows).
+- a desktop notification, where one can be shown (`notify-send` on Linux desktops, the notification centre on macOS; not on Windows), and the desktop app's request list.
+
+The request shows the action as the agent sent it, on one line, with the command or path in quotes and line breaks, tabs and other control characters written as escapes (`exec: "touch x\n\n\ngit status"`), so a command cannot hide its start below a screenful of blank lines. At the terminal, a bare `y` or `n` answers only when exactly one request is waiting and it is the one just asked about; with several waiting, type `y N` or `n N` for request N. Every answer is confirmed with the request's number and its action.
 
 Requests that nobody answers within 30 seconds are refused, and the agent is told so. One approval of a file change covers further changes to the same path for a minute, so a single upload (create, write, set times, rename) is asked about once. With `first`, one approval covers the rest of the session. Reading files needs no approval. In an interactive terminal (grants with full `shell`), opening the terminal is approved, not each keystroke.
 
@@ -137,10 +145,10 @@ With `--record`, the output of every command and interactive terminal under the 
 ```bash
 remohop host panic          # suspend every grant and end every granted session now
 remohop host panic --all    # ... and every other session too
-remohop host resume         # lift the suspension of all grants (or: remohop host resume NAME)
+remohop host resume         # lift the suspension of all grants, authorizers' too (or: remohop host resume NAME)
 ```
 
-`panic` suspends first and then ends the sessions, so nothing slips in between. It needs no running GUI and no hotkey; it works from any terminal of the host's user, including over SSH. If the host is not reachable on its control socket, the suspension still applies within five seconds.
+`panic` suspends first and then ends the sessions, so nothing slips in between. It also holds the grants that code built on RemoHop gives through `hostd.RegisterAuthorizer` (RemoHop Teams' team rules): while it is in force no such grant admits a login or keeps a session. The hold is kept in `panic.json` in the config directory, so it lasts across restarts of the host, and only `remohop host resume` without names lifts it (`resume NAME` resumes that grant of yours and leaves the hold in place). It needs no running GUI and no hotkey; it works from any terminal of the host's user, including over SSH. If the host is not reachable on its control socket, the suspension still applies within five seconds.
 
 ## On the agent's machine
 
@@ -250,18 +258,18 @@ Any client that starts stdio servers works: the command is `remohop`, the argume
 
 - `remohop_limits` asks the host what the agent may do: the grant's name, expiry, allowed and denied capabilities, command allow-list, file roots, approval mode and whether output is recorded. The server's instructions tell the agent to call it and to treat refusals as final.
 - A refused action fails with a sentence that names the limit and the grant, for example `files:write is not allowed by grant claude-session (/home/me/project/README is outside the writable roots: /home/me/project/out)` or `command "rm -rf build" is not allowed by grant ci-bot (allowed commands: go test; git status)`, followed by advice not to work around it.
-- A denied or unanswered approval says so (`the host's owner denied: exec: git push`), and the agent is told not to repeat the action unless the person asks.
+- A denied or unanswered approval says so (`the host's owner denied: exec: "git push"`), and the agent is told not to repeat the action unless the person asks.
 - When a grant expires, is revoked or suspended, the session ends and further calls explain that the access has ended.
 
 ## Limits of the protection
 
 Grants narrow what an authenticated client may do; they are enforced by the host process, which runs with its user's privileges. Know what they do not do:
 
-- **A command allow-list is a guard rail, not a sandbox.** It decides which program is started. A permitted program that can run others (`git` with aliases, hooks or `-c`, `make`, `find -exec`, `npm run`, any interpreter) carries that power along. Allow such programs only when that is acceptable. Write access combines with this: an agent that may write in a repository can add git hooks or aliases (`.git/hooks`, `.git/config`) that an allowed `git` command then runs, and one that may write to a directory on `PATH` can plant a program under an allowed name. Do not give write roots that contain such files when you rely on the allow-list. The check follows the quoting rules of the shell the host runs commands with: POSIX-like shells (sh, bash, zsh, dash, ksh, fish, ...) and PowerShell, where single and double quotes group; and cmd.exe (used on Windows when PowerShell is missing or `REMOHOP_SHELL` names it), where only double quotes do and `%`, `^` and `!` are refused anywhere. With any other shell (csh, nushell, ...) commands under an allow-list are refused; set `REMOHOP_SHELL` to a shell above on the host.
+- **A command allow-list is a guard rail, not a sandbox.** It decides which program is started. A permitted program that can run others (`git` with aliases, hooks or `-c`, `make`, `find -exec`, `npm run`, any interpreter) carries that power along. Allow such programs only when that is acceptable. Write access combines with this: an agent that may write in a repository can add git hooks or aliases (`.git/hooks`, `.git/config`) that an allowed `git` command then runs, and one that may write to a directory on `PATH` can plant a program under an allowed name. The host refuses to run allowed commands at, below or above a writable root (see [Grants](#grants)), but a program can still read files elsewhere (a `go.mod` `replace` pointing into a writable root, a Makefile `include`, a directory on `PATH`). Do not give write roots that such programs read when you rely on the allow-list. The check follows the quoting rules of the shell the host runs commands with: POSIX-like shells (sh, bash, zsh, dash, ksh, fish, ...) and PowerShell, where single and double quotes group; and cmd.exe (used on Windows when PowerShell is missing or `REMOHOP_SHELL` names it), where only double quotes do and `%`, `^` and `!` are refused anywhere. On Windows the host starts cmd.exe and PowerShell with `NoDefaultCurrentDirectoryInExePath=1`, so a bare program name is not looked up in the working directory first (cmd.exe would otherwise run a planted `git.bat` there in place of `git`). With any other shell (csh, nushell, ...) commands under an allow-list are refused; set `REMOHOP_SHELL` to a shell above on the host.
 - **`shell` and `shell:run-only` without an allow-list can do anything the host's user can**, including reading and writing files outside the file roots. File roots only constrain the file tools. Combine roots with `--cmd`, or with no shell, when files matter.
-- **Background jobs and terminals are separated by grant.** A granted session sees, waits for, reads the logs of, stops and removes only the background jobs started under its grant (stopping and removing are logged), and sees and attaches only to terminals it started. Jobs and terminals of full-access sessions and of other grants are invisible to it. A job keeps running as the host user after the grant ends, and a later grant with the same name sees it.
+- **Background jobs and terminals are separated by grant and identity.** A granted session sees, waits for, reads the logs of, stops and removes only the background jobs started under its grant from the same client identity (stopping and removing are logged), and sees and attaches only to terminals started that way. Jobs and terminals of full-access sessions, of other grants and of other identities on the same grant (several members admitted under one team rule by an authorizer) are invisible to it. A job keeps running as the host user after the grant ends, and a later grant with the same name, used from the same identity, sees it. The session limit of a grant an authorizer gives counts each identity's sessions apart.
 - **File roots confine names, not files.** The file service cannot leave a root, but a hard link that the host's user (or other software) already put in a root shares its content with a file elsewhere, and a granted session can change that content. A root that is replaced is refused, but one that was already replaced before the host loaded the grant (or restarted) is taken as it is then. Keep roots to directories whose contents you control.
-- **Approvals rely on the person reading them.** Approving `exec: ./deploy.sh` approves whatever that script does.
+- **Approvals rely on the person reading them.** Approving `exec: "./deploy.sh"` approves whatever that script does.
 - **Recordings and the audit log live on the host**, readable by its user, and are as trustworthy as that account. A full-shell grant can, in principle, edit them; prefer `shell:run-only` with `--cmd` when the record matters, and ship them off the host (see the sinks above) when it must survive the host.
 - **The agent's machine holds a credential.** Anyone who can read its `peers.json` and identity key can use the grant until it expires or is revoked. Keep grants short.
 
