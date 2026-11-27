@@ -12,6 +12,7 @@ package hostd
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -324,10 +325,11 @@ func New(cfg Config) (*Host, error) {
 	}
 	h.auth.ScopedKey = h.scopedKey
 
+	sockOpts := nat.SocketOptions{StatelessResetKey: h.resetKey()}
 	if cfg.PacketConn != nil {
-		h.sock, err = nat.NewSocket(cfg.PacketConn)
+		h.sock, err = nat.NewSocketWith(cfg.PacketConn, sockOpts)
 	} else {
-		h.sock, err = nat.Listen(cfg.Listen)
+		h.sock, err = nat.ListenWith(cfg.Listen, sockOpts)
 	}
 	if err != nil {
 		return nil, err
@@ -369,7 +371,7 @@ func (h *Host) openBridge(tlsConf *tls.Config, quicConf *quic.Config, budget *bu
 	if h.wc, err = h.cfg.SignalOptions.NewBridge(h.log); err != nil {
 		return err
 	}
-	if h.wsSock, err = nat.NewSocket(h.wc); err != nil {
+	if h.wsSock, err = nat.NewSocketWith(h.wc, nat.SocketOptions{StatelessResetKey: h.resetKey()}); err != nil {
 		h.wc.Close()
 		return err
 	}
@@ -379,6 +381,15 @@ func (h *Host) openBridge(tlsConf *tls.Config, quicConf *quic.Config, budget *bu
 		return err
 	}
 	return nil
+}
+
+// resetKey derives the QUIC stateless reset key of the host's sockets from
+// its identity: an Ed25519 signature is deterministic, so a restarted host
+// has the same key and its resets are recognised by the clients of its
+// previous run, and only the holder of the identity key can make it.
+func (h *Host) resetKey() *quic.StatelessResetKey {
+	k := quic.StatelessResetKey(sha256.Sum256(h.identity.Sign([]byte("remohop host stateless reset key v1"))))
+	return &k
 }
 
 // ID is the host's 9-digit ID, or "" before the first registration.

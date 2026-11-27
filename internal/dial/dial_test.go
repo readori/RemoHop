@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -434,6 +435,73 @@ func TestDirectDialAndHostKeyPin(t *testing.T) {
 		t.Fatalf("dial after forget: %v", err)
 	}
 	conn.Close()
+}
+
+// crashConn is a host's socket that can go silent at once, as when the
+// host's process is killed: nothing it sends gets out any more, not even
+// the close of its sessions.
+type crashConn struct {
+	net.PacketConn
+	dead atomic.Bool
+}
+
+func (c *crashConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	if c.dead.Load() {
+		return len(p), nil
+	}
+	return c.PacketConn.WriteTo(p, addr)
+}
+
+// A host that is killed and started again on the same port answers what
+// its clients still send on their old sessions with a QUIC stateless
+// reset, so they notice at once rather than after the idle timeout (20 s).
+func TestRestartedHostResetsSessions(t *testing.T) {
+	ctx := testCtx(t)
+	hostDir := t.TempDir()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := pc.LocalAddr().String()
+	cc := &crashConn{PacketConn: pc}
+	h1, err := hostd.New(hostd.Config{Dir: hostDir, PacketConn: cc, Password: "direct-password", Locals: noLocals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hctx, stopHost := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- h1.Run(hctx) }()
+	conn, err := Dial(ctx, addr, Options{Dir: t.TempDir(), Password: "direct-password", Locals: noLocals})
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	s, err := conn.Open(ctx, echoService, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cc.dead.Store(true) // killed
+	stopHost()
+	<-done
+	pc2, err := net.ListenPacket("udp", addr)
+	if err != nil {
+		t.Skipf("cannot rebind %s: %v", addr, err)
+	}
+	startHost(t, hostd.Config{Dir: hostDir, PacketConn: pc2, Password: "direct-password"})
+	select {
+	case <-conn.Done():
+		t.Fatal("the session ended before it sent anything to the new host")
+	default:
+	}
+	start := time.Now()
+	s.Write([]byte("anyone there?"))
+	select {
+	case <-conn.Done():
+		t.Logf("the session ended %s after its first packet to the restarted host", time.Since(start).Round(time.Millisecond))
+	case <-time.After(time.Second):
+		t.Fatal("the session did not notice the restarted host within a second")
+	}
 }
 
 // TestManInTheMiddle puts an active attacker between client and host: it
