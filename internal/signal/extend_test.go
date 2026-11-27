@@ -5,13 +5,18 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"net"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/quic-go/quic-go"
+
+	"github.com/readori/RemoHop/internal/nat"
 )
+
+var testBlock = struct{ entered, release chan struct{} }{make(chan struct{}, 16), make(chan struct{})}
 
 var testRelayPolicy struct {
 	mu     sync.Mutex
@@ -35,6 +40,14 @@ func init() {
 		var n int
 		json.Unmarshal(r.Payload, &n)
 		return strings.Repeat("x", n), nil
+	})
+	RegisterRequest("x-test-block", func(ctx context.Context, _ *Server, _ ExtRequest) (any, error) {
+		testBlock.entered <- struct{}{}
+		select {
+		case <-testBlock.release:
+		case <-ctx.Done():
+		}
+		return "done", nil
 	})
 	RegisterRelayPolicy(RelayPolicy{Name: "test",
 		Member: func(key ed25519.PublicKey) bool {
@@ -175,6 +188,115 @@ func TestRelayPolicyHook(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("the relay policy never heard the session end")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+// startExt starts a server with the given extension limits.
+func startExt(t *testing.T, lim ExtLimits) string {
+	t.Helper()
+	srv, err := NewServer(Config{DataDir: t.TempDir(), Ext: lim})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- srv.Serve(ctx, pc, nil) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+		srv.Close()
+	})
+	return pc.LocalAddr().String()
+}
+
+func dialFrom(t *testing.T, bind, addr string) *Client {
+	t.Helper()
+	sock, err := nat.Listen(bind)
+	if err != nil {
+		t.Skipf("cannot bind %s: %v", bind, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	c, err := Dial(ctx, sock, addr, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { c.Close(); sock.Close() })
+	return c
+}
+
+func TestExtSourceLimit(t *testing.T) {
+	addr := startExt(t, ExtLimits{Burst: 3, RefillPerSecond: 10})
+	ctx := tctx(t)
+	a := dialFrom(t, "127.0.0.1:0", addr)
+	for i := 0; i < 3; i++ {
+		if _, err := a.Ext(ctx, "x-test-echo", nil, 1); err != nil {
+			t.Fatalf("request %d: %v", i, err)
+		}
+	}
+	_, err := a.Ext(ctx, "x-test-echo", nil, 1)
+	if CodeOf(err) != CodeRateLimited {
+		t.Fatalf("burst exceeded: %v", err)
+	}
+	if e, ok := err.(*Error); !ok || e.RetryAfter <= 0 {
+		t.Fatalf("no RetryAfter: %#v", err)
+	}
+	// Another source is unaffected.
+	b := dialFrom(t, "127.0.0.2:0", addr)
+	if _, err := b.Ext(ctx, "x-test-echo", nil, 1); err != nil {
+		t.Fatalf("other source: %v", err)
+	}
+	// After the refill interval the first source is served again.
+	time.Sleep(250 * time.Millisecond)
+	if _, err := a.Ext(ctx, "x-test-echo", nil, 1); err != nil {
+		t.Fatalf("after refill: %v", err)
+	}
+}
+
+func TestExtConcurrencyLimit(t *testing.T) {
+	addr := startExt(t, ExtLimits{Burst: 100, MaxConcurrent: 2})
+	ctx := tctx(t)
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		c := dialFrom(t, "127.0.0.1:0", addr)
+		go func() { _, err := c.Ext(ctx, "x-test-block", nil, nil); errs <- err }()
+	}
+	for i := 0; i < 2; i++ {
+		select {
+		case <-testBlock.entered:
+		case <-time.After(5 * time.Second):
+			t.Fatal("handlers did not start")
+		}
+	}
+	c := dialFrom(t, "127.0.0.1:0", addr)
+	_, err := c.Ext(ctx, "x-test-echo", nil, 1)
+	if CodeOf(err) != CodeRateLimited {
+		t.Fatalf("over the cap: %v", err)
+	}
+	if e, ok := err.(*Error); !ok || e.RetryAfter <= 0 {
+		t.Fatalf("no RetryAfter: %#v", err)
+	}
+	close(testBlock.release)
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Slots are released as handlers finish.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		_, err := c.Ext(ctx, "x-test-echo", nil, 1)
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("still refused after release: %v", err)
 		}
 		time.Sleep(20 * time.Millisecond)
 	}

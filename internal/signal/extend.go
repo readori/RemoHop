@@ -32,6 +32,37 @@ import (
 // type ‖ the TLS exporter of this connection (extExporterLabel), so the
 // handler learns a key that is proven for this connection; without one it
 // gets none.
+//
+// Extension requests are limited before their body is read. Each source
+// (an IPv4 address or an IPv6 /64) has a token bucket, by default a burst
+// of 20 requests refilled at 5 per second, and the server as a whole serves
+// at most 64 extension requests at once. A request over either limit is
+// answered CodeRateLimited with a RetryAfter. Both are set with
+// Config.Ext; zero fields take these defaults.
+
+// ExtLimits are the limits on extension requests. Zero fields take the
+// defaults documented on each; tests lower them.
+type ExtLimits struct {
+	// Burst and RefillPerSecond describe the per-source token bucket.
+	// Defaults 20 and 5.
+	Burst           int
+	RefillPerSecond int
+	// MaxConcurrent caps extension requests being served at once, over
+	// all sources. Default 64.
+	MaxConcurrent int
+}
+
+func (l *ExtLimits) defaults() {
+	if l.Burst <= 0 {
+		l.Burst = 20
+	}
+	if l.RefillPerSecond <= 0 {
+		l.RefillPerSecond = 5
+	}
+	if l.MaxConcurrent <= 0 {
+		l.MaxConcurrent = 64
+	}
+}
 
 const (
 	// ExtPrefix starts every extension request type, so that none can
@@ -177,6 +208,16 @@ func (s *Server) handleExt(c *serverConn, st *quic.Stream, req *request, fail fa
 		fail(CodeBadRequest, "unknown request", 0)
 		return
 	}
+	if ok, wait := s.extSources.allow(c.source); !ok {
+		fail(CodeRateLimited, "too many requests from this address", wait)
+		return
+	}
+	if s.extActive.Add(1) > int64(s.cfg.Ext.MaxConcurrent) {
+		s.extActive.Add(-1)
+		fail(CodeRateLimited, "the server is busy with other requests", time.Second)
+		return
+	}
+	defer s.extActive.Add(-1)
 	r := ExtRequest{Type: req.T, Source: c.real}
 	if len(req.Key) > 0 {
 		cs := c.q.ConnectionState().TLS
