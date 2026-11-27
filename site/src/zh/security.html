@@ -55,7 +55,7 @@
 <li><strong>撤销：</strong><code>remohop host paired</code> 列出配对和已授权的密钥，<code>remohop host revoke</code> 移除它们，用到它们的会话会在几秒内被关闭。</li>
 <li><strong>审计日志：</strong><code>remohop log</code> 记录登录成功与被拒（含原因）、审批结果、每个会话首次使用某项功能、会话结束。它记录的是用了哪些功能，不是每条命令；控制被控机账号的人可以修改它。</li>
 </ul>
-<p>功能开关以下没有按命令划分的权限模型。装成系统级服务的被控端默认以 root（Windows 上是 LocalSystem）运行，它的客户端也就拥有这些权限，除非你用 <code>--run-as</code> 另行指定。</p>
+<p>功能开关以下，唯一更细的权限是<a href="{{E:docs/agents}}#grants">授权（grant）</a>（英文）：用授权凭据登录的客户端只能做授权允许的事（指定的命令、指定目录下的文件、指定的功能）。命令白名单决定启动哪个程序，管不了这个程序做什么。装成系统级服务的被控端默认以 root（Windows 上是 LocalSystem）运行，它的客户端也就拥有这些权限，除非你用 <code>--run-as</code> 另行指定。</p>
 
 <h2 id="rendezvous">汇合服务器、中继与 websocket 桥</h2>
 <p>汇合服务器在设计上就不被信任。它把 9 位 ID 对应到主机的 Ed25519 身份密钥，告诉客户端主机在哪里。恶意的服务器可以谎报地址，但那只会让连接失败，因为随后的登录过不了。它能拒绝服务，也看得到元数据。用 <code>remohop config set signal-pin KEY</code> 固定服务器公钥，可以防止客户端接受别的服务器。</p>

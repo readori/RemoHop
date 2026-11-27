@@ -3,6 +3,7 @@
 <ul class="toc">
 <li><a href="#session">A session</a></li>
 <li><a href="#who">Who it is for</a></li>
+<li><a href="#agents">AI agents</a></li>
 <li><a href="#commands">Commands</a></li>
 <li><a href="#web">Browser client</a></li>
 <li><a href="#how">How it connects</a></li>
@@ -71,6 +72,21 @@ Linux x86_64
 <p>Every remote command has the form <code>remohop &lt;ID&gt; &lt;command&gt;</code>. The examples use the alias <code>dev</code> in place of an ID. It comes from <code>remohop 276941009 pair --name dev</code>: you type the password once when pairing and not again.</p>
 
 <div class="tasks">
+<section class="task" id="agents">
+<div>
+<h3>AI agents</h3>
+<p><code>remohop mcp</code> is an MCP server over stdio with 29 tools: run commands, read and write files, forward ports, take screenshots, click and type. It uses only the pairings or grants you saved beforehand and takes no password argument. A grant, issued on the host, limits the agent to certain features, commands and folders, expires, can ask you to approve each command or the first one, and can record the session. <!--src-->The repository also has six Agent Skills.<!--/src--><!--nosrc-->Six Agent Skills will be published with the source.<!--/nosrc--> See <a href="{{E:docs/agents}}">Handing a machine to an AI agent</a>.</p>
+</div>
+<div>
+<pre><code><span class="c"># on the host</span>
+remohop host grant claude-session --for 2h \
+    --allow files:read:~/project,screenshot --cmd "go test" --approve first
+<span class="c"># on the agent's machine</span>
+remohop peers redeem 276941009 remohopg1-...
+claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
+</div>
+</section>
+
 <section class="task">
 <div>
 <h3>Terminal and background jobs</h3>
@@ -145,17 +161,6 @@ remohop dev clip history send 2</code></pre>
 <pre><code>remohop dev serial -b ttyUSB0 115200 --local /tmp/board
 picocom /tmp/board
 sudo remohop dev usb attach -b 1-2</code></pre>
-</div>
-</section>
-
-<section class="task">
-<div>
-<h3>AI agents</h3>
-<p><code>remohop mcp</code> is an MCP server over stdio with 28 tools: run commands, read and write files, forward ports, take screenshots, click and type. It uses only the pairings you saved beforehand and takes no password argument. <!--src-->The repository also has six Agent Skills.<!--/src--><!--nosrc-->Six Agent Skills will be published with the source.<!--/nosrc--></p>
-</div>
-<div>
-<pre><code>claude mcp add remohop -- remohop mcp
-claude mcp add remohop -- remohop mcp --target 276941009</code></pre>
 </div>
 </section>
 
@@ -243,7 +248,7 @@ remohop log</code></pre>
 <li><strong>Host keys are pinned on first login.</strong> If the host later presents a different key, the client refuses before it sends any login message.</li>
 <li><strong>Pairing replaces the password.</strong> The client stores a random 256-bit token bound to its own identity, and the host can revoke it at any time with <code>remohop host revoke</code>.</li>
 </ul>
-<p>What it does not protect matters as much. A client that has logged in can do whatever the user running <code>remohop host</code> can do, within the features the host allows, and there is no finer permission model below the feature switches. The rendezvous server sees metadata: which IDs are online, their public addresses, and when they connect to each other. The <a href="{{L:security}}">security model</a> page has the full account.</p>
+<p>What it does not protect matters as much. A client that has logged in can do whatever the user running <code>remohop host</code> can do, within the features the host allows. Below the feature switches, the only finer permissions are grants, which limit a client (an AI agent, say) to certain commands, folders and features. The rendezvous server sees metadata: which IDs are online, their public addresses, and when they connect to each other. The <a href="{{L:security}}">security model</a> page has the full account.</p>
 
 <h2 id="platforms">Platform support</h2>
 <p id="pf-cap">Linux is the reference platform. macOS and Windows are covered by automated tests on hosted runners; nobody has checked them item by item on a physical machine.</p>

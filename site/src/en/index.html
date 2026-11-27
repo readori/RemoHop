@@ -2,56 +2,153 @@
 <div class="hero-bg" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="grid"></span></div>
 <div class="wrap home-hero">
 <div class="hero-text">
-<p class="h-pill"><a href="{{L:docs/desktop-app}}"><span class="h-pill-tag">New</span>The RemoHop desktop app is here</a></p>
-<h1 id="hero-h"><span class="glow-text">Remote control</span> <span class="h-line">for all your computers</span></h1>
-<p class="lede">Windows, macOS and Linux control each other, and a browser, a phone or the command line can join in: see the desktop, open a terminal, move files, forward ports. The two machines connect directly over an end-to-end encrypted session, and every incoming connection asks you first.</p>
+<p class="h-pill"><a href="{{L:teams}}"><span class="h-pill-tag">New</span>RemoHop Teams: one policy for people and agents</a></p>
+<h1 id="hero-h"><span>Let AI agents use your computers,</span> <span class="glow-text">within limits you set</span></h1>
+<p class="lede">RemoHop has a built-in MCP server with 29 tools, so Claude Code, Cursor and other agents can run commands, move files and use the screen of another machine. A grant on that machine decides which commands and folders, for how long, whether you approve each action, and whether it is recorded.</p>
 <div class="actions">
 <a class="btn primary glow" href="{{L:download}}">Download free</a>
-<a class="btn ghost" href="{{L:how-it-works}}">See how it works</a>
+<a class="btn ghost" href="{{L:docs/ai-agents}}">Hand a machine to an agent</a>
 </div>
-<p class="meta"><!--src-->Open source (AGPL-3.0) · no account needed · <a class="nobr" href="{{REPO}}">source on GitHub</a><!--/src--><!--nosrc-->No account needed · source to be published under the AGPL-3.0 once the apps are out<!--/nosrc--></p>
+<p class="meta"><!--src-->Open source (AGPL-3.0) · free for any use · no account needed · <a class="nobr" href="{{REPO}}">source on GitHub</a><!--/src--><!--nosrc-->Free for any use · no account needed · source to be published under the AGPL-3.0 once the apps are out<!--/nosrc--></p>
 </div>
-<div class="stage">
-<figure class="stage-main">
-<picture>
-<source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
-<source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 66rem) 34rem, calc(100vw - 32px)">
-<img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" decoding="async" alt="Remote desktop: the middle of the page shows the screen of a remote Linux machine with two terminal windows open; the top shows the host's name and the connection path, direct.">
-</picture>
+<div class="stage agent-stage">
+<figure class="term-win">
+<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>On the machine the agent will use</figcaption>
+<pre class="term"><code><span class="p">$ </span>remohop host grant claude-session --for 2h \
+    --allow files:read:~/project,screenshot \
+    --cmd "go test" --approve first --record
+<span class="ok">granted claude-session until 2026-11-27 13:10 (2h0m0s)</span>
+<span class="hang">  allows   shell:run-only, only these commands (program and leading arguments): go test
+</span>  allows   files:read under /home/me/project
+  allows   screenshot
+  approve  first; at most 2 session(s); recording on
+
+<span class="c">Code (shown once; the first machine to redeem it is bound to it):</span>
+  remohopg1-…</code></pre>
 </figure>
-<figure class="stage-float">
-<picture>
-<source type="image/avif" srcset="/assets/img/request-en-440.avif 440w, /assets/img/request-en-880.avif 880w, /assets/img/request-en-1320.avif 1320w" sizes="(min-width: 66rem) 13.6rem, (min-width: 60rem) 21vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
-<source type="image/webp" srcset="/assets/img/request-en-440.webp 440w, /assets/img/request-en-880.webp 880w, /assets/img/request-en-1320.webp 1320w" sizes="(min-width: 66rem) 13.6rem, (min-width: 60rem) 21vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
-<img src="/assets/img/request-en-1320.png" width="440" height="466" decoding="async" alt="A connection request in the desktop app: Laptop-2 wants to connect, marked as a new device with a scam warning; it may only see the screen unless control or files are ticked.">
-</picture>
+<figure class="ask-card">
+<p class="ask-top"><span class="mono">remohop_exec</span><span class="chip bad">Refused by the host</span></p>
+<p class="ask-q"><code>git push</code></p>
+<p class="ask-why">command "git push" is not allowed by grant claude-session (allowed commands: go test)</p>
+<figcaption>What the agent is told. Real output of RemoHop 1.0.7; the code is shortened.</figcaption>
 </figure>
-<p class="stage-tag" aria-hidden="true"><span class="dot"></span>direct · end-to-end encrypted</p>
 </div>
 </div>
 <div class="marquee">
-<ul class="marquee-track" aria-label="Platforms">
-<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>Browser</li><li>Command line</li><li>Docker</li><li>AI agents (MCP)</li>
+<ul class="marquee-track" aria-label="Works with">
+<li>Claude Code</li><li>Claude Desktop</li><li>Cursor</li><li>VS Code</li><li>Any MCP client</li><li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone and iPad</li><li>Android</li><li>Browser</li><li>Command line</li>
 </ul>
 <ul class="marquee-track" aria-hidden="true">
-<li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone</li><li>iPad</li><li>Android</li><li>Browser</li><li>Command line</li><li>Docker</li><li>AI agents (MCP)</li>
+<li>Claude Code</li><li>Claude Desktop</li><li>Cursor</li><li>VS Code</li><li>Any MCP client</li><li>Windows</li><li>macOS</li><li>Linux</li><li>iPhone and iPad</li><li>Android</li><li>Browser</li><li>Command line</li>
 </ul>
 </div>
 </section>
 
 <section class="h-stats" aria-label="In numbers">
 <div class="wrap h-stat-row">
-<div class="h-stat reveal"><p class="h-num n4k"><span class="vh">4K</span></p><p>top quality, with crisp text at 2K and 1080p too</p></div>
+<div class="h-stat reveal"><p class="h-num n29"><span class="vh">29</span></p><p>MCP tools for agents, plus six Agent Skills</p></div>
+<div class="h-stat reveal"><p class="h-num">1</p><p>static binary: client, host, server, browser gateway and MCP server</p></div>
 <div class="h-stat reveal"><p class="h-num n60"><span class="vh">60 ms</span></p><p>measured screen-to-viewer latency at 2K on a LAN</p></div>
-<div class="h-stat reveal"><p class="h-num nrelay">1.5 s</p><p>to fall back to a relay when no direct path exists</p></div>
-<div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>accounts to sign up for</p></div>
+<div class="h-stat reveal"><p class="h-num nacct"><span class="vh">0</span></p><p>accounts to sign up for, and no checks for commercial use</p></div>
 </div>
 </section>
 
-<section class="wrap band h-p2p" aria-labelledby="p2p-h">
-<p class="kicker reveal">Peer to peer</p>
-<h2 id="p2p-h" class="reveal">The server only introduces them; the picture goes straight between the two computers</h2>
-<p class="section-lede reveal">The rendezvous server finds the other computer by its ID. After that the screen, keyboard, mouse and files go over a direct QUIC connection, end-to-end encrypted with TLS 1.3, and the password never crosses the network. Only when no direct path exists does a relay forward the traffic, and it cannot read it either.</p>
+<section class="wrap band" id="agents" aria-labelledby="agents-h">
+<p class="kicker reveal">1 · AI agents with guardrails</p>
+<h2 id="agents-h" class="reveal">An agent gets what the grant allows, and nothing else</h2>
+<p class="section-lede reveal">A grant is a credential with limits, issued on the machine the agent will work on. That machine checks it on every command and every file operation, so nothing on the agent's side can widen it.</p>
+<div class="grant">
+<div class="grant-cmd">
+<figure class="term-win light-edge reveal">
+<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>A grant, flag by flag</figcaption>
+<pre class="term"><code><span class="p">$ </span>remohop host grant claude-session \
+  <span class="gn">1</span> <span class="k">--allow</span> files:read:~/project,screenshot \
+  <span class="gn">2</span> <span class="k">--cmd</span> "go test" \
+  <span class="gn">3</span> <span class="k">--for</span> 2h \
+  <span class="gn">4</span> <span class="k">--approve</span> first \
+  <span class="gn">5</span> <span class="k">--record</span></code></pre>
+</figure>
+<figure class="term-win light-edge reveal">
+<figcaption class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>When an action waits for you</figcaption>
+<pre class="term"><code><span class="p">$ </span>remohop host approve
+<span class="hang3">1  grant claude-session wants to exec: go test ./...  (since 11:12:40)
+</span><span class="p">$ </span>remohop host approve 1</code></pre>
+<figcaption class="term-foot">Or answer <code>y</code> in the terminal running <code>remohop host</code>, or from a desktop notification on Linux and macOS.</figcaption>
+</figure>
+</div>
+<ol class="grant-notes">
+<li class="reveal"><h3>Which features and paths</h3><p>Commands, files below given folders (read, or read and write), screenshots, the desktop, the clipboard, forwarding. Anything not listed is refused, including making itself a pairing that would outlive the grant.</p></li>
+<li class="reveal"><h3>Which commands</h3><p>Only commands that start with an allowed program. Pipes, redirects and <code>$</code> are refused, so a command cannot start another one.</p></li>
+<li class="reveal"><h3>For how long</h3><p>The grant expires and its sessions end with it. <code>remohop host revoke</code> ends it early.</p></li>
+<li class="reveal"><h3>With your approval</h3><p><code>each</code>: you approve every command and file change; <code>first</code>: the first one of each session. A request nobody answers is refused after 30 seconds.</p></li>
+<li class="reveal"><h3>On the record</h3><p>Every action goes into the host's audit log under the grant's name; with <code>--record</code> the output of commands and terminals is saved too.</p></li>
+</ol>
+</div>
+<div class="cards three">
+<article class="panel reveal">
+<p class="kicker">Stop everything</p>
+<h3><code>remohop host panic</code></h3>
+<p>Suspends every grant and ends every agent session at once. It needs no window or hotkey and works from any terminal on the host, over SSH too.</p>
+</article>
+<article class="panel reveal">
+<p class="kicker">The agent knows its limits</p>
+<h3><code>remohop_limits</code></h3>
+<p>The agent can ask what it may do, and every refusal names the limit and the grant. It is told to stay within them instead of looking for a way around.</p>
+</article>
+<article class="panel reveal">
+<p class="kicker">Connect any MCP client</p>
+<h3>Claude Code, Cursor, VS Code</h3>
+<pre class="cmd typing"><code><span class="t t1"><span class="p">$ </span>remohop peers redeem 276941009 remohopg1-…</span>
+<span class="t t2"><span class="p">$ </span>claude mcp add remohop -- remohop mcp</span><span class="caret" aria-hidden="true"></span></code></pre>
+</article>
+</div>
+<div class="note reveal">
+<p><strong>What a grant does not do.</strong> A command allow-list is a guard rail, not a sandbox: an allowed program that can run others (<code>make</code>, git hooks, any interpreter) carries that power along, and approving <code>./deploy.sh</code> approves whatever it does. <a href="{{E:docs/agents}}#limits-of-the-protection">Limits of the protection</a> spells this out. For a whole team, <a href="{{L:teams}}">RemoHop Teams</a> issues the same grants from one policy and lets admins answer approvals.</p>
+</div>
+</section>
+
+<section class="band alt" id="tool" aria-labelledby="tool-h">
+<div class="wrap">
+<p class="kicker reveal">2 · One tool instead of several</p>
+<h2 id="tool-h" class="reveal">Remote desktop, terminal, files, tunnels and a mesh network, in one program</h2>
+<p class="section-lede reveal">For you as much as for your agents. Use the desktop app, a browser, a phone or the command line; the machines on the other end run the same <code>remohop</code>.</p>
+<div class="showcase">
+<div class="stage light">
+<figure class="stage-main">
+<picture>
+<source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 72rem) 36rem, (min-width: 60rem) 50vw, calc(100vw - 32px)">
+<source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 72rem) 36rem, (min-width: 60rem) 50vw, calc(100vw - 32px)">
+<img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" loading="lazy" decoding="async" alt="Remote desktop: the middle of the page shows the screen of a remote Linux machine with two terminal windows open; the top shows the host's name and the connection path, direct.">
+</picture>
+</figure>
+<figure class="stage-float">
+<picture>
+<source type="image/avif" srcset="/assets/img/request-en-440.avif 440w, /assets/img/request-en-880.avif 880w, /assets/img/request-en-1320.avif 1320w" sizes="(min-width: 72rem) 14rem, (min-width: 60rem) 20vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
+<source type="image/webp" srcset="/assets/img/request-en-440.webp 440w, /assets/img/request-en-880.webp 880w, /assets/img/request-en-1320.webp 1320w" sizes="(min-width: 72rem) 14rem, (min-width: 60rem) 20vw, (min-width: 40rem) calc(40vw - 13px), calc(50vw - 16px)">
+<img src="/assets/img/request-en-1320.png" width="440" height="466" loading="lazy" decoding="async" alt="A connection request in the desktop app: Laptop-2 wants to connect, marked as a new device with a scam warning; it may only see the screen unless control or files are ticked.">
+</picture>
+</figure>
+<p class="stage-tag" aria-hidden="true"><span class="dot"></span>direct · end-to-end encrypted</p>
+</div>
+<ul class="caps">
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><div><b>Remote desktop</b><span>In the desktop app or a browser: 2K and 4K, about 60 ms on a LAN, up to 144 fps, audio, several monitors.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg><div><b>Shell and background jobs</b><span>Terminals that keep running after you disconnect, single commands, jobs with logs. PowerShell on Windows.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><div><b>Files</b><span>Copy, sync and mount a remote folder; large transfers resume where they stopped.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h14M13 7l5 5-5 5"/><path d="M4 7v10"/></svg><div><b>Port forwarding and VPN</b><span>TCP and UDP forwards like <code>ssh -L</code> and <code>-R</code>, Wake-on-LAN, and a VPN link into the host's network.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M11 7l-5 9M13 7l5 9M7.2 18h9.6"/></svg><div><b>Mesh network</b><span>Your devices in one private network with names like <code>nas.remohop</code>. It works next to Tailscale and uses a shared tailnet as one more direct path.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/></svg><div><b>Quick support</b><span>The person you help double-clicks one program, reads you an ID and a password, and presses Allow for every connection.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/></svg><div><b>Android and iOS apps</b><span>Control your computers from a phone. An Android phone can be controlled too, an iPhone or iPad can share its screen.</span></div></li>
+<li class="reveal"><svg class="ci" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><div><b>One static binary</b><span>Client, host, rendezvous server, browser gateway and MCP server are one <code>remohop</code> for Linux, macOS and Windows.</span></div></li>
+</ul>
+</div>
+<p class="links reveal"><a href="{{L:features}}">All features and their limits</a></p>
+</div>
+</section>
+
+<section class="wrap band h-p2p" id="trust" aria-labelledby="trust-h">
+<p class="kicker reveal">3 · Trust you can check</p>
+<h2 id="trust-h" class="reveal">End to end encrypted, direct by default, open source, and every server can be yours</h2>
+<p class="section-lede reveal">The rendezvous server introduces the two machines by ID. After that the screen, keys, files and commands go over a direct QUIC connection that only the two ends can read. When no direct path exists, a relay forwards the same ciphertext.</p>
 <figure class="flow reveal">
 <svg viewBox="0 0 960 400" role="img" aria-labelledby="flow-t">
 <title id="flow-t">How a connection is made: the two computers exchange addresses through the rendezvous server, then connect directly with end-to-end encryption; without a direct path they use a relay.</title>
@@ -98,96 +195,47 @@
 <text x="480" y="388" text-anchor="middle" class="tag dim">No direct path: through a relay (still encrypted)</text>
 </svg>
 </figure>
-<ol class="h-steps">
-<li class="reveal"><b>1. Introduce</b><span>Both sides reach the rendezvous server, find each other by the 9-digit ID and swap addresses.</span></li>
-<li class="reveal"><b>2. Punch through</b><span>Both send packets to each other at once, which gets through most home and office routers; the host also asks its router to map a port, and symmetric NATs have their next ports predicted. On a LAN they use the local network.</span></li>
-<li class="reveal"><b>3. Connect</b><span>Once the encrypted QUIC channel is up, the server is out of the picture. Without a path a relay takes over in about 1.5 s, and the session moves to a direct path, without a break, as soon as one works.</span></li>
-</ol>
-<p class="links reveal"><a href="{{L:how-it-works}}">How it works, in one picture</a></p>
+<div class="trust">
+<ul class="checks reveal">
+<li><span><strong>QUIC with TLS 1.3, and CPace for the login.</strong> The password never crosses the network, and a man in the middle, the rendezvous server included, cannot complete the login.</span></li>
+<li><span><strong>Direct peer to peer by default.</strong> Hole punching and router port mapping first; a relay only if its operator turned it on and nothing else works.</span></li>
+<li><span><strong>The server sees ciphertext and metadata.</strong> Which IDs are online, their addresses and when they connect; never the content.</span></li>
+<li><span><strong>Every connection asks first.</strong> New devices come with a scam warning, and an allowed device only sees the screen until you tick more.</span></li>
+<li><span><strong><!--src-->Open source under the AGPL-3.0.<!--/src--><!--nosrc-->Source to be published under the AGPL-3.0.<!--/nosrc--></strong> Run the rendezvous server, the relay and the browser gateway yourself, or connect on a LAN with no server at all.</span></li>
+</ul>
+<div class="note warn reveal">
+<p><strong>Not done yet, stated plainly.</strong></p>
+<ul>
+<li>There has been no independent security audit.</li>
+<li>The Windows downloads are not code-signed; SmartScreen warns. The macOS ones are signed and notarized.</li>
+<li>Linux is the reference platform. macOS and Windows are covered by automated runs on hosted machines, not checked by a person on physical ones.</li>
+</ul>
+</div>
+</div>
+<p class="links reveal"><a href="{{L:security}}">Security model</a> <a href="{{L:how-it-works}}">How it works</a> <a href="{{L:self-hosting}}">Self-hosting</a></p>
 </section>
 
-<section class="band alt feats-band" aria-labelledby="feat-h">
+<section class="band alt" id="pricing" aria-labelledby="price-h">
 <div class="wrap">
-<h2 id="feat-h" class="reveal">Sharper, faster, safer</h2>
-<div class="h-feats">
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>
-<h3>The host decides</h3>
-<p>Every connection asks first, with a scam warning for new devices. An allowed device only sees the screen until you tick control or files, and you can take either back or disconnect at any time.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M7 12l3-3 2 2 4-4"/></svg>
-<h3>2K and 4K quality</h3>
-<p>Intel, NVIDIA and AMD encoders take frames straight from the GPU, monitors are captured at physical pixels so text stays sharp, and the bitrate follows the network. Native size and a monitor switch are a click away.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>
-<h3>Low latency</h3>
-<p>About 60 ms at 2K and 114 ms at 4K, measured on a LAN. Key-frame requests switch encoders without a gap; the lock screen and UAC pause the picture instead of ending the session.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 13l4-4"/><circle cx="12" cy="13" r="1.2"/></svg>
-<h3>Up to 144 fps</h3>
-<p>Pick 30 to 144 fps, or Auto, which follows the display's refresh rate (up to 120). The Stats overlay shows resolution, bitrate, latency and the frames dropped in the last 10 seconds.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/><path d="M7.5 12h9"/><path d="M5 9.5V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5" stroke-dasharray="2 2.5"/></svg>
-<h3>Gets through networks</h3>
-<p>Hole punching, router port mapping (PCP, NAT-PMP, UPnP), port prediction for symmetric NATs, IPv6 and NAT64, and WebSocket when UDP is blocked. A relayed session moves to a direct path once one works.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2"/><path d="M1.5 9.5a4 4 0 0 1 2.5-2.5M1.5 13.5a7 7 0 0 1 4-5"/></svg>
-<h3>Phones can be hosts</h3>
-<p>An Android phone can be viewed and, if you allow it, controlled; an iPhone or iPad can share its screen, view only. A device you allowed may come back without asking for as long as you choose.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11A8 8 0 0 0 5.7 6.1L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>
-<h3>Sessions that come back</h3>
-<p>A new network or a wake from sleep reconnects by itself. In the phone apps a session lasts until you end it, even after the system closed the app, and the terminal returns to the same shell.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12 15h5"/></svg>
-<h3>More than a desktop</h3>
-<p>Terminal, resumable file transfer, clipboard, port forwarding, a virtual network and Wake-on-LAN, and AI agents (MCP) can work within the limits you grant.</p>
-</article>
-<article class="h-feat reveal">
-<svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg>
-<h3>Yours to run</h3>
-<p>Use the official rendezvous server <code>signal.remohop.com</code> or run your own with one command on the smallest VM. On a LAN, connect by address with no server at all.</p>
-</article>
+<p class="kicker reveal">4 · Fair, plain pricing</p>
+<h2 id="price-h" class="reveal">Free for any use, and a listed price for teams</h2>
+<p class="section-lede reveal">The open-source edition costs nothing, at home or at work, and never checks how you use it. The team edition is a self-hosted license.</p>
+<div class="tiers mini">
+<article class="tier reveal"><h3>Community</h3><p class="price"><b>Free</b></p><p>Everything in open-source RemoHop, for any use. AGPL-3.0.</p></article>
+<article class="tier reveal"><h3>Teams Free</h3><p class="price"><b>Free</b></p><p>All team features for up to {{P:free_users}} users. No license file needed.</p></article>
+<article class="tier featured reveal"><h3>Teams</h3><p class="price"><b>${{P:user_month}}</b> <span>per user per month, billed yearly</span></p><p>{{P:devices_per_user}} devices per user included, email support, an offline license file.</p></article>
+<article class="tier reveal"><h3>Enterprise</h3><p class="price"><b>Contact us</b></p><p>More than {{P:enterprise_users}} users, invoices and purchase orders, custom terms.</p></article>
 </div>
+<ul class="promises reveal">
+<li>No checks for commercial use</li>
+<li>No renewal without your consent</li>
+<li>The license file never calls home</li>
+</ul>
+<p class="links reveal"><a href="{{L:pricing}}">Compare the plans</a> <a href="{{L:teams}}">What RemoHop Teams adds</a></p>
 </div>
 </section>
 
-<section class="wrap band" id="use" aria-labelledby="use-h">
-<h2 id="use-h" class="reveal">What do you want to do?</h2>
-<div class="split">
-<article class="panel reveal">
-<p class="kicker">Quick support</p>
-<h3>Help someone with their computer</h3>
-<p>They download Quick Support, which needs no installation, and double-click it. The window shows a 9-digit ID and a temporary password in large type, which they read out to you. When you connect, they see your device name, key and address, and you only get in once they click "Allow"; no answer within 60 seconds refuses the request.</p>
-<p>By default you can see the screen, use the mouse and keyboard and move files; running commands and reaching their network need an extra tick. Closing the window stops the sharing.</p>
-<p class="small">You connect with the desktop app, the browser client, a mobile app or the command line; both sides use the same rendezvous server.</p>
-<p class="links"><a href="{{L:docs/quick-support}}">About quick support</a></p>
-</article>
-<article class="panel reveal">
-<p class="kicker">Desktop app / command line</p>
-<h3>Reach your own machines</h3>
-<p>On the machine to control, open the RemoHop desktop app and allow connections, or run <code>remohop host</code>. Pair once and later connections need no password; unattended access is there too.</p>
-<pre class="cmd typing"><code><span class="c"># the host</span>
-<span class="t t1"><span class="p">$ </span>remohop host</span>
-<span class="c"># your machine</span>
-<span class="t t2"><span class="p">$ </span>remohop 276941009 pair --name dev</span>
-<span class="t t3"><span class="p">$ </span>remohop dev shell</span>
-<span class="t t4"><span class="p">$ </span>remohop web --target dev</span><span class="caret" aria-hidden="true"></span></code></pre>
-<p class="small">On one LAN you can skip the server: run <code>remohop host --no-signal --listen :21118</code> on the host and use its address instead of the ID.</p>
-<p class="links"><a href="{{L:docs/desktop-app}}">Desktop app</a><a href="{{L:docs}}">Quick start</a></p>
-</article>
-</div>
-</section>
-
-<section class="band alt" id="get" aria-labelledby="get-h">
-<div class="wrap">
+<section class="wrap band" id="get" aria-labelledby="get-h">
 <h2 id="get-h" class="reveal">Get RemoHop</h2>
 <p class="section-lede reveal">Every download, with checksums and signatures, is on the <a href="{{L:download}}">download page</a>.</p>
 <div class="cards">
@@ -195,49 +243,48 @@
 <p class="chip">Available</p>
 <h3>RemoHop desktop app</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>One window to connect to your other computers and to let others connect to this one, with tabs, a server choice on first start and a question before every incoming connection. Signed and notarized on macOS.</p>
+<p>One window to connect to your other computers and to let others connect to this one, with a question before every incoming connection. Signed and notarized on macOS.</p>
 <p class="links"><a href="{{L:download}}">Download</a><a href="{{L:docs/desktop-app}}">About the app</a></p>
 </article>
 <article class="panel get reveal">
 <p class="chip">Available</p>
 <h3>Quick Support (no install)</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>The window the person being helped double-clicks: nothing to install, and closing it ends everything. <code>RemoHop-QuickSupport.exe</code> on Windows, <code>RemoHop Quick Support.app</code> on macOS, <code>remohop-quick</code> on Linux.</p>
+<p>The window the person being helped double-clicks: nothing to install, and closing it ends everything.</p>
 <p class="links"><a href="{{L:download}}#quick">Download</a><a href="{{L:docs/quick-support}}">About quick support</a></p>
 </article>
 <article class="panel get reveal">
 <!--store--><p class="chip">Available</p><!--/store--><!--nostore--><!--ios--><p class="chip">iOS available</p><!--/ios--><!--noios--><p class="chip wait">Coming to the stores</p><!--/noios--><!--/nostore-->
 <h3>Phone apps</h3>
 <p class="platforms">Android · iOS / iPadOS</p>
-<p>Connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: Android with control if you allow it, iPhone and iPad view only. <!--store-->On the App Store and Google Play.<!--/store--><!--nostore--><!--ios-->On the App Store; Android is coming to Google Play.<!--/ios--><!--noios-->Coming to the App Store and Google Play (submitted for review).<!--/noios--><!--/nostore--></p>
+<p>Connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. <!--store-->On the App Store and Google Play.<!--/store--><!--nostore--><!--ios-->On the App Store; Android is coming to Google Play.<!--/ios--><!--noios-->Coming to the App Store and Google Play (submitted for review).<!--/noios--><!--/nostore--></p>
 <p class="links"><a href="{{L:download}}#mobile">Download</a><a href="{{L:apps}}">Mobile apps</a></p>
 </article>
 <article class="panel get reveal">
 <p class="chip">Available</p>
 <h3>The <code>remohop</code> command line</h3>
 <p class="platforms">Linux · macOS · Windows</p>
-<p>Host, client, browser gateway and rendezvous server in one binary, for servers and scripts. On Linux and macOS:</p>
+<p>Host, client, MCP server, browser gateway and rendezvous server in one binary. On Linux and macOS:</p>
 <pre class="cmd"><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
 sh install.sh</code></pre>
 <p class="links"><a href="{{L:download}}#cli">Download</a><a href="{{L:features}}#platforms">Platforms</a></p>
 </article>
 </div>
+<div class="note status-note reveal">
+<p><strong>Where it stands (November 2026):</strong> released; see <a href="{{L:download}}">Download</a>. The desktop app offers the official rendezvous server on first start, or your own; the command-line program has no built-in default server. <a href="{{L:features}}#status">Full list of limits</a></p>
 </div>
 </section>
 
+<section class="band alt more" aria-labelledby="more-h">
 <div class="wrap">
-<div class="note status-note reveal">
-<p><strong>Where it stands (November 2026):</strong> released; see <a href="{{L:download}}">Download</a>. The desktop app offers the official rendezvous server on first start, or your own; the command-line program has no built-in default server. There has been no independent security audit. Linux is the reference platform, and macOS and Windows have only been exercised by automated tests on hosted CI machines. <a href="{{L:features}}#status">Full list of limits</a></p>
-</div>
-</div>
-
-<section class="wrap band more" aria-labelledby="more-h">
 <h2 id="more-h">Read on</h2>
 <ul class="more-list">
-<li><a href="{{L:features}}">Features and limits</a><span>Common commands, how a connection is made, platform support, known limits.</span></li>
-<li><a href="{{L:how-it-works}}">How it works</a><span>The rendezvous server, P2P hole punching, the order of the connection paths and end-to-end encryption in one picture.</span></li>
+<li><a href="{{L:docs/ai-agents}}">AI agents</a><span>Register the MCP server, issue a grant, approve, audit and stop.</span></li>
+<li><a href="{{L:teams}}">RemoHop Teams</a><span>Groups, policies, single sign-on, admin approvals and central audit.</span></li>
+<li><a href="{{L:features}}">Features and limits</a><span>Common commands, platform support, known limits.</span></li>
+<li><a href="{{L:how-it-works}}">How it works</a><span>The rendezvous server, hole punching and end-to-end encryption in one picture.</span></li>
 <li><a href="{{L:security}}">Security model</a><span>What is protected and what is not, including the browser gateway.</span></li>
-<li><a href="{{L:self-hosting}}">Self-hosting</a><span>Ports, memory, the relay, and limits for a public relay.</span></li>
-<li><a href="{{L:licensing}}">Licensing</a><span><!--src-->AGPL-3.0, with a commercial license available.<!--/src--><!--nosrc-->Source to be published under the AGPL-3.0; commercial license available.<!--/nosrc--></span></li>
+<li><a href="{{L:pricing}}">Pricing</a><span>Free for any use; the team edition has its price on the page.</span></li>
 </ul>
+</div>
 </section>

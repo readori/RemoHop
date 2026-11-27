@@ -97,15 +97,25 @@ DOCS = ROOT / "docs"
 # content hash. Editing site.css therefore needs a rebuild.
 CSS_VERSION = hashlib.sha256((OUT / "assets" / "site.css").read_bytes()).hexdigest()[:10]
 
+# Team edition prices, in US dollars, used by the pricing, Teams and home
+# pages as {{P:name}}. Change a price here and run this script.
+PRICES = {
+    "user_month": "5",       # Teams, per user per month, billed yearly
+    "user_year": "60",       # the same, per user per year
+    "free_users": "5",       # Teams Free: up to this many users
+    "devices_per_user": "10",  # Teams: devices included per user
+    "enterprise_users": "500",  # Enterprise: more than this many users
+}
+
 # slug -> (zh title, zh description, en title, en description)
 PAGES = {
     "": (
-        "RemoHop：远程连上你的电脑",
-        pick("RemoHop 是开源的点对点远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。",
-             "RemoHop 是点对点的远程控制工具：9 位 ID 加临时密码，端到端加密的 QUIC 会话，shell、文件、端口转发、远程桌面和供 AI 代理调用的 MCP 服务器都在一个 remohop 程序里。"),
-        "RemoHop: reach your computers from anywhere",
-        pick("RemoHop is an open-source peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary.",
-             "RemoHop is a peer-to-peer remote control tool: a 9-digit ID and a temporary password, end-to-end encrypted QUIC sessions, and shell, files, port forwarding, remote desktop and an MCP server for AI agents in one remohop binary."),
+        "RemoHop：给人和 AI 代理用的远程控制，权限由你划定",
+        pick("RemoHop 是开源的点对点远程控制工具。内置 MCP 服务器（29 个工具），AI 代理可以在远程机器上执行命令、传文件、看屏幕，权限由被控机上限定命令、目录和时限、可要求批准和录制的授权决定。远程桌面、终端、文件、端口转发和组网都在一个 remohop 程序里，端到端加密，默认直连。",
+             "RemoHop 是点对点的远程控制工具。内置 MCP 服务器（29 个工具），AI 代理可以在远程机器上执行命令、传文件、看屏幕，权限由被控机上限定命令、目录和时限、可要求批准和录制的授权决定。远程桌面、终端、文件、端口转发和组网都在一个 remohop 程序里，端到端加密，默认直连。"),
+        "RemoHop: remote access for people and AI agents, within limits you set",
+        pick("RemoHop is an open-source peer-to-peer remote control tool. Its built-in MCP server (29 tools) lets AI agents use remote machines under grants that limit commands, folders and time, and can require approval and recording. Remote desktop, shell, files, port forwarding and a mesh network in one remohop binary, end to end encrypted and direct by default.",
+             "RemoHop is a peer-to-peer remote control tool. Its built-in MCP server (29 tools) lets AI agents use remote machines under grants that limit commands, folders and time, and can require approval and recording. Remote desktop, shell, files, port forwarding and a mesh network in one remohop binary, end to end encrypted and direct by default."),
     ),
     "features": (
         "功能与限制",
@@ -171,6 +181,18 @@ PAGES = {
         pick("RemoHop is dual-licensed: everyone may use it under the GNU AGPL-3.0, and a commercial license is available from the RemoHop project where the AGPL does not fit.",
              "RemoHop is dual-licensed: the source will be published under the GNU AGPL-3.0 once the apps are out, and a commercial license is available from the RemoHop project where the AGPL does not fit."),
     ),
+    "teams": (
+        "RemoHop 团队版：团队的策略、审批与审计",
+        "RemoHop 团队版是自托管的商业版：人员与设备分组，按策略授权，OIDC 或 SAML 登录、SCIM 同步，管理员审批，集中审计和录像，团队成员与策略记在由管理员密钥签名的日志里，团队服务器无法伪造。",
+        "RemoHop Teams: policies, approvals and audit for a team",
+        "RemoHop Teams is the self-hosted commercial edition: people and devices in groups, policies that become grants on each host, OIDC or SAML sign-in, SCIM provisioning, admin approvals, central audit and recordings, and a membership log signed by admin keys that the team server cannot forge.",
+    ),
+    "pricing": (
+        "价格",
+        f"RemoHop 的价格：开源版任何用途都免费；团队版 {PRICES['free_users']} 人以内免费，之后每用户每月 {PRICES['user_month']} 美元（按年付费），自托管，离线许可证文件；超过 {PRICES['enterprise_users']} 人请联系我们。",
+        "Pricing",
+        f"RemoHop pricing: the open-source edition is free for any use; the team edition is free for up to {PRICES['free_users']} users, then ${PRICES['user_month']} per user per month billed yearly, self-hosted with an offline license file; more than {PRICES['enterprise_users']} users, contact us.",
+    ),
     "support": (
         "支持与联系",
         "通过 support@remohop.com 联系 RemoHop：报告问题时需要附带的信息、排障文档入口，以及如何私下报告安全问题。",
@@ -179,23 +201,47 @@ PAGES = {
     ),
 }
 
+# Header navigation: (slug, zh, en). Apps and Self-hosting are in the footer.
 NAV = [
     ("features", "功能", "Features"),
     ("how-it-works", "工作原理", "How it works"),
+    ("security", "安全", "Security"),
+    ("teams", "团队版", "Teams"),
+    ("pricing", "价格", "Pricing"),
     ("docs", "文档", "Docs"),
     ("download", "下载", "Download"),
-    ("apps", "移动应用", "Apps"),
-    ("security", "安全", "Security"),
-    ("self-hosting", "自建服务器", "Self-hosting"),
     ("support", "支持", "Support"),
+]
+
+# Footer columns, by T key of the heading: (slug, zh, en). "#src" is the
+# repository link, shown only when SOURCE_PUBLIC.
+FOOT = [
+    ("f_product", [
+        ("features", "功能", "Features"),
+        ("how-it-works", "工作原理", "How it works"),
+        ("security", "安全", "Security"),
+        ("download", "下载", "Download"),
+        ("apps", "移动应用", "Apps"),
+        ("self-hosting", "自建服务器", "Self-hosting"),
+        ("docs", "文档", "Docs"),
+        ("#src", "源码（GitHub）", "Source (GitHub)"),
+    ]),
+    ("f_editions", [
+        ("pricing", "价格", "Pricing"),
+        ("teams", "RemoHop 团队版", "RemoHop Teams"),
+        ("licensing", "许可证", "Licensing"),
+    ]),
+    ("f_legal", [
+        ("privacy", "隐私政策", "Privacy policy"),
+        ("terms", "使用条款", "Terms of use"),
+    ]),
 ]
 
 T = {
     "zh": {
         "lang": "zh-CN", "prefix": "", "skip": "跳到正文", "nav": "主导航", "home": "RemoHop 首页",
         "other": ("English", "en", "/en"), "foot_nav": "页脚",
-        "f_product": "产品", "f_legal": "条款", "f_contact": "联系",
-        "privacy": "隐私政策", "terms": "使用条款", "licensing": "许可证", "source": "源码（GitHub）",
+        "f_product": "产品", "f_editions": "版本", "f_legal": "条款", "f_contact": "联系",
         "legal": pick("RemoHop 是独立的开源项目，以 GNU AGPL-3.0 开源，另提供商业授权。",
                       "RemoHop 是独立的开源项目。源码将在各平台应用上架后以 GNU AGPL-3.0 公开，另提供商业授权。")
         + "本网站不使用 Cookie、分析脚本或任何第三方资源。",
@@ -205,8 +251,7 @@ T = {
     "en": {
         "lang": "en", "prefix": "/en", "skip": "Skip to content", "nav": "Primary", "home": "RemoHop home",
         "other": ("中文", "zh-CN", ""), "foot_nav": "Footer",
-        "f_product": "Product", "f_legal": "Legal", "f_contact": "Contact",
-        "privacy": "Privacy policy", "terms": "Terms of use", "licensing": "Licensing", "source": "Source (GitHub)",
+        "f_product": "Product", "f_editions": "Editions", "f_legal": "Legal", "f_contact": "Contact",
         "legal": pick("RemoHop is an independent open-source project, published under the GNU AGPL-3.0, with a commercial license available.",
                       "RemoHop is an independent open-source project. The source will be published under the GNU AGPL-3.0 once the apps are out; a commercial license is available.")
         + " This website uses no cookies, no analytics and no third-party resources.",
@@ -589,6 +634,11 @@ def gate(text):
 def fill(text, lang):
     text = gate(text)
     text = text.replace("{{REPO}}", REPO).replace("{{SUPPORT_EMAIL}}", SUPPORT_EMAIL).replace("{{PRIVACY_EMAIL}}", PRIVACY_EMAIL).replace("{{EMAIL}}", EMAIL).replace("{{TELEGRAM}}", TELEGRAM).replace("{{UPDATED}}", UPDATED)
+    def price(m):
+        if m.group(1) not in PRICES:
+            raise SystemExit(f"unknown price {{{{P:{m.group(1)}}}}}")
+        return PRICES[m.group(1)]
+    text = re.sub(r"\{\{P:([a-z_]+)\}\}", price, text)
     text = text.replace("{{SITE}}", SITE_URL).replace("{{APP_STORE}}", APP_STORE).replace("{{GOOGLE_PLAY}}", GOOGLE_PLAY)
     # {{L:slug}} is the page in this language, {{E:slug}} the English one
     # (for the reference documents, which exist in English only).
@@ -702,10 +752,16 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
     if not is_home:
         content = f'<div class="wrap {cls}">\n{content}\n</div>'
 
-    product = [f'<li><a href="{url(lang, s)}">{zh if lang == "zh" else en}</a></li>' for s, zh, en in NAV if s != "support"]
+    def foot_link(s, zh, en):
+        name = zh if lang == "zh" else en
+        if s == "#src":
+            return f'<li><a href="{REPO}">{name}</a></li>' if SOURCE_PUBLIC else ""
+        return f'<li><a href="{url(lang, s)}">{name}</a></li>'
+    foot_cols = []
+    for key, links in FOOT:
+        items = "\n".join(x for x in (foot_link(*l) for l in links) if x)
+        foot_cols.append(f'<div>\n<h2>{t[key]}</h2>\n<ul>\n{items}\n</ul>\n</div>')
     support = next(zh if lang == "zh" else en for s, zh, en in NAV if s == "support")
-    if SOURCE_PUBLIC:
-        product.append(f'<li><a href="{REPO}">{t["source"]}</a></li>')
 
     body_html = f"""<body>
 <a class="skip" href="#main">{t["skip"]}</a>
@@ -726,20 +782,7 @@ def page(lang, slug, title, desc, body, *, status404=False, langs=("zh", "en"), 
 <footer class="site-foot">
 <div class="wrap">
 <nav class="cols" aria-label="{t["foot_nav"]}">
-<div>
-<h2>{t["f_product"]}</h2>
-<ul>
-{chr(10).join(product)}
-</ul>
-</div>
-<div>
-<h2>{t["f_legal"]}</h2>
-<ul>
-<li><a href="{url(lang, "privacy")}">{t["privacy"]}</a></li>
-<li><a href="{url(lang, "terms")}">{t["terms"]}</a></li>
-<li><a href="{url(lang, "licensing")}">{t["licensing"]}</a></li>
-</ul>
-</div>
+{chr(10).join(foot_cols)}
 <div>
 <h2>{t["f_contact"]}</h2>
 <ul>
