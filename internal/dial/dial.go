@@ -1352,9 +1352,10 @@ func (d *dialer) login(ctx context.Context, q *quic.Conn, t *target, cred auth.C
 		// pin a key login would authenticate us to anybody.
 		return nil, errors.New("key login needs the host's key to be known first (`remohop peers trust`)")
 	}
-	hopts := auth.ClientOptions{Name: hostd.DeviceName(), OnWait: func() {
+	name := hostd.DeviceName()
+	hopts := auth.ClientOptions{Name: name, OnWait: func() {
 		st.SetDeadline(time.Now().Add(approvalWait))
-		d.notify("waiting for approval on the host…")
+		d.notify(waitingNote(name, d.identity))
 	}}
 	if err := auth.ClientHandshakeWith(st, binding, cred, t.id, hopts); err != nil {
 		if ctx.Err() != nil {
@@ -1403,6 +1404,18 @@ func (d *dialer) login(ctx context.Context, q *quic.Conn, t *target, cred auth.C
 // connError prefers the reason the host closed the connection with over a
 // bare stream error. A refusal arrives both as a reply on the login stream
 // and in the close frame; when the close wins the race, this recovers it.
+// waitingNote is the line shown while the host's owner is asked: how this
+// machine appears in their prompt, so that they can be told what to look for.
+func waitingNote(name string, id *auth.Identity) string {
+	if id == nil {
+		return "waiting for approval on the host…"
+	}
+	if name == "" {
+		return fmt.Sprintf("waiting for approval on the host… It shows this machine's key as %s.", auth.Fingerprint(id.Public()))
+	}
+	return fmt.Sprintf("waiting for approval on the host… It shows this machine as %q, key %s.", name, auth.Fingerprint(id.Public()))
+}
+
 func connError(q *quic.Conn, err error) error {
 	if e := hostd.LoginRefusal(err); e != nil {
 		return e

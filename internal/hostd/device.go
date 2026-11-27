@@ -19,7 +19,7 @@ const (
 func init() {
 	config.RegisterSetting(config.Setting{
 		Key:  SettingName,
-		Help: "this device's name, shown to peers: in `ping`, in a host's approval prompts and `remohop status` (default: none)",
+		Help: "this device's name, shown to peers: in `ping`, in a host's approval prompts and `remohop status` (default: this computer's host name)",
 		Validate: func(v string) error {
 			if c := auth.CleanText(v, auth.MaxTokenName); c != v {
 				return errors.New("use at most 64 bytes of plain text, no control characters")
@@ -41,8 +41,20 @@ func init() {
 	})
 }
 
-// DeviceName is this machine's device name from the config file, cleaned.
+// DeviceName is this machine's device name: the "name" setting, cleaned,
+// or else the computer's host name, so that a host's approval prompt
+// always has something to show.
 func DeviceName() string {
+	if v := ConfiguredDeviceName(); v != "" {
+		return v
+	}
+	h, _ := os.Hostname()
+	return auth.CleanText(h, auth.MaxTokenName)
+}
+
+// ConfiguredDeviceName is the "name" setting alone, cleaned: empty when
+// the user has not chosen one.
+func ConfiguredDeviceName() string {
 	v, _ := config.Get(SettingName)
 	return auth.CleanText(v, auth.MaxTokenName)
 }
