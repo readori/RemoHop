@@ -27,7 +27,7 @@ What the person at the computer gets:
   - *Commands and network* off: running commands are stopped, an open terminal is closed, forwarded connections and the VPN are cut, serial ports and USB devices are released. Background jobs the helper started (`spawn`) keep running; Stop sharing does not end them either.
 
   The details for each kind of access are in [Host access control](host-access-control.md#what-a-switch-does-to-sessions-already-connected).
-- **The state of the connection in plain words:** registered with the server or not, still trying, and whether helpers come directly or through the relay.
+- **The state of the connection in plain words:** registered with the server or not, still trying, and whether helpers come directly or through the relay. When the server has not answered for 12 seconds, the window says "Still trying to reach X. Check the address with your helper." with a **Change server** button that reopens the server choice, so a mistyped address can be corrected without starting again.
 
 The window follows the system language (Chinese or English) and can be switched in its corner; the choice is remembered for the next start and also applies to the system's connection dialogs. `--lang zh|en` overrides both.
 
@@ -41,6 +41,7 @@ You, the helper, connect as usual: `remohop <ID> desktop`, the browser client (`
 
 Limits to know about:
 
+- **Screen sharing needs ffmpeg on the shared computer** (with an H.264 or AV1 encoder). RemoHop does not include it (see [LICENSING.md](../../LICENSING.md)). Without it the window says "Screen sharing needs ffmpeg, which is not installed on this computer. Your helper can still use files and commands.", and the helper's `remohop <ID> desktop` says the host has no ffmpeg; `remohop <ID> screenshot` still takes pictures of the screen. Install it with `winget install Gyan.FFmpeg` on Windows, `brew install ffmpeg` on macOS or the package manager on Linux (`apt install ffmpeg`), or point `REMOHOP_FFMPEG` at an ffmpeg binary; `remohop doctor` on that computer shows whether it is found.
 - **Windows:** `RemoHop.exe` is not code-signed yet, so SmartScreen warns on first start ("More info", then "Run anyway"). It runs without administrator rights, so the helper cannot operate UAC prompts or windows of programs running as administrator. Windows Firewall may ask about network access on first start; connections work with either answer on most networks, because the host connects outwards.
 - **macOS:** the first connection needs the Screen Recording permission, and mouse and keyboard need Accessibility (System Settings > Privacy & Security; listed as "RemoHop Quick Support" for the separate Quick Support download and as "RemoHop" for the app, which macOS treats as two apps, so each needs its own permission; Screen Recording takes effect after the app is started again). The `RemoHop-macos.dmg` download is signed with a Developer ID, notarized and stapled; a `RemoHop.app` you build yourself is unsigned; see [packaging/quick/README.md](../../packaging/quick/README.md) for signing and notarization.
 - The page and its server are tested in a real browser on Linux; the launcher windows are started and screenshotted on Windows, macOS and Linux in CI.

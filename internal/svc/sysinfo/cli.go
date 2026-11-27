@@ -39,8 +39,7 @@ func init() {
 }
 
 func runInfo(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("info", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "info", "")
 	asJSON := fs.Bool("json", false, "print the raw JSON document")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {

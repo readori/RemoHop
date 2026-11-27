@@ -3,7 +3,6 @@ package desktop
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -151,8 +150,7 @@ type desktopResult struct {
 }
 
 func runDesktop(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("desktop", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "desktop", "")
 	var (
 		opts    Options
 		rate    string
@@ -188,9 +186,6 @@ func runDesktop(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&asJSON, "json", false, "JSON output")
 	fs.BoolVar(&backgr, "b", false, "run in the background")
 	fs.BoolVar(&backgr, "background", false, "run in the background")
-	fs.Usage = func() {
-		fmt.Fprintln(env.Stderr, "usage: remohop <ID> desktop [--fps N] [--bitrate RATE] [--max-height PX] [--scale F] [--display N|all] [--audio] [--upload-dir DIR] [--bench [--bench-duration D]] [--view-only] [--codec av1|h264] [--encoder NAME] [--record FILE [--force]] [--port P] [--no-open] [--json] [-b]")
-	}
 	if err := fs.Parse(args); err != nil {
 		return cli.ExitUsage
 	}
@@ -270,7 +265,7 @@ func runDesktop(ctx context.Context, env *cli.Env, args []string) int {
 	// has said which codecs its browser decodes.
 	info, err := Probe(ctx, conn)
 	if err != nil {
-		env.Errorf("desktop: %v", err)
+		env.Errorf("%s", probeError(env.Target, err))
 		return cli.ExitError
 	}
 	if opts.ViewOnly {
@@ -433,4 +428,20 @@ func report(env *cli.Env, res desktopResult, asJSON bool) {
 		fmt.Fprintf(env.Stdout, "recording to %s (starts when the viewer connects)\n", res.Record)
 	}
 	fmt.Fprintf(env.Stdout, "viewer: %s\n", res.URL)
+}
+
+// probeError words a failed probe for the person at this end. Its errors
+// already start with "desktop: " (unlike a failure to open the stream);
+// and a host without ffmpeg, the commonest case, gets a way to see its
+// screen meanwhile.
+func probeError(target string, err error) string {
+	msg := err.Error()
+	if !strings.HasPrefix(msg, "desktop: ") {
+		msg = "desktop: " + msg
+	}
+	if strings.Contains(msg, ffmpegMissing) {
+		return fmt.Sprintf("desktop: the host has no ffmpeg, which screen sharing needs. Until it is installed there, "+
+			"`remohop %s screenshot` takes still pictures of its screen without it.\n  %s", target, strings.TrimPrefix(msg, "desktop: "))
+	}
+	return msg
 }

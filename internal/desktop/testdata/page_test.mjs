@@ -123,6 +123,8 @@ try {
   // A helper asks: new device, scam warning, view only by default. Deny.
   control('/dial?name=Alex-Laptop');
   check(await p.waitFor(`document.getElementById('dlg-req').open`), 'a connection request opens the dialog');
+  // The device key is shown whole, in groups, never cut inside one.
+  check(await p.eval(`[...document.querySelectorAll('#req-kv dd')].some(d => /^[0-9a-f]{4}(:[0-9a-f]{4}){4}$/.test(d.textContent))`), 'the full key fingerprint is shown');
   check(await p.eval(`document.getElementById('req-title').textContent.includes('Alex-Laptop')`), 'it names the device');
   check(await p.eval(`!document.getElementById('req-warn').hidden && document.getElementById('req-chips').textContent.includes('New device')`), 'a new device: scam warning');
   check(await p.eval(`!document.getElementById('req-control').checked && !document.getElementById('req-files').checked`), 'view only by default');

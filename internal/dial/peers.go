@@ -36,6 +36,10 @@ type Peer struct {
 	TokenID  string     `json:"token_id,omitempty"`
 	Token    []byte     `json:"token,omitempty"`
 	PairedAt *time.Time `json:"paired_at,omitempty"`
+	// Grant says the token is a grant redeemed with `remohop peers
+	// redeem` (narrower rights, set by the host's owner) rather than a
+	// full pairing.
+	Grant bool `json:"grant,omitempty"`
 	// Password is the host's password, saved only when the user asked a
 	// gateway (the desktop app, a mobile app, `remohop web`) to remember
 	// the login and the host does not hand out pairings (quick support,

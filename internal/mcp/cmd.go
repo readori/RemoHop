@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -76,7 +75,12 @@ remohop_scroll, remohop_type, remohop_key; access: remohop_limits.
 // It is a variable so tests can run the command without a network.
 var newDial = func(g cli.Globals) DialFunc {
 	return func(ctx context.Context, target string) (*peer.Conn, error) {
-		return dial.Dial(ctx, target, dial.Options{Signal: g.Signal, Password: g.Password})
+		opts := dial.Options{Signal: g.Signal, Password: g.Password}
+		// A missing server is the first thing to fix, before credentials.
+		if err := dial.RendezvousFirst(target, opts); err != nil {
+			return nil, err
+		}
+		return dial.Dial(ctx, target, opts)
 	}
 }
 
@@ -90,9 +94,7 @@ func init() {
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "mcp", usage)
 	target := fs.String("target", "", "")
 	idle := fs.Duration("idle-timeout", DefaultIdleTimeout, "")
 	readOnly := fs.Bool("read-only", false, "")

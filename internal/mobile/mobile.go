@@ -142,7 +142,7 @@ func SetDeviceName(name string) {
 }
 
 func pairLabel() string {
-	if n := hostd.DeviceName(); n != "" {
+	if n := hostd.ConfiguredDeviceName(); n != "" {
 		return n
 	}
 	mu.Lock()

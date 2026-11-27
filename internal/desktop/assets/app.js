@@ -40,8 +40,8 @@
       'wiz.title': 'Welcome to RemoHop', 'wiz.lead': 'Connect to your computers, or let someone help you.',
       'wiz.server': 'Rendezvous server', 'wiz.incoming': 'Let others connect to this computer now (each connection asks me)', 'next': 'Next', 'back': 'Back', 'done': 'Done', 'save': 'Save', 'cancel': 'Cancel',
       'auto': 'Auto', 'copy': 'Copy', 'copied': 'Copied', 'allow': 'Allow', 'deny': 'Deny', 'saved': 'Saved',
-      'srv.official': 'Official server', 'srv.official.sub': 'Run by RemoHop, nothing to set up', 'srv.custom': 'My own server', 'srv.skip': 'Skip for now', 'srv.none': 'No server',
-      'srv.skip.sub': 'Connect by address (host:port) only',
+      'srv.official': 'Official server', 'srv.official.sub': 'Run by RemoHop, nothing to set up', 'srv.custom': 'My own server', 'srv.none': 'No server',
+      'srv.skip.sub': 'Only on the same network, by address',
       'help.server': 'It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.',
       'c.target': 'Computer ID or address', 'c.connect': 'Connect', 'c.saved': 'Saved computers', 'c.none': 'No saved computers yet.',
       'help.saved': 'Computers you connected to or paired with. A paired computer needs no password.',
@@ -54,6 +54,7 @@
       'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New', 'in.pwfixed': 'My own password', 'in.setpw': 'Password settings', 'pwm.title': 'Password for incoming connections', 'pwm.temp': 'A new random password', 'pwm.temp.sub': 'Made each time RemoHop starts; "New" replaces it whenever you like', 'pwm.fixed': 'My own password', 'pwm.fixed.sub': 'Stays the same until you change it; at least 8 characters, with letters and digits', 'pwm.note': 'Either way, every connection still asks you first.', 'pwm.saved': 'Password settings saved',
       'in.off': 'Off: nobody can connect', 'in.starting': 'Connecting to the server…', 'in.ready': 'Ready: every connection asks you',
       'in.offline': 'Offline: trying again…', 'in.noserver': 'No server: reachable by address on this network',
+      'in.unreach': "Can't reach {s}. Check the address in Settings › Rendezvous server.", 'in.official': 'the official server', 'in.fix': 'Rendezvous server settings',
       'in.elsewhere': 'Served by the RemoHop service (ID {id})', 'in.error': 'Could not start',
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
@@ -124,8 +125,8 @@
       'wiz.title': '欢迎使用 RemoHop', 'wiz.lead': '连接你的电脑，或者让别人帮你。',
       'wiz.server': '汇合服务器', 'wiz.incoming': '现在就允许别人连接这台电脑（每次连接都先问我）', 'next': '下一步', 'back': '上一步', 'done': '完成', 'save': '保存', 'cancel': '取消',
       'auto': '自动', 'copy': '复制', 'copied': '已复制', 'allow': '允许', 'deny': '拒绝', 'saved': '已保存',
-      'srv.official': '官方服务器', 'srv.official.sub': '由 RemoHop 运营，无需设置', 'srv.custom': '我自己的服务器', 'srv.skip': '暂时跳过', 'srv.none': '不用服务器',
-      'srv.skip.sub': '只按地址（主机:端口）连接',
+      'srv.official': '官方服务器', 'srv.official.sub': '由 RemoHop 运营，无需设置', 'srv.custom': '我自己的服务器', 'srv.none': '不用服务器',
+      'srv.skip.sub': '仅限同一网络，按地址连接',
       'help.server': '它按 ID 为电脑牵线。连接是端到端加密的，服务器看不到内容。',
       'c.target': '电脑 ID 或地址', 'c.connect': '连接', 'c.saved': '已保存的电脑', 'c.none': '还没有保存的电脑。',
       'help.saved': '连接过或配对过的电脑。已配对的电脑不用再输密码。',
@@ -138,6 +139,7 @@
       'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个', 'in.pwfixed': '固定密码', 'in.setpw': '密码设置', 'pwm.title': '连接密码', 'pwm.temp': '随机密码', 'pwm.temp.sub': '每次启动 RemoHop 时自动生成，随时可点“换一个”', 'pwm.fixed': '我自己的固定密码', 'pwm.fixed.sub': '一直不变，直到你修改；至少 8 位，包含字母和数字', 'pwm.note': '无论哪种，每次有人连接都会先问你。', 'pwm.saved': '密码设置已保存',
       'in.off': '已关闭：谁都连不上', 'in.starting': '正在连接服务器…', 'in.ready': '已就绪：每次连接都会先问你',
       'in.offline': '离线：正在重试…', 'in.noserver': '没有服务器：同一网络内可按地址连接',
+      'in.unreach': '无法连接 {s}。请在 设置 › 汇合服务器 中检查地址。', 'in.official': '官方服务器', 'in.fix': '汇合服务器设置',
       'in.elsewhere': '由 RemoHop 服务提供（ID {id}）', 'in.error': '无法启动',
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
@@ -633,6 +635,11 @@
       case 'elsewhere': cls = 'ok'; txt = t('in.elsewhere', {id: i.other_id || '?'}); break;
       case 'error': cls = 'bad'; txt = t('in.error'); break;
     }
+    // A server that does not answer within about 10 s is likely a wrong
+    // address: say so, and lead to the setting.
+    const unreach = i.on && i.phase === 'starting' && i.waited >= 10 && s.server.mode !== 'none';
+    if (unreach) { cls = 'bad'; txt = t('in.unreach', {s: s.server.mode === 'custom' ? s.server.addr : t('in.official')}); }
+    $('in-fix').hidden = !unreach;
     $('in-status').className = 'status ' + cls; $('in-status-t').textContent = txt;
     const showCreds = i.on && (i.phase === 'ready' || i.phase === 'starting' || i.phase === 'no_server');
     $('creds').hidden = !showCreds;
@@ -716,7 +723,7 @@
       const g = document.createElement('div'); g.className = 'lbl';
       const a = document.createElement('div'); a.textContent = d.name || t('req.unknown');
       const b = document.createElement('div'); b.className = 'muted small mono';
-      b.textContent = shortKey(d.identity);
+      b.textContent = keyText(d.identity);
       g.append(a, b);
       // The access it gets next time: the same chips as Connected now.
       const chips = document.createElement('div'); chips.className = 'chips';
@@ -744,7 +751,9 @@
     sp.append(icon(name)); return sp;
   }
   function fmtDur(s) { const m = Math.floor(s / 60); return m < 60 ? m + ':' + String(s % 60).padStart(2, '0') : Math.floor(m / 60) + 'h' + String(m % 60).padStart(2, '0'); }
-  function shortKey(k) { return (k || '').slice(0, 16); }
+  // A key fingerprint is short enough to show whole; cutting it would
+  // leave half a group that matches nothing the other side reads out.
+  function keyText(k) { return k || ''; }
   $('incoming').addEventListener('change', ev => api('incoming', {on: ev.target.checked}).catch(e => { snack(errText(e)); }));
   $('regen').addEventListener('click', () => api('regenerate').catch(e => snack(errText(e))));
   // The user's own password shows as dots until "Show password".
@@ -888,7 +897,7 @@
     $('req-warn').hidden = !!access || !r.first_seen;
     const kv = $('req-kv'); kv.textContent = '';
     const add = (k, v) => { if (!v) return; const dt = document.createElement('dt'); dt.textContent = t(k); const dd = document.createElement('dd'); dd.textContent = v; kv.append(dt, dd); };
-    add('req.device', who); add('req.key', shortKey(r.identity)); add('req.from', r.from);
+    add('req.device', who); add('req.key', keyText(r.identity)); add('req.from', r.from);
     if (r.action) add('req.action', r.action);
     else if (access) add('req.asks', r.access.map(f => t('req.' + f)).filter(Boolean).join(', '));
     $('req-choice').hidden = !!access; $('req-remember-row').hidden = !!access;
@@ -927,7 +936,7 @@
       const h = document.createElement('div'); h.className = 'qt';
       h.textContent = r.action ? t('req.title.action', {d: who, g: r.grant}) : t(access ? 'req.title.access' : 'req.title', {d: who});
       const sub = document.createElement('div'); sub.className = 'muted small';
-      sub.textContent = r.action ? r.action : access ? r.access.map(f => t('req.' + f)).filter(Boolean).join(', ') : [r.from, shortKey(r.identity)].filter(Boolean).join(' · ');
+      sub.textContent = r.action ? r.action : access ? r.access.map(f => t('req.' + f)).filter(Boolean).join(', ') : [r.from, keyText(r.identity)].filter(Boolean).join(' · ');
       const bar = document.createElement('div'); bar.className = 'runbar'; bar.setAttribute('aria-hidden', 'true');
       const cells = 24, on = Math.max(0, Math.min(cells, Math.round(r.left / total * cells)));
       for (let j = 0; j < cells; j++) { const i = document.createElement('i'); if (j < on) i.className = r.left <= 10 ? 'on low' : 'on'; bar.append(i); }
@@ -1071,6 +1080,12 @@
   $('upd-skip').addEventListener('click', () => api('update/skip', {version: S.update.latest}).catch(e => snack(errText(e))));
   for (const el of document.querySelectorAll('input[name=srv], #srv-addr')) el.addEventListener('input', () => { srvEdited = true; });
   $('srv-addr').addEventListener('focus', () => { document.querySelector('input[name=srv][value=custom]').checked = true; srvEdited = true; });
+  $('in-fix').addEventListener('click', () => {
+    show('settings');
+    $('srv-panel').hidden = false; $('srv-row').setAttribute('aria-expanded', 'true');
+    const custom = document.querySelector('input[name=srv][value=custom]');
+    (custom && custom.checked ? $('srv-addr') : $('srv-row')).focus();
+  });
   $('srv-row').addEventListener('click', () => {
     const open = $('srv-panel').hidden;
     $('srv-panel').hidden = !open; $('srv-row').setAttribute('aria-expanded', String(open));

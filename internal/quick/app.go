@@ -68,6 +68,7 @@ import (
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/signal"
+	"github.com/readori/RemoHop/internal/svc/desktop"
 )
 
 // AskTimeout is how long a connection request waits for the user's answer
@@ -181,6 +182,9 @@ type State struct {
 	Options    Options       `json:"options"`
 	AskTimeout int           `json:"ask_timeout"`
 	Version    string        `json:"version"`
+	// NoFFmpeg: this computer has no ffmpeg, so helpers cannot see the
+	// screen live (screenshots, files and commands still work).
+	NoFFmpeg bool `json:"no_ffmpeg,omitempty"`
 }
 
 // AppConfig configures an App.
@@ -213,13 +217,19 @@ type App struct {
 	stop context.CancelFunc
 	done chan struct{}
 
+	// configMu makes Configure calls one at a time.
+	configMu sync.Mutex
+
 	mu       sync.Mutex
 	phase    string
 	errCode  string
 	errText  string
 	otherID  string
+	noFFmpeg bool
 	host     *hostd.Host
 	hostDone chan struct{}
+	// hostStop stops the running host alone (Configure restarts it).
+	hostStop context.CancelFunc
 	started  time.Time
 	server   string
 	opts     Options
@@ -338,25 +348,43 @@ func (a *App) Start() {
 	}
 	h.OnChange(a.wake)
 	hostDone := make(chan struct{})
+	hctx, hstop := context.WithCancel(a.ctx)
+	ok, _ := desktop.FFmpegInstalled()
 	a.mu.Lock()
-	a.host, a.hostDone, a.started, a.server = h, hostDone, time.Now(), hc.Signal
+	a.host, a.hostDone, a.hostStop, a.started, a.server = h, hostDone, hstop, time.Now(), hc.Signal
 	a.phase, a.errCode, a.errText = PhaseConnecting, "", ""
+	a.noFFmpeg = !ok
 	a.mu.Unlock()
 	a.wake()
 	go func() {
 		defer close(hostDone)
-		err := h.Run(a.ctx)
+		err := h.Run(hctx)
 		release()
-		if a.ctx.Err() == nil {
+		if hctx.Err() == nil {
 			if err == nil {
 				err = errors.New("the host stopped unexpectedly")
 			}
 			a.mu.Lock()
-			a.host = nil
+			if a.host == h {
+				a.host = nil
+			}
 			a.mu.Unlock()
 			a.fail(ErrStartFailed, err)
 		}
 	}()
+}
+
+// stopHost stops the running host, if any, and waits until it has let go
+// of everything (its lock, its sockets), so that Start can run again.
+func (a *App) stopHost() {
+	a.mu.Lock()
+	stop, done := a.hostStop, a.hostDone
+	a.host, a.hostStop, a.hostDone = nil, nil, nil
+	a.mu.Unlock()
+	if stop != nil {
+		stop()
+		<-done
+	}
 }
 
 // noServerChosen reports whether the user chose to use no rendezvous server
@@ -412,7 +440,7 @@ func (a *App) State() State {
 	a.mu.Lock()
 	st := State{Phase: a.phase, ErrorCode: a.errCode, Error: a.errText, OtherID: a.otherID, Server: a.server,
 		Options: a.opts, AskTimeout: int(a.cfg.AskTimeout / time.Second), Version: cli.Version,
-		Requests: []Request{}, Sessions: []SessionInfo{}}
+		Requests: []Request{}, Sessions: []SessionInfo{}, NoFFmpeg: a.noFFmpeg}
 	h, started := a.host, a.started
 	a.mu.Unlock()
 	if h == nil || st.Phase == PhaseStopped || st.Phase == PhaseError {
@@ -579,27 +607,37 @@ func (a *App) SetOption(name string, on bool) error {
 	return nil
 }
 
-// Configure stores the user's choice in the setup phase and starts the
+// Configure stores the user's choice of rendezvous server and starts the
 // host with it: mode "official" (signal.OfficialAddr), "custom" (server,
 // as typed; also the default for an empty mode) or "none" (no server:
 // helpers on this network connect by address). The choice is the same
 // setting the desktop app and `remohop config` use, so it is asked once.
+//
+// It is accepted in the setup phase, and also while the host is still
+// trying to reach its server (or could not start), so that a mistyped
+// address can be corrected: the host is then restarted with the new
+// choice, which also wins over a --signal given at start. Once the host
+// is registered, the choice stays.
 func (a *App) Configure(mode, server string) error {
+	a.configMu.Lock()
+	defer a.configMu.Unlock()
 	a.mu.Lock()
-	phase := a.phase
+	phase, code := a.phase, a.errCode
 	a.mu.Unlock()
-	if phase != PhaseSetup {
+	if st := a.State(); st.Phase == PhaseReady {
+		phase = PhaseReady
+	}
+	switch {
+	case phase == PhaseSetup, phase == PhaseConnecting, phase == PhaseError && code == ErrStartFailed:
+	default:
 		return errors.New("a server is already configured")
 	}
+	none := false
 	switch mode {
 	case "official":
 		server = signal.OfficialAddr
 	case "none":
-		if err := config.Set(signal.SettingNone, "on"); err != nil {
-			return err
-		}
-		a.Start()
-		return nil
+		none = true
 	case "", "custom":
 		if server == "" {
 			return &codedError{code: "no_server", msg: "enter the server address"}
@@ -609,6 +647,22 @@ func (a *App) Configure(mode, server string) error {
 		}
 	default:
 		return &codedError{code: "bad_request", msg: "unknown server choice"}
+	}
+	if phase != PhaseSetup {
+		a.stopHost()
+		a.cfg.Signal = ""
+		a.log.Info("rendezvous server changed in the window", "mode", mode)
+	}
+	if none {
+		if err := config.Set(signal.SettingNone, "on"); err != nil {
+			return err
+		}
+		if phase != PhaseSetup {
+			// The address chosen before would win over "none".
+			config.Set(signal.SettingAddr, "")
+		}
+		a.Start()
+		return nil
 	}
 	if err := config.Set(signal.SettingAddr, server); err != nil {
 		return err

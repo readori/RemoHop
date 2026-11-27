@@ -276,3 +276,18 @@ func TestDefaultRunHost(t *testing.T) {
 		t.Errorf("args %v log %q", gotArgs, log.String())
 	}
 }
+
+// TestStatusSuggestsRole: a missing signal service is installed with
+// --role signal, so that is what status suggests.
+func TestStatusSuggestsRole(t *testing.T) {
+	var out strings.Builder
+	printStatus(&out, &Status{}, true)
+	if !strings.Contains(out.String(), "remohop service install --role signal") {
+		t.Errorf("signal: %q", out.String())
+	}
+	out.Reset()
+	printStatus(&out, &Status{}, false)
+	if strings.Contains(out.String(), "--role") || !strings.Contains(out.String(), "remohop service install") {
+		t.Errorf("host: %q", out.String())
+	}
+}

@@ -417,9 +417,23 @@ func ffmpegPath() (string, error) {
 	}
 	p, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		return "", errors.New("ffmpeg not found on the host; the desktop service needs ffmpeg with an H.264 or AV1 encoder. " + installHint())
+		return "", errors.New(ffmpegMissing + ": screen sharing needs ffmpeg with an H.264 or AV1 encoder. " + installHint())
 	}
 	return p, nil
+}
+
+// ffmpegMissing starts the error of a host without ffmpeg; clients look
+// for it (older hosts say it too) to explain what else works.
+const ffmpegMissing = "ffmpeg not found on the host"
+
+// FFmpegInstalled reports whether this machine has ffmpeg (on PATH, or
+// named by REMOHOP_FFMPEG), which screen sharing needs, and if not, how to
+// install it.
+func FFmpegInstalled() (ok bool, hint string) {
+	if _, err := FindFFmpeg(); err != nil {
+		return false, installHint()
+	}
+	return true, ""
 }
 
 func installHint() string {

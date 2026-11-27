@@ -18,10 +18,12 @@
 
   <main id="main" tabindex="-1">
     <p id="status" class="status" role="status" aria-live="polite"><span class="dot"></span><span id="statustext"></span></p>
+    <p id="slow" class="slow" hidden><button id="changeserver" class="small" type="button" data-t="change_server">Change server</button></p>
 
     <section id="requests" aria-live="assertive"></section>
 
     <section id="ready" hidden>
+      <p id="noffmpeg" class="notice" hidden data-t="no_ffmpeg"></p>
       <div class="creds">
         <div class="card cred">
           <div class="label" id="idlabel" data-t="your_id">Your ID</div>
@@ -76,10 +78,11 @@
               <input id="server" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="support.example.com" data-ta="setup_label" aria-label="Server address"></span></label>
           <label class="choice"><input type="radio" name="mode" value="none">
             <span><span class="choice-t" data-t="setup_none">No server</span>
-              <span class="hint block" data-t="setup_none_hint">My helper is on the same network</span></span></label>
+              <span class="hint block" data-t="setup_none_hint">Only on the same network, by address</span></span></label>
         </fieldset>
         <p id="setuperr" class="err" role="alert"></p>
         <button class="primary" type="submit" data-t="setup_go">Continue</button>
+        <button id="setupcancel" class="link" type="button" data-t="setup_cancel" hidden>Cancel</button>
       </form>
     </section>
 

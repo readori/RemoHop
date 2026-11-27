@@ -17,27 +17,34 @@ RemoHop has two ways to carry IP traffic, and it gets along with Tailscale:
 - Linux, macOS or Windows. On macOS and Windows a device can be in the mesh and use an exit node or other devices' routes, but cannot be an exit node or subnet router itself (`--exit`, `--route`), and the macOS and Windows parts were not yet tried on real machines (see [Limits](#limits-and-what-was-tested)).
 - Windows also needs the Wintun driver, as for the VPN: `wintun.dll` 0.14.1 next to `remohop.exe` (see [VPN](en/vpn.md)).
 
-The host's config directory is the device: log in, and run `remohop net`, with the same directory the host uses. For a system service that is `sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop ...` (as `remohop service status` prints).
+The host's config directory is the device: log in, and run `remohop net`, with the same directory the host uses.
+
+- `sudo remohop ...` uses root's own directory (`/root/.config/remohop` on most Linux systems), not yours: to RemoHop that is a device of its own, so log it in too with `sudo remohop login EMAIL` before `sudo remohop net up`, and run the host as root (`sudo remohop host`).
+- If your sudo keeps `HOME`, `sudo remohop` would pick your own directory, which a host running as root cannot share; use `sudo -H remohop ...`.
+- A system service has a directory of its own, which `remohop service status` prints: on Linux `sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop login EMAIL`, then the same for `net up`.
+
+When `remohop net up` refuses with "not a member of an account", it names the directory it used and, under sudo, which of these cases applies.
 
 ### Quick start
 
-On every device:
+On every device, with the host running as root (`sudo remohop host`):
 
 ```bash
+sudo remohop login you@example.com   # once: root's configuration joins the account
 sudo remohop net up
-remohop net status
-remohop net peers
+sudo remohop net status
+sudo remohop net peers
 ping nas.remohop
 ```
 
-`remohop net up` switches the mesh on in the configuration (`remohop config get net`); the running host brings it up within two seconds and again at every start. `remohop net down` takes it down and keeps it down.
+`remohop net up` switches the mesh on in the configuration (`remohop config get net`); the running host brings it up within seconds (`net up` waits up to 15 for it) and again at every start. If no host is running with that directory, `net up` says so and leaves the mesh switched on for the next start. `remohop net down` takes it down and keeps it down.
 
 ### Addresses and names
 
 - Every device gets an IPv4 address in `10.78.0.0/16` and an IPv6 unique-local address in a /64 of its own account (`fdXX:XXXX:XXXX::/64`, derived from the account ID).
 - The address is derived from the device's identity key (SHA-256 of the key). Devices are taken in the order the account's log added them, every device ever added included; a device whose first choice is taken by an earlier one takes the next value of its key's sequence. Every device computes the same table from the same signed log, nobody's address changes when a device joins or leaves, and each side of a link checks that the other claims the address it computed for it.
 - The network can be moved for the whole account with `"prefix4"` in the policy (a private network between /8 and /24); a mesh network that overlaps a network the machine already routes is refused with an explanation. The VPN keeps `10.77.0.0/16` and Tailscale `100.64.0.0/10`, so all three can coexist.
-- Names: the name a device had when it joined the account (`remohop config name` at `remohop login` time), turned into a DNS label; duplicates get `-2`, `-3`. `remohop net peers` shows them.
+- Names: the name a device had when it joined the account, turned into a DNS label; duplicates get `-2`, `-3`. That is the `name` setting at `remohop login` time (`remohop config set name NAME` first to choose it; `remohop login` says which name it uses), or else the computer's host name. `remohop net peers` shows them.
 
 ### DNS, per operating system
 

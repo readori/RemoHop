@@ -53,31 +53,39 @@ The first three are peer to peer. A relayed session is as encrypted and authenti
 
 ### Target and rendezvous
 
-**`no rendezvous server configured: pass --signal HOST[:PORT], set REMOHOP_SIGNAL, or run `remohop config set signal HOST[:PORT]` (you can run your own with `remohop signal`)`**
+**`no rendezvous server configured. Choose one:`** (or **`... is a RemoHop ID, and IDs are looked up on a rendezvous server ... None is set up here. Choose one:`**)
 
-You used an ID, but this machine has no rendezvous server, and there is no built-in default. Set one with `remohop config set signal sig.example.net`, or connect by address, for example `remohop 192.168.1.5:21118 info`, with the host started as `remohop host --no-signal --listen :21118`.
+You used an ID, but this machine has no rendezvous server, and there is no built-in default. The message lists the choices, one per line:
 
-**`no host with ID 276 941 009 is known to the rendezvous server ... (check the ID)`**
+```
+  official server: remohop config set signal signal.remohop.com  (as offered by the desktop app and Quick Support)
+  your own server: remohop config set signal HOST[:PORT]  (start one with `remohop signal`)
+  same network:    remohop HOST:PORT <command>  (no server needed)
+```
+
+The official server is the one the desktop app and Quick Support offer on their first start; nothing uses it unless you choose it. Without a server, connect by address, for example `remohop 192.168.1.5:21118 info`, with the host started as `remohop host --no-signal --listen :21118`.
+
+**`no host with ID 276 941 009 is known to the rendezvous server .... Check the ID with the person at that computer ...`**
 
 Check the digits (IDs are printed with spaces; both forms work) and check that both machines use the same server. A host installed as a service has a different ID from a `remohop host` started by hand on the same machine, and `remohop key gen` on a host gives it a new ID.
 
-**`host 276 941 009 is offline: it is not connected to the rendezvous server ...`**
+**`host 276 941 009 is offline: it is not connected to the rendezvous server .... Check that RemoHop is running there ...`**
 
-The ID exists, but the host is not registered right now. On the host, run `remohop status`; while it cannot register it shows the reason in the ID line, and the daemon keeps retrying.
+The ID exists, but the host is not registered right now. On the host, run `remohop status`; while it cannot register it shows the reason in the ID line, and the daemon keeps retrying. `remohop doctor 276941009` asks the server about that ID from here, without logging in.
 
-**`host ... is registered with the rendezvous server but did not answer; try again`**
+**`host ... is registered with the rendezvous server but did not answer. Try again in a moment ...`**
 
 Usually transient. Try again, and check `remohop status` on the host if it persists.
 
-**`rendezvous server ... unreachable: ...`** or **`rendezvous server key ... does not match the pinned key`**
+**`rendezvous server ... unreachable: it did not answer. Check the address and port ...`** or **`rendezvous server key ... does not match the pinned key`**
 
-Check that the server's two UDP ports are open to the internet. If the key differs, confirm that the server was replaced, then update the pin with `remohop config set signal-pin KEY` or remove it with `remohop config unset signal-pin`.
+Check the address and port (`remohop config get signal`), that `remohop signal` runs there, and that the server's two UDP ports (21116-21117 by default) are open to the internet, in its firewall and its cloud provider's. `remohop doctor` goes through these. If the key differs, confirm that the server was replaced, then update the pin with `remohop config set signal-pin KEY` or remove it with `remohop config unset signal-pin`.
 
 **`unknown target "x": expected a 9-digit ID, a saved alias (see `remohop peers`) or HOST:PORT`**
 
 List saved names with `remohop peers` or `remohop devices`.
 
-**`no remohop host answered at <address>`**
+**`no remohop host answered at <address>. Check the address and port ...`**
 
 Nothing answered at a HOST:PORT target. Check the address, the port given to `--listen`, and firewalls for UDP.
 
@@ -357,7 +365,7 @@ Dropping a file on the viewer page (or the Upload button) copies it to the host 
 `desktop` needs ffmpeg on the host, with an H.264 or AV1 encoder. `remohop <ID> desktop --no-open --json` lists the encoders the host found (for example `"av1": "libsvtav1", "h264": "libx264"`); the codec is chosen when the page connects and tells the host what the browser can decode.
 
 - **Which codec is used.** AV1 when the host has a GPU AV1 encoder; otherwise H.264, hardware-encoded where available (NVENC, QSV, VAAPI, AMF, VideoToolbox, Media Foundation), else libx264. Software AV1 is used only when the browser decodes only AV1, or with `--codec av1`. `--encoder NAME` forces one ffmpeg encoder.
-- **`ffmpeg not found on the host; ...`** followed by an install hint: install ffmpeg (6.0 or newer is recommended), or set `REMOHOP_FFMPEG=/path/to/ffmpeg` on the host.
+- **`desktop: the host has no ffmpeg, which screen sharing needs. ...`**, followed by the host's `ffmpeg not found on the host: ...` and an install hint: install ffmpeg on the host (6.0 or newer is recommended), or set `REMOHOP_FFMPEG=/path/to/ffmpeg` there. Meanwhile `remohop <ID> screenshot` takes still pictures without it. On the host, `remohop doctor` shows whether ffmpeg and a screen are found; Quick Support says so in its window.
 - **`ffmpeg at <path> has no <name> encoder`**: the encoder given with `--encoder` is not in this build.
 - **No usable encoder:** install an ffmpeg build with libx264, or with libsvtav1 or libaom for AV1. Of the hardware encoders only VideoToolbox (macOS) is verified, on a hosted Apple Silicon VM; the others are untested. For VAAPI on a non-default device set `REMOHOP_VAAPI_DEVICE` on the host.
 - **A notice about SVT-AV1** (only when AV1 runs in software): SVT-AV1 2.2 to 3.0 loses small screen updates in its real-time presets. On those hosts (Ubuntu 26.04 ships 2.3) RemoHop uses libaom instead and says so; without libaom it runs SVT-AV1 at a slow preset and warns to expect a low frame rate. H.264, SVT-AV1 1.7 or 3.1 and newer, or a GPU encoder avoid this.

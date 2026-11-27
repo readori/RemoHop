@@ -86,19 +86,23 @@ the host sees this machine as 127.0.0.1:41009</code></pre>
 <p>The first three are peer to peer. A relayed session is as encrypted and authenticated as any other, but slower and subject to the relay's bandwidth cap. It is announced on stderr when it is set up (<code>REMOHOP_QUIET=1</code> silences the notice). <code>the host calls itself</code> shows the name set with <code>remohop config set name</code> on the host, if any.</p>
 <h2 id="connection-errors">Connection errors</h2>
 <h3 id="target-and-rendezvous">Target and rendezvous</h3>
-<p><strong><code>no rendezvous server configured: pass --signal HOST[:PORT], set REMOHOP_SIGNAL, or run </code>remohop config set signal HOST[:PORT]<code>(you can run your own with</code>remohop signal<code>)</code></strong></p>
-<p>You used an ID, but this machine has no rendezvous server, and there is no built-in default. Set one with <code>remohop config set signal sig.example.net</code>, or connect by address, for example <code>remohop 192.168.1.5:21118 info</code>, with the host started as <code>remohop host --no-signal --listen :21118</code>.</p>
-<p><strong><code>no host with ID 276 941 009 is known to the rendezvous server ... (check the ID)</code></strong></p>
+<p><strong><code>no rendezvous server configured. Choose one:</code></strong> (or <strong><code>... is a RemoHop ID, and IDs are looked up on a rendezvous server ... None is set up here. Choose one:</code></strong>)</p>
+<p>You used an ID, but this machine has no rendezvous server, and there is no built-in default. The message lists the choices, one per line:</p>
+<pre tabindex="0"><code>  official server: remohop config set signal signal.remohop.com  (as offered by the desktop app and Quick Support)
+  your own server: remohop config set signal HOST[:PORT]  (start one with `remohop signal`)
+  same network:    remohop HOST:PORT &lt;command&gt;  (no server needed)</code></pre>
+<p>The official server is the one the desktop app and Quick Support offer on their first start; nothing uses it unless you choose it. Without a server, connect by address, for example <code>remohop 192.168.1.5:21118 info</code>, with the host started as <code>remohop host --no-signal --listen :21118</code>.</p>
+<p><strong><code>no host with ID 276 941 009 is known to the rendezvous server .... Check the ID with the person at that computer ...</code></strong></p>
 <p>Check the digits (IDs are printed with spaces; both forms work) and check that both machines use the same server. A host installed as a service has a different ID from a <code>remohop host</code> started by hand on the same machine, and <code>remohop key gen</code> on a host gives it a new ID.</p>
-<p><strong><code>host 276 941 009 is offline: it is not connected to the rendezvous server ...</code></strong></p>
-<p>The ID exists, but the host is not registered right now. On the host, run <code>remohop status</code>; while it cannot register it shows the reason in the ID line, and the daemon keeps retrying.</p>
-<p><strong><code>host ... is registered with the rendezvous server but did not answer; try again</code></strong></p>
+<p><strong><code>host 276 941 009 is offline: it is not connected to the rendezvous server .... Check that RemoHop is running there ...</code></strong></p>
+<p>The ID exists, but the host is not registered right now. On the host, run <code>remohop status</code>; while it cannot register it shows the reason in the ID line, and the daemon keeps retrying. <code>remohop doctor 276941009</code> asks the server about that ID from here, without logging in.</p>
+<p><strong><code>host ... is registered with the rendezvous server but did not answer. Try again in a moment ...</code></strong></p>
 <p>Usually transient. Try again, and check <code>remohop status</code> on the host if it persists.</p>
-<p><strong><code>rendezvous server ... unreachable: ...</code></strong> or <strong><code>rendezvous server key ... does not match the pinned key</code></strong></p>
-<p>Check that the server's two UDP ports are open to the internet. If the key differs, confirm that the server was replaced, then update the pin with <code>remohop config set signal-pin KEY</code> or remove it with <code>remohop config unset signal-pin</code>.</p>
+<p><strong><code>rendezvous server ... unreachable: it did not answer. Check the address and port ...</code></strong> or <strong><code>rendezvous server key ... does not match the pinned key</code></strong></p>
+<p>Check the address and port (<code>remohop config get signal</code>), that <code>remohop signal</code> runs there, and that the server's two UDP ports (21116-21117 by default) are open to the internet, in its firewall and its cloud provider's. <code>remohop doctor</code> goes through these. If the key differs, confirm that the server was replaced, then update the pin with <code>remohop config set signal-pin KEY</code> or remove it with <code>remohop config unset signal-pin</code>.</p>
 <p><strong><code>unknown target "x": expected a 9-digit ID, a saved alias (see </code>remohop peers<code>) or HOST:PORT</code></strong></p>
 <p>List saved names with <code>remohop peers</code> or <code>remohop devices</code>.</p>
-<p><strong><code>no remohop host answered at &lt;address&gt;</code></strong></p>
+<p><strong><code>no remohop host answered at &lt;address&gt;. Check the address and port ...</code></strong></p>
 <p>Nothing answered at a HOST:PORT target. Check the address, the port given to <code>--listen</code>, and firewalls for UDP.</p>
 <h3 id="credentials-and-approval">Credentials and approval</h3>
 <p><strong><code>no credential for this host (...): no password given and no saved pairing; ...</code></strong></p>
@@ -320,7 +324,7 @@ remohop stop --all</code></pre>
 <p><code>desktop</code> needs ffmpeg on the host, with an H.264 or AV1 encoder. <code>remohop &lt;ID&gt; desktop --no-open --json</code> lists the encoders the host found (for example <code>"av1": "libsvtav1", "h264": "libx264"</code>); the codec is chosen when the page connects and tells the host what the browser can decode.</p>
 <ul>
 <li><strong>Which codec is used.</strong> AV1 when the host has a GPU AV1 encoder; otherwise H.264, hardware-encoded where available (NVENC, QSV, VAAPI, AMF, VideoToolbox, Media Foundation), else libx264. Software AV1 is used only when the browser decodes only AV1, or with <code>--codec av1</code>. <code>--encoder NAME</code> forces one ffmpeg encoder.</li>
-<li><strong><code>ffmpeg not found on the host; ...</code></strong> followed by an install hint: install ffmpeg (6.0 or newer is recommended), or set <code>REMOHOP_FFMPEG=/path/to/ffmpeg</code> on the host.</li>
+<li><strong><code>desktop: the host has no ffmpeg, which screen sharing needs. ...</code></strong>, followed by the host's <code>ffmpeg not found on the host: ...</code> and an install hint: install ffmpeg on the host (6.0 or newer is recommended), or set <code>REMOHOP_FFMPEG=/path/to/ffmpeg</code> there. Meanwhile <code>remohop &lt;ID&gt; screenshot</code> takes still pictures without it. On the host, <code>remohop doctor</code> shows whether ffmpeg and a screen are found; Quick Support says so in its window.</li>
 <li><strong><code>ffmpeg at &lt;path&gt; has no &lt;name&gt; encoder</code></strong>: the encoder given with <code>--encoder</code> is not in this build.</li>
 <li><strong>No usable encoder:</strong> install an ffmpeg build with libx264, or with libsvtav1 or libaom for AV1. Of the hardware encoders only VideoToolbox (macOS) is verified, on a hosted Apple Silicon VM; the others are untested. For VAAPI on a non-default device set <code>REMOHOP_VAAPI_DEVICE</code> on the host.</li>
 <li><strong>A notice about SVT-AV1</strong> (only when AV1 runs in software): SVT-AV1 2.2 to 3.0 loses small screen updates in its real-time presets. On those hosts (Ubuntu&nbsp;26.04 ships 2.3) RemoHop uses libaom instead and says so; without libaom it runs SVT-AV1 at a slow preset and warns to expect a low frame rate. H.264, SVT-AV1 1.7 or 3.1 and newer, or a GPU encoder avoid this.</li>

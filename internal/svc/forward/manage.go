@@ -292,10 +292,8 @@ type unforwarded struct {
 }
 
 func runUnforward(_ context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("unforward", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "unforward", unforwardUsage)
 	asJSON := fs.Bool("json", false, "")
-	fs.Usage = func() { fmt.Fprint(env.Stderr, unforwardUsage) }
 	var ports []int
 	rest := args
 	for {

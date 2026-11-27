@@ -310,7 +310,7 @@ func (st *State) adopt(log []ledger.Entry) (*ledger.State, error) {
 	return ls, nil
 }
 
-// settingName is the device-name setting (`remohop config name`), declared by
+// settingName is the device-name setting (`remohop config set name`), declared by
 // internal/hostd, which imports this package and so cannot be imported.
 const settingName = "name"
 
@@ -330,7 +330,18 @@ func CheckLog(dir string, log []ledger.Entry) error {
 // deviceInfo is what this device tells the server about itself.
 func deviceInfo(dir string) (name, platform string) {
 	values, _ := config.AllIn(dir)
-	return auth.CleanText(values[settingName], ledger.MaxName), runtime.GOOS + "/" + runtime.GOARCH
+	return DeviceName(values), runtime.GOOS + "/" + runtime.GOARCH
+}
+
+// DeviceName is the name a device joins its account with: the "name"
+// setting from values, or else the computer's host name (as
+// hostd.DeviceName).
+func DeviceName(values map[string]string) string {
+	if n := auth.CleanText(values[settingName], ledger.MaxName); n != "" {
+		return n
+	}
+	h, _ := os.Hostname()
+	return auth.CleanText(h, ledger.MaxName)
 }
 
 // session is one connection to the rendezvous server.

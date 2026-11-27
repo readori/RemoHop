@@ -16,6 +16,7 @@ import (
 
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/cli"
+	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/signal"
 )
 
@@ -139,9 +140,7 @@ func init() {
 }
 
 func newFlags(env *cli.Env, name, usage string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, name, usage)
 	return fs
 }
 
@@ -226,6 +225,13 @@ func runLogin(ctx context.Context, env *cli.Env, args []string) int {
 	opts := optsFromEnv(env)
 	_, interactive := terminal(env)
 	in := bufio.NewReader(env.Stdin)
+	if !*asJSON {
+		// The name is what the account's other devices list this one as;
+		// it is easier to pick now than to explain later.
+		values, _ := config.All()
+		fmt.Fprintf(env.Stderr, "This device joins the account as %q. To use another name, first run `remohop config set name NAME`.\n",
+			DeviceName(values))
+	}
 
 	if *code == "" {
 		if err := RequestCode(ctx, opts, email); err != nil {

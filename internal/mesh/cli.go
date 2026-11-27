@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -117,9 +118,7 @@ func (l *routeList) String() string     { return strings.Join(*l, ",") }
 func (l *routeList) Set(v string) error { *l = append(*l, v); return nil }
 
 func runUp(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("net up", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "net up", usage)
 	exit := fs.Bool("exit", false, "")
 	var routes routeList
 	fs.Var(&routes, "route", "")
@@ -184,7 +183,7 @@ func runUp(ctx context.Context, env *cli.Env, args []string) int {
 		return cli.ExitError
 	}
 	if st, err := account.Load(dir); err != nil || st.Status != account.StatusMember {
-		env.Errorf("net up: %v", errNoAccount)
+		env.Errorf("net up: %v\n%s", errNoAccount, dirNote(dir))
 		return cli.ExitError
 	}
 	for k, v := range changes {
@@ -198,8 +197,13 @@ func runUp(ctx context.Context, env *cli.Env, args []string) int {
 		return cli.ExitError
 	}
 	if hs, _ := hostd.ReadStatus(dir); hs == nil {
-		fmt.Fprintln(env.Stdout, "net: switched on; it comes up with the host daemon, which is not running here.")
-		fmt.Fprintln(env.Stdout, "     Start it with `sudo remohop host`, or once for good with `sudo remohop service install --system`.")
+		fmt.Fprintf(env.Stdout, "net: switched on in %s; it comes up with the host daemon that uses this directory, which is not running.\n", dir)
+		fmt.Fprintln(env.Stdout, "     Start it with `sudo remohop host`. A system service (`sudo remohop service install --system`) has a")
+		fmt.Fprintln(env.Stdout, "     directory of its own, shown by `remohop service status`: log in and run `net up` with that one,")
+		fmt.Fprintln(env.Stdout, "     e.g. `sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop net up` on Linux.")
+		if note := sudoNote(dir); note != "" {
+			fmt.Fprintln(env.Stdout, "     "+note)
+		}
 		return cli.ExitOK
 	}
 	st := waitStatus(ctx, dir, 15*time.Second, func(st *Status) bool {
@@ -210,7 +214,7 @@ func runUp(ctx context.Context, env *cli.Env, args []string) int {
 		if st != nil && st.Error != "" {
 			why = st.Error
 		}
-		env.Errorf("net up: %s", why)
+		env.Errorf("net up: %s\n%s", why, dirNote(dir))
 		return cli.ExitError
 	}
 	printStatus(env.Stdout, st)
@@ -484,7 +488,10 @@ func runPolicy(env *cli.Env, args []string) int {
 		return cli.ExitUsage
 	}
 	sp, err := setPolicy(dir, p)
-	if err != nil {
+	if errors.Is(err, errNoAccount) {
+		env.Errorf("net policy: %v\n%s", err, dirNote(dir))
+		return cli.ExitError
+	} else if err != nil {
 		env.Errorf("net policy: %v", err)
 		return cli.ExitError
 	}
@@ -527,4 +534,31 @@ func setPolicy(dir string, p *Policy) (*SignedPolicy, error) {
 		return nil, errors.New("internal error: the new policy does not verify: " + err.Error())
 	}
 	return sp, savePolicy(dir, sp)
+}
+
+// dirNote names the configuration directory a mesh command used (the
+// device the mesh is about), and under sudo says why that may not be the
+// one the user logged in with.
+func dirNote(dir string) string {
+	note := "  configuration directory: " + dir
+	if s := sudoNote(dir); s != "" {
+		note += "\n  " + s
+	}
+	return note
+}
+
+// sudoNote explains the configuration directory chosen under sudo, where
+// it is easy to log in with one and run the mesh with another; "" when not
+// under sudo or REMOHOP_CONFIG_DIR chose it.
+func sudoNote(dir string) string {
+	who := os.Getenv("SUDO_USER")
+	if who == "" || os.Getenv("REMOHOP_CONFIG_DIR") != "" {
+		return ""
+	}
+	if u, err := user.Lookup(who); err == nil && u.HomeDir != "" && strings.HasPrefix(dir, u.HomeDir+string(os.PathSeparator)) {
+		return fmt.Sprintf("Under sudo HOME still points to %s's home, so this is %s's configuration, which a host running as root "+
+			"cannot share. Use `sudo -H remohop ...` for root's own configuration (and log it in with `sudo -H remohop login EMAIL`).", who, who)
+	}
+	return fmt.Sprintf("Under sudo this is root's configuration, not %s's: a device of its own. Log it in to the account too "+
+		"(`sudo remohop login EMAIL`), or use the directory your host runs with: `sudo env REMOHOP_CONFIG_DIR=DIR remohop net up`.", who)
 }

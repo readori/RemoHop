@@ -6,9 +6,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/readori/RemoHop/internal/perm"
 	"strings"
 	"time"
+
+	"github.com/readori/RemoHop/internal/perm"
 
 	"github.com/readori/RemoHop/internal/cli"
 )
@@ -149,9 +150,7 @@ func printResult(env *cli.Env, res *Result, asJSON bool, how string) {
 }
 
 func runWake(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("wake", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, wakeUsage) }
+	fs := cli.NewFlagSet(env, "wake", wakeUsage)
 	bcast := fs.String("broadcast", "", "")
 	port := fs.Int("port", 0, "")
 	save := fs.String("save", "", "")
@@ -264,9 +263,7 @@ func runList(env *cli.Env, asJSON bool, pos []string) int {
 }
 
 func runWol(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("wol", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, wolUsage) }
+	fs := cli.NewFlagSet(env, "wol", wolUsage)
 	port := fs.Int("port", 0, "")
 	asJSON := fs.Bool("json", false, "")
 	pos, err := parseInterspersed(fs, args)

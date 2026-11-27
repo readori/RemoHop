@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/signal"
 )
 
@@ -23,5 +24,19 @@ func TestRendezvousFirst(t *testing.T) {
 	}
 	if err := rendezvousFirst("123456789", Options{Signal: "rv.example.net:21116"}); err != nil {
 		t.Fatalf("ID with --signal: %v", err)
+	}
+}
+
+// TestWaitingNote: while the host's owner is asked, the client says how it
+// appears in their prompt.
+func TestWaitingNote(t *testing.T) {
+	id, err := auth.NewIdentity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := waitingNote("work laptop", id)
+	if !strings.Contains(got, "waiting for approval on the host") || !strings.Contains(got, `"work laptop"`) ||
+		!strings.Contains(got, auth.Fingerprint(id.Public())) {
+		t.Errorf("note %q", got)
 	}
 }

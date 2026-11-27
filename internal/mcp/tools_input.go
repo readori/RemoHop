@@ -66,7 +66,7 @@ type pointerArgs struct {
 }
 
 // locate turns tool coordinates into a display position.
-func (s *Server) locate(targetArg string, a pointerArgs, x, y int) (input.Target, int, int, error) {
+func (s *Server) locate(ctx context.Context, targetArg string, a pointerArgs, x, y int) (input.Target, int, int, error) {
 	switch a.CoordinateSpace {
 	case "", spaceScreenshot:
 		if a.Display != nil {
@@ -78,6 +78,11 @@ func (s *Server) locate(targetArg string, a pointerArgs, x, y int) (input.Target
 		}
 		v, ok := s.views.last(target)
 		if !ok {
+			// Asking for a screenshot first would be a wasted step if
+			// input is refused anyway.
+			if err := s.inputRefusal(ctx, targetArg); err != nil {
+				return input.Target{}, 0, 0, err
+			}
 			return input.Target{}, 0, 0, errors.New(`no screenshot of this machine has been taken in this session: call remohop_screenshot first and give x,y as pixel positions in that image (or pass coordinate_space "display" with real display pixels)`)
 		}
 		dx, dy, err := v.toDisplay(x, y)
@@ -202,7 +207,7 @@ func (s *Server) click(ctx context.Context, in clickIn) (*reply[inputOut], error
 	default:
 		return nil, fmt.Errorf("button %q is not left, right or middle", in.Button)
 	}
-	tgt, x, y, err := s.locate(in.Target, in.pointerArgs, in.X, in.Y)
+	tgt, x, y, err := s.locate(ctx, in.Target, in.pointerArgs, in.X, in.Y)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +217,7 @@ func (s *Server) click(ctx context.Context, in clickIn) (*reply[inputOut], error
 }
 
 func (s *Server) move(ctx context.Context, in moveIn) (*reply[inputOut], error) {
-	tgt, x, y, err := s.locate(in.Target, in.pointerArgs, in.X, in.Y)
+	tgt, x, y, err := s.locate(ctx, in.Target, in.pointerArgs, in.X, in.Y)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +238,7 @@ func (s *Server) scroll(ctx context.Context, in scrollIn) (*reply[inputOut], err
 	}
 	opts := input.ScrollOptions{}
 	if in.X != nil {
-		tgt, x, y, err := s.locate(in.Target, in.pointerArgs, *in.X, *in.Y)
+		tgt, x, y, err := s.locate(ctx, in.Target, in.pointerArgs, *in.X, *in.Y)
 		if err != nil {
 			return nil, err
 		}

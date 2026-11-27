@@ -109,15 +109,28 @@
       'reason.key_rejected': 'The host does not accept this gateway\'s key.',
       'reason.password_login_disabled': 'The host does not allow password logins.',
       'reason.password_required': 'Enter this computer\'s password.',
-      'reason.unknown_id': 'No host with that ID exists.',
+      'reason.unknown_id': 'No host with that ID exists on the rendezvous server. Check the ID with the person at that computer (their RemoHop window shows it); both computers must use the same server.',
       'reason.host_offline': 'That host is not online.',
       'reason.host_unreachable': 'The host did not answer.',
       'reason.rendezvous_rate_limited': 'The rendezvous server is limiting requests from this gateway. Try again in a moment.',
-      'reason.no_path': 'No direct path to the host could be found.',
+      'reason.no_path': 'No direct path to the host could be found: a firewall or NAT between the two networks is in the way. Try again; if it keeps failing, use a rendezvous server that relays, or connect from another network.',
       'reason.host_key_changed': 'The host\'s identity key changed since it was first seen. This could be an impersonation attempt.',
       'reason.too_many_sessions': 'This gateway is at its limit of host sessions.',
-      'reason.timeout': 'Timed out.',
+      'reason.timeout': 'Timed out. Check that the computer is on and RemoHop is running there, then try again.',
       'reason.no_rendezvous': 'A 9-digit ID is looked up on a rendezvous server, a meeting point that introduces this gateway to your computers, and none is set up. Connect by the computer\'s address (host:port) instead, or set your server once on the computer running this page (remohop config set signal HOST[:PORT]), then try again.',
+      // Where the gateway is the desktop app's own (?embed=1), keys with
+      // "@app" replace the gateway's wording (see t).
+      'gw.unreachable@app': 'Cannot reach the RemoHop app: {msg}',
+      'gw.lost@app': 'The RemoHop app is not answering.',
+      'gw.ended.reload@app': 'This page was away for more than 15 minutes (the computer slept), so the RemoHop app closed its connections. Reload to start again: computers paired with this app connect without a password.',
+      'reason.host_locked_out@app': 'That computer has locked this app out after too many wrong passwords. Wait a while, then try again.',
+      'reason.pairing_rejected@app': 'The pairing saved in this app is no longer accepted by that computer. Connect with its password.',
+      'reason.key_rejected@app': 'That computer does not accept this app\'s key.',
+      'reason.rendezvous_rate_limited@app': 'The rendezvous server is limiting requests from this computer. Try again in a moment.',
+      'reason.too_many_sessions@app': 'This app has as many computers open as it can. Close one, then try again.',
+      'reason.no_rendezvous@app': 'A 9-digit ID is looked up on a rendezvous server, and none is set up in this app. Choose one in Settings › Rendezvous server, or connect by the computer\'s address (host:port).',
+      'path.title@app': 'How this app reaches the computer',
+      'd.disconnected@app': 'Disconnected from the RemoHop app.',
       'reason.rendezvous_unreachable': 'The rendezvous server cannot be reached. Check its address and the network, or connect by address (host:port).',
       'reason.signal_wrong_protocol': 'The address set as the rendezvous server is not a RemoHop rendezvous server. Check that setting, or connect to the host by its address (host:port).',
       'reason.signal_is_host': 'The address set as the rendezvous server is a RemoHop host, not a rendezvous server. Connect to that host by its address (host:port), and fix the rendezvous server setting.',
@@ -420,15 +433,26 @@
       'reason.key_rejected': '被控端不接受此网关的密钥。',
       'reason.password_login_disabled': '被控端不允许用密码登录。',
       'reason.password_required': '请输入这台电脑的密码。',
-      'reason.unknown_id': '没有这个 ID 的被控端。',
+      'reason.unknown_id': '汇合服务器上没有这个 ID 的被控端。请和那台电脑前的人核对 ID（对方的 RemoHop 窗口中显示着它）；两台电脑必须使用同一台服务器。',
       'reason.host_offline': '该被控端不在线。',
       'reason.host_unreachable': '被控端没有响应。',
       'reason.rendezvous_rate_limited': '汇合服务器正在限制此网关的请求，请稍后再试。',
-      'reason.no_path': '找不到通往被控端的直连路径。',
+      'reason.no_path': '找不到通往被控端的直连路径：两个网络之间的防火墙或 NAT 挡住了它。请重试；如果一直失败，请使用提供中继的汇合服务器，或换一个网络连接。',
       'reason.host_key_changed': '被控端的身份密钥与首次连接时不同，可能有人在冒充它。',
       'reason.too_many_sessions': '此网关的被控端会话数已达上限。',
-      'reason.timeout': '连接超时。',
+      'reason.timeout': '连接超时。请确认那台电脑已开机并在运行 RemoHop，然后重试。',
       'reason.no_rendezvous': '9 位 ID 要通过汇合服务器查找（它是把本网关介绍给你的电脑的“碰头点”），而目前还没有设置。请改用电脑的地址（host:port）连接，或在运行本页面的电脑上设置一次服务器（remohop config set signal HOST[:PORT]），然后重试。',
+      'gw.unreachable@app': '无法连接 RemoHop 应用：{msg}',
+      'gw.lost@app': 'RemoHop 应用没有响应。',
+      'gw.ended.reload@app': '本页面离开超过 15 分钟（电脑睡眠了），RemoHop 应用已关闭它的连接。请刷新以重新开始：与本应用配对过的电脑无需密码即可连接。',
+      'reason.host_locked_out@app': '密码错误次数过多，那台电脑已暂时拒绝本应用。请稍后再试。',
+      'reason.pairing_rejected@app': '那台电脑已不再接受本应用保存的配对，请用它的密码连接。',
+      'reason.key_rejected@app': '那台电脑不接受本应用的密钥。',
+      'reason.rendezvous_rate_limited@app': '汇合服务器正在限制这台电脑的请求，请稍后再试。',
+      'reason.too_many_sessions@app': '本应用打开的电脑已达上限。请先关闭一台，再重试。',
+      'reason.no_rendezvous@app': '9 位 ID 要通过汇合服务器查找，而本应用还没有设置服务器。请在 设置 › 汇合服务器 中选择一个，或改用电脑的地址（host:port）连接。',
+      'path.title@app': '本应用与那台电脑之间的连接方式',
+      'd.disconnected@app': '已与 RemoHop 应用断开连接。',
       'reason.rendezvous_unreachable': '无法连接汇合服务器。请检查服务器地址和网络，或直接用地址（host:port）连接。',
       'reason.signal_wrong_protocol': '设置的汇合服务器地址不是 RemoHop 汇合服务器。请检查该设置，或直接用地址（host:port）连接被控端。',
       'reason.signal_is_host': '设置的汇合服务器地址是一台 RemoHop 被控端，不是汇合服务器。请直接用该地址（host:port）连接它，并修改汇合服务器设置。',
@@ -681,7 +705,11 @@
     if (x.fb !== undefined && !has(x.k)) return String(x.fb);
     return t(x.k, x.v);
   }
+  // In the desktop app (?embed=1) the gateway is the app itself: its own
+  // wording ("@app" keys) replaces talk of "this gateway" and the CLI.
+  const inApp = (() => { try { return new URLSearchParams(location.search).get('embed') === '1'; } catch (e) { return false; } })();
   function t(key, vars) {
+    if (inApp && has(key + '@app', 'en')) key += '@app';
     const s = has(key) ? D[lang][key] : has(key, 'en') ? D.en[key] : key;
     return s.replace(/\{(\w+)\}/g, (m, k) => vars && Object.prototype.hasOwnProperty.call(vars, k) ? val(vars[k]) : m);
   }

@@ -27,7 +27,7 @@
   - 关闭*命令和网络*：正在运行的命令被终止，打开的终端被关闭，转发的连接和 VPN 被切断，串口和 USB 设备被释放。协助者启动的后台任务（`spawn`）会继续运行，停止共享也不会结束它们。
 
   每类访问的细节见[被控端访问控制](host-access-control.md#开关对已连接会话的作用)。
-- **用平常话说明的连接状态：** 是否已在服务器注册、是否仍在尝试，以及协助者是直接连接还是经由中继。
+- **用平常话说明的连接状态：** 是否已在服务器注册、是否仍在尝试，以及协助者是直接连接还是经由中继。服务器 12 秒仍无响应时，窗口会显示“仍在尝试连接 X。请和协助者核对这个地址。”，并提供 **更换服务器** 按钮重新选择服务器，地址填错了也不必从头再来。
 
 窗口语言跟随系统（中文或英文），也可以在窗口右上角切换；切换后的选择下次启动时仍然有效，系统弹出的连接确认对话框也使用同一语言。`--lang zh|en` 优先于以上两者。
 
@@ -41,6 +41,7 @@
 
 需要了解的限制：
 
+- **屏幕共享需要被协助的电脑上装有 ffmpeg**（带 H.264 或 AV1 编码器）。RemoHop 不附带它（见 [LICENSING.md](../../LICENSING.md)）。没有 ffmpeg 时，窗口会显示“屏幕共享需要 ffmpeg，但这台电脑上没有安装。协助者仍然可以使用文件和命令。”，协助者的 `remohop <ID> desktop` 也会说明被控端没有 ffmpeg；`remohop <ID> screenshot` 仍然可以截取屏幕画面。安装方法：Windows 上 `winget install Gyan.FFmpeg`，macOS 上 `brew install ffmpeg`，Linux 上用包管理器（`apt install ffmpeg`），或用 `REMOHOP_FFMPEG` 指向一个 ffmpeg 程序；在那台电脑上运行 `remohop doctor` 可以查看是否找到了它。
 - **Windows：** `RemoHop.exe` 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。
 - **macOS：** 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 > 隐私与安全性；单独下载的快速协助显示为“RemoHop Quick Support”，完整应用显示为“RemoHop”。macOS 把它们当作两个应用，权限要分别授予；“屏幕录制”要在重新启动应用后才生效）。下载的 `RemoHop-macos.dmg` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；签名和公证见 [packaging/quick/README.md](../../packaging/quick/README.md)。
 - 页面及其服务器在 Linux 上用真实浏览器测试过；启动器窗口在 CI 中于 Windows、macOS 和 Linux 上实际启动并截图。

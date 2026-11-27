@@ -386,13 +386,11 @@ func runList(ctx context.Context, env *cli.Env, args []string) int {
 }
 
 func runAttach(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("usb attach", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "usb attach", usbUsage)
 	var background, asJSON bool
 	fs.BoolVar(&background, "b", false, "")
 	fs.BoolVar(&background, "background", false, "")
 	fs.BoolVar(&asJSON, "json", false, "")
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usbUsage) }
 	var pos []string
 	rest := args
 	for {

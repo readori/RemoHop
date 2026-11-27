@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -113,6 +114,39 @@ func (s *Server) limits(ctx context.Context, in limitsIn) (*reply[limitsOut], er
 		b.WriteString("This MCP server is in read-only mode: tools that change anything are not offered.\n")
 	}
 	return textReply(out, b.String()), nil
+}
+
+// refusal reports whether msg is a grant's refusal or the host's owner
+// saying no (or not answering) to an action that needs their approval.
+func refusal(msg string) bool {
+	return strings.Contains(msg, "is not allowed by grant ") || strings.Contains(msg, "the host's owner denied") ||
+		strings.Contains(msg, "nobody approved")
+}
+
+// inputRefusal reports, before anything else is asked of the model (such
+// as taking a screenshot first), that a grant or the host's owner does not
+// allow mouse and keyboard input on the target at all. It costs a round
+// trip, so it is only asked where its answer saves a wasted step. A host
+// that cannot tell (an older one) is not refused here.
+func (s *Server) inputRefusal(ctx context.Context, target string) error {
+	var l *hostd.Limits
+	err := s.withConn(ctx, target, true, func(ctx context.Context, c *peer.Conn) (err error) {
+		l, err = hostd.GetLimits(ctx, c)
+		return err
+	})
+	if l == nil {
+		if _, ok := errors.AsType[*peer.RemoteError](err); ok {
+			return nil // the action itself will be refused or not
+		}
+		return err // could not connect: that is the first thing to say
+	}
+	switch {
+	case l.Grant != "" && slices.Contains(l.Denied, "input"):
+		return fmt.Errorf("mouse and keyboard input is not allowed by grant %s", clean(l.Grant))
+	case slices.Contains(l.FeaturesOff, "input"):
+		return errors.New("mouse and keyboard input is switched off on the host by its owner; ask the person if you need it")
+	}
+	return nil
 }
 
 // grantHint adds guidance to a tool error that is a grant's refusal, so the

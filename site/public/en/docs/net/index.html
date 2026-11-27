@@ -64,20 +64,27 @@
 <li>Linux, macOS or Windows. On macOS and Windows a device can be in the mesh and use an exit node or other devices' routes, but cannot be an exit node or subnet router itself (<code>--exit</code>, <code>--route</code>), and the macOS and Windows parts were not yet tried on real machines (see <a href="#limits-and-what-was-tested">Limits</a>).</li>
 <li>Windows also needs the Wintun driver, as for the VPN: <code>wintun.dll</code> 0.14.1 next to <code>remohop.exe</code> (see <a href="/en/docs/vpn/">VPN</a>).</li>
 </ul>
-<p>The host's config directory is the device: log in, and run <code>remohop net</code>, with the same directory the host uses. For a system service that is <code>sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop ...</code> (as <code>remohop service status</code> prints).</p>
+<p>The host's config directory is the device: log in, and run <code>remohop net</code>, with the same directory the host uses.</p>
+<ul>
+<li><code>sudo remohop ...</code> uses root's own directory (<code>/root/.config/remohop</code> on most Linux systems), not yours: to RemoHop that is a device of its own, so log it in too with <code>sudo remohop login EMAIL</code> before <code>sudo remohop net up</code>, and run the host as root (<code>sudo remohop host</code>).</li>
+<li>If your sudo keeps <code>HOME</code>, <code>sudo remohop</code> would pick your own directory, which a host running as root cannot share; use <code>sudo -H remohop ...</code>.</li>
+<li>A system service has a directory of its own, which <code>remohop service status</code> prints: on Linux <code>sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop login EMAIL</code>, then the same for <code>net up</code>.</li>
+</ul>
+<p>When <code>remohop net up</code> refuses with "not a member of an account", it names the directory it used and, under sudo, which of these cases applies.</p>
 <h3 id="quick-start">Quick start</h3>
-<p>On every device:</p>
-<pre tabindex="0"><code class="language-bash">sudo remohop net up
-remohop net status
-remohop net peers
+<p>On every device, with the host running as root (<code>sudo remohop host</code>):</p>
+<pre tabindex="0"><code class="language-bash">sudo remohop login you@example.com   # once: root's configuration joins the account
+sudo remohop net up
+sudo remohop net status
+sudo remohop net peers
 ping nas.remohop</code></pre>
-<p><code>remohop net up</code> switches the mesh on in the configuration (<code>remohop config get net</code>); the running host brings it up within two seconds and again at every start. <code>remohop net down</code> takes it down and keeps it down.</p>
+<p><code>remohop net up</code> switches the mesh on in the configuration (<code>remohop config get net</code>); the running host brings it up within seconds (<code>net up</code> waits up to 15 for it) and again at every start. If no host is running with that directory, <code>net up</code> says so and leaves the mesh switched on for the next start. <code>remohop net down</code> takes it down and keeps it down.</p>
 <h3 id="addresses-and-names">Addresses and names</h3>
 <ul>
 <li>Every device gets an IPv4 address in <code>10.78.0.0/16</code> and an IPv6 unique-local address in a /64 of its own account (<code>fdXX:XXXX:XXXX::/64</code>, derived from the account ID).</li>
 <li>The address is derived from the device's identity key (SHA-256 of the key). Devices are taken in the order the account's log added them, every device ever added included; a device whose first choice is taken by an earlier one takes the next value of its key's sequence. Every device computes the same table from the same signed log, nobody's address changes when a device joins or leaves, and each side of a link checks that the other claims the address it computed for it.</li>
 <li>The network can be moved for the whole account with <code>"prefix4"</code> in the policy (a private network between /8 and /24); a mesh network that overlaps a network the machine already routes is refused with an explanation. The VPN keeps <code>10.77.0.0/16</code> and Tailscale <code>100.64.0.0/10</code>, so all three can coexist.</li>
-<li>Names: the name a device had when it joined the account (<code>remohop config name</code> at <code>remohop login</code> time), turned into a DNS label; duplicates get <code>-2</code>, <code>-3</code>. <code>remohop net peers</code> shows them.</li>
+<li>Names: the name a device had when it joined the account, turned into a DNS label; duplicates get <code>-2</code>, <code>-3</code>. That is the <code>name</code> setting at <code>remohop login</code> time (<code>remohop config set name NAME</code> first to choose it; <code>remohop login</code> says which name it uses), or else the computer's host name. <code>remohop net peers</code> shows them.</li>
 </ul>
 <h3 id="dns-per-operating-system">DNS, per operating system</h3>
 <p>Each device runs a small DNS responder on its own mesh address, port 53, that answers A and AAAA for <code>NAME.remohop</code> and refuses everything else, so it can never stand in for your normal resolver. How the system is pointed at it is the <code>net-dns</code> setting (<code>remohop net up --dns MODE</code>), conservative by default:</p>
