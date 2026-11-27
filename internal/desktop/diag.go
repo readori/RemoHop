@@ -50,6 +50,12 @@ func (a *App) DiagnosticsReport(ui UIInfo) string {
 	}
 	line("Connected now", fmt.Sprint(len(in.Sessions)))
 	line("Unattended", fmt.Sprintf("available=%v installed=%v running=%v", un.Available, un.Installed, un.Running))
+	if un.StatusError != "" {
+		line("Service status error", un.StatusError)
+	}
+	if runtime.GOOS == "windows" {
+		line("Elevated", fmt.Sprint(processElevated()))
+	}
 	if un.Error != "" {
 		line("Unattended error", un.Error)
 	}

@@ -45,6 +45,9 @@ type UnattendedState struct {
 	ID        string `json:"id,omitempty"`
 	Busy      bool   `json:"busy,omitempty"`
 	Error     string `json:"error,omitempty"`
+	// StatusError is why the service's status could not be read (shown in
+	// the diagnostic report only).
+	StatusError string `json:"status_error,omitempty"`
 }
 
 type unattendedCache struct {
@@ -60,20 +63,31 @@ var unattended unattendedCache
 
 // serviceStatus runs `remohop service status --json` in-process.
 func serviceStatus(ctx context.Context) (installed, running bool) {
+	installed, running, _ = serviceStatusErr(ctx)
+	return installed, running
+}
+
+// serviceStatusErr is serviceStatus with the reason the status could not
+// be read, if it could not.
+func serviceStatusErr(ctx context.Context) (installed, running bool, why string) {
 	c := cli.Lookup("service")
 	if c == nil {
-		return false, false
+		return false, false, "this program cannot manage services"
 	}
-	var out bytes.Buffer
-	c.Run(ctx, &cli.Env{Stdin: strings.NewReader(""), Stdout: &out, Stderr: io.Discard}, []string{"status", "--json"})
+	var out, errb bytes.Buffer
+	c.Run(ctx, &cli.Env{Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errb}, []string{"status", "--json"})
 	var st struct {
 		Installed bool `json:"installed"`
 		Running   bool `json:"running"`
 	}
 	if json.Unmarshal(out.Bytes(), &st) != nil {
-		return false, false
+		why = cli.Sanitize(strings.TrimSpace(errb.String()))
+		if why == "" {
+			why = "no answer"
+		}
+		return false, false, why
 	}
-	return st.Installed, st.Running
+	return st.Installed, st.Running, ""
 }
 
 // UnattendedState reports unattended access (the service is asked at most
@@ -83,8 +97,8 @@ func (a *App) UnattendedState() UnattendedState {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if time.Since(u.at) > 5*time.Second && !u.busy {
-		installed, running := serviceStatus(a.ctx)
-		u.st = UnattendedState{Available: unattendedAvailable(), Installed: installed, Running: running, Admin: runtime.GOOS == "windows"}
+		installed, running, why := serviceStatusErr(a.ctx)
+		u.st = UnattendedState{Available: unattendedAvailable(), Installed: installed, Running: running, Admin: runtime.GOOS == "windows", StatusError: why}
 		if installed {
 			if runtime.GOOS == "windows" {
 				if u.winID == "" {
