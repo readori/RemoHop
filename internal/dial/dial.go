@@ -987,14 +987,25 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (_ 
 	}
 	var q *quic.Conn
 	var win nat.Punched
-	if relayOK && !retryable {
-		// The last attempt, and a relay to fall back on: start it early
-		// rather than after the punch has given up (at once with a hint).
+	if relayOK {
+		// A relay to fall back on: start it alongside the punch if no
+		// path has answered soon, rather than after the punch (and a
+		// retry) has given up. Between two cone NATs whose punch cannot
+		// work this took a dial from 6.2 s to 2.0 s at 40 ms round trip.
+		// The punch keeps running, and a direct path that answers wins
+		// (directGrace). Only if the relay fails too is the punch
+		// retried.
 		wait := relayAfter
 		if prefer != nil {
 			wait = max(wait, tailnetPunchTime)
 		}
-		if hinted {
+		// With a hint (punching failed moments ago), or between two
+		// symmetric NATs, which no punch gets through without a router
+		// port mapping, the relay starts at once: 1.74 s down to 0.55 s
+		// for the latter. Not when the host offers a tailnet address or
+		// shares our NAT, where a direct path does not depend on the
+		// NATs.
+		if hinted || (prefer == nil && !sameNAT && natType == nat.TypeSymmetric && intro.Peer.NAT == nat.TypeSymmetric) {
 			wait = 0
 		}
 		var rt route

@@ -894,6 +894,27 @@ func TestRelayFallback(t *testing.T) {
 		}
 	})
 
+	// No punch gets through two symmetric NATs, so the relay is set up at
+	// once rather than after relayAfter (made long here) or after the
+	// punch (made long too) has given up.
+	t.Run("at once between symmetric NATs", func(t *testing.T) {
+		defer func(old time.Duration) { relayAfter = old }(relayAfter)
+		relayAfter = 20 * time.Second
+		w := relayWorld(t, &signal.RelayConfig{})
+		host, opts := symmetricPair(w, "")
+		opts.PunchTime = 20 * time.Second
+		start := time.Now()
+		conn, err := Dial(testCtx(t), host.ID(), opts)
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		defer conn.Close()
+		if took := time.Since(start); took > 8*time.Second || InfoOf(conn).Path != PathRelayed {
+			t.Fatalf("path %s after %s; want the relay at once", InfoOf(conn).Path, took)
+		}
+		echo(t, conn)
+	})
+
 	t.Run("direct paths are preferred", func(t *testing.T) {
 		w := relayWorld(t, &signal.RelayConfig{})
 		host := w.host(w.net.NAT("203.0.113.20", vnet.PortRestrictedCone).Host("10.0.0.20"))
