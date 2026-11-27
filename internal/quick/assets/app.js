@@ -30,7 +30,10 @@
       stop: 'Stop sharing',
       close_hint: 'Closing this window also stops sharing.',
       st_connecting: 'Connecting to the server…',
-      st_slow: 'Still trying to reach the server {server}. Check that this computer is connected to the internet.',
+      st_slow: 'Still trying to reach {server}. Check the address with your helper.',
+      change_server: 'Change server',
+      setup_cancel: 'Cancel',
+      no_ffmpeg: 'Screen sharing needs ffmpeg, which is not installed on this computer. Your helper can still use files and commands.',
       st_ready: 'Ready. Waiting for your helper to connect.',
       st_offline: 'Lost contact with the server; trying again. New helpers cannot connect until it is back.',
       st_offline_live: 'Lost contact with the server; trying again. The people already connected are not affected.',
@@ -73,7 +76,7 @@
       setup_official_sub: 'Run by RemoHop, nothing to set up',
       setup_custom: 'My helper gave me a server address',
       setup_none: 'No server',
-      setup_none_hint: 'My helper is on the same network',
+      setup_none_hint: 'Only on the same network, by address',
       your_address: 'Your address',
       no_address: 'No network address found',
       net_noserver_addr: 'No server: helpers on this network connect to this computer\'s address.',
@@ -118,7 +121,10 @@
       stop: '停止共享',
       close_hint: '关闭此窗口也会停止共享。',
       st_connecting: '正在连接服务器…',
-      st_slow: '仍在尝试连接服务器 {server}。请检查这台电脑是否已联网。',
+      st_slow: '仍在尝试连接 {server}。请和协助者核对这个地址。',
+      change_server: '更换服务器',
+      setup_cancel: '取消',
+      no_ffmpeg: '屏幕共享需要 ffmpeg，但这台电脑上没有安装。协助者仍然可以使用文件和命令。',
       st_ready: '已就绪，等待协助者连接。',
       st_offline: '与服务器的连接中断，正在重试。恢复之前，新的协助者无法连接。',
       st_offline_live: '与服务器的连接中断，正在重试。已连接的人不受影响。',
@@ -159,7 +165,7 @@
       setup_official_sub: '由 RemoHop 运营，无需设置',
       setup_custom: '协助者给了我一个服务器地址',
       setup_none: '不用服务器',
-      setup_none_hint: '协助者和我在同一个网络中',
+      setup_none_hint: '仅限同一网络，按地址连接',
       your_address: '本机地址',
       no_address: '没有找到网络地址',
       net_noserver_addr: '不用服务器：同一网络中的协助者通过本机地址连接。',
@@ -185,6 +191,9 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var lang = 'en', csrf = '', state = null, gone = false, goneTimer = 0, es = null;
+  // changing: the person asked to correct the server while the host is
+  // still trying to reach it; the setup form is shown again.
+  var changing = false;
   var askEls = {};       // request n -> element
   var sessionSig = '';
 
@@ -356,11 +365,15 @@
     var s = state;
     if (!s) return;
     if (gone) s = { phase: 'gone', requests: [], sessions: [], options: {} };
-    var running = s.phase === 'ready' || s.phase === 'connecting';
+    if (s.phase !== 'connecting') changing = false;
+    var running = (s.phase === 'ready' || s.phase === 'connecting') && !changing;
     $('ready').hidden = !running;
-    $('setup').hidden = s.phase !== 'setup';
+    $('setup').hidden = !(s.phase === 'setup' || changing);
+    $('setupcancel').hidden = !changing;
     $('message').hidden = true;
-    $('stop').hidden = $('closehint').hidden = !(running || s.phase === 'setup');
+    // Stopping means something only once sharing has started.
+    $('stop').hidden = $('closehint').hidden = s.phase !== 'ready';
+    $('slow').hidden = true;
     $('version').textContent = s.version ? 'RemoHop ' + s.version : '';
     renderRequests(s.requests || []);
     renderSessions(s.sessions || []);
@@ -389,6 +402,10 @@
       setStatus('', t('st_setup'));
       return;
     }
+    if (changing) {
+      setStatus('wait', t('st_slow', { server: s.server }));
+      return;
+    }
 
     var id = $('id'), pw = $('pw');
     // Without a server (the user chose none) helpers come by address.
@@ -402,6 +419,7 @@
     $('opt-input').checked = !!s.options.input;
     $('opt-files').checked = !!s.options.files;
     $('opt-advanced').checked = !!s.options.advanced;
+    $('noffmpeg').hidden = !s.no_ffmpeg;
 
     var n = s.sessions.length;
     if (s.requests.length) setStatus('wait', t('st_asking'));
@@ -409,6 +427,8 @@
     else if (!s.online && s.server) setStatus('bad', t(n ? 'st_offline_live' : 'st_offline'));
     else if (n) setStatus('live', n === 1 ? t('st_live_1') : t('st_live_n', { n: n }));
     else setStatus('ok', t('st_ready'));
+    // A server that does not answer may be a typo: it can be changed here.
+    $('slow').hidden = !(s.phase === 'connecting' && s.waited > 12 && s.server);
 
     var net = $('net');
     net.textContent = '';
@@ -477,6 +497,25 @@
   $('copypw').addEventListener('click', function () { copy(this, $('pw')); });
   $('regen').addEventListener('click', function () { act('regenerate'); });
   $('stop').addEventListener('click', function () { $('stop').disabled = true; act('stop'); });
+  $('changeserver').addEventListener('click', function () {
+    changing = true;
+    $('setuperr').textContent = '';
+    if (state && state.server) {
+      $('server').value = state.server;
+      var c = document.querySelector('input[name=mode][value=custom]');
+      if (c) c.checked = true;
+    }
+    render();
+    $('server').focus();
+  });
+  // Back to the first-run defaults once a change is done with.
+  function resetSetup() {
+    var o = document.querySelector('input[name=mode][value=official]');
+    if (o) o.checked = true;
+    $('server').value = '';
+    $('setuperr').textContent = '';
+  }
+  $('setupcancel').addEventListener('click', function () { changing = false; resetSetup(); render(); });
   ['input', 'files', 'advanced'].forEach(function (name) {
     $('opt-' + name).addEventListener('change', function () { act('option', { name: name, on: this.checked }); });
   });
@@ -493,7 +532,11 @@
     var server = $('server').value.trim();
     var picked = document.querySelector('input[name=mode]:checked');
     var mode = picked ? picked.value : 'custom';
-    api('configure', { mode: mode, server: mode === 'custom' ? server : '' }).catch(function (e) {
+    api('configure', { mode: mode, server: mode === 'custom' ? server : '' }).then(function () {
+      if (changing) resetSetup();
+      changing = false;
+      render();
+    }).catch(function (e) {
       // English shows the process's own words; Chinese has its own.
       // In this page's words in either language; the process's own text
       // only for a case it has no words for.

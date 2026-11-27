@@ -119,6 +119,15 @@ async function shot(page, name) {
     const net = await page.textContent('#net');
     check(net.includes('rendezvous.example.net') && net.includes('end-to-end encrypted') && net.includes('60 seconds'), 'connection details: ' + net);
 
+    // No ffmpeg here: the page says what the helper can still do.
+    check(!(await page.isVisible('#noffmpeg')), 'no ffmpeg notice while ffmpeg is there');
+    await step('noffmpeg');
+    await page.waitForSelector('#noffmpeg:not([hidden])');
+    check((await page.textContent('#noffmpeg')).includes('Screen sharing needs ffmpeg, which is not installed on this computer'), 'ffmpeg notice');
+    await shot(page, 'quick-no-ffmpeg-en');
+    await step('ffmpeg');
+    await page.waitForSelector('#noffmpeg', { state: 'hidden' });
+
     // Server lost.
     await step('offline');
     await page.waitForSelector('#status.bad');
@@ -169,8 +178,22 @@ async function shot(page, name) {
     await step('connecting');
     page = await open(browser, 'en');
     check((await page.textContent('#id')).includes('Getting an ID'), 'no ID yet');
-    check((await page.textContent('#statustext')).includes('Still trying to reach the server rendezvous.example.net'), 'slow registration explained');
+    check((await page.textContent('#statustext')).includes('Still trying to reach rendezvous.example.net. Check the address with your helper.'), 'slow registration explained');
+    check(!(await page.isVisible('#stop')), 'no "Stop sharing" before sharing has started');
     await shot(page, 'quick-connecting-en');
+    // A server that does not answer (a typo?) can be corrected from here.
+    await page.click('#changeserver');
+    await page.waitForSelector('#setup:not([hidden])');
+    check(await page.inputValue('#server') === 'rendezvous.example.net', 'the current server is offered for correction');
+    check(!(await page.isVisible('#ready')), 'the setup form replaces the credentials');
+    await page.click('#setupcancel');
+    await page.waitForSelector('#ready:not([hidden])');
+    await page.click('#changeserver');
+    await page.fill('#server', 'support.example.org');
+    await page.click('#setupform button');
+    await waitLog(page, 'configure support.example.org');
+    await page.waitForSelector('#ready:not([hidden])');
+    await page.waitForFunction(() => document.getElementById('statustext').textContent.includes('support.example.org'));
     await step('setup');
     await page.waitForSelector('#setup:not([hidden])');
     check(!(await page.isVisible('#ready')), 'no credentials in setup');

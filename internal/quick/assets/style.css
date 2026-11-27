@@ -115,3 +115,6 @@ label.choice > input { margin-top: .3em; flex: none; width: 17px; height: 17px; 
 label.choice .grow { flex: 1; min-width: 0; }
 .choice-t { display: block; font-weight: 650; }
 label.choice input[type=text] { margin-top: 8px; width: 100%; }
+.slow { margin: -4px 0 12px; }
+.notice { margin: 0 0 12px; padding: 10px 13px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); }
+#setupcancel { margin-left: 12px; }

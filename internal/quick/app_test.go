@@ -448,8 +448,24 @@ func TestSetupPhase(t *testing.T) {
 	if b, _ := os.ReadFile(filepath.Join(dir, "config.json")); !strings.Contains(string(b), "127.0.0.1:9") {
 		t.Fatalf("server not stored: %s", b)
 	}
-	if err := a.Configure("official", ""); err == nil {
-		t.Fatal("the server could be changed from the page after setup")
+	// A server that does not answer (a typo, say) can be changed while the
+	// host is still trying: it restarts with the new one.
+	if err := a.Configure("custom", "127.0.0.1:8"); err != nil {
+		t.Fatalf("changing a server that does not answer: %v", err)
+	}
+	if st := a.State(); st.Phase != PhaseConnecting || st.Server != "127.0.0.1:8" || st.Password == "" {
+		t.Fatalf("after changing the server: %+v", st)
+	}
+	// So can "no server", which then wins over the address typed before.
+	if err := a.Configure("none", ""); err != nil {
+		t.Fatal(err)
+	}
+	if st := a.State(); st.Phase != PhaseReady || st.Server != "" {
+		t.Fatalf("after changing to no server: %+v", st)
+	}
+	// Once running, the choice stays.
+	if err := a.Configure("custom", "127.0.0.1:7"); err == nil {
+		t.Fatal("the server could be changed from the page once the host was ready")
 	}
 }
 

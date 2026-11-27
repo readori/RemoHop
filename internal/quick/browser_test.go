@@ -45,6 +45,8 @@ func TestPageInBrowser(t *testing.T) {
 		"action": func(st *State) {
 			st.Requests = []Request{{N: 9, Name: "ci-agent", Grant: "ci-agent", Action: "exec: git push", Identity: request.Identity, From: request.From, Auth: "token", Left: 50}}
 		},
+		"noffmpeg":   func(st *State) { st.NoFFmpeg = true },
+		"ffmpeg":     func(st *State) { st.NoFFmpeg = false },
 		"offline":    func(st *State) { st.Online = false },
 		"online":     func(st *State) { st.Online = true },
 		"connecting": func(st *State) { st.Phase, st.ID, st.Online, st.Waited = PhaseConnecting, "", false, 20 },
