@@ -103,6 +103,7 @@ PRICES = {
     "user_month": "5",       # Teams, per user per month, billed yearly
     "user_year": "60",       # the same, per user per year
     "free_users": "5",       # Teams Free: up to this many users
+    "free_devices": "50",    # Teams Free: up to this many devices
     "devices_per_user": "10",  # Teams: devices included per user
     "enterprise_users": "500",  # Enterprise: more than this many users
 }
