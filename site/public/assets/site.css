@@ -127,6 +127,11 @@
   h3 { font-size: 1.08rem; margin-block: 2rem 0.5rem; }
   p, ul, ol, dl, pre, figure, table, .table-wrap, .note { margin-block: 0 1.05rem; }
   p, li, dt, dd, td, th, figcaption, blockquote { text-wrap: pretty; }
+  /* Chinese running text is justified, as Chinese is usually set, so both
+     edges of a paragraph line up. "pretty" wrapping is for English only:
+     Safari's version shortens CJK lines and leaves a ragged gap on the
+     right. This is the base layer, so a centred or aligned component still wins. */
+  :lang(zh-CN) :where(p, li, dd, figcaption, blockquote) { text-wrap: wrap; text-align: justify; }
   /* Chinese: headings, buttons and labels break only at spaces and
      punctuation, so a word is never split across lines ("控 / 制"). A run
      too long for its box still breaks (overflow-wrap on body). Running
@@ -427,7 +432,8 @@
      words for screen readers are in .vh, and the drawn text has empty alt text. */
   .h-stats { background: var(--surface); border-block-end: 1px solid var(--rule); }
   .h-stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 1.4rem 2rem; padding-block: clamp(1.6rem, 1rem + 2vw, 2.4rem); }
-  .h-stat p { margin: 0; color: var(--ink-2); font-size: 0.92rem; }
+  /* Short captions in a narrow grid: justifying them would space the characters out. */
+  .h-stat p { margin: 0; color: var(--ink-2); font-size: 0.92rem; text-align: start; }
   .h-stat .h-num {
     margin: 0 0 0.25rem; font-size: clamp(2.1rem, 1.6rem + 2vw, 2.9rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em;
     background: linear-gradient(90deg, var(--accent), light-dark(#0e8fb5, #7fe3ff)); -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -556,10 +562,9 @@
   .ask-why { margin: 0 0 0.45rem; font: 0.76rem/1.5 var(--mono); color: #a72336; background: #fdecea; border-radius: 8px; padding: 0.45rem 0.6rem; overflow-wrap: anywhere; }
   .ask-card figcaption { font-size: 0.74rem; color: #566178; line-height: 1.4; }
   @media (max-width: 40rem) {
-    /* Phones: the hero terminal scrolls sideways like a real one instead of
-       wrapping every line. */
-    .agent-stage pre.term, .grant pre.term { white-space: pre; overflow-x: auto; }
-    .agent-stage pre .hang { display: inline; padding: 0; text-indent: 0; }
+    /* Phones: long commands wrap inside the terminal, with continuation
+       lines indented, rather than running off its right edge. */
+    .agent-stage pre.term, .grant pre.term { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: visible; }
     .grant pre.term code { font-size: 0.72rem; }
     .h-stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .home-hero .agent-stage { padding-block-end: 0; }
