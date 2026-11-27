@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/readori/RemoHop/internal/svc/vpn"
 )
 
 // The system commands of the macOS and Windows data planes, built here
@@ -73,17 +75,11 @@ func windowsRouteCmd(idx string, p netip.Prefix) []string {
 // that removing it never touches another program's rules.
 const nrptComment = "remohop-net"
 
-// powershell runs a short script without a profile or prompts.
-func powershell(script string) []string {
-	return []string{"powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script}
-}
+func powershell(script string) []string { return vpn.PowerShell(script) }
 
 // nrptRemoveCmd removes the mesh's NRPT rules (any left by an earlier run
 // too) and forgets cached answers for the domain.
-func nrptRemoveCmd() []string {
-	return powershell(fmt.Sprintf("Get-DnsClientNrptRule | Where-Object { $_.Comment -eq '%s' } | Remove-DnsClientNrptRule -Force; "+
-		"Clear-DnsClientCache", nrptComment))
-}
+func nrptRemoveCmd() []string { return vpn.NRPTRemoveCmd(nrptComment) }
 
 // nrptAddCmd sends queries for .remohop, and only those, to the mesh's
 // responder.

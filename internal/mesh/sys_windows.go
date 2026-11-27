@@ -70,7 +70,7 @@ func checkPrefixFree(p netip.Prefix) error {
 func sysSplitDNS(c *vpn.Changes, _ string, server netip.Addr) (string, bool) {
 	vpn.Command(nrptRemoveCmd()...)
 	if c != nil {
-		if err := c.Record(nrptRemoveCmd()...); err != nil {
+		if err := c.RecordNRPTRemoval(nrptComment); err != nil {
 			return "", false
 		}
 	}

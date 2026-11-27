@@ -149,7 +149,8 @@ jobs:
           Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
           $env:REMOHOP_WINTUN_DIR = Join-Path $env:RUNNER_TEMP 'wintun\bin\amd64'
           $env:REMOHOP_NET_E2E = '1'
-          .\mesh.test.exe -test.run 'SysWindowsE2E' -test.v -test.count=1
+          # Quoted: PowerShell would split -test.run at the dot.
+          .\mesh.test.exe '-test.run=SysWindowsE2E' '-test.v' '-test.count=1'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   cross:
