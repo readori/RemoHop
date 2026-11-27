@@ -310,7 +310,7 @@ func (st *State) adopt(log []ledger.Entry) (*ledger.State, error) {
 	return ls, nil
 }
 
-// settingName is the device-name setting (`remohop config name`), declared by
+// settingName is the device-name setting (`remohop config set name`), declared by
 // internal/hostd, which imports this package and so cannot be imported.
 const settingName = "name"
 

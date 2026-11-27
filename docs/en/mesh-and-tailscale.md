@@ -7,14 +7,17 @@
 `remohop net up` joins all devices of your account (see [Accounts](accounts.md)) into one private network, like a small Tailscale for your own machines: each device gets a stable address derived from its identity key (`10.78.x.y` and an IPv6 unique-local address) and a name like `nas.remohop`.
 
 ```bash
+sudo remohop login you@example.com                     # once, see below
 sudo remohop net up
-remohop net peers
+sudo remohop net peers
 ping nas.remohop
 sudo remohop net up --route 192.168.1.0/24 --exit     # on the office machine
 sudo remohop net up --accept-routes --use-exit office  # on the laptop
-remohop net policy set policy.json
+sudo remohop net policy set policy.json
 sudo remohop net down
 ```
+
+- The mesh belongs to the configuration directory of the host that runs it. `sudo remohop` uses root's directory, not yours, and to RemoHop that is a device of its own: log it in with `sudo remohop login EMAIL` (if your sudo keeps `HOME`, use `sudo -H`). A system service has its own directory, shown by `remohop service status` (`sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop ...` on Linux). When `net up` refuses with "not a member of an account", it names the directory it used.
 
 - Links between devices are ordinary RemoHop sessions, opened when traffic needs them (punched, else relayed or through the websocket bridge), kept alive and re-opened after a device restarts or moves. Their login is limited to the mesh: being in the account gives no shell or files on another device.
 - A signed policy (which device may reach which ports) is handed from device to device and enforced by the receiving one. Without one, every device reaches every port of every other.

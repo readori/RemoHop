@@ -54,18 +54,30 @@
 <h1 id="网状网络与-tailscale">网状网络与 Tailscale</h1>
 <h2 id="网状网络remohop-net">网状网络（remohop net）</h2>
 <p><code>remohop net up</code> 把账号里的所有设备（见<a href="/docs/accounts/">账号</a>）连成一个私有网络，相当于只给自己设备用的小型 Tailscale：每台设备得到一个由身份密钥推导出的固定地址（<code>10.78.x.y</code> 和一个 IPv6 唯一本地地址），以及一个名字，例如 <code>nas.remohop</code>。</p>
-<pre tabindex="0"><code class="language-bash">sudo remohop net up
-remohop net peers
+<pre tabindex="0"><code class="language-bash">sudo remohop login you@example.com                     # 只需一次，见下文
+sudo remohop net up
+sudo remohop net peers
 ping nas.remohop
 sudo remohop net up --route 192.168.1.0/24 --exit     # 办公室的机器
 sudo remohop net up --accept-routes --use-exit office  # 笔记本
-remohop net policy set policy.json
+sudo remohop net policy set policy.json
 sudo remohop net down</code></pre>
 <ul>
-<li>设备之间的链路就是普通的 RemoHop 会话，有流量时才建立（先打洞，不行再走中继或 websocket 桥），有保活，设备重启或换网络后会重新建立。这种登录只限于网状网络：同一账号的设备并不因此获得对方的 shell 或文件。</li>
-<li>签名的访问策略（哪台设备可以访问哪些端口）在设备之间传递，由接收方执行。没有策略时，每台设备可以访问其他设备的所有端口。</li>
-<li>网状网络运行在被控端守护进程里，随被控端服务一起启动：Linux 上需要 root 或 <code>CAP_NET_ADMIN</code>，macOS 上需要 root，Windows 上以管理员服务运行。支持 Linux、macOS&nbsp;和&nbsp;Windows；只有 Linux 设备可以做出口节点或子网路由（只支持 IPv4）。macOS&nbsp;和&nbsp;Windows 部分还没有在真机上试过。Windows 和 <a href="/docs/vpn/">VPN</a> 一样需要 <code>wintun.dll</code>。</li>
-<li>对系统 DNS 的改动尽量保守：只把 <code>.remohop</code> 分流到网状网络的解析器。Linux 上用 systemd-resolved，macOS 上用 <code>/etc/resolver</code>，Windows 上用 NRPT 规则；都没有时，只在要求时（<code>--dns hosts</code>）改动。</li>
+<li>
+<p>网状网络属于运行它的被控端所用的配置目录。<code>sudo remohop</code> 用的是 root 的目录而不是你的，在 RemoHop 看来那是另一台设备：先用 <code>sudo remohop login EMAIL</code> 把它也登录到账号（如果你的 sudo 保留了 <code>HOME</code>，请用 <code>sudo -H</code>）。系统服务有自己的目录，<code>remohop service status</code> 会显示（Linux 上是 <code>sudo env REMOHOP_CONFIG_DIR=/var/lib/remohop remohop ...</code>）。<code>net up</code> 因“不是账号成员”而拒绝时，会说明它用的是哪个目录。</p>
+</li>
+<li>
+<p>设备之间的链路就是普通的 RemoHop 会话，有流量时才建立（先打洞，不行再走中继或 websocket 桥），有保活，设备重启或换网络后会重新建立。这种登录只限于网状网络：同一账号的设备并不因此获得对方的 shell 或文件。</p>
+</li>
+<li>
+<p>签名的访问策略（哪台设备可以访问哪些端口）在设备之间传递，由接收方执行。没有策略时，每台设备可以访问其他设备的所有端口。</p>
+</li>
+<li>
+<p>网状网络运行在被控端守护进程里，随被控端服务一起启动：Linux 上需要 root 或 <code>CAP_NET_ADMIN</code>，macOS 上需要 root，Windows 上以管理员服务运行。支持 Linux、macOS&nbsp;和&nbsp;Windows；只有 Linux 设备可以做出口节点或子网路由（只支持 IPv4）。macOS&nbsp;和&nbsp;Windows 部分还没有在真机上试过。Windows 和 <a href="/docs/vpn/">VPN</a> 一样需要 <code>wintun.dll</code>。</p>
+</li>
+<li>
+<p>对系统 DNS 的改动尽量保守：只把 <code>.remohop</code> 分流到网状网络的解析器。Linux 上用 systemd-resolved，macOS 上用 <code>/etc/resolver</code>，Windows 上用 NRPT 规则；都没有时，只在要求时（<code>--dns hosts</code>）改动。</p>
+</li>
 </ul>
 <p>详细说明、测试范围，以及没有复刻的 Tailscale 功能（单点登录、与他人共享、管理后台、Funnel 等）见 <a href="/en/docs/net/">net.md</a>（英文）。</p>
 <h2 id="与-tailscale-一起使用">与 Tailscale 一起使用</h2>
