@@ -50,6 +50,9 @@ type ControlSession struct {
 	From     string    `json:"from"`
 	Path     string    `json:"path"`
 	Since    time.Time `json:"since"`
+	// Authorizer and Grant are set for sessions an Authorizer admitted.
+	Authorizer string `json:"authorizer,omitempty"`
+	Grant      string `json:"grant,omitempty"`
 }
 
 // serveControl answers control requests until ctx ends. Not being able to
@@ -148,8 +151,12 @@ func (h *Host) control(req controlRequest) controlReply {
 			if peer == "" {
 				peer = auth.Fingerprint(s.Auth.ClientKey)
 			}
-			out = append(out, ControlSession{ID: s.ID(), Peer: peer, Device: s.Auth.ClientName, Identity: auth.Fingerprint(s.Auth.ClientKey),
-				From: s.Remote.String(), Path: s.Path(), Since: s.Started})
+			cs := ControlSession{ID: s.ID(), Peer: peer, Device: s.Auth.ClientName, Identity: auth.Fingerprint(s.Auth.ClientKey),
+				From: s.Remote.String(), Path: s.Path(), Since: s.Started}
+			if cs.Authorizer = authorizerName(s.Auth.Scope); cs.Authorizer != "" {
+				cs.Grant = s.Grant()
+			}
+			out = append(out, cs)
 		}
 		return controlReply{Sessions: out}
 	case "disconnect":

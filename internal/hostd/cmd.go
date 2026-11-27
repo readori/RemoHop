@@ -76,6 +76,8 @@ What connected clients may do is yours to decide, also while the host runs:
 
 Subcommands (they talk to the running host; same user only):
   status     ID, password mode, rendezvous state, sessions (same as ` + "`remohop status`" + `)
+  sessions   list live sessions (--json for scripts); authorizer-admitted ones
+             show "via NAME" and their grant
   approve    list connections waiting for approval; ` + "`approve N`" + ` / ` + "`deny N`" + ` answer
              one. With a terminal, ` + "`remohop host`" + ` itself asks y/n instead.
   otp        print the current temporary password; ` + "`otp new`" + ` replaces it
@@ -183,6 +185,8 @@ func runHost(ctx context.Context, env *cli.Env, args []string) int {
 		switch args[0] {
 		case "status":
 			return runStatus(env, args[1:], true)
+		case "sessions":
+			return runSessions(env, args[1:])
 		case "approve", "deny":
 			return runApprove(env, args[0] == "approve", args[1:])
 		case "otp":
