@@ -49,18 +49,23 @@ func darwinResolverContent(server netip.Addr) string {
 }
 
 // windowsConfigureCmds gives the Wintun adapter (interface index idx) its
-// addresses and MTU, for this boot only (store=active). The mask makes the
-// mesh network on-link, so Windows routes it to the adapter by itself.
+// addresses and MTU, for this boot only (store=active), and routes the
+// mesh networks to it. The mask would make the network on-link by itself,
+// but Windows adds that route only once it considers the address usable,
+// which on a CI runner had not happened a second later; the explicit route
+// does not wait ("already exists" when Windows was first is fine).
 func windowsConfigureCmds(idx string, a4, a6 netip.Prefix, mtu int) (v4, v6 [][]string) {
 	m := net.IP(net.CIDRMask(a4.Bits(), 32)).String()
 	v4 = [][]string{
 		{"netsh", "interface", "ipv4", "add", "address", "name=" + idx, "address=" + a4.Addr().String(), "mask=" + m, "store=active"},
 		{"netsh", "interface", "ipv4", "set", "subinterface", idx, "mtu=" + strconv.Itoa(mtu), "store=active"},
+		windowsRouteCmd(idx, a4.Masked()),
 	}
 	if a6.Addr().IsValid() {
 		v6 = [][]string{
 			{"netsh", "interface", "ipv6", "add", "address", "interface=" + idx, "address=" + a6.String(), "store=active"},
 			{"netsh", "interface", "ipv6", "set", "subinterface", idx, "mtu=" + strconv.Itoa(mtu), "store=active"},
+			{"netsh", "interface", "ipv6", "add", "route", "prefix=" + a6.Masked().String(), "interface=" + idx, "store=active"},
 		}
 	}
 	return v4, v6

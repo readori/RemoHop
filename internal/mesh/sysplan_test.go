@@ -38,10 +38,12 @@ func TestWindowsConfigureCmds(t *testing.T) {
 	want4 := [][]string{
 		{"netsh", "interface", "ipv4", "add", "address", "name=23", "address=10.78.3.4", "mask=255.255.0.0", "store=active"},
 		{"netsh", "interface", "ipv4", "set", "subinterface", "23", "mtu=1400", "store=active"},
+		{"netsh", "interface", "ipv4", "add", "route", "prefix=10.78.0.0/16", "interface=23", "nexthop=0.0.0.0", "store=active"},
 	}
 	want6 := [][]string{
 		{"netsh", "interface", "ipv6", "add", "address", "interface=23", "address=fd12:3456:789a::5/64", "store=active"},
 		{"netsh", "interface", "ipv6", "set", "subinterface", "23", "mtu=1400", "store=active"},
+		{"netsh", "interface", "ipv6", "add", "route", "prefix=fd12:3456:789a::/64", "interface=23", "store=active"},
 	}
 	if !reflect.DeepEqual(v4, want4) {
 		t.Errorf("v4 = %q\nwant %q", v4, want4)

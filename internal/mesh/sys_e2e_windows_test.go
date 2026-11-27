@@ -29,7 +29,13 @@ func TestSysWindowsE2E(t *testing.T) {
 	if !windows.GetCurrentProcessToken().IsElevated() {
 		t.Fatal("REMOHOP_NET_E2E=1 needs an elevated (Administrator) test process")
 	}
-	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
+	// Not t.TempDir: the Wintun DLL copied into the config directory stays
+	// loaded by this process and cannot be deleted before it exits.
+	cfg, err := os.MkdirTemp("", "remohop-net-e2e")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("REMOHOP_CONFIG_DIR", cfg)
 	if n := nrptRules(t); n > 0 {
 		t.Skipf("%d NRPT rule(s) of a mesh exist already (a mesh runs here?); not touching them", n)
 	}
