@@ -110,6 +110,48 @@ jobs:
         timeout-minutes: 25
         run: sudo env "PATH=$PATH" "HOME=$HOME" timeout 1200 test/natlab/natlab.sh all
 
+  # The mesh's system setup on real macOS and Windows: interface, route and split DNS
+  # set up, then undone, checking that nothing is left (TestSysDarwinE2E,
+  # TestSysWindowsE2E). Hosted runners have root and Administrator; the tests are
+  # skipped everywhere else. Not a required check.
+  mesh-system:
+    name: mesh system setup (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+
+      - name: Build the test binary
+        run: go test -c -o mesh.test${{ runner.os == 'Windows' && '.exe' || '' }} ./internal/mesh
+
+      - name: macOS (as root)
+        if: runner.os == 'macOS'
+        run: sudo REMOHOP_NET_E2E=1 ./mesh.test -test.run 'SysDarwinE2E' -test.v -test.count=1
+
+      # Wintun 0.14.1, checked against the hashes remohop itself pins
+      # (internal/svc/vpn/wintun_locate.go).
+      - name: Windows (Administrator, with Wintun)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'wintun.zip'
+          Invoke-WebRequest -Uri 'https://www.wintun.net/builds/wintun-0.14.1.zip' -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne '07C256185D6EE3652E09FA55C0B673E2624B565E02C4B9091C79CA7D2F24EF51') { throw 'wintun zip hash mismatch' }
+          Expand-Archive $zip -DestinationPath $env:RUNNER_TEMP
+          $env:REMOHOP_WINTUN_DIR = Join-Path $env:RUNNER_TEMP 'wintun\bin\amd64'
+          $env:REMOHOP_NET_E2E = '1'
+          .\mesh.test.exe -test.run 'SysWindowsE2E' -test.v -test.count=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   cross:
     name: build ${{ matrix.target }}
     runs-on: ubuntu-24.04
