@@ -247,7 +247,9 @@ type elevatedResult struct {
 	ID       string                 `json:"id,omitempty"`
 	Sessions []hostd.ControlSession `json:"sessions,omitempty"`
 	Closed   int                    `json:"closed,omitempty"`
-	Error    string                 `json:"error,omitempty"`
+	// Password is the service's password, for status --reveal only.
+	Password string `json:"password,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // elevated runs `<this program> desktop-unattended <op>` as administrator
@@ -305,12 +307,13 @@ func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...
 }
 
 const unattendedUsage = `Usage: desktop-unattended enable|disable|status|disconnect|password --result FILE
-                          [--password-file FILE] [--id N]
+                          [--password-file FILE] [--id N] [--reveal]
 
 The administrator steps of the desktop app's "Unattended access" (Windows),
 which the app starts elevated, one at a time, when the user asks: install
 the RemoHop service with --unattended and set its password (enable), remove
-it (disable), report its ID and sessions (status), end a session (disconnect,
+it (disable), report its ID and sessions (status; with --reveal also its
+password, which the user asked to see), end a session (disconnect,
 --id 0 for all) or change its password (password). Not meant to be typed.
 `
 
@@ -330,6 +333,7 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 	result := fs.String("result", "", "")
 	pwFile := fs.String("password-file", "", "")
 	id := fs.Int("id", 0, "")
+	reveal := fs.Bool("reveal", false, "")
 	known := map[string]bool{"enable": true, "disable": true, "status": true, "disconnect": true, "password": true}
 	if err := fs.Parse(args[1:]); err != nil || *result == "" || !known[op] {
 		env.Errorf("%s", unattendedUsage)
@@ -353,6 +357,20 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		case "status":
 			if st, _ := hostd.ReadStatus(dir); st != nil {
 				r.ID = st.ID
+			}
+			if *reveal {
+				// The service's settings are readable by administrators
+				// only; the result file is in the user's private run
+				// directory and removed as soon as the app has read it.
+				if err := os.Setenv("REMOHOP_CONFIG_DIR", dir); err != nil {
+					return err
+				}
+				all, err := config.All()
+				if err != nil {
+					return err
+				}
+				r.Password = all[hostd.SettingPassword]
+				return nil
 			}
 			ss, err := hostd.ControlSessions(dir)
 			r.Sessions = ss
@@ -511,6 +529,25 @@ func (a *App) ServiceSessions(ctx context.Context) ([]hostd.ControlSession, erro
 		ss = []hostd.ControlSession{}
 	}
 	return ss, err
+}
+
+// UnattendedReveal returns the unattended-access password, which the user
+// asked to see. On Windows it is in the service's settings, which only
+// administrators can read, so this asks for one (UAC) and also refreshes
+// the service's ID; on macOS and Linux it is in the user's own settings.
+func (a *App) UnattendedReveal(ctx context.Context) (string, error) {
+	if runtime.GOOS == "windows" {
+		r, err := a.elevatedResult(ctx, "status", "", "--reveal")
+		if r.ID != "" {
+			a.setServiceID(r.ID)
+		}
+		return r.Password, err
+	}
+	all, err := config.All()
+	if err != nil {
+		return "", err
+	}
+	return all[hostd.SettingPassword], nil
 }
 
 // ServiceDisconnect ends a session of the service (0: all of them),

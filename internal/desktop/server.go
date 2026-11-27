@@ -248,6 +248,13 @@ func (s *Server) routes() {
 	})
 	post("/api/unattended/disconnect", func(r *http.Request, q req) (any, error) { return nil, a.ServiceDisconnect(r.Context(), q.ID) })
 	post("/api/unattended/password", func(r *http.Request, q req) (any, error) { return nil, a.ServicePassword(r.Context(), q.Password) })
+	post("/api/unattended/reveal", func(r *http.Request, q req) (any, error) {
+		pw, err := a.UnattendedReveal(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"password": pw}, nil
+	})
 	post("/api/diagnostics/export", func(*http.Request, req) (any, error) {
 		path, err := a.ExportDiagnostics(s.shell().Info())
 		if err != nil {
