@@ -22,6 +22,6 @@ Kept here so phase 1 decisions don't block it:
 - Single sign-on (OIDC/SAML) and SCIM provisioning
 - Central audit log, session recording storage and retention policies
 - Admin console for devices, grants and relay usage
-- Managed rendezvous/relay with SLA
+- Relay use metered per team on your own rendezvous server. Teams is sold as self-hosted licenses; there is no hosted service
 
 Phase 2 builds on phase 1 pieces (accounts and their signed device ledger, grants, audit log, relay access control) rather than replacing them.
