@@ -166,6 +166,34 @@ func (w winService) open(o Options) (*mgr.Mgr, *mgr.Service, error) {
 	return m, s, nil
 }
 
+// openQuery opens the service with only the rights to read its state and
+// configuration, which every user has: mgr.Connect and OpenService ask for
+// full access, which only an administrator gets, so for anyone else (the
+// desktop app, `remohop service status` in a normal prompt) an installed
+// service looked absent.
+func (w winService) openQuery(o Options) (*mgr.Mgr, *mgr.Service, error) {
+	h, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot reach the service manager: %w", err)
+	}
+	m := &mgr.Mgr{Handle: h}
+	name := w.svcName(o)
+	n, err := windows.UTF16PtrFromString(name)
+	if err != nil {
+		m.Disconnect()
+		return nil, nil, err
+	}
+	sh, err := windows.OpenService(h, n, windows.SERVICE_QUERY_STATUS|windows.SERVICE_QUERY_CONFIG)
+	if err != nil {
+		m.Disconnect()
+		if errors.Is(err, windows.ERROR_SERVICE_DOES_NOT_EXIST) {
+			return nil, nil, errNotInstalled
+		}
+		return nil, nil, fmt.Errorf("cannot read the service %q: %w", name, err)
+	}
+	return m, &mgr.Service{Name: name, Handle: sh}, nil
+}
+
 func (w winService) Uninstall(ctx context.Context, o Options) (bool, error) {
 	m, s, err := w.open(o)
 	if err != nil {
@@ -246,7 +274,7 @@ func (w winService) Control(ctx context.Context, o Options, action string) error
 func (w winService) Status(ctx context.Context, o Options) (*Status, error) {
 	name := w.svcName(o)
 	st := &Status{Backend: "Windows service", Name: name, Scope: "system"}
-	m, s, err := w.open(o)
+	m, s, err := w.openQuery(o)
 	if err != nil {
 		if errors.Is(err, errNotInstalled) {
 			st.Scope = ""
