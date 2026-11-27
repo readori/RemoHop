@@ -1448,7 +1448,7 @@ func connError(q *quic.Conn, err error) error {
 func (d *dialer) dropToken(t *target) {
 	t.saved.TokenID, t.saved.Token = "", nil
 	err := d.store.Update(t.canonical, func(p *Peer) error {
-		p.TokenID, p.Token, p.PairedAt = "", nil, nil
+		p.TokenID, p.Token, p.PairedAt, p.Grant = "", nil, nil, false
 		return nil
 	})
 	if err != nil {

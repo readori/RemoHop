@@ -35,7 +35,9 @@ follow, marked "saved". Being in the account grants no access: connecting
 still needs a credential the host accepts, unless its owner turned on
 ` + "`remohop config account-trust`" + ` there (LOGIN "account" means a key login is tried
 first and a password asked for if the host refuses it). Without an
-account the list and its columns are as they always were.
+account there are no account devices and no KIND, NAME and PLATFORM
+columns. GRANT "yes" marks a pairing that is a grant (` + "`remohop peers redeem`" + `):
+the host's owner limited what this machine may do there.
 
 For hosts known by their 9-digit ID, the rendezvous server is asked in one
 request which of them are registered at the moment. It is asked about
@@ -77,6 +79,9 @@ type Device struct {
 	// if its owner turned account-trust on, else the password) or
 	// "password".
 	Login string `json:"login"`
+	// Grant says the pairing is a grant (`remohop peers redeem`): the
+	// host's owner limited what this machine may do there.
+	Grant bool `json:"grant,omitempty"`
 	// Presence is "online", "offline", "unknown" (to the rendezvous
 	// server), "rate_limited", "not_checked" (an address, or --offline),
 	// "not_a_host" (an account device without an ID), or "error" with
@@ -125,7 +130,7 @@ func Devices(ctx context.Context, opts DevicesOptions) ([]Device, error) {
 		d := Device{Target: p.Target, Alias: p.Alias, Login: "password", Presence: "not_checked", LastSeen: p.LastSeen}
 		switch {
 		case p.Paired():
-			d.Login = "pairing"
+			d.Login, d.Grant = "pairing", p.Grant
 		case p.KeyLogin:
 			d.Login = "key"
 		case p.SavedPassword():
@@ -226,7 +231,7 @@ func accountDevices(ctx context.Context, opts DevicesOptions, peers []Peer) ([]D
 			d.Alias = p.Alias
 			switch {
 			case p.Paired():
-				d.Login = "pairing"
+				d.Login, d.Grant = "pairing", p.Grant
 			case p.KeyLogin:
 				d.Login = "key"
 			}
@@ -313,13 +318,16 @@ func runDevices(ctx context.Context, env *cli.Env, args []string) int {
 		withAccount = withAccount || d.Account
 	}
 	if withAccount {
-		fmt.Fprintln(tw, "KIND\tDEVICE\tNAME\tALIAS\tLOGIN\tPRESENCE\tLAST SEEN\tPLATFORM\tRUNNING")
+		fmt.Fprintln(tw, "KIND\tDEVICE\tNAME\tALIAS\tLOGIN\tGRANT\tPRESENCE\tLAST SEEN\tPLATFORM\tRUNNING")
 	} else {
-		fmt.Fprintln(tw, "DEVICE\tALIAS\tLOGIN\tPRESENCE\tLAST SEEN\tRUNNING")
+		fmt.Fprintln(tw, "DEVICE\tALIAS\tLOGIN\tGRANT\tPRESENCE\tLAST SEEN\tRUNNING")
 	}
 	var failure string
 	for _, d := range list {
-		alias, seen, running := d.Alias, "-", "-"
+		alias, seen, running, grant := d.Alias, "-", "-", "-"
+		if d.Grant {
+			grant = "yes"
+		}
 		if alias == "" {
 			alias = "-"
 		}
@@ -334,7 +342,7 @@ func runDevices(ctx context.Context, env *cli.Env, args []string) int {
 			failure = d.Error
 		}
 		if !withAccount {
-			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", cli.Sanitize(displayTarget(d.Target)), cli.Sanitize(alias), d.Login, presence, seen, cli.Sanitize(running))
+			fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", cli.Sanitize(displayTarget(d.Target)), cli.Sanitize(alias), d.Login, grant, presence, seen, cli.Sanitize(running))
 			continue
 		}
 		kind, target, name, platform := "saved", displayTarget(d.Target), d.Name, d.Platform
@@ -353,7 +361,7 @@ func runDevices(ctx context.Context, env *cli.Env, args []string) int {
 		if platform == "" {
 			platform = "-"
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", kind, cli.Sanitize(target), cli.Sanitize(name), cli.Sanitize(alias), d.Login,
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", kind, cli.Sanitize(target), cli.Sanitize(name), cli.Sanitize(alias), d.Login, grant,
 			presence, seen, cli.Sanitize(platform), cli.Sanitize(running))
 	}
 	tw.Flush()
