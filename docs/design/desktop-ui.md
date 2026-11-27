@@ -419,63 +419,8 @@ password shown with Copy.
 
 ## Screens: team edition
 
-The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial
-license) uses this system unchanged: same tokens, same components, same
-shell. Its prototype and code live with the team edition, not here. Its
-screens, at the level the roadmap describes:
+The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial license) uses this design system and adds no colours of its own. Its screens are designed and built with the team edition, not in this repository.
 
-### In the desktop app: a Team section
-
-A second sidebar group, *Team*, under the personal places, present only on
-a computer that has joined a team.
-
-```
-MAIN MENU            ACME EXAMPLE · TEAM
-⌂ Home               Team computers
-⇥ Connect            (All | Engineering | Support | Finance)   [⌕ Search]
-▭ Sessions           ┌ ENGINEERING · 14 ───────────────────────────────────┐
-TEAM                 │ [B]• build-01     Linux    You may: shell, files  [Connect] │
-◎ Team computers     │ [D]• design-mac   macOS    Ask first              [Request] │
-✓ My access          └────────────────────────────────────────────────────┘
-```
-
-- **Team computers**: the team's address book by device group, with what
-  the user may do on each (from the policies) and Connect, or Request
-  access where a policy asks for approval.
-- **Request access**: a dialog that asks for features and a duration with
-  a reason; the request then shows as a pending approval card.
-- **My access**: the user's grants as cards (scope, features, expiry run
-  bar, recorded or not) and pending requests.
-
-### Admin console (a web app)
-
-Same shell: sidebar with groups *Overview*, *Directory* (People, Groups,
-Devices), *Access* (Policies, Approvals), *Evidence* (Audit log,
-Recordings), *Infrastructure* (Relay), *Organisation* (Sign-in and SCIM,
-Plan and billing).
-
-- **Overview**: KPI row (devices online of enrolled, sessions today,
-  relay traffic this month, approvals waiting) each with a dot-matrix or
-  run-bar sparkline, a heat grid of sessions by weekday and hour, the
-  approval queue ("Needs you"), recent audit entries.
-- **People and groups**: a table (person, groups, devices, sign-in source,
-  last active, role chip) with a detail panel; groups with members and the
-  policies that name them.
-- **Devices**: table by device group (online, platform, version, owner,
-  enrolled), with bulk move between groups.
-- **Policies**: rules as readable sentences ("Engineering may reach Build
-  servers with shell and files, for 8 h, recorded, no approval"), an
-  editor with chips for features, a duration segmented control, approval
-  and recording switches, and a preview of the grant it produces.
-- **Audit log**: a dense table filtered by person, device, action and
-  time, monospace references, outcome chips; recordings as a list with
-  duration and a player.
-- **Relay**: traffic per day as a dot-matrix bar chart, top devices by
-  relayed traffic, the share of sessions that were direct.
-- **Sign-in and SCIM**: identity provider settings, SCIM endpoint and token
-  (shown once), sync status and its log.
-- **Plan and billing**: seats used of seats, relay allowance used, plan,
-  invoices.
 
 ## Accessibility
 
