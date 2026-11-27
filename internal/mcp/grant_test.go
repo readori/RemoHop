@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/readori/RemoHop/internal/grant"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/peer"
+	"github.com/readori/RemoHop/internal/signal"
 )
 
 // grantedHarness runs a real host daemon on loopback, issues a grant on it,
@@ -86,6 +88,8 @@ func TestGrantEndToEnd(t *testing.T) {
 		{"remohop_write_file", map[string]any{"path": filepath.Join(root, "new.txt"), "content": "x"}, "files:write is not allowed by grant claude-session"},
 		{"remohop_screenshot", nil, "screenshot is not allowed by grant claude-session"},
 		{"remohop_clipboard_get", nil, "clip is not allowed by grant claude-session"},
+		// Before "take a screenshot first": the grant allows no input anyway.
+		{"remohop_click", map[string]any{"x": 1, "y": 1}, "mouse and keyboard input is not allowed by grant claude-session"},
 	} {
 		msg := hs.fail(c.tool, c.args)
 		if !strings.Contains(msg, c.want) || !strings.Contains(msg, "Do not try to work around it") || !strings.Contains(msg, "remohop_limits") {
@@ -135,7 +139,8 @@ func TestGrantApprovalThroughMCP(t *testing.T) {
 		}
 	}()
 	msg := hs.fail("remohop_exec", map[string]any{"command": "echo please"})
-	if !strings.Contains(msg, "the host's owner denied: exec: echo please") || !strings.Contains(msg, "Do not repeat the action") {
+	if !strings.Contains(msg, "the host's owner denied: exec: echo please") || !strings.Contains(msg, "Do not repeat the action") ||
+		strings.Contains(msg, "check cwd") {
 		t.Fatalf("denied: %s", msg)
 	}
 }
@@ -179,5 +184,23 @@ func TestGrantHint(t *testing.T) {
 		if want == "" && got != in || want != "" && !strings.Contains(got, want) {
 			t.Errorf("grantHint(%q) = %q", in, got)
 		}
+	}
+}
+
+// TestDialErrorOrder: what the model is told to do follows what is wrong
+// first: no rendezvous server, an offline machine, then credentials (with
+// both ways to get one).
+func TestDialErrorOrder(t *testing.T) {
+	noServer := dialError("123456789", fmt.Errorf("x: %w", signal.ErrNotConfigured))
+	if msg := noServer.Error(); !strings.Contains(msg, "no rendezvous server") || strings.Contains(msg, "pair") {
+		t.Errorf("no server: %s", msg)
+	}
+	offline := dialError("123456789", &signal.Error{Code: signal.CodeOffline, Message: "offline"})
+	if msg := offline.Error(); !strings.Contains(msg, "offline") || !strings.Contains(msg, "Retrying now will not help") || strings.Contains(msg, "pair") {
+		t.Errorf("offline: %s", msg)
+	}
+	noCred := dialError("123456789", fmt.Errorf("%w (x)", dial.ErrNoCredential))
+	if msg := noCred.Error(); !strings.Contains(msg, "remohop 123456789 pair") || !strings.Contains(msg, "remohop peers redeem 123456789 CODE") {
+		t.Errorf("no credential: %s", msg)
 	}
 }

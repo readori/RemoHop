@@ -75,7 +75,12 @@ remohop_scroll, remohop_type, remohop_key; access: remohop_limits.
 // It is a variable so tests can run the command without a network.
 var newDial = func(g cli.Globals) DialFunc {
 	return func(ctx context.Context, target string) (*peer.Conn, error) {
-		return dial.Dial(ctx, target, dial.Options{Signal: g.Signal, Password: g.Password})
+		opts := dial.Options{Signal: g.Signal, Password: g.Password}
+		// A missing server is the first thing to fix, before credentials.
+		if err := dial.RendezvousFirst(target, opts); err != nil {
+			return nil, err
+		}
+		return dial.Dial(ctx, target, opts)
 	}
 }
 

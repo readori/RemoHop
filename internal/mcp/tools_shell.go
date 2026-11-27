@@ -223,6 +223,10 @@ func (s *Server) exec(ctx context.Context, in execIn) (*reply[execOut], error) {
 	if err != nil {
 		var se *shell.StartError
 		if errors.As(err, &se) {
+			if refusal(se.Msg) {
+				// A grant or the host's owner said no: cwd is not the problem.
+				return nil, fmt.Errorf("the remote host refused the command: %s", se.Msg)
+			}
 			return nil, fmt.Errorf("the remote host could not start the command: %s (check cwd and that the shell exists)", se.Msg)
 		}
 		return nil, err

@@ -27,6 +27,7 @@ import (
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/peer"
+	"github.com/readori/RemoHop/internal/signal"
 )
 
 // Defaults for Options.
@@ -243,10 +244,21 @@ func dialError(target string, err error) error {
 		return err
 	}
 	switch {
+	case errors.Is(err, signal.ErrNotConfigured):
+		return fmt.Errorf("cannot connect to %s: no rendezvous server is set up on this computer, so a 9-digit ID cannot be looked up.\n"+
+			"Tell the person: they choose one once with `remohop config set signal signal.remohop.com` (the official server) or "+
+			"`remohop config set signal HOST[:PORT]` (their own), or give the machine's HOST:PORT as the target instead. "+
+			"Retrying will not help until then.", target)
+	case signal.CodeOf(err) == signal.CodeOffline:
+		return fmt.Errorf("cannot connect to %s: the machine is offline (it is not connected to the rendezvous server): "+
+			"RemoHop is not running there, or the machine is off, asleep or without a network.\n"+
+			"Retrying now will not help. Tell the person; if it supports Wake-on-LAN, remohop_wake from another machine on its network can start it.", target)
 	case errors.Is(err, dial.ErrNoCredential):
-		return fmt.Errorf("cannot connect to %s: no saved pairing and no password available (%w).\n"+
-			"The person must run `remohop %s pair` once in a terminal and enter the host's password; "+
-			"then retry. This server cannot prompt for a password and does not accept one as an argument.", target, err, target)
+		return fmt.Errorf("cannot connect to %s: no saved pairing, grant or password available (%w).\n"+
+			"The person must do one of these once, then you retry: run `remohop %s pair` in a terminal and enter the host's password "+
+			"(full access), or, for limited access, run `remohop host grant NAME --allow ...` on that machine and "+
+			"`remohop peers redeem %s CODE` here with this server's REMOHOP_CONFIG_DIR. "+
+			"This server cannot prompt for a password and does not accept one as an argument.", target, err, target, target)
 	case errors.Is(err, dial.ErrHostKeyChanged):
 		return fmt.Errorf("cannot connect to %s: %w.\n"+
 			"The machine presented a different identity than the one saved earlier, which can mean a reinstall or an interception. "+

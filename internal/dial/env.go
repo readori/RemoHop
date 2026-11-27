@@ -24,10 +24,13 @@ func init() {
 	}
 }
 
-// rendezvousFirst reports a missing rendezvous server for a target that
+// RendezvousFirst reports a missing rendezvous server for a target that
 // needs one (a 9-digit ID, directly or through its alias) before anything
 // else happens: before the password prompt, and instead of "no credential"
-// when there is no terminal to prompt on.
+// when there is no terminal to prompt on. The error wraps
+// signal.ErrNotConfigured.
+func RendezvousFirst(target string, opts Options) error { return rendezvousFirst(target, opts) }
+
 func rendezvousFirst(target string, opts Options) error {
 	t := cli.NormalizeTarget(target)
 	if !cli.IsID(t) {
