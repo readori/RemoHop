@@ -129,3 +129,35 @@ func TestSignalExeHiddenBySandbox(t *testing.T) {
 		}
 	}
 }
+
+func TestSignalRolePanel(t *testing.T) {
+	b := &systemd{euid: 0}
+	code, out, errOut := runCLI(t, b, "print", "--role", "signal", "--exe", "/usr/bin/remohop", "--relay", "--panel", "127.0.0.1:8810")
+	if code != cli.ExitOK {
+		t.Fatalf("print: %d\n%s%s", code, out, errOut)
+	}
+	for _, want := range []string{
+		"ExecStart=/usr/bin/remohop signal --data /var/lib/remohop-signal --panel 127.0.0.1:8810 --relay\n",
+		// Its password and Cloudflare settings come from a root-only
+		// file, never the world-readable unit; the service starts
+		// without it.
+		"EnvironmentFile=-/etc/remohop/remohop-signal-panel.env\n",
+		"CapabilityBoundingSet=\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("unit lacks %q:\n%s", want, out)
+		}
+	}
+	if text := signalText(Options{Role: RoleSignal, SignalArgs: []string{"--relay"}}, "/remohop"); strings.Contains(text, "EnvironmentFile") {
+		t.Errorf("an environment file without the panel:\n%s", text)
+	}
+	if low := signalText(Options{Role: RoleSignal, SignalArgs: []string{"--panel", "127.0.0.1:80"}}, "/remohop"); !strings.Contains(low, "CAP_NET_BIND_SERVICE") {
+		t.Errorf("a panel on port 80 without CAP_NET_BIND_SERVICE:\n%s", low)
+	}
+	if code, _, errOut := runCLI(t, b, "print", "--panel", "127.0.0.1:8810"); code != cli.ExitUsage || !strings.Contains(errOut, "--role signal") {
+		t.Errorf("--panel without the role: %d %q", code, errOut)
+	}
+	if got := sshForward("127.0.0.1:8810"); got != "8810:127.0.0.1:8810" {
+		t.Errorf("sshForward = %q", got)
+	}
+}

@@ -19,8 +19,8 @@ const usage = `Usage: remohop service install [--user|--system] [--signal ADDR|-
                            [--name NAME] [--run-as ACCOUNT] [--linger]
                            [--exe PATH] [--config-dir DIR] [--unattended]
        remohop service install --role signal [--listen ADDR] [--alt ADDR] [--relay
-                           [--relay-ports LO-HI]] [--name NAME] [--exe PATH]
-                           [-- MORE-REMOHOP-SIGNAL-FLAGS]
+                           [--relay-ports LO-HI]] [--panel ADDR] [--name NAME]
+                           [--exe PATH] [-- MORE-REMOHOP-SIGNAL-FLAGS]
        remohop service uninstall
        remohop service start|stop|restart
        remohop service status [--json]
@@ -70,6 +70,11 @@ Rendezvous server (--role signal; Linux with systemd only, needs root):
   --relay             also relay sessions that cannot connect directly
   --relay-ports LO-HI the ports relayed sessions may use (recommended with
                       --relay: the firewall then needs only that range)
+  --panel ADDR        also serve the operator's web panel on this TCP address
+                      (127.0.0.1:8810, say; ` + "`remohop help signal panel`" + `). Its
+                      settings (REMOHOP_PANEL_PASSWORD, REMOHOP_PANEL_CF_*) go
+                      in /etc/remohop/NAME-panel.env, read when the service
+                      starts; keep that file mode 600
   -- FLAGS            anything further is passed to ` + "`remohop signal`" + ` as is (for
                       example its account and relay-limit flags)
   The binary must live outside /home, /root, /tmp and /var/tmp, which the
@@ -247,6 +252,7 @@ func runInstall(ctx context.Context, env *cli.Env, sub string, args []string) in
 	alt := fs.String("alt", "", "")
 	relay := fs.Bool("relay", false, "")
 	relayPorts := fs.String("relay-ports", "", "")
+	panel := fs.String("panel", "", "")
 	if code, ok := parse(env, fs, args, 40); !ok {
 		return code
 	}
@@ -254,7 +260,7 @@ func runInstall(ctx context.Context, env *cli.Env, sub string, args []string) in
 		if !flagSet(fs, "signal") {
 			o.Signal = "" // REMOHOP_SIGNAL means nothing to a rendezvous server
 		}
-		for _, f := range [][2]string{{"--listen", *listen}, {"--alt", *alt}, {"--relay-ports", *relayPorts}} {
+		for _, f := range [][2]string{{"--listen", *listen}, {"--alt", *alt}, {"--relay-ports", *relayPorts}, {"--panel", *panel}} {
 			if f[1] != "" {
 				o.SignalArgs = append(o.SignalArgs, f[0], f[1])
 			}
@@ -263,8 +269,8 @@ func runInstall(ctx context.Context, env *cli.Env, sub string, args []string) in
 			o.SignalArgs = append(o.SignalArgs, "--relay")
 		}
 		o.SignalArgs = append(o.SignalArgs, fs.Args()...)
-	} else if *listen != "" || *alt != "" || *relay || *relayPorts != "" || fs.NArg() > 0 {
-		env.Errorf("service: --listen, --alt, --relay, --relay-ports and extra arguments need --role signal")
+	} else if *listen != "" || *alt != "" || *relay || *relayPorts != "" || *panel != "" || fs.NArg() > 0 {
+		env.Errorf("service: --listen, --alt, --relay, --relay-ports, --panel and extra arguments need --role signal")
 		return cli.ExitUsage
 	}
 	if o.NoSignal && !flagSet(fs, "signal") {
@@ -329,6 +335,9 @@ func printSignalInstalled(w io.Writer, i *Installed, o Options) {
 	fmt.Fprintf(w, "  remohop signal --print-firewall %s   open its ports (machine firewall and cloud security list)\n", args)
 	fmt.Fprintf(w, "  sudo remohop signal --show-key --data %s   the key and pin line for clients\n", stateDir(o))
 	fmt.Fprintln(w, "  remohop service status --role signal    remohop service logs --role signal -f")
+	if p := o.panelListen(); p != "" {
+		fmt.Fprintf(w, "  ssh -L %s SERVER, then open http://%s/   the web panel (settings: %s)\n", sshForward(p), p, o.panelEnvFile())
+	}
 }
 
 func printInstalled(w io.Writer, i *Installed) {
