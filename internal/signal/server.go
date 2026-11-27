@@ -218,6 +218,9 @@ type Server struct {
 	relaySources  map[netip.Addr]int // relayed sessions per client source; guarded by mu
 	relayHosts    map[netip.Addr]int // and per host source
 
+	stats   serverStats // running totals for the web panel (stats.go)
+	started time.Time
+
 	mu        sync.Mutex
 	online    map[string]*serverConn
 	repl      map[string]*replacements // see cloneWindow
@@ -326,6 +329,7 @@ func NewServer(cfg Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
+		started:     time.Now(),
 		outcomes:    outcomes,
 		relayDeny:   deny,
 		relayUsage:  usage,
@@ -668,8 +672,15 @@ func (s *Server) admitConn(source, network netip.Addr) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	l := s.cfg.Limits
-	if s.conns >= l.MaxConns || s.perSource[source] >= l.MaxConnsPerSource ||
-		(network != source && s.perNet[network] >= l.MaxConnsPerNet) {
+	switch {
+	case s.conns >= l.MaxConns:
+		s.stats.add(stBusy)
+		return false
+	case s.perSource[source] >= l.MaxConnsPerSource:
+		s.stats.add(stPerSource)
+		return false
+	case network != source && s.perNet[network] >= l.MaxConnsPerNet:
+		s.stats.add(stPerNet)
 		return false
 	}
 	s.conns++
@@ -803,6 +814,7 @@ func (s *Server) handleRegister(c *serverConn, st *quic.Stream, req *request, fa
 		return
 	}
 	if ok, wait := s.registers.allow(c.source); !ok {
+		s.stats.add(stRateRegister)
 		fail(CodeRateLimited, "too many registrations", wait)
 		return
 	}
@@ -846,20 +858,24 @@ func (s *Server) handleRegister(c *serverConn, st *quic.Stream, req *request, fa
 	// New allocations draw on a much smaller budget than re-registrations.
 	if _, known := s.store.lookup(key); !known {
 		if ok, wait := s.newIDs.allow(c.source); !ok {
+			s.stats.add(stRateNewID)
 			fail(CodeRateLimited, "too many new IDs from this address", wait)
 			return
 		}
 		if ok, wait := s.newIDsNet.allow(c.net); !ok {
+			s.stats.add(stRateNewID)
 			fail(CodeRateLimited, "too many new IDs from this network", wait)
 			return
 		}
 		if ok, wait := s.newIDsAll.allow(struct{}{}); !ok {
+			s.stats.add(stRateNewID)
 			fail(CodeRateLimited, "the server is allocating IDs as fast as it allows itself to", wait)
 			return
 		}
 	}
 	id, isNew, err := s.store.assign(key, s.isOnline)
 	if errors.Is(err, errStoreFull) {
+		s.stats.add(stIDsFull)
 		fail(CodeFull, "this server is not accepting new hosts", 0)
 		return
 	}
@@ -885,6 +901,10 @@ func (s *Server) handleRegister(c *serverConn, st *quic.Stream, req *request, fa
 		// network before we noticed the old connection die).
 		old.q.CloseWithError(closeReplaced, "registered from another connection")
 	}
+	s.stats.add(stRegistrations)
+	if isNew {
+		s.stats.add(stNewIDs)
+	}
 	s.log.Info("host online", "id", id, "addr", c.addr, "new", isNew, "websocket", c.bridged)
 	if s.accounts != nil {
 		s.accounts.deviceSeen(key)
@@ -906,6 +926,7 @@ func (s *Server) handlePresence(c *serverConn, st *quic.Stream, req *request, fa
 			return
 		}
 	}
+	s.stats.add(stPresence)
 	out := make([]string, len(req.IDs))
 	limited := false
 	for i, id := range req.IDs {
@@ -919,6 +940,7 @@ func (s *Server) handlePresence(c *serverConn, st *quic.Stream, req *request, fa
 			limited = true
 		}
 		if limited {
+			s.stats.add(stRateConnect)
 			out[i] = PresenceLimited
 			continue
 		}
@@ -929,6 +951,7 @@ func (s *Server) handlePresence(c *serverConn, st *quic.Stream, req *request, fa
 		case online:
 			out[i] = PresenceOnline
 		case !func() bool { ok, _ := s.misses.allow(struct{}{}); return ok }():
+			s.stats.add(stRateMiss)
 			out[i] = PresenceLimited
 		case s.store.known(id):
 			out[i] = PresenceOffline
@@ -944,13 +967,16 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		fail(CodeBadRequest, "malformed ID", 0)
 		return
 	}
+	s.stats.add(stLookups)
 	// Charged before the lookup, so probing for which IDs exist is as
 	// rate-limited as connecting to them.
 	if ok, wait := s.connects.allow(c.source); !ok {
+		s.stats.add(stRateConnect)
 		fail(CodeRateLimited, "too many connection requests", wait)
 		return
 	}
 	if ok, wait := s.connectsNet.allow(c.net); !ok {
+		s.stats.add(stRateConnect)
 		fail(CodeRateLimited, "too many connection requests from this network", wait)
 		return
 	}
@@ -972,6 +998,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		// Whether an ID exists is only told while the global budget for
 		// such answers lasts.
 		if ok, wait := s.misses.allow(struct{}{}); !ok {
+			s.stats.add(stRateMiss)
 			fail(CodeRateLimited, "too many requests for hosts that are not online", wait)
 			return
 		}
@@ -987,6 +1014,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		return
 	}
 	if ok, wait := s.offers.allow(req.ID); !ok {
+		s.stats.add(stRateOffer)
 		fail(CodeRateLimited, "the host is receiving too many requests", wait)
 		return
 	}
@@ -1026,6 +1054,7 @@ func (s *Server) handleConnect(c *serverConn, st *quic.Stream, req *request, fai
 		s.intros[string(nonce)] = &intro{client: c.seq, host: req.ID, at: time.Now()}
 	}
 	s.mu.Unlock()
+	s.stats.add(stIntroductions)
 	s.log.Debug("introduced", "id", req.ID, "client", c.current(), "host", host.current())
 	writeMsg(st, response{
 		OK:      true,
@@ -1046,6 +1075,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		return
 	}
 	if ok, wait := s.connects.allow(c.source); !ok {
+		s.stats.add(stRateConnect)
 		fail(CodeRateLimited, "too many requests", wait)
 		return
 	}
@@ -1087,7 +1117,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 	dec, reason, msg := s.admitRelay(relayPeer{source: c.source, addr: c.real, key: clientKey},
 		relayPeer{source: host.source, addr: host.real, key: hostKey})
 	if reason != "" {
-		s.relayCounters.refuse(reason)
+		s.refuseRelay(reason)
 		s.log.Debug("relay refused", "reason", reason, "client", c.addr)
 		fail(CodeNoRelay, msg, 0)
 		return
@@ -1096,7 +1126,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 	if s.relays >= rc.MaxSessions {
 		s.mu.Unlock()
 		dec.release()
-		s.relayCounters.refuse(refusedFull)
+		s.refuseRelay(refusedFull)
 		fail(CodeNoRelay, "all relay slots are in use; try again later", 0)
 		return
 	}
@@ -1112,7 +1142,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 	pc, err := rc.Listen()
 	if errors.Is(err, ErrRelayPortsFull) {
 		release()
-		s.relayCounters.refuse(refusedFull)
+		s.refuseRelay(refusedFull)
 		s.log.Warn("relay: refused a session, every port of --relay-ports is in use", "client", c.addr)
 		fail(CodeFull, "all relay ports are in use; try again later", 0)
 		return
@@ -1137,7 +1167,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		defer release()
 		defer s.ws.relayPorts.Delete(uint16(port))
 		start := time.Now()
-		stats := nat.ServeRelay(relayCtx, pc, req.Nonce, nat.RelayLimits{Rate: dec.rate, Global: s.relayBudget, Idle: rc.Idle, Meter: s.relayUsage.add})
+		stats := nat.ServeRelay(relayCtx, pc, req.Nonce, nat.RelayLimits{Rate: dec.rate, Global: s.relayBudget, Idle: rc.Idle, Meter: s.meterRelay})
 		s.log.Info("relay session ended", "client", c.addr, "host", host.addr, "duration", time.Since(start).Round(time.Second),
 			"bytes", stats.Bytes, "delayed_packets", stats.Delayed, "dropped_packets", stats.Dropped)
 		relayEnded(s, clientKey, hostKey, stats.Bytes, time.Since(start)) // extend.go
@@ -1153,12 +1183,19 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		return
 	}
 	s.relayCounters.sessions.Add(1)
+	s.stats.add(stRelaySessions)
 	tier := "anonymous"
 	if dec.account {
 		tier = "account"
 	}
 	s.log.Info("relay session started", "client", c.addr, "host", host.addr, "port", port, "tier", tier, "kbps", dec.rate/125)
 	writeMsg(st, response{OK: true, RelayPort: port})
+}
+
+// meterRelay counts relayed bytes: this month's, and the running total.
+func (s *Server) meterRelay(n int) {
+	s.relayUsage.add(n)
+	s.stats.addN(stRelayBytes, int64(n))
 }
 
 // offer delivers an introduction to a host and waits for its answer.

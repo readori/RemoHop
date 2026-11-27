@@ -197,6 +197,7 @@ func (s *Server) WSHandler(cfg WSConfig) http.Handler {
 		src, _ := sourceOf(client)
 		release, reason := s.ws.admit(src, &cfg)
 		if release == nil {
+			s.stats.add(stWSRefused)
 			if s.ws.shouldWarn() {
 				s.log.Warn("websocket bridge: refused a connection", "client", client, "reason", reason)
 			}
@@ -275,6 +276,7 @@ func (s *Server) serveBridge(conn *websocket.Conn, client netip.Addr, cfg *WSCon
 		return
 	}
 	start := time.Now()
+	s.stats.add(stWSOpened)
 	s.log.Info("websocket bridge opened", "client", client)
 	var st bridgeStats
 	st.last.Store(start.UnixNano())
