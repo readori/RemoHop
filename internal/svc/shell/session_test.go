@@ -104,7 +104,12 @@ func TestInteractiveDetachReattachResizeExit(t *testing.T) {
 	}
 	tc.close()
 
-	// The session survives, detached.
+	// The session survives, detached. The host learns of the detach when
+	// the attach stream closes, a moment after the client has exited.
+	waitFor(t, "the host to see the detach", 5*time.Second, func() bool {
+		s := findSession(t, conn, "t1")
+		return s != nil && !s.Attached
+	})
 	s := findSession(t, conn, "t1")
 	if s == nil || s.Attached || s.ExpiresInSeconds <= 0 {
 		t.Fatalf("session after detach: %+v", s)
