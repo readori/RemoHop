@@ -98,7 +98,7 @@ func (a *auditLog) refusedFile() string {
 	return filepath.Join(filepath.Dir(a.path), AuditRefusedFile)
 }
 
-func (a *auditLog) entry(t time.Time, event string, kv []string) []byte {
+func (a *auditLog) entry(t time.Time, event string, kv []string) (AuditEntry, []byte) {
 	e := AuditEntry{Time: t.UTC().Truncate(time.Millisecond), Event: event, Fields: map[string]string{}}
 	for i := 0; i+1 < len(kv); i += 2 {
 		if kv[i+1] != "" {
@@ -107,20 +107,25 @@ func (a *auditLog) entry(t time.Time, event string, kv []string) []byte {
 	}
 	line, err := json.Marshal(e)
 	if err != nil {
-		return nil
+		return e, nil
 	}
-	return append(line, '\n')
+	return e, append(line, '\n')
 }
+
+func (a *auditLog) dir() string { return filepath.Dir(a.path) }
 
 // add appends a record. kv are alternating keys and values.
 func (a *auditLog) add(event string, kv ...string) {
 	if a == nil || a.path == "" {
 		return
 	}
-	line := a.entry(a.clock(), event, kv)
+	e, line := a.entry(a.clock(), event, kv)
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	appendRotated(a.path, auditKeep, line)
+	a.mu.Unlock()
+	if line != nil {
+		notifyAudit(a.dir(), false, e)
+	}
 }
 
 // addRefused appends a refused login or a grant refusal, rate-limited per
@@ -132,8 +137,11 @@ func (a *auditLog) addRefused(key, event string, kv ...string) {
 	}
 	now := a.clock()
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.flushLocked(now, false)
+	written := a.flushLocked(now, false)
+	defer func() {
+		a.mu.Unlock()
+		notifyAudit(a.dir(), true, written...)
+	}()
 	if a.windows == nil {
 		a.windows = map[string]*refusedWindowState{}
 	}
@@ -163,7 +171,11 @@ func (a *auditLog) addRefused(key, event string, kv ...string) {
 		}
 		return
 	}
-	appendRotated(a.refusedFile(), auditRefusedKeep, a.entry(now, event, kv))
+	e, line := a.entry(now, event, kv)
+	appendRotated(a.refusedFile(), auditRefusedKeep, line)
+	if line != nil {
+		written = append(written, e)
+	}
 }
 
 // flush writes the summaries of windows that have ended.
@@ -172,8 +184,9 @@ func (a *auditLog) flush() {
 		return
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.flushLocked(a.clock(), false)
+	written := a.flushLocked(a.clock(), false)
+	a.mu.Unlock()
+	notifyAudit(a.dir(), true, written...)
 }
 
 // close writes every pending summary.
@@ -182,24 +195,31 @@ func (a *auditLog) close() {
 		return
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.flushLocked(a.clock(), true)
+	written := a.flushLocked(a.clock(), true)
+	a.mu.Unlock()
+	notifyAudit(a.dir(), true, written...)
 }
 
-func (a *auditLog) flushLocked(now time.Time, all bool) {
+// flushLocked writes the summaries of ended windows and returns them.
+func (a *auditLog) flushLocked(now time.Time, all bool) (written []AuditEntry) {
 	for key, w := range a.windows {
 		if !all && now.Sub(w.start) < refusedWindow {
 			continue
 		}
 		if w.suppressed > 0 {
 			kv := append(slices.Clip(w.kv), "suppressed", strconv.Itoa(w.suppressed), "since", w.start.UTC().Format(time.RFC3339))
-			appendRotated(a.refusedFile(), auditRefusedKeep, a.entry(now, w.event, kv))
+			e, line := a.entry(now, w.event, kv)
+			appendRotated(a.refusedFile(), auditRefusedKeep, line)
+			if line != nil {
+				written = append(written, e)
+			}
 		}
 		delete(a.windows, key)
 	}
 	if all || now.Sub(a.total.start) >= refusedWindow {
 		a.total = refusedWindowState{}
 	}
+	return written
 }
 
 // appendRotated appends line to path, first rotating path when it has
