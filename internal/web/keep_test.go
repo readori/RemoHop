@@ -331,8 +331,15 @@ func TestPersistentRestoresOpenSessions(t *testing.T) {
 	if code := c.jsonCall("POST", "api/v1/disconnect", map[string]string{"c": ended}, nil); code != 200 {
 		t.Fatalf("disconnect: %d", code)
 	}
-	time.Sleep(50 * time.Millisecond)
-	b, err := os.ReadFile(filepath.Join(dir, openSessionsFile))
+	// The ended session's goroutine rewrites the list as it finishes:
+	// wait for that write rather than for a fixed time.
+	var b []byte
+	for end := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		b, err = os.ReadFile(filepath.Join(dir, openSessionsFile))
+		if err == nil && !strings.Contains(string(b), "ended.test") || time.Now().After(end) {
+			break
+		}
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
