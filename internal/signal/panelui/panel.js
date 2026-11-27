@@ -103,7 +103,7 @@
       relOffT: '中继未开启', relOffS: '用 --relay 启动服务器，即可为无法直连的会话提供中继。',
       st_none: '无预算', st_normal: '预算内', st_half_rate: '匿名会话半速', st_anonymous_refused: '拒绝匿名会话', st_all_refused: '拒绝所有新会话',
       srvTitle: '服务器进程', rss: '内存（RSS）', rssApprox: '内存（Go 运行时）', heap: '堆内存', goroutines: 'Goroutine', memLimit: '内存上限',
-      listenTitle: '监听', lUDP: '信令（UDP）', lAlt: 'NAT 检测（UDP）', lWS: 'WebSocket 桥（TCP）', lPanel: '本面板（TCP）',
+      listenTitle: '监听', lUDP: '汇合（UDP）', lAlt: 'NAT 检测（UDP）', lWS: 'WebSocket 桥（TCP）', lPanel: '本面板（TCP）',
       lRelay: '中继端口（UDP）', relayRandom: '随机高位端口', scope_all: '所有网卡', scope_loopback: '回环', scope_address: '指定地址',
       accounts: '账号', accountsSub: '{n} 个账号 · {d} 台成员设备', accountsOff: '账号功能未开启',
       privacy: '只显示计数和汇总。本面板从不列出 IP 地址、主机 ID、账号邮箱或密钥，与服务器自身的汇总一样只记数量、不记地址。',
