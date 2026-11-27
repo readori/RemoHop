@@ -49,7 +49,7 @@ func TestPanicHoldsAuthorizerGrants(t *testing.T) {
 	}
 
 	// Resuming one grant by name does not lift it; resuming all does.
-	if code, out, _ := runCmd("host", "", "resume", "team.ops"); code != 0 || !strings.Contains(out, "stay suspended") {
+	if code, out, _ := runCmd("host", "", "resume", "team.ops"); code != 0 || !strings.Contains(out, "stay on hold") {
 		t.Fatalf("resume by name: %d %q", code, out)
 	}
 	if _, err := keyLogin(t, h, clientDir); err == nil {
