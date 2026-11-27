@@ -444,3 +444,19 @@ func TestRelayPolicyFlags(t *testing.T) {
 		t.Fatalf("missing deny file: %d %s", code, errOut)
 	}
 }
+
+// TestRelayPolicyLineDefaults: the startup line reports a separate rate
+// for account devices only when one was set (the audit saw "0 kbit/s for
+// account devices" without --relay-account-kbps).
+func TestRelayPolicyLineDefaults(t *testing.T) {
+	rc := &RelayConfig{Rate: 8000 * 125, TotalRate: 40000 * 125, MaxSessions: 64, PerSource: 2}
+	rc.defaults()
+	if line := relayPolicyLine(rc, &Server{}); line != ", 2 per address" {
+		t.Errorf("default line %q", line)
+	}
+	rc = &RelayConfig{Rate: 8000 * 125, AccountRate: 16000 * 125}
+	rc.defaults()
+	if line := relayPolicyLine(rc, &Server{}); !strings.Contains(line, "16000 kbit/s for account devices") || strings.Contains(line, "per address") {
+		t.Errorf("account line %q", line)
+	}
+}

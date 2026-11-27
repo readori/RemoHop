@@ -404,6 +404,9 @@ func runSignal(ctx context.Context, env *cli.Env, args []string) int {
 			relayCfg.Listen = PortRangeListener(host, ports)
 			relayCfg.MaxSessions = min(relayCfg.MaxSessions, ports.Size())
 		}
+		// What the startup line reports is what the server will use: an
+		// unset account rate is the per-session rate, and so on.
+		relayCfg.defaults()
 	}
 	logger := slog.New(slog.NewTextHandler(env.Stderr, &slog.HandlerOptions{Level: level}))
 	var accountsCfg *AccountsConfig
