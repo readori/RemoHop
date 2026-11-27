@@ -779,7 +779,14 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 		h.log.Info("registered with the rendezvous server through its websocket bridge (UDP to it is blocked; clients will come through the relay)",
 			"id", signal.FormatID(reg.ID), "bridge", h.wc.URL())
 	} else {
-		h.log.Info("registered with the rendezvous server", "id", signal.FormatID(reg.ID), "server", h.cfg.Signal, "public_addr", reg.Reflexive)
+		// The first time, the banner of `remohop host` (or the app)
+		// shows the ID already; later ones (a new network, a wake from
+		// sleep) are news.
+		level := slog.LevelInfo
+		if first {
+			level = slog.LevelDebug
+		}
+		h.log.Log(ctx, level, "registered with the rendezvous server", "id", signal.FormatID(reg.ID), "server", h.cfg.Signal, "public_addr", reg.Reflexive)
 	}
 	if prev := noteID(h.dir, h.cfg.Signal, reg.ID); prev != "" {
 		h.log.Warn("the rendezvous server assigned a different ID", "id", signal.FormatID(reg.ID), "previous", signal.FormatID(prev))

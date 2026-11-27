@@ -437,6 +437,44 @@ func TestDirectDialAndHostKeyPin(t *testing.T) {
 	conn.Close()
 }
 
+// lockedBuffer is a bytes.Buffer safe for a logger and a test at once.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+// The host's first registration is logged at debug level only: the banner
+// of `remohop host` shows the ID already.
+func TestFirstRegistrationLoggedAtDebug(t *testing.T) {
+	var logs lockedBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	startHost(t, hostd.Config{Signal: loopbackSignal(t), Logger: logger})
+	var line string
+	waitFor(t, func() bool { // logged just after Registered closes
+		for l := range strings.Lines(logs.String()) {
+			if strings.Contains(l, `msg="registered with the rendezvous server"`) {
+				line = l
+			}
+		}
+		return line != ""
+	})
+	if !strings.Contains(line, "level=DEBUG") {
+		t.Fatalf("registration logged as %q", line)
+	}
+}
+
 // crashConn is a host's socket that can go silent at once, as when the
 // host's process is killed: nothing it sends gets out any more, not even
 // the close of its sessions.
