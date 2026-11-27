@@ -56,14 +56,9 @@ type Options struct {
 func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *peer.Conn) {
 	t.Helper()
 
-	// Transports are closed last, after the sessions on them (cleanups
-	// run in reverse order).
-	var transports []*quic.Transport
-	t.Cleanup(func() {
-		for _, tr := range transports {
-			tr.Close()
-		}
-	})
+	// Each transport is closed by a cleanup registered once it is used:
+	// cleanups run in reverse order, so after the sessions on it. (A pair
+	// may be made from a goroutine while the test's cleanups already run.)
 	newTransport := func() *quic.Transport {
 		uc, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 		if err != nil {
@@ -73,16 +68,16 @@ func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *p
 		if o.Latency > 0 {
 			pc = newDelayConn(uc, o.Latency)
 		}
-		tr := &quic.Transport{Conn: pc}
-		transports = append(transports, tr)
-		return tr
+		return &quic.Transport{Conn: pc}
 	}
 
-	ln, err := newTransport().Listen(serverTLS(t), peer.QUICConfig())
+	st := newTransport()
+	ln, err := st.Listen(serverTLS(t), peer.QUICConfig())
 	if err != nil {
+		st.Close()
 		t.Fatalf("peertest: listen: %v", err)
 	}
-	t.Cleanup(func() { ln.Close() })
+	t.Cleanup(func() { ln.Close(); st.Close() })
 
 	// The first loopback handshake of a process has been seen to stall on a
 	// loaded macOS runner, so dial a few times rather than once for long.
@@ -104,11 +99,14 @@ func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *p
 	var cq *quic.Conn
 	for attempt := 1; ; attempt++ {
 		dctx, dcancel := context.WithTimeout(ctx, 10*time.Second)
-		cq, err = newTransport().Dial(dctx, ln.Addr(), clientTLS, peer.QUICConfig())
+		ct := newTransport()
+		cq, err = ct.Dial(dctx, ln.Addr(), clientTLS, peer.QUICConfig())
 		dcancel()
 		if err == nil {
+			t.Cleanup(func() { ct.Close() })
 			break
 		}
+		ct.Close()
 		if attempt == 3 {
 			t.Fatalf("peertest: dial: %v", err)
 		}
