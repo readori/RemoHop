@@ -361,7 +361,7 @@ func (s *Server) admitRelay(client, host relayPeer) (relayDecision, string, stri
 	if deny.addr(client.addr) || deny.addr(host.addr) || deny.key(client.key) || deny.key(host.key) {
 		return relayDecision{}, refusedDeny, "the relay of this server is not available for this connection"
 	}
-	member := s.isMember(client.key) || s.isMember(host.key) || extMember(client.key) || extMember(host.key)
+	member := s.isMember(client.key) || s.isMember(host.key) || extMember(s, client.key) || extMember(s, host.key)
 	return s.decideRelay(client, host, member)
 }
 
