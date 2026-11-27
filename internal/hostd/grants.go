@@ -362,7 +362,7 @@ func (h *Host) enforceGrants() int {
 		if s.grant == "" {
 			continue
 		}
-		if _, err := h.grantFor(s.grant, s.currentTokenID()); err != nil {
+		if _, err := h.grantOf(s.grant, s.currentTokenID(), s.authz, s.Auth.ClientKey); err != nil {
 			h.log.Info("closing granted session", "grant", s.grant, "from", s.Remote, "reason", err)
 			h.audit.add("grant-end", s.fields("reason", err.Error())...)
 			s.conn.CloseWithReason(err.Error())
@@ -397,7 +397,7 @@ func (s *Session) Grant() string { return s.grant }
 // the session is over: it is closed, and the error says why to whoever
 // asked.
 func (s *Session) activeGrant() (*grantEntry, error) {
-	e, err := s.host.grantFor(s.grant, s.currentTokenID())
+	e, err := s.host.grantOf(s.grant, s.currentTokenID(), s.authz, s.Auth.ClientKey)
 	if err != nil {
 		go s.conn.CloseWithReason(err.Error())
 		return nil, err

@@ -109,6 +109,8 @@ Sessions on a reissued grant's old code never get the new rules: every check com
 
 From the agent's machine, `remohop <ID> limits` shows what its credential allows.
 
+Code built on RemoHop can also hand out grants without a code: `hostd.RegisterAuthorizer` (`internal/hostd/authorizer.go`) lets it vouch for an identity key the owner never paired, with a grant the host then enforces exactly like these. RemoHop Teams uses it for team policies. The authorizer is asked again at every check, so a grant it withdraws or changes ends the session at its next request. Such sessions cannot mint pairings and skip `remohop config ask`, as scoped logins do.
+
 ## Approving actions
 
 With `--approve each` (or `first`), a command or file change waits until the owner answers. The request reaches the owner in three ways:

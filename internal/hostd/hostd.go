@@ -181,6 +181,7 @@ type Host struct {
 	nextSession  int
 	// Grants (see grants.go).
 	grants        grantCache
+	authorized    rulesCache // authorizer grants (authorizer.go)
 	nextRecording int
 }
 
@@ -206,6 +207,9 @@ type Session struct {
 	// approved remembers its owner's approvals of actions (grants.go).
 	grant    string
 	approved actionApprovals
+	// authz is the authorizer whose grant the session stands on (nil: the
+	// grant, if any, is one its owner issued).
+	authz *Authorizer
 	// path is how the client reaches the host (see Path); guarded by
 	// host.mu.
 	path string
@@ -936,6 +940,16 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limit map[perm.Feature]bool) (*Session, error) {
 	sess := &Session{Auth: res, Remote: remote, Started: time.Now(), host: h, tokenID: res.TokenID, grant: res.Grant, limit: limit,
 		used: map[perm.Feature]bool{}, path: h.pathOf(remote, wsdgram.IsBridge(q.LocalAddr()))}
+	if a := authorizerFor(res.Scope); a != nil {
+		// Admitted by an authorizer: the session stands on the grant it
+		// gives this key, checked again below and at every use.
+		g, _, ok := a.Grant(h, res.ClientKey)
+		if !ok || !usableGrant(g) {
+			h.log.Info("login refused at admission", "from", remote, "reason", "access through "+a.Name+" was withdrawn")
+			return nil, &auth.Error{Code: auth.CodeDenied}
+		}
+		sess.authz, sess.grant = a, g.Name
+	}
 	label := "key " + auth.Fingerprint(res.ClientKey)
 	if res.TokenName != "" {
 		label = res.TokenName
@@ -958,7 +972,7 @@ func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limi
 	}
 	maxSessions := 0
 	if sess.grant != "" {
-		e, err := h.grantFor(sess.grant, res.TokenID)
+		e, err := h.grantOf(sess.grant, res.TokenID, sess.authz, res.ClientKey)
 		if err != nil {
 			return denied(err)
 		}
