@@ -3,7 +3,6 @@ package signal
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"log/slog"
 	"net"
@@ -20,17 +19,11 @@ import (
 	"github.com/readori/RemoHop/internal/config"
 )
 
-const signalUsage = `Usage: remohop signal [--listen ADDR] [--alt ADDR] [--data DIR] [--max-ids N]
-                  [--relay [--relay-ports LO-HI] [--relay-kbps N] [--relay-total-kbps N]
-                   [--relay-max N] [--relay-per-source N] [--relay-account-kbps N]
-                   [--relay-for all|accounts] [--relay-deny FILE]
-                   [--relay-monthly-gb N]] [--max-conns N]
-                  [--ws-listen ADDR [--ws-path PATH] [--ws-real-ip-header NAME]
-                   [--ws-tls-cert FILE --ws-tls-key FILE] [--ws-max-conns N]]
+const signalUsage = `Usage: remohop signal [--listen ADDR] [--data DIR] [--relay [--relay-ports LO-HI]]
+                      [--ws-listen ADDR] [--accounts ...] [more flags: see below]
        remohop signal --print-firewall [same flags]
        remohop signal --show-key [--data DIR]
-       remohop signal --status [--data DIR] [--relay-monthly-gb N]
-                  [--accounts MAIL-OPTIONS WHO-OPTIONS [--max-accounts N]]
+       remohop signal --status [--data DIR]
 
 Run a rendezvous server. Hosts register with it to get their 9-digit ID and
 clients ask it where a host is; the two then connect directly to each other.
@@ -38,13 +31,55 @@ The server never sees session traffic and cannot decrypt or impersonate a
 session, so it needs no secrets beyond its own key and can run anywhere
 that has a public UDP port.
 
-Flags:
+Common flags:
   --listen ADDR   UDP address to serve on (default ":21116")
   --alt ADDR      second UDP address for NAT-type detection (default: the
                   port after --listen); "off" disables it
   --data DIR      where the server key and the ID table live
                   (default: "signal" in the remohop config directory)
   --max-ids N     stop allocating new IDs beyond N hosts (default 1000000)
+  --max-conns N   open connections (hosts online plus clients asking) the
+                  server accepts. Each costs about 70 KB; the default is
+                  sized to the memory available (the cgroup limit, else the
+                  RAM): about 6400 on a 1 GB machine, at most 50000
+  --relay         also relay sessions whose two peers cannot connect
+                  directly. Off by default: it is the only thing that costs
+                  this server real bandwidth. Relayed traffic stays
+                  end-to-end encrypted. More: ` + "`remohop help signal relay`" + `.
+  --relay-ports LO-HI   take relay ports only from this range, e.g.
+                  40000-40099, so the firewall needs to open just that range
+  --print-firewall  print the commands that open the ports these flags use,
+                  for this OS, and exit. Nothing is run.
+  --show-key      print the server's public key and how to pin it in clients
+                  or builds, and exit (creates the key on first use)
+  --status        print this month's relay usage from --data and exit
+
+Both UDP ports must be reachable from the internet, through the machine's
+own firewall AND the cloud provider's: ` + "`remohop signal --print-firewall`" + ` prints
+the commands. On start the server prints its public key and how clients pin it.
+
+Examples:
+  remohop signal
+  remohop signal --relay --relay-ports 40000-40099
+  remohop -v signal                   also log every introduction
+  sudo remohop service install --role signal --relay --relay-ports 40000-40099
+
+On the machines that use it:
+  remohop config set signal rendezvous.example.net
+  remohop config set signal-pin KEY
+
+More:
+  remohop help signal relay      the relay's limits, monthly budget and deny list
+  remohop help signal ws         the websocket bridge for networks that let only
+                                 HTTPS out, and Cloudflare Tunnel
+  remohop help signal accounts   email accounts (` + "`remohop login`" + `) and SMTP
+  remohop help signal deploy     small machines, a free public server, and builds
+                                 with this server built in
+  remohop help signal all        all of it (also ` + "`remohop signal --help-all`" + `)
+`
+
+const signalRelayHelp = `Relay flags of remohop signal:
+
   --relay         also relay sessions whose two peers cannot connect
                   directly (two symmetric NATs, say). Off by default: it is
                   the only thing that costs this server real bandwidth.
@@ -87,10 +122,11 @@ Flags:
                         100% they are refused, from 110% all new sessions
                         are. Logged at 50, 80 and 100%.
   --status        print this month's relay usage from --data and exit
-  --max-conns N   open connections (hosts online plus clients asking) the
-                  server accepts. Each costs about 70 KB; the default is
-                  sized to the memory available (the cgroup limit, else the
-                  RAM): about 6400 on a 1 GB machine, at most 50000
+                  (with --relay-monthly-gb N, also against that budget)
+`
+
+const signalWSHelp = `Websocket bridge flags of remohop signal:
+
   --ws-listen ADDR   also serve the websocket bridge on this TCP address,
                   for peers in networks that let only HTTPS out (UDP
                   blocked, maybe only an HTTP proxy): they set
@@ -112,13 +148,26 @@ Flags:
   --ws-max-conns N      open websocket connections (default 512; 32 per
                         address). Each is rate limited like a relayed
                         session and closed after 2 minutes of silence.
-  --print-firewall  print the commands that open the ports these flags use,
-                  for this OS (iptables on Ubuntu/Debian, firewall-cmd on
-                  Oracle Linux/RHEL), and exit. Nothing is run.
-  --show-key      print the server's public key and how to pin it in clients
-                  or builds, and exit (creates the key on first use)
 
-Accounts (off by default):
+Behind a Cloudflare Tunnel (only the websocket part goes through it; the
+UDP ports stay open as usual):
+  remohop signal --relay --relay-ports 40000-40099 \
+      --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP
+  and in cloudflared's config.yml:
+    ingress:
+      - hostname: relay.example.com
+        service: http://127.0.0.1:8080
+      - service: http_status:404
+  then on the machines:
+    remohop config set signal-ws wss://relay.example.com/remohop/v1/udp
+  With Cloudflare Access in front, give machines a service token:
+    remohop config set signal-ws-access-id ID.access
+    remohop config set signal-ws-access-secret-file /path/to/secret
+  (or REMOHOP_SIGNAL_WS_ACCESS_SECRET; never on the command line).
+`
+
+const signalAccountsHelp = `Account flags of remohop signal (off by default):
+
   --accounts      let people log in with an email address (` + "`remohop login`" + `) so
                   that each of their devices can list the others and see
                   which are online (` + "`remohop devices`" + `). An account never grants
@@ -160,33 +209,35 @@ Accounts (off by default):
   server stores accounts in accounts.journal in --data, indexed by a hash
   of the address, with session tokens hashed; codes are never stored.
 
+Examples:
+  remohop signal --accounts --smtp-host smtp.example.com --smtp-user remohop \
+      --smtp-password-file /etc/remohop/smtp-pass --mail-from remohop@example.com \
+      --account-domains example.com
+  remohop signal --listen 127.0.0.1:21116 --accounts --accounts-dev-codes
+`
+
+const signalDeployHelp = `Deploying remohop signal:
+
 Both UDP ports must be reachable from the internet, through the machine's
 own firewall AND the cloud provider's (an Oracle Cloud security list, an AWS
-security group, ...): ` + "`remohop signal --print-firewall`" + ` prints the commands. On
-start the server prints its public key and how clients pin it:
+security group, ...): ` + "`remohop signal --print-firewall`" + ` prints the commands
+(iptables on Ubuntu/Debian, firewall-cmd on Oracle Linux/RHEL). On start the
+server prints its public key and how clients pin it:
   remohop config set signal-pin KEY
 or, for a distribution of remohop with this server built in:
   go build -ldflags "-X .../internal/dial.DefaultSignal=HOST -X .../internal/dial.DefaultSignalPin=KEY"
 
 Small machines: idle, the server needs about 16 MB; each online host adds
-about 70 KB, and the connection limit is sized to the memory available so a
-small machine refuses connections rather than running out of memory. A
-burst of 200 requests per second costs about a quarter of a fast CPU core.
-Relaying costs about 1 % of a core per 10 Mbit/s, so the default total of
-40 Mbit/s fits a 1/8-CPU VM; mind the provider's monthly traffic allowance. To run it as a hardened system service:
+about 70 KB, and the connection limit (--max-conns) is sized to the memory
+available so a small machine refuses connections rather than running out of
+memory. A burst of 200 requests per second costs about a quarter of a fast
+CPU core. Relaying costs about 1 % of a core per 10 Mbit/s, so the default
+total of 40 Mbit/s fits a 1/8-CPU VM; mind the provider's monthly traffic
+allowance. To run it as a hardened system service:
   sudo remohop service install --role signal --relay --relay-ports 40000-40099
 
 Examples:
-  remohop signal
   remohop signal --listen :443 --alt :444 --data /var/lib/remohop
-  remohop -v signal                   also log every introduction
-  remohop signal --accounts --smtp-host smtp.example.com --smtp-user remohop \
-      --smtp-password-file /etc/remohop/smtp-pass --mail-from remohop@example.com \
-      --account-domains example.com
-  remohop signal --listen 127.0.0.1:21116 --accounts --accounts-dev-codes
-
-On the machines that use it:
-  remohop config set signal rendezvous.example.net
 
 A free public server (a relay anybody may use, within limits): see
 docs/public-server.md. On an Oracle Always Free micro VM (10 TB/month):
@@ -195,22 +246,6 @@ docs/public-server.md. On an Oracle Always Free micro VM (10 TB/month):
       --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP
   (with --accounts ... add --relay-account-kbps 8000). An hourly summary
   line counts sessions, bytes and refusals, without addresses.
-
-Behind a Cloudflare Tunnel (only the websocket part goes through it; the
-UDP ports stay open as usual):
-  remohop signal --relay --relay-ports 40000-40099 \
-      --ws-listen 127.0.0.1:8080 --ws-real-ip-header CF-Connecting-IP
-  and in cloudflared's config.yml:
-    ingress:
-      - hostname: relay.example.com
-        service: http://127.0.0.1:8080
-      - service: http_status:404
-  then on the machines:
-    remohop config set signal-ws wss://relay.example.com/remohop/v1/udp
-  With Cloudflare Access in front, give machines a service token:
-    remohop config set signal-ws-access-id ID.access
-    remohop config set signal-ws-access-secret-file /path/to/secret
-  (or REMOHOP_SIGNAL_WS_ACCESS_SECRET; never on the command line).
 `
 
 func init() {
@@ -218,14 +253,18 @@ func init() {
 		Name:    "signal",
 		Summary: "run a rendezvous server",
 		Usage:   signalUsage,
-		Run:     runSignal,
+		Topics: map[string]string{
+			"relay":    signalRelayHelp,
+			"ws":       signalWSHelp,
+			"accounts": signalAccountsHelp,
+			"deploy":   signalDeployHelp,
+		},
+		Run: runSignal,
 	})
 }
 
 func runSignal(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("signal", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, signalUsage) }
+	fs := cli.NewFlagSet(env, "signal", signalUsage)
 	listen := fs.String("listen", ":"+strconv.Itoa(DefaultPort), "")
 	alt := fs.String("alt", "", "")
 	data := fs.String("data", "", "")
