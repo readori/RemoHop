@@ -2,8 +2,10 @@ package hostd
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -139,7 +141,8 @@ func runStatus(env *cli.Env, args []string, strict bool) int {
 				if device == "" {
 					device = "-"
 				}
-				fmt.Fprintf(tw, "    %s\t%s\t%s\t%s\t%s\t%s\n", cli.Sanitize(c.Peer), cli.Sanitize(device), cli.Sanitize(c.From), cli.Sanitize(c.Path), cli.Sanitize(string(c.Auth)), c.Since.Local().Format("15:04:05"))
+				authCol := authColumn(string(c.Auth), c.Authorizer, c.Grant)
+				fmt.Fprintf(tw, "    %s\t%s\t%s\t%s\t%s\t%s\n", cli.Sanitize(c.Peer), cli.Sanitize(device), cli.Sanitize(c.From), cli.Sanitize(c.Path), authCol, c.Since.Local().Format("15:04:05"))
 			}
 			tw.Flush()
 		}
@@ -422,4 +425,65 @@ func portMapLine(pm *PortMapStatus) string {
 		return fmt.Sprintf("  Router port: %s %s (offered to clients)", cli.Sanitize(pm.Protocol), cli.Sanitize(pm.External))
 	}
 	return fmt.Sprintf("  Router port: %s %s (not offered: the router is behind another NAT)", cli.Sanitize(pm.Protocol), cli.Sanitize(pm.External))
+}
+
+// authColumn renders how a session logged in; sessions an Authorizer admitted
+// also name it and the grant.
+func authColumn(auth, authorizer, grant string) string {
+	col := cli.Sanitize(auth)
+	if authorizer != "" {
+		col += " via " + cli.Sanitize(authorizer)
+		if grant != "" {
+			col += " (" + cli.Sanitize(grant) + ")"
+		}
+	}
+	return col
+}
+
+// runSessions lists the live sessions of the running host.
+func runSessions(env *cli.Env, args []string) int {
+	fs := flag.NewFlagSet("host sessions", flag.ContinueOnError)
+	fs.SetOutput(env.Stderr)
+	asJSON := fs.Bool("json", false, "")
+	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
+		env.Errorf("usage: remohop host sessions [--json]")
+		return cli.ExitUsage
+	}
+	dir, err := config.Dir()
+	if err != nil {
+		env.Errorf("host: %v", err)
+		return cli.ExitError
+	}
+	ss, err := ControlSessions(dir)
+	if err != nil {
+		if errors.Is(err, errNotRunning) {
+			env.Errorf("host: not running (start it with `remohop host`)")
+		} else {
+			env.Errorf("host sessions: %v", err)
+		}
+		return cli.ExitError
+	}
+	if *asJSON {
+		if ss == nil {
+			ss = []ControlSession{}
+		}
+		printJSON(env, ss)
+		return cli.ExitOK
+	}
+	if len(ss) == 0 {
+		fmt.Fprintln(env.Stdout, "no sessions")
+		return cli.ExitOK
+	}
+	tw := tabwriter.NewWriter(env.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(tw, "ID\tPEER\tDEVICE\tFROM\tPATH\tAUTH\tSINCE")
+	for _, c := range ss {
+		device := c.Device
+		if device == "" {
+			device = "-"
+		}
+		fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n", c.ID, cli.Sanitize(c.Peer), cli.Sanitize(device), cli.Sanitize(c.From), cli.Sanitize(c.Path),
+			cmp.Or(strings.TrimSpace(authColumn("", c.Authorizer, c.Grant)), "-"), c.Since.Local().Format("15:04:05"))
+	}
+	tw.Flush()
+	return cli.ExitOK
 }

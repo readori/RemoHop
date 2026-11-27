@@ -46,6 +46,16 @@ const authorizerScope = "grant-by:"
 // admitted.
 func AuthorizerScope(name string) string { return authorizerScope + name }
 
+// authorizerName is the inverse of AuthorizerScope: the authorizer that
+// admitted a session with this scope, or "" for any other scope.
+func authorizerName(scope string) string {
+	name, _ := strings.CutPrefix(scope, authorizerScope)
+	if name == scope {
+		return ""
+	}
+	return name
+}
+
 func authorizerFor(scope string) *Authorizer {
 	name, ok := strings.CutPrefix(scope, authorizerScope)
 	if !ok {

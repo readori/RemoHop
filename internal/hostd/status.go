@@ -79,6 +79,9 @@ type SessionStatus struct {
 	Since    time.Time `json:"since"`
 	// Grant is the grant the session stands on; empty for full access.
 	Grant string `json:"grant,omitempty"`
+	// Authorizer names the Authorizer that admitted the session; empty
+	// for paired and password sessions.
+	Authorizer string `json:"authorizer,omitempty"`
 }
 
 // OnChange registers fn to be called (from other goroutines) whenever the
@@ -135,7 +138,8 @@ func (h *Host) Status() Status {
 			peer = "key " + auth.Fingerprint(s.Auth.ClientKey)
 		}
 		st.Clients = append(st.Clients, SessionStatus{Peer: peer, Identity: auth.Fingerprint(s.Auth.ClientKey),
-			Device: s.Auth.ClientName, From: s.Remote.String(), Path: s.path, Auth: s.Auth.Kind, Since: s.Started, Grant: s.grant})
+			Device: s.Auth.ClientName, From: s.Remote.String(), Path: s.path, Auth: s.Auth.Kind, Since: s.Started, Grant: s.grant,
+			Authorizer: authorizerName(s.Auth.Scope)})
 	}
 	sort.Slice(st.Clients, func(i, j int) bool { return st.Clients[i].Since.Before(st.Clients[j].Since) })
 	return st
