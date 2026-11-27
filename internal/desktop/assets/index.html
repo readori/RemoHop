@@ -105,7 +105,7 @@
         <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
         <label class="opt"><input type="radio" name="wsrv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
           <span class="field mt8"><input id="wiz-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
-        <label class="opt"><input type="radio" name="wsrv" value=""><span><span class="t" data-t="srv.skip">Skip for now</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>
+        <label class="opt"><input type="radio" name="wsrv" value=""><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Only on the same network, by address</span></span></label>
         <label class="check mt8"><input type="checkbox" id="wiz-incoming"><span data-t="wiz.incoming">Let others connect to this computer now (each connection asks me)</span></label>
         <p class="err" id="wiz-err"></p>
         <div class="row between mt"><button class="btn text" id="wiz-back" data-t="back">Back</button><button class="btn" id="wiz-done" data-t="done">Done</button></div>
@@ -124,7 +124,8 @@
           <div class="card-h">
             <span class="tile"><svg class="i"><use href="#i-computer"/></svg></span>
             <div class="grow"><h2 class="ct" id="in-allow-l" data-t="in.allow">Allow incoming connections</h2>
-              <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div></div>
+              <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div>
+              <button class="link" id="in-fix" type="button" hidden data-t="in.fix">Rendezvous server settings</button></div>
             <button class="info" data-help="h-incoming" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button>
             <input type="checkbox" class="switch" id="incoming" role="switch" aria-labelledby="in-allow-l">
           </div>
@@ -296,7 +297,7 @@
           <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
           <label class="opt"><input type="radio" name="srv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
             <span class="field mt8"><input id="srv-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
-          <label class="opt"><input type="radio" name="srv" value="none"><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Connect by address (host:port) only</span></span></label>
+          <label class="opt"><input type="radio" name="srv" value="none"><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Only on the same network, by address</span></span></label>
           <p class="err" id="srv-err"></p>
           <div class="row end"><button class="btn sm" id="srv-save" data-t="save">Save</button></div>
         </div>
