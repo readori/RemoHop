@@ -812,6 +812,13 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (_ 
 			if ctx.Err() != nil {
 				return nil, route{}, ctx.Err()
 			}
+			_, hs := errors.AsType[*quic.HandshakeTimeoutError](err)
+			_, idle := errors.AsType[*quic.IdleTimeoutError](err)
+			if hs || idle || errors.Is(err, context.DeadlineExceeded) {
+				// Silence: say what to check rather than QUIC's words for it.
+				return nil, route{}, explain(err, "no remohop host answered at %s. Check the address and port, that RemoHop "+
+					"is running there, and that its firewall lets that UDP port in", t.canonical)
+			}
 			return nil, route{}, fmt.Errorf("no remohop host answered at %s: %w", t.canonical, err)
 		}
 		ap := ua.AddrPort()
@@ -873,11 +880,15 @@ func (d *dialer) establish(ctx context.Context, sock *nat.Socket, t *target) (_ 
 		}
 		switch signal.CodeOf(err) {
 		case signal.CodeUnknownID:
-			return nil, route{}, explain(err, "no host with ID %s is known to the rendezvous server %s (check the ID)", t.display, addr)
+			return nil, route{}, explain(err, "no host with ID %s is known to the rendezvous server %s. Check the ID with the person "+
+				"at that computer (their RemoHop window shows it, or `remohop status` there), and that both computers use the same server", t.display, addr)
 		case signal.CodeOffline:
-			return nil, route{}, explain(err, "host %s is offline: it is not connected to the rendezvous server %s", t.display, addr)
+			return nil, route{}, explain(err, "host %s is offline: it is not connected to the rendezvous server %s. Check that RemoHop "+
+				"is running there (`remohop host`, the desktop app or Quick Support) and that the computer is awake and online; "+
+				"`remohop devices` shows when this machine last saw it", t.display, addr)
 		case signal.CodeNoAnswer:
-			return nil, route{}, explain(err, "host %s is registered with the rendezvous server but did not answer; try again", t.display)
+			return nil, route{}, explain(err, "host %s is registered with the rendezvous server but did not answer. Try again in a moment; "+
+				"if it keeps happening, restart RemoHop on that computer", t.display)
 		case signal.CodeDeclined:
 			return nil, route{}, fmt.Errorf("host %s declined the connection: %w", t.display, err)
 		}
@@ -1406,6 +1417,13 @@ func connError(q *quic.Conn, err error) error {
 		if ae, ok := errors.AsType[*quic.ApplicationError](e); ok && ae.Remote {
 			// Text chosen by a host that has not authenticated.
 			return fmt.Errorf("the host closed the connection: %s", auth.CleanText(ae.ErrorMessage, 120))
+		}
+	}
+	for _, e := range []error{err, cause} {
+		if _, ok := errors.AsType[*quic.IdleTimeoutError](e); ok {
+			// QUIC's own text is "timeout: no recent network activity".
+			return &explained{msg: "the connection to the host went silent: one of the two networks dropped or " +
+				"changed; try again", err: e}
 		}
 	}
 	if cause != nil {

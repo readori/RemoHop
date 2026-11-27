@@ -171,11 +171,36 @@ func Dial(ctx context.Context, sock *nat.Socket, addr string, opts Options) (*Cl
 		if noALPN(err) {
 			return nil, wrongServer(ctx, sock.Transport(), ua, addr, err)
 		}
-		return nil, fmt.Errorf("rendezvous server %s unreachable: %w", addr, err)
+		return nil, unreachable(addr, port, err)
 	}
 	c.q = q
 	time.AfterFunc(natGrace, stopProbe)
 	return c, nil
+}
+
+// unreachableError is a rendezvous server that did not complete the
+// handshake, worded for people: QUIC's own "timeout: no recent network
+// activity" says nothing about what to check.
+type unreachableError struct {
+	msg string
+	err error
+}
+
+func (e *unreachableError) Error() string { return e.msg }
+func (e *unreachableError) Unwrap() error { return e.err }
+
+func unreachable(addr, port string, err error) error {
+	var hs *quic.HandshakeTimeoutError
+	var idle *quic.IdleTimeoutError
+	if !errors.As(err, &hs) && !errors.As(err, &idle) {
+		return fmt.Errorf("rendezvous server %s unreachable: %w", addr, err)
+	}
+	ports := port + "/udp"
+	if n, perr := strconv.Atoi(port); perr == nil && n < 65535 {
+		ports = fmt.Sprintf("%d-%d/udp", n, n+1)
+	}
+	return &unreachableError{err: err, msg: fmt.Sprintf("rendezvous server %s unreachable: it did not answer. Check the address "+
+		"and port, that `remohop signal` is running there, and that its firewall (and its cloud provider's) lets %s in", addr, ports)}
 }
 
 // NATType returns the socket's NAT type as measured against this server

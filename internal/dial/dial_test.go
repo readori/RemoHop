@@ -338,7 +338,8 @@ func TestDialErrors(t *testing.T) {
 		o.Signal, o.Dir, o.Password = addr, t.TempDir(), "whatever-pw"
 		start := time.Now()
 		_, err := Dial(ctx, id, o)
-		if err == nil || !strings.Contains(err.Error(), "unreachable") {
+		if err == nil || !strings.Contains(err.Error(), "unreachable") || !strings.Contains(err.Error(), "remohop signal") ||
+			strings.Contains(err.Error(), "no recent network activity") || strings.Contains(err.Error(), "handshake") {
 			t.Fatalf("err = %v", err)
 		}
 		if time.Since(start) > 12*time.Second {
@@ -353,7 +354,7 @@ func TestDialErrors(t *testing.T) {
 		directTimeout = 1500 * time.Millisecond
 		start := time.Now()
 		err := dialWith(addr, "whatever-pw")
-		if err == nil || !strings.Contains(err.Error(), "no remohop host answered") {
+		if err == nil || !strings.Contains(err.Error(), "no remohop host answered") || !strings.Contains(err.Error(), "Check the address") {
 			t.Fatalf("err = %v", err)
 		}
 		if time.Since(start) > 5*time.Second {
