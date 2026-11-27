@@ -92,6 +92,22 @@ type hsession struct {
 	ctx   context.Context
 }
 
+// mode is the mode a file or directory is created or changed to: under a
+// grant without the setuid, setgid and sticky bits (grantMode).
+func (s *hsession) mode(m fs.FileMode) fs.FileMode { return grantMode(m, s.guard != nil) }
+
+// grantMode strips the setuid, setgid and sticky bits from m for a session
+// on a grant (restricted). A host often runs as root (a system service): a
+// setuid file a granted session wrote would run as root for anyone on the
+// machine, and a setgid directory would hand its group to what is made in
+// it. A grant gives access to files, not to the host's identity.
+func grantMode(m fs.FileMode, restricted bool) fs.FileMode {
+	if restricted {
+		return m &^ (fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky)
+	}
+	return m
+}
+
 // place maps p to where an operation acts (see placeFor).
 func (s *hsession) place(p string, a grant.Access, follow bool) (loc, error) {
 	return placeFor(s.guard, s.scope, p, a, follow)
@@ -394,7 +410,7 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		if err != nil {
 			return nil, nil, err
 		}
-		f, err := l.open(flags, ModeFromUnix(r.Mode)&(fs.ModePerm|fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky))
+		f, err := l.open(flags, s.mode(ModeFromUnix(r.Mode)&(fs.ModePerm|fs.ModeSetuid|fs.ModeSetgid|fs.ModeSticky)))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -411,7 +427,7 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		a := attrFromInfo(fi)
 		return &reply{Handle: h, Attr: &a}, nil, nil
 	case opMkdir:
-		return nil, nil, l.mkdir(ModeFromUnix(r.Mode&0o7777), r.All)
+		return nil, nil, l.mkdir(s.mode(ModeFromUnix(r.Mode&0o7777)), r.All)
 	case opRemove:
 		return nil, nil, l.remove(r.Kind)
 	case opRename:
@@ -446,7 +462,7 @@ func (s *hsession) dispatch(op byte, r *request, data []byte) (*reply, []byte, e
 		defer l2.release()
 		return nil, nil, linkLoc(l, l2)
 	case opChmod:
-		return nil, nil, l.chmod(ModeFromUnix(r.Mode & 0o7777))
+		return nil, nil, l.chmod(s.mode(ModeFromUnix(r.Mode & 0o7777)))
 	case opTruncate:
 		if r.Size < 0 {
 			return nil, nil, syscall.EINVAL
@@ -763,6 +779,7 @@ func writeAtomic(dst loc, o putReq, wo writeOpts, fill func(io.Writer) error) (*
 			mode = fi.Mode() & (fs.ModePerm | fs.ModeSetuid | fs.ModeSetgid | fs.ModeSticky)
 		}
 	}
+	mode = grantMode(mode, wo.restricted)
 	if fi, err := d.Lstat(base); err == nil && fi.IsDir() && !o.Unique {
 		return nil, syscall.EISDIR
 	}

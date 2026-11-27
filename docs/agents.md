@@ -79,6 +79,7 @@ Each root is pinned when the host loads the grant: the file service does its wor
 
 - may not remove, rename or replace the root itself (its contents are fine);
 - may create symbolic links only if they point inside the same root and their target has no `..` component: a relative target names the link's own directory or something below it, an absolute one a place under the root's path. Where a link with `..` leads depends on where it sits, so moving it (or replacing a directory it climbs out of) could make it lead out; without `..`, a link made under the grant leads inside the root wherever it is moved to within the root. Links that already exist and point outside are not followed;
+- creates, uploads and changes files and directories without the setuid, setgid and sticky bits: they are removed from any mode it asks for, so a host running as root never gets a setuid-root program from a grant;
 - may create hard links only between files inside the same root; renames and hard links between two different roots fail with `EXDEV` (tools then copy);
 - resumes uploads (`cp`, `sync`) through partial files the host names itself, bound to the destination and to the grant's credential: a reissued grant starts such uploads over, and a partial file is used only if it is a regular file with a single link. Older clients cannot resume under a grant and upload whole files instead.
 
