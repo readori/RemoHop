@@ -33,7 +33,7 @@
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
-      'un.title': 'Unattended access', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
+      'un.title': 'Unattended access', 'un.creds': 'Unattended ID and password', 'un.credsoff': 'Unattended access is off. Turn it on under This computer.', 'un.admin3': 'Show asks Windows for an administrator.', 'un.runok': 'Running', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
       'un.setup': 'Set up', 'un.disable': 'Turn off', 'un.busy': 'Working…', 'un.wait': 'Turning on… Windows asks for administrator permission first; then it takes a few seconds.', 'un.enable': 'Turn on',
       'un.lead': 'Choose a strong password. Anyone with this ID and password can connect without asking.',
       'un.pw': 'Password', 'un.pw2': 'Repeat', 'un.gen': 'Suggest a strong password', 'un.admin': 'Windows will ask for an administrator.',
@@ -92,7 +92,7 @@
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
-      'un.title': '无人值守访问', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '关闭', 'un.on': '开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
+      'un.title': '无人值守访问', 'un.creds': '无人值守 ID 与密码', 'un.credsoff': '无人值守访问未开启，请先在“这台电脑”页面打开开关。', 'un.admin3': '点“显示”时 Windows 会要求管理员授权。', 'un.runok': '运行中', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '未开启', 'un.on': '已开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
       'un.setup': '设置', 'un.disable': '关闭', 'un.busy': '处理中…', 'un.wait': '正在开启… Windows 会先请求管理员权限，确认后几秒内完成。', 'un.enable': '开启',
       'un.lead': '请设一个强密码。知道这个 ID 和密码的人无需你同意即可连接。',
       'un.pw': '密码', 'un.pw2': '再输一次', 'un.gen': '生成强密码', 'un.admin': 'Windows 会要求管理员授权。',
@@ -463,18 +463,20 @@
     }
     // unattended
     const u = s.unattended;
-    let us = t('un.off'), sub = '', btn = t('un.setup');
-    if (!u.available) { sub = t('un.na'); }
-    if (u.installed) { us = t('un.on'); sub = u.running ? t('un.running', {id: u.id || '…'}) : t('un.stopped'); btn = t('un.disable'); }
-    if (u.busy) btn = t('un.busy');
+    let us = t('un.off'), sub = '', ucls = 'bad';
+    if (!u.available) { sub = t('un.na'); ucls = ''; }
+    if (u.installed) { us = t('un.on'); sub = u.running ? t('un.runok') : t('un.stopped'); ucls = u.running ? 'ok' : 'wait'; }
+    if (u.busy) { sub = t('un.busy'); ucls = 'wait'; }
+    $('un-status').className = 'status ' + ucls;
     $('un-state').textContent = us; $('un-sub').textContent = u.error ? errText({message: u.error}) : sub;
-    $('un-btn').textContent = btn; $('un-btn').disabled = !u.available || !!u.busy;
-    $('un-btn').dataset.on = u.installed ? '1' : '';
+    $('un-switch').checked = !!u.installed; $('un-switch').disabled = !u.available || !!u.busy;
+    $('un-open-st').className = 'status ' + ucls; $('un-open-t').textContent = us;
     $('un-manage').hidden = !u.installed || !!u.busy;
     $('un-admin2').hidden = !u.needs_admin;
     // The service's own ID and password (another ID than this app's on
     // Windows). The password shows only when asked for, and hides again.
-    $('un-creds').hidden = !u.installed;
+    $('un-creds').hidden = !u.installed; $('un-creds-off').hidden = !!u.installed;
+    $('un-admin3').hidden = !u.installed || !u.needs_admin;
     if (!u.installed) unPw = null;
     $('un-id').textContent = u.id || '—'; $('un-id').dataset.value = u.id || '';
     $('un-idcopy').hidden = !u.id; $('un-idget').hidden = !!u.id;
@@ -568,8 +570,14 @@
     try { await api('unattended/sessions'); } catch (e) { snack(errText(e)); }
   });
   // unattended dialog
-  $('un-btn').addEventListener('click', async () => {
-    if ($('un-btn').dataset.on) {
+  $('un-open').addEventListener('click', () => $('dlg-uncreds').showModal());
+  $('dlg-uncreds').addEventListener('close', () => { clearTimeout(unPwTimer); unPw = null; if (S) render(S); });
+  // The switch shows the service's state; flipping it asks for that state,
+  // and the next render shows what came of it.
+  $('un-switch').addEventListener('change', async ev => {
+    const on = ev.target.checked;
+    ev.target.checked = !on;
+    if (!on) {
       try { await api('unattended/disable'); } catch (e) { snack(errText(e)); }
       return;
     }

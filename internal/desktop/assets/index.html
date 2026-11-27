@@ -135,20 +135,12 @@
       <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
       <div class="group">
         <div class="item"><span class="tile purple"><svg><use href="#i-key"/></svg></span>
-          <div class="lbl"><div id="un-state"></div><div class="note" id="un-sub"></div></div>
-          <button class="btn tonal sm" id="un-btn"></button></div>
+          <div class="lbl"><div class="status" id="un-status"><span class="d"></span><span id="un-state"></span></div><div class="note" id="un-sub"></div></div>
+          <input type="checkbox" class="switch onoff" id="un-switch" role="switch" data-ta="un.title"></div>
         <div class="item" id="un-manage" hidden><span class="tile gray"><svg><use href="#i-computer"/></svg></span>
           <div class="lbl row wrap"><button class="btn text sm" id="un-sess" data-t="un.sessions">Connections</button>
           <button class="btn text sm" id="un-pw" data-t="un.change">Change password</button>
           <span class="muted small" id="un-admin2" hidden data-t="un.admin">Windows will ask for an administrator.</span></div></div>
-      </div>
-      <div class="creds" id="un-creds" hidden>
-        <div class="cred"><div class="muted small" data-t="un.idl">Unattended ID</div><div class="v" id="un-id"></div>
-          <div class="acts"><button class="btn text sm" data-copy="un-id" id="un-idcopy"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
-            <button class="btn text sm" id="un-idget" hidden><svg><use href="#i-refresh"/></svg><span data-t="un.getid">Show ID</span></button></div></div>
-        <div class="cred"><div class="muted small" data-t="un.pwl">Unattended password</div><div class="v" id="un-pwv">••••••••</div>
-          <div class="acts"><button class="btn text sm" id="un-reveal" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
-            <button class="btn text sm" data-copy="un-pwv" id="un-pwcopy" hidden><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
       </div>
 
       <div id="trusted-box" hidden>
@@ -188,6 +180,12 @@
         <label class="item" id="autostart-box"><span class="tile green"><svg><use href="#i-power"/></svg></span>
           <span class="lbl"><span data-t="set.start">Start automatically</span><span class="note" data-t="set.autostart">Start RemoHop when the computer starts (in the tray)</span></span>
           <input type="checkbox" class="switch" id="autostart" role="switch"></label>
+      </div>
+
+      <h3 class="gh" data-t="un.title">Unattended access</h3>
+      <div class="group">
+        <button class="item" id="un-open"><span class="tile purple"><svg><use href="#i-key"/></svg></span><span class="lbl" data-t="un.creds">Unattended ID and password</span>
+          <span class="status" id="un-open-st"><span class="d"></span><span id="un-open-t"></span></span><svg class="chev"><use href="#i-chev"/></svg></button>
       </div>
 
       <h3 class="gh" data-t="upd.h">Updates</h3>
@@ -266,6 +264,24 @@
     <p class="muted small mt8" data-t="pwm.note">Either way, every connection still asks you first.</p>
     <p class="err" id="pw-err"></p>
     <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="pw-ok" data-t="save">Save</button></div>
+  </form>
+</dialog>
+
+<!-- the unattended-access service's ID and password (Settings) -->
+<dialog id="dlg-uncreds" aria-labelledby="uncreds-title">
+  <form method="dialog" class="dlg">
+    <h2 id="uncreds-title" data-t="un.creds">Unattended ID and password</h2>
+    <p class="muted small" id="un-creds-off" data-t="un.credsoff">Unattended access is off. Turn it on under This computer.</p>
+    <div class="creds" id="un-creds">
+      <div class="cred"><div class="muted small" data-t="un.idl">Unattended ID</div><div class="v" id="un-id"></div>
+        <div class="acts"><button type="button" class="btn text sm" data-copy="un-id" id="un-idcopy"><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button>
+          <button type="button" class="btn text sm" id="un-idget" hidden><svg><use href="#i-refresh"/></svg><span data-t="un.getid">Show ID</span></button></div></div>
+      <div class="cred"><div class="muted small" data-t="un.pwl">Unattended password</div><div class="v" id="un-pwv">••••••••</div>
+        <div class="acts"><button type="button" class="btn text sm" id="un-reveal" aria-pressed="false"><svg><use href="#i-eye"/></svg><span>Show</span></button>
+          <button type="button" class="btn text sm" data-copy="un-pwv" id="un-pwcopy" hidden><svg><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
+    </div>
+    <p class="muted small" id="un-admin3" hidden data-t="un.admin3">Show asks Windows for an administrator.</p>
+    <div class="acts"><button class="btn" value="close" data-t="done">Done</button></div>
   </form>
 </dialog>
 
