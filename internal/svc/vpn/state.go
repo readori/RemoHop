@@ -184,8 +184,21 @@ func run(argv ...string) error {
 	return err
 }
 
+// commandTimeout bounds a system tool. PowerShell gets longer: its first
+// start on a machine, loading the DnsClient module for the NRPT cmdlets,
+// took more than 10 seconds on a CI runner.
+func commandTimeout(tool string) time.Duration {
+	if i := strings.LastIndexAny(tool, `/\`); i >= 0 {
+		tool = tool[i+1:]
+	}
+	if strings.EqualFold(tool, "powershell.exe") {
+		return 60 * time.Second
+	}
+	return 10 * time.Second
+}
+
 func output(argv ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout(argv[0]))
 	defer cancel()
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	out, err := runPrivileged(cmd)
