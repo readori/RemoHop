@@ -16,7 +16,20 @@ import (
 	"github.com/readori/RemoHop/internal/nat"
 )
 
-var testBlock = struct{ entered, release chan struct{} }{make(chan struct{}, 16), make(chan struct{})}
+// testBlock holds x-test-block's handlers until release is closed; each
+// test that uses it starts with fresh channels (resetBlock), so the tests
+// can run more than once in a process (-count).
+var testBlock struct {
+	mu               sync.Mutex
+	entered, release chan struct{}
+}
+
+func resetBlock() (entered, release chan struct{}) {
+	testBlock.mu.Lock()
+	defer testBlock.mu.Unlock()
+	testBlock.entered, testBlock.release = make(chan struct{}, 16), make(chan struct{})
+	return testBlock.entered, testBlock.release
+}
 
 var testRelayPolicy struct {
 	mu     sync.Mutex
@@ -42,9 +55,12 @@ func init() {
 		return strings.Repeat("x", n), nil
 	})
 	RegisterRequest("x-test-block", func(ctx context.Context, _ *Server, _ ExtRequest) (any, error) {
-		testBlock.entered <- struct{}{}
+		testBlock.mu.Lock()
+		entered, release := testBlock.entered, testBlock.release
+		testBlock.mu.Unlock()
+		entered <- struct{}{}
 		select {
-		case <-testBlock.release:
+		case <-release:
 		case <-ctx.Done():
 		}
 		return "done", nil
@@ -261,6 +277,7 @@ func TestExtSourceLimit(t *testing.T) {
 
 func TestExtConcurrencyLimit(t *testing.T) {
 	addr := startExt(t, ExtLimits{Burst: 100, MaxConcurrent: 2})
+	entered, release := resetBlock()
 	ctx := tctx(t)
 	errs := make(chan error, 2)
 	for i := 0; i < 2; i++ {
@@ -269,7 +286,7 @@ func TestExtConcurrencyLimit(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ {
 		select {
-		case <-testBlock.entered:
+		case <-entered:
 		case <-time.After(5 * time.Second):
 			t.Fatal("handlers did not start")
 		}
@@ -282,7 +299,7 @@ func TestExtConcurrencyLimit(t *testing.T) {
 	if e, ok := err.(*Error); !ok || e.RetryAfter <= 0 {
 		t.Fatalf("no RetryAfter: %#v", err)
 	}
-	close(testBlock.release)
+	close(release)
 	for i := 0; i < 2; i++ {
 		if err := <-errs; err != nil {
 			t.Fatal(err)
