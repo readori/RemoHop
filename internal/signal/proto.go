@@ -94,6 +94,7 @@
 package signal
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/json"
@@ -337,14 +338,17 @@ func readMsgN(r io.Reader, v any, limit int) error {
 	if n > uint32(limit) {
 		return errors.New("signal: message too large")
 	}
-	body := make([]byte, n)
-	if _, err := io.ReadFull(r, body); err != nil {
+	// Grow with the bytes that arrive rather than allocate the announced
+	// length up front: a peer that announces 1 MiB and sends nothing holds
+	// nothing.
+	var buf bytes.Buffer
+	if _, err := io.CopyN(&buf, r, int64(n)); err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
 		return err
 	}
-	if err := json.Unmarshal(body, v); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), v); err != nil {
 		return errors.New("signal: malformed message")
 	}
 	return nil

@@ -355,8 +355,14 @@ func (a *accounts) startLogin(c *serverConn, req *request, fail failFunc) bool {
 		fail(CodeRateLimited, "too many logins in progress", time.Minute)
 		return false
 	}
-	// A new code replaces the previous one for the address.
-	a.codes[k] = &codeRec{mac: a.codeMAC(eh, code), expires: now.Add(a.cfg.CodeTTL)}
+	// A new code replaces the previous one for the address, keeping its
+	// count of wrong attempts: asking for a new code must not reset the
+	// lockout after MaxAttempts wrong ones.
+	attempts := 0
+	if prev := a.codes[k]; prev != nil {
+		attempts = prev.attempts
+	}
+	a.codes[k] = &codeRec{mac: a.codeMAC(eh, code), expires: now.Add(a.cfg.CodeTTL), attempts: attempts}
 	a.mu.Unlock()
 
 	select {
