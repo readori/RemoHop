@@ -539,7 +539,10 @@ func (g sessionGuard) Record(kind, title string, cols, rows int) grant.Recorder 
 		return nil
 	}
 	s.host.audit.add("grant-recording", s.fields("kind", kind, "title", title, "file", filepath.Join(RecordingsDir, s.grant, name))...)
-	return c
+	if !hasRecordingSinks() {
+		return c
+	}
+	return &sinkRecorder{Recorder: c, info: Recording{Dir: s.host.dir, Path: path, Grant: s.grant, Kind: kind, Title: title}}
 }
 
 // actionApprovals is a session's memory of approved actions.
