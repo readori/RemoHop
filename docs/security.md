@@ -365,7 +365,7 @@ Nothing in the config directory is encrypted at rest. Clipboard history can hold
 - The rendezvous server learns which IDs talk to each other and when; a relay also sees the volume and timing of the session.
 - Trust on first use relies on the first login being genuine.
 - A weak fixed password can be guessed online within the rate limits.
-- Feature switches are coarse: `shell` on means any command. Grants are finer, but a command allow-list decides which program starts, not what it does, and file roots do not confine a shell; see [agents.md](agents.md#limits-of-the-protection).
+- Feature switches are coarse: `shell` on means any command. Grants are finer, but a command allow-list decides which program starts, not what it does, and file roots do not confine a shell; see [agents.md](agents.md#limits-of-the-protection). With an allow-list the host refuses working directories at, below or above a writable root, because a writable root where git, go, make or npm runs means arbitrary code.
 - The browser gateway and the WebDAV mount server are outside the end-to-end channel by design.
 - Windows unattended access shows nothing on the console while a client watches or controls it, and has been run only on hosted CI runners (one session, one monitor, no physical console); multi-monitor consoles, remote desktop sessions with `REMOHOP_UNATTENDED_SESSION=active` and fast user switching are not covered by automated runs.
 - USB/IP has been run against the real kernel only in CI (a virtual dummy_hcd device), not with physical USB hardware; treat it as experimental, and remember that the kernel's USB/IP code is part of what you expose.

@@ -143,6 +143,9 @@ func handleSpawn(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawM
 	}
 	name, owner := "", ""
 	if g := grant.Of(c); g != nil {
+		if err := g.WorkDir(ctx, "spawn", resolveDir(req.Cwd)); err != nil {
+			return wire.WriteJSON(s, jobsReply{Error: err.Error()})
+		}
 		if err := g.Command(ctx, "spawn", req.Command, false, req.Env); err != nil {
 			return wire.WriteJSON(s, jobsReply{Error: err.Error()})
 		}

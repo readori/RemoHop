@@ -547,6 +547,18 @@ func (g sessionGuard) Command(ctx context.Context, kind, command string, tty boo
 	return nil
 }
 
+func (g sessionGuard) WorkDir(ctx context.Context, kind, dir string) error {
+	s := g.s
+	e, err := s.activeGrant()
+	if err != nil {
+		return g.refuse(kind, err, "cwd", dir)
+	}
+	if err := e.rules.CheckWorkDir(dir); err != nil {
+		return g.refuse(kind, &grant.Refusal{Grant: s.grant, What: "running a command in " + strconv.Quote(dir), Why: err.Error()}, "cwd", dir)
+	}
+	return nil
+}
+
 func (g sessionGuard) Terminal(ctx context.Context, session string) error {
 	s := g.s
 	e, err := s.activeGrant()

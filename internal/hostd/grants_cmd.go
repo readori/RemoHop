@@ -51,7 +51,10 @@ Flags:
                      input, clip, info, forward, vpn, serial, usb
   --for DURATION   how long the grant is valid (default 1h; e.g. 30m, 2h, 24h)
   --cmd COMMAND    allow this command (program and optional leading
-                   arguments); repeatable; implies shell:run-only
+                   arguments); repeatable; implies shell:run-only. Commands
+                   never run at, below or above a files:write root: a
+                   writable root where git, go, make or npm runs means
+                   arbitrary code
   --approve MODE   each: you approve every command and file change
                    first: you approve the first one of each session
                    none: nothing is asked (default)
@@ -77,7 +80,7 @@ Subcommands:
 
 Examples:
   remohop host grant claude-session --for 2h --allow shell:run-only,files:read:~/project,screenshot
-  remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --allow files:write:~/src --approve first
+  remohop host grant ci-bot --for 8h --cmd "go test" --cmd "git status" --allow files:read:~/src,files:write:~/ci-reports --approve first
   remohop host revoke claude-session
 `
 

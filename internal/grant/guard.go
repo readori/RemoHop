@@ -26,6 +26,11 @@ type Guard interface {
 	// "spawn", tty whether it gets a terminal, env the extra environment
 	// the client asked for.
 	Command(ctx context.Context, kind, command string, tty bool, env []string) error
+	// WorkDir is asked before a command (kind "exec" or "spawn") starts
+	// in host directory dir, after Command allowed it: a grant with a
+	// command allow-list refuses directories its file roots let the
+	// session write (see Rules.CheckWorkDir).
+	WorkDir(ctx context.Context, kind, dir string) error
 	// Terminal is asked before an interactive terminal is attached.
 	Terminal(ctx context.Context, session string) error
 	// File is asked before a file operation on host path p. op names the
@@ -138,6 +143,7 @@ func (unset) Owner() string { return unsetName }
 func (u unset) Command(context.Context, string, string, bool, []string) error {
 	return u.refuse()
 }
+func (u unset) WorkDir(context.Context, string, string) error      { return u.refuse() }
 func (u unset) Terminal(context.Context, string) error             { return u.refuse() }
 func (u unset) File(context.Context, string, Access, string) error { return u.refuse() }
 func (unset) Log(string, ...string)                                {}
