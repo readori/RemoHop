@@ -468,8 +468,12 @@ func runStatus(ctx context.Context, env *cli.Env, args []string) int {
 }
 
 func printStatus(w io.Writer, st *Status, signal bool) {
+	install := "remohop service install"
+	if signal {
+		install += " --role signal"
+	}
 	if !st.Installed {
-		fmt.Fprintf(w, "not installed (remohop service install)\n")
+		fmt.Fprintf(w, "not installed (%s)\n", install)
 		return
 	}
 	state := st.State
@@ -491,7 +495,7 @@ func printStatus(w io.Writer, st *Status, signal bool) {
 		fmt.Fprintf(w, "  runs:     %s\n", cli.Sanitize(st.Exe))
 	}
 	if st.ExeMissing {
-		fmt.Fprintf(w, "  WARNING:  that binary does not exist, so the service cannot start; reinstall it (remohop service install) or remove it (remohop service uninstall)\n")
+		fmt.Fprintf(w, "  WARNING:  that binary does not exist, so the service cannot start; reinstall it (%s) or remove it (remohop service uninstall%s)\n", install, strings.TrimPrefix(install, "remohop service install"))
 	}
 	if signal {
 		fmt.Fprintf(w, "  state:    %s  (server key: sudo remohop signal --show-key --data %s)\n", st.ConfigDir, st.ConfigDir)
