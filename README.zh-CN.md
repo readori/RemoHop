@@ -12,7 +12,7 @@ RemoHop 是一个点对点远程控制工具。一个静态链接的 Go 程序 `
 | 文件 | 列目录、复制、同步、投递到对方的“下载”目录；大文件可续传；把远程目录挂载到本机 | [文件](docs/zh/files.md) |
 | 端口转发与网络唤醒 | TCP 和 UDP 转发、TCP 反向转发、Wake-on-LAN | [端口转发](docs/zh/forwarding.md) |
 | VPN | 在会话里建立一条 IPv4 虚拟链路，访问被控机所在的网络或把它当作出口 | [VPN](docs/zh/vpn.md) |
-| 网状网络 | 把账号里的 Linux 设备连成带名字（如 `nas.remohop`）的私有网络；可与 Tailscale 同时使用 | [网状网络与 Tailscale](docs/zh/mesh-and-tailscale.md) |
+| 网状网络 | 把账号里的设备（Linux、macOS、Windows）连成带名字（如 `nas.remohop`）的私有网络；可与 Tailscale 同时使用 | [网状网络与 Tailscale](docs/zh/mesh-and-tailscale.md) |
 | 串口与 USB | 把远程串口变成本机的虚拟串口；USB/IP（Linux） | [串口与 USB](docs/zh/serial-and-usb.md) |
 | 剪贴板 | 双向同步文本和图片，带历史记录 | [剪贴板](docs/zh/clipboard.md) |
 | 远程桌面与图形界面自动化 | 在浏览器中查看和控制屏幕（H.264 或 AV1），支持音频、多显示器和录制；截图、点击、输入 | [屏幕与远程桌面](docs/zh/remote-desktop.md) |

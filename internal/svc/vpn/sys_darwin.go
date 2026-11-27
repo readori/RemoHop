@@ -75,7 +75,12 @@ func (t *utun) Read(p []byte) (int, error) {
 
 func (t *utun) Write(p []byte) (int, error) {
 	buf := make([]byte, len(p)+4)
-	binary.BigEndian.PutUint32(buf, unix.AF_INET)
+	// The mesh carries IPv6 too; the VPN only IPv4.
+	family := uint32(unix.AF_INET)
+	if len(p) > 0 && p[0]>>4 == 6 {
+		family = unix.AF_INET6
+	}
+	binary.BigEndian.PutUint32(buf, family)
 	copy(buf[4:], p)
 	if _, err := t.f.Write(buf); err != nil {
 		return 0, err

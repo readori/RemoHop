@@ -18,8 +18,8 @@ sudo remohop net down
 
 - Links between devices are ordinary RemoHop sessions, opened when traffic needs them (punched, else relayed or through the websocket bridge), kept alive and re-opened after a device restarts or moves. Their login is limited to the mesh: being in the account gives no shell or files on another device.
 - A signed policy (which device may reach which ports) is handed from device to device and enforced by the receiving one. Without one, every device reaches every port of every other.
-- The mesh runs inside the host daemon (as root or with `CAP_NET_ADMIN`) and starts with the host service. Linux only so far; subnet routes and exit nodes are IPv4.
-- DNS is touched conservatively: per-interface split DNS for `.remohop` with systemd-resolved, otherwise only on request (`--dns hosts`).
+- The mesh runs inside the host daemon (as root or with `CAP_NET_ADMIN` on Linux, as root on macOS, as the Administrator service on Windows) and starts with the host service. Linux, macOS and Windows; only Linux devices can be exit nodes or subnet routers, which are IPv4. The macOS and Windows parts have not been tried on real machines yet. Windows needs `wintun.dll`, as for the [VPN](vpn.md).
+- DNS is touched conservatively: split DNS for `.remohop` only, with systemd-resolved, `/etc/resolver` on macOS or an NRPT rule on Windows, otherwise only on request (`--dns hosts`).
 
 [net.md](../net.md) has the details, what is tested, and what Tailscale features are not replicated (single sign-on, sharing with other people, an admin console, Funnel and others).
 
