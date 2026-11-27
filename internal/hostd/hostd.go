@@ -168,8 +168,8 @@ type Host struct {
 	tempGen      uint64 // its generation: bumped whenever temp is replaced
 	approvals    []*Approval
 	nextApproval int
-	relays       map[netip.AddrPort]time.Time // relay addresses bound for clients
-	offers       map[string]time.Time         // nonces of recent introductions
+	relays       map[netip.AddrPort]relayed // relay addresses bound for clients
+	offers       map[string]introduction    // nonces of recent introductions
 	id           string
 	online       bool
 	viaWS        bool // registered through the websocket bridge
@@ -293,8 +293,8 @@ func New(cfg Config) (*Host, error) {
 		tokens:     auth.OpenTokenStore(filepath.Join(dir, auth.TokensFile)),
 		registered: make(chan struct{}),
 		started:    time.Now(),
-		relays:     map[netip.AddrPort]time.Time{},
-		offers:     map[string]time.Time{},
+		relays:     map[netip.AddrPort]relayed{},
+		offers:     map[string]introduction{},
 		natType:    nat.TypeUnknown,
 		sessions:   map[*Session]struct{}{},
 		gate:       newGate(),
@@ -800,10 +800,10 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 // like anybody else, over a TLS connection the relay cannot be party to.
 func (h *Host) onRelay(sock *nat.Socket, nonce []byte, relay netip.AddrPort) error {
 	h.mu.Lock()
-	at, known := h.offers[string(nonce)]
+	in, known := h.offers[string(nonce)]
 	delete(h.offers, string(nonce))
 	h.mu.Unlock()
-	if !known || time.Since(at) > time.Minute {
+	if !known || time.Since(in.at) > time.Minute {
 		return errors.New("no such introduction")
 	}
 	if !signal.RelayAllowed(h.dir) {
@@ -815,16 +815,53 @@ func (h *Host) onRelay(sock *nat.Socket, nonce []byte, relay netip.AddrPort) err
 	if err := sock.BindRelay(ctx, relay, nonce, nat.RoleHost); err != nil {
 		return err
 	}
+	h.noteRelay(relay, in.client)
+	h.log.Info("no direct path to a client; accepting it through the rendezvous server's relay", "relay", relay, "client", in.client)
+	return nil
+}
+
+// introduction is an offer the host answered: when, and the client's
+// public address as the rendezvous server saw it (invalid if it said
+// none).
+type introduction struct {
+	at     time.Time
+	client netip.Addr
+}
+
+// relayed is a relay address bound for one client: since when, and that
+// client's public address (from its introduction).
+type relayed struct {
+	at     time.Time
+	client netip.Addr
+}
+
+// noteRelay records that connections from relay come from client.
+func (h *Host) noteRelay(relay netip.AddrPort, client netip.Addr) {
 	h.mu.Lock()
-	for addr, t := range h.relays {
-		if time.Since(t) > 24*time.Hour {
+	defer h.mu.Unlock()
+	for addr, r := range h.relays {
+		if time.Since(r.at) > 24*time.Hour {
 			delete(h.relays, addr)
 		}
 	}
-	h.relays[relay] = time.Now()
+	h.relays[relay] = relayed{at: time.Now(), client: client}
+}
+
+// loginSource is the address a connection from remote counts as for the
+// login limits (auth.Limiter, the login gate) and refusal summaries. A
+// relayed connection arrives from the rendezvous server's relay, which
+// every relayed (and websocket-bridged) client shares: it counts as the
+// client the relay was bound for, so that one stranger's failed guesses
+// do not lock out every relayed login. Without such a record it is the
+// address the connection comes from.
+func (h *Host) loginSource(remote netip.AddrPort) netip.AddrPort {
+	h.mu.Lock()
+	r, ok := h.relays[remote]
 	h.mu.Unlock()
-	h.log.Info("no direct path to a client; accepting it through the rendezvous server's relay", "relay", relay)
-	return nil
+	if ok && r.client.IsValid() {
+		return netip.AddrPortFrom(r.client.Unmap().WithZone(""), 0)
+	}
+	return remote
 }
 
 // predictRefreshTime bounds how long an offer waits for the port prediction
@@ -858,12 +895,12 @@ func (h *Host) onOffer(o signal.Offer, bridged bool) signal.Answer {
 	}
 	h.mu.Lock()
 	natType := h.natType
-	for k, t := range h.offers {
-		if time.Since(t) > time.Minute {
+	for k, in := range h.offers {
+		if time.Since(in.at) > time.Minute {
 			delete(h.offers, k)
 		}
 	}
-	h.offers[string(o.Nonce)] = time.Now()
+	h.offers[string(o.Nonce)] = introduction{at: time.Now(), client: o.Peer.Reflexive.Addr()}
 	h.mu.Unlock()
 	h.log.Debug("connection request", "from", o.Peer.Reflexive, "client_nat", o.Peer.NAT, "client_bridged", o.Peer.Bridged, "bridged", bridged)
 	if !punch {
@@ -878,10 +915,10 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 		ap := ua.AddrPort()
 		remote = netip.AddrPortFrom(ap.Addr().Unmap().WithZone(""), ap.Port())
 	}
-	src := remote.Addr()
-
-	slot := h.gate.enter(src, func() { q.CloseWithError(closeBusy, "too many pending logins") })
-	sess, err := h.authenticate(ctx, q, remote, slot)
+	// Relayed clients count as themselves, not as the relay (loginSource).
+	source := h.loginSource(remote)
+	slot := h.gate.enter(source.Addr(), func() { q.CloseWithError(closeBusy, "too many pending logins") })
+	sess, err := h.authenticate(ctx, q, remote, source.Addr(), slot)
 	if err != nil {
 		// Close first, then free the slot: whatever the connection holds
 		// stays accounted for until it is really gone. The refusal is in
@@ -890,7 +927,7 @@ func (h *Host) serveConn(ctx context.Context, q *quic.Conn) {
 		// drain.
 		if e, ok := errors.AsType[*auth.Error](err); ok {
 			h.log.Warn("login rejected", "from", remote, "reason", e.Code)
-			h.audit.addRefused(sourceKey(remote), "login", "result", "refused", "reason", string(e.Code), "from", remote.String(), "identity", peerFingerprint(q))
+			h.audit.addRefused(sourceKey(source), "login", "result", "refused", "reason", string(e.Code), "from", remote.String(), "identity", peerFingerprint(q))
 			q.CloseWithError(closeAuth, closeReason(e))
 		} else {
 			// A connection that goes away before saying anything is
@@ -1164,8 +1201,9 @@ func LoginRefusal(err error) *auth.Error {
 
 // authenticate runs the login handshake on the connection's first stream
 // and returns the session it admitted (see admit), set up but not started.
-func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.AddrPort, slot *pending) (*Session, error) {
-	src := remote.Addr()
+//
+// src is the address the login counts as for the limits (loginSource).
+func (h *Host) authenticate(ctx context.Context, q *quic.Conn, remote netip.AddrPort, src netip.Addr, slot *pending) (*Session, error) {
 	hctx, cancel := context.WithTimeout(ctx, helloTimeout)
 	defer cancel()
 	st, err := q.AcceptStream(hctx)
