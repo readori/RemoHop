@@ -165,6 +165,54 @@ func TestPartialTakeover(t *testing.T) {
 	}
 }
 
+// An upload into a partial file that hangs (its client vanished without
+// closing the session) does not keep the file once another upload has
+// installed the destination: the install takes the partial over and
+// removes it, rather than leaving it behind for good.
+func TestInstallRemovesPartialOfHungUpload(t *testing.T) {
+	c, dir := newTestClient(t)
+	ctx := tctx(t)
+	dst := filepath.Join(dir, "f")
+	part := filepath.Join(dir, PartialPrefix("f")+"x")
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	first := make(chan error, 1)
+	go func() {
+		_, err := c.Upload(ctx, dst, pr, PutOptions{Partial: part})
+		first <- err
+	}()
+	pw.Write(bytes.Repeat([]byte("a"), bulkChunk)) // then the client "hangs"
+	for i := 0; ; i++ {
+		if fi, err := os.Stat(part); err == nil && fi.Size() > 0 {
+			break
+		}
+		if i > 100 {
+			t.Fatal("no partial file")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	// Another resumable upload of the same destination, under another
+	// partial name, completes.
+	other := filepath.Join(dir, PartialPrefix("f")+"y")
+	if _, err := c.Upload(ctx, dst, strings.NewReader("new"), PutOptions{Partial: other}); err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	if b, _ := os.ReadFile(dst); string(b) != "new" {
+		t.Fatalf("content %q", b)
+	}
+	if ents, _ := os.ReadDir(dir); len(ents) != 1 {
+		var names []string
+		for _, e := range ents {
+			names = append(names, e.Name())
+		}
+		t.Fatalf("left behind: %v", names)
+	}
+	pw.CloseWithError(errors.New("gone"))
+	if err := <-first; err == nil {
+		t.Fatal("the hung upload succeeded")
+	}
+}
+
 // A client that opens an upload and goes away before sending anything
 // leaves nothing behind: no temporary file, no empty partial file.
 func TestAbandonedUploadCreatesNothing(t *testing.T) {

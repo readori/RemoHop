@@ -859,7 +859,7 @@ func writeAtomic(dst loc, o putReq, wo writeOpts, fill func(io.Writer) error) (*
 	ok = true
 	tmp.Close()
 	if keep || fi.Size() >= resumeMin {
-		removeStalePartials(d, base)
+		removeStalePartials(d, filepath.Dir(dst.path()), base)
 	}
 	a := attrFromInfo(fi)
 	a.Name = final
@@ -960,9 +960,13 @@ func PartialPrefix(base string) string { return "." + truncName(base) + ".remoho
 const resumeMin = 8 << 20
 
 // removeStalePartials removes the partial files of destination base in
-// directory d, except any that a transfer in progress holds locked. Only
-// regular files are touched, opened through d, never a link's target.
-func removeStalePartials(d *os.Root, base string) {
+// directory d (named dir). One that an upload of this host holds locked is
+// taken over first, as claimPartial does: the destination has just been
+// written, so what that upload would install is out of date, and it may
+// well belong to a client that is gone but whose session has not timed out
+// yet. A partial held by anything else (another program) is left alone.
+// Only regular files are touched, opened through d, never a link's target.
+func removeStalePartials(d *os.Root, dir, base string) {
 	df, err := d.Open(".")
 	if err != nil {
 		return
@@ -982,7 +986,11 @@ func removeStalePartials(d *os.Root, base string) {
 			continue
 		}
 		// Removed while locked, so no transfer can pick it up in between.
-		if lockFile(f) == nil {
+		locked := lockFile(f) == nil
+		if !locked && abortHolder(filepath.Join(dir, e.Name())) {
+			locked = lockFile(f) == nil
+		}
+		if locked {
 			d.Remove(e.Name())
 		}
 		f.Close()
@@ -1045,7 +1053,7 @@ func claimPartial(p string, abort func()) (release func()) {
 		}
 		select {
 		case <-old.done:
-		case <-time.After(5 * time.Second):
+		case <-time.After(holderWait):
 		}
 	}
 	return func() {
@@ -1057,6 +1065,29 @@ func claimPartial(p string, abort func()) (release func()) {
 		close(h.done)
 	}
 }
+
+// abortHolder aborts the upload that holds partial file p, if one does,
+// and waits (briefly) for it to let go. It reports whether there was one.
+func abortHolder(p string) bool {
+	partialHolders.Lock()
+	h := partialHolders.m[p]
+	partialHolders.Unlock()
+	if h == nil {
+		return false
+	}
+	if h.abort != nil {
+		h.abort()
+	}
+	select {
+	case <-h.done:
+	case <-time.After(holderWait):
+	}
+	return true
+}
+
+// holderWait is how long a new upload waits for the one it took a partial
+// file over from to let go.
+const holderWait = 5 * time.Second
 
 // openPartial opens (or creates) partial file name in directory d for
 // resuming at off: it must be a regular file with a single link (never a
