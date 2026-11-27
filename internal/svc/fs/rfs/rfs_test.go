@@ -963,6 +963,8 @@ func TestReadFileIsBounded(t *testing.T) {
 }
 
 func TestReadDirIsBounded(t *testing.T) {
+	defer func(old int) { maxDirEntries = old }(maxDirEntries)
+	maxDirEntries = 16 * dirBatch
 	ents := make([]Attr, dirBatch)
 	for i := range ents {
 		ents[i] = Attr{Name: fmt.Sprintf("same%d", i), Mode: sIFREG}
@@ -982,7 +984,7 @@ func TestReadDirIsBounded(t *testing.T) {
 		}
 		_, err = c.ReadDir(ctx, "/d")
 		wantErrno(t, err, syscall.E2BIG)
-		if n := calls.Load(); n > MaxDirEntries/dirBatch+3 {
+		if n := calls.Load(); n > int64(maxDirEntries/dirBatch+3) {
 			t.Fatalf("%d requests before giving up", n)
 		}
 	}
