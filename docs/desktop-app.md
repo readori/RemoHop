@@ -119,12 +119,17 @@ elsewhere, through the same private redirect file quick support uses
    (it can, with GStreamer's libav plugin, as fast as Chrome); where it cannot,
    the viewer reports the codec it cannot decode, and the packaging lists
    `gstreamer1.0-libav` as a recommendation. No native decoder.
-6. **One window, tabs** (owner's choice over two side-by-side panes): Connect
-   and This computer as fixed tabs, each connected host as a closable tab after
-   them (like a browser), Settings behind the gear button. Material 3 top
-   tabs rather than a navigation rail: open hosts are many and come and go,
-   which tabs show and a rail does not; the same layout works from 420 px wide
-   up. A host can be popped out into a window of its own.
+6. **One window, a sidebar** (owner's choice, first over two side-by-side
+   panes, later over top tabs): Home (this computer's ID and password, quick
+   connect, counts and the last hour's activity), Connect (the address
+   book) and Sessions (the approval queue, who is connected, the computers
+   open here, remembered devices) as fixed places; each connected host as a
+   closable row under them (a vertical list holds many hosts better than a
+   row of tabs); Settings and this computer's status at the foot. It folds
+   into an icon rail by choice and in windows narrower than 900 px, so the
+   same layout works from about 480 px wide up. A host can be popped out
+   into a window of its own. The visual design (tokens, components,
+   screens) is [design/desktop-ui.md](design/desktop-ui.md).
 
 ## How it fits together
 
@@ -172,7 +177,8 @@ elsewhere, through the same private redirect file quick support uses
 - `internal/desktop`: `TestPageInBrowser` (`REMOHOP_BROWSER_TEST=1`) drives
   the real page in headless Chrome against a real App, rendezvous server and
   helper: wizard, incoming on, the approval dialog (new device, scam warning,
-  view only by default, deny, allow with control), access changes on a live
+  view only by default, deny, allow with control), the approval queue and the
+  counts on Home and Sessions, access changes on a live
   session enforced by the host, the address book with presence, a host in a
   tab whose embedded console logs in, closing it, Settings, dark theme,
   Chinese, a 480×720 window and a hostile device name.
