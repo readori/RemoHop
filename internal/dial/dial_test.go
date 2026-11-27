@@ -1334,6 +1334,14 @@ func TestCommands(t *testing.T) {
 	if code, _, errOut := run("config", "", "", "feature", "telepathy", "on"); code != cli.ExitUsage || !strings.Contains(errOut, "shell, file") {
 		t.Fatalf("config feature with an unknown name: %d %q", code, errOut)
 	}
+	// "files" is what people type for the "file" feature.
+	if code, out, errOut := run("config", "", "", "feature", "files", "off"); code != cli.ExitOK || out != "feature.file: off\n" {
+		t.Fatalf("config feature files: %d %q %q", code, out, errOut)
+	}
+	if code, out, _ := run("config", "", ""); code != cli.ExitOK || !regexp.MustCompile(`feature\.file\s+off`).MatchString(out) {
+		t.Fatalf("config listing after feature files off:\n%s", out)
+	}
+	run("config", "", "", "feature", "file", "on")
 	if code, _, _ := run("config", "", "", "ask", "maybe"); code != cli.ExitUsage {
 		t.Fatal("config ask accepted a value that is neither on nor off")
 	}
@@ -1346,7 +1354,7 @@ func TestCommands(t *testing.T) {
 	if code, _, _ := run("config", "", "", "get", "signal"); code != cli.ExitError {
 		t.Fatal("config get of an unset key should exit non-zero")
 	}
-	if code, _, errOut := run("config", "", "", "set", "signal", "rendezvous.example.net:1234"); code != cli.ExitOK {
+	if code, out, errOut := run("config", "", "", "set", "signal", "rendezvous.example.net:1234"); code != cli.ExitOK || out != "signal: rendezvous.example.net:1234\n" {
 		t.Fatalf("config set: %d %q", code, errOut)
 	}
 	if code, out, _ := run("config", "", "", "get", "signal"); code != cli.ExitOK || out != "rendezvous.example.net:1234\n" {
@@ -1355,7 +1363,9 @@ func TestCommands(t *testing.T) {
 	if code, _, _ := run("config", "", "", "set", "host-password", "short"); code != cli.ExitUsage {
 		t.Fatal("config accepted a too-short host password")
 	}
-	run("config", "", "", "set", "host-password", "long enough password")
+	if _, out, _ := run("config", "", "", "set", "host-password", "long enough password"); out != "host-password: set\n" {
+		t.Fatalf("config set of a secret printed %q", out)
+	}
 	if code, out, _ := run("config", "", ""); code != cli.ExitOK || !strings.Contains(out, "rendezvous.example.net:1234") || strings.Contains(out, "long enough") {
 		t.Fatalf("config listing: %d\n%s", code, out)
 	}
@@ -1464,6 +1474,10 @@ func TestKeyCommands(t *testing.T) {
 	first, _, err := auth.ParseKeyLine(strings.TrimSpace(line))
 	if err != nil {
 		t.Fatal(err)
+	}
+	// show prints the fingerprint a host shows in its approval prompt.
+	if code, out, _ := run("", "show"); code != cli.ExitOK || out != auth.Fingerprint(first)+"\n" {
+		t.Fatalf("key show: %d %q, want %q", code, out, auth.Fingerprint(first))
 	}
 	// Destructive subcommands need --yes, and say what breaks.
 	for _, args := range [][]string{{"gen"}, {"clear"}} {

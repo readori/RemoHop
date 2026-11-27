@@ -78,7 +78,8 @@ Examples:
   remohop office ping -c 10 --json
 `
 
-const keyUsage = `Usage: remohop key export [--label TEXT]
+const keyUsage = `Usage: remohop key show
+       remohop key export [--label TEXT]
        remohop key gen --yes
        remohop key import FILE|- --yes
        remohop key export --private FILE
@@ -87,6 +88,8 @@ const keyUsage = `Usage: remohop key export [--label TEXT]
 Manage this machine's identity: the key pair that names it to every host it
 connects to and every client that connects to it.
 
+  show     print this machine's key fingerprint: what a host shows when
+           this machine asks to connect, so the two can be compared
   export   print the public key as one line. Give it to the owner of a
            host; with ` + "`remohop host authorize \"LINE\"`" + ` there, this machine may log
            in with its key alone, no password ever typed. The host prints a
@@ -181,7 +184,7 @@ Examples:
 func init() {
 	cli.Register(&cli.Command{Name: "pair", Summary: "pair with a host: no password on later connections", Usage: pairUsage, Remote: true, Run: runPair})
 	cli.Register(&cli.Command{Name: "ping", Summary: "measure round-trip time and show the P2P path", Usage: pingUsage, Remote: true, Run: runPing})
-	cli.Register(&cli.Command{Name: "key", Summary: "show, export, import or replace this machine's identity key", Usage: keyUsage, Run: runKey})
+	cli.Register(&cli.Command{Name: "key", Summary: "show this machine's key fingerprint; export, import or replace its identity key", Usage: keyUsage, Run: runKey})
 	hostd.SavedPeers = func() (int, error) {
 		store, err := OpenStore("")
 		if err != nil {
@@ -502,7 +505,7 @@ func runPeersForget(env *cli.Env, store *Store, refs []string) int {
 
 func runKey(_ context.Context, env *cli.Env, args []string) int {
 	if len(args) == 0 {
-		env.Errorf("usage: remohop key export|gen|import|clear (see `remohop help key`)")
+		env.Errorf("usage: remohop key show|export|gen|import|clear (see `remohop help key`)")
 		return cli.ExitUsage
 	}
 	sub, args := args[0], args[1:]
@@ -537,6 +540,17 @@ func runKey(_ context.Context, env *cli.Env, args []string) int {
 		return false
 	}
 	switch sub {
+	case "show":
+		if len(rest) != 0 || *private != "" || *label != "" {
+			return keyUsageError(env)
+		}
+		id, err := auth.LoadIdentity(dir)
+		if err != nil {
+			env.Errorf("key: %v", err)
+			return cli.ExitError
+		}
+		fmt.Fprintln(env.Stdout, auth.Fingerprint(id.Public()))
+		return cli.ExitOK
 	case "export":
 		if len(rest) != 0 {
 			return keyUsageError(env)
@@ -620,7 +634,7 @@ func runKey(_ context.Context, env *cli.Env, args []string) int {
 }
 
 func keyUsageError(env *cli.Env) int {
-	env.Errorf("usage: remohop key export [--label TEXT] | export --private FILE | gen --yes | import FILE --yes | clear --yes")
+	env.Errorf("usage: remohop key show | export [--label TEXT] | export --private FILE | gen --yes | import FILE --yes | clear --yes")
 	return cli.ExitUsage
 }
 
@@ -716,6 +730,22 @@ func runPeersAlias(env *cli.Env, store *Store, args []string) int {
 	return cli.ExitOK
 }
 
+// featureAlias maps the names people naturally type to the feature names
+// of `remohop config feature` ("files" is "file").
+func featureAlias(name string) string {
+	switch strings.ToLower(name) {
+	case "files", "fs":
+		return string(perm.File)
+	case "clipboard":
+		return string(perm.Clip)
+	case "screen", "desktop":
+		return string(perm.Screen)
+	case "terminal":
+		return string(perm.Shell)
+	}
+	return name
+}
+
 func runConfig(_ context.Context, env *cli.Env, args []string) int {
 	sub := ""
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -733,6 +763,18 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 		env.Errorf("config: unknown key %q (known keys: %s)", key, strings.Join(keys, ", "))
 		return false
 	}
+	// said confirms a change, so that a typo in a value is seen at once.
+	said := func(key, value string) {
+		s, _ := config.LookupSetting(key)
+		switch {
+		case value == "":
+			fmt.Fprintf(env.Stdout, "%s: unset\n", key)
+		case s.Secret:
+			fmt.Fprintf(env.Stdout, "%s: set\n", key)
+		default:
+			fmt.Fprintf(env.Stdout, "%s: %s\n", key, value)
+		}
+	}
 	onOff := func(key string, args []string, usage string) int {
 		if len(args) != 1 || (args[0] != "on" && args[0] != "off") {
 			env.Errorf("usage: remohop config %s on|off", usage)
@@ -742,10 +784,14 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 			env.Errorf("config: %v", err)
 			return cli.ExitError
 		}
+		said(key, args[0])
 		return cli.ExitOK
 	}
 	switch sub {
 	case "feature":
+		if len(args) > 0 {
+			args[0] = featureAlias(args[0])
+		}
 		if len(args) < 1 || !perm.Valid(perm.Feature(args[0])) {
 			var names []string
 			for _, f := range perm.Features() {
@@ -825,6 +871,7 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 			env.Errorf("config: %v", err)
 			return cli.ExitUsage
 		}
+		said(args[0], value)
 		return cli.ExitOK
 	}
 	// `remohop config KEY VALUE` is shorthand for `set` with any declared key
@@ -834,6 +881,7 @@ func runConfig(_ context.Context, env *cli.Env, args []string) int {
 			env.Errorf("config: %v", err)
 			return cli.ExitUsage
 		}
+		said(sub, args[0])
 		return cli.ExitOK
 	}
 	env.Errorf("config: unknown subcommand %q (get, set, unset, feature, or a setting's name)", sub)
