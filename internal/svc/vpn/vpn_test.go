@@ -299,12 +299,13 @@ func TestTunnelOverSession(t *testing.T) {
 	t.Setenv("REMOHOP_CONFIG_DIR", t.TempDir())
 	fs := &fakeSystem{}
 	fs.install(t)
-	client, _ := peertest.Pair(t)
 	// The host is attached to 192.168.1.0/24 for the purposes of "local".
+	// Seams are set before the pair starts serving, so its handlers see them.
 	lan := netip.MustParsePrefix("192.168.1.0/24")
 	oldConnected := connected
 	connected = func() []netip.Prefix { return []netip.Prefix{lan} }
-	defer func() { connected = oldConnected }()
+	t.Cleanup(func() { connected = oldConnected }) // after the pair's cleanup, which waits for the host's handlers
+	client, _ := peertest.Pair(t)
 
 	ctx, cancel := context.WithCancel(testCtx(t))
 	tun, err := Up(ctx, client, Options{Routes: []netip.Prefix{lan}})
@@ -433,7 +434,7 @@ func TestHostRefusesSpoofedAndUngranted(t *testing.T) {
 	lan := netip.MustParsePrefix("192.168.1.0/24")
 	oldConnected := connected
 	connected = func() []netip.Prefix { return []netip.Prefix{lan} }
-	defer func() { connected = oldConnected }()
+	t.Cleanup(func() { connected = oldConnected }) // after the pair's cleanup, which waits for the host's handlers
 	client, _ := peertest.Pair(t)
 	ctx := testCtx(t)
 
@@ -562,7 +563,7 @@ func TestHostPolicy(t *testing.T) {
 	lan := netip.MustParsePrefix("192.168.1.0/24")
 	oldConnected := connected
 	connected = func() []netip.Prefix { return []netip.Prefix{lan} }
-	defer func() { connected = oldConnected }()
+	t.Cleanup(func() { connected = oldConnected }) // after the pair's cleanup, which waits for the host's handlers
 	far := netip.MustParsePrefix("172.20.0.0/16")
 	ctx := testCtx(t)
 	up := func(o Options) (*Tunnel, error) {
