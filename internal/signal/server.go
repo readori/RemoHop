@@ -61,6 +61,8 @@ type Config struct {
 	// Logger receives operational events; nil discards them.
 	Logger *slog.Logger
 	Limits Limits
+	// Ext limits extension requests (see extend.go).
+	Ext ExtLimits
 	// Relay, if not nil, makes the server offer to relay sessions whose
 	// peers could not connect directly. Off by default: it is the one
 	// thing here that costs an operator real bandwidth.
@@ -192,6 +194,8 @@ type Server struct {
 	connectsNet *rateTable[netip.Addr] // per network
 	misses      *rateTable[struct{}]   // global, connects to IDs not online
 	offers      *rateTable[string]
+	extSources  *rateTable[netip.Addr] // extension requests per source
+	extActive   atomic.Int64           // extension requests in progress
 	// handshakes is the budget of new connections accepted without first
 	// making the client prove it owns its source address.
 	handshakes *rateTable[struct{}]
@@ -272,6 +276,7 @@ func (c *serverConn) via() string {
 // cfg.DataDir.
 func NewServer(cfg Config) (*Server, error) {
 	cfg.Limits.defaults()
+	cfg.Ext.defaults()
 	if cfg.Logger == nil {
 		cfg.Logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -337,6 +342,7 @@ func NewServer(cfg Config) (*Server, error) {
 		connectsNet: newRateTable[netip.Addr](l.ConnectNetBurst, l.ConnectNetEvery),
 		misses:      newRateTable[struct{}](l.MissBurst, l.MissEvery),
 		offers:      newRateTable[string](l.OfferBurst, l.OfferEvery),
+		extSources:  newRateTable[netip.Addr](cfg.Ext.Burst, time.Second/time.Duration(cfg.Ext.RefillPerSecond)),
 		handshakes:  newRateTable[struct{}](500, 2*time.Millisecond),
 		online:      map[string]*serverConn{},
 		repl:        map[string]*replacements{},
