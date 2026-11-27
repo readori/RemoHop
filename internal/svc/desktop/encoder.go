@@ -430,7 +430,7 @@ const ffmpegMissing = "ffmpeg not found on the host"
 // named by REMOHOP_FFMPEG), which screen sharing needs, and if not, how to
 // install it.
 func FFmpegInstalled() (ok bool, hint string) {
-	if _, err := ffmpegPath(); err != nil {
+	if _, err := FindFFmpeg(); err != nil {
 		return false, installHint()
 	}
 	return true, ""

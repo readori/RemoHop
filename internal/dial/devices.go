@@ -247,6 +247,13 @@ func accountDevices(ctx context.Context, opts DevicesOptions, peers []Peer) ([]D
 	return out, covered
 }
 
+// Presence asks the rendezvous server (opts.Signal, else the configured
+// one) which of ids are registered right now: each maps to one of the
+// signal.Presence* states. It asks about those IDs only.
+func Presence(ctx context.Context, opts Options, ids []string) (map[string]string, error) {
+	return queryPresence(ctx, opts, ids)
+}
+
 func queryPresence(ctx context.Context, opts Options, ids []string) (map[string]string, error) {
 	addr, sopts, err := signal.Resolve(opts.Signal)
 	if err != nil {

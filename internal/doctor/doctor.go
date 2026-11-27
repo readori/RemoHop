@@ -6,9 +6,11 @@ package doctor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,19 +18,28 @@ import (
 	"github.com/readori/RemoHop/internal/bg"
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/mesh"
 	"github.com/readori/RemoHop/internal/nat"
 	"github.com/readori/RemoHop/internal/signal"
+	"github.com/readori/RemoHop/internal/svc/desktop"
 	"github.com/readori/RemoHop/internal/tailnet"
 )
 
-const usage = `Usage: remohop doctor [--json] [--offline]
+const usage = `Usage: remohop doctor [--json] [--offline] [TARGET]
+       remohop TARGET doctor [--json] [--offline]
 
 Explain this machine's network situation as RemoHop sees it: its identity,
 the host daemon, the rendezvous server (reachable? which NAT type?), the
-addresses it offers to peers, a running Tailscale and what it changes for
-RemoHop, the mesh network (` + "`remohop net`" + `) and VPN tunnels. Ends with advice.
+addresses it offers to peers, whether helpers could see its screen (ffmpeg
+and a display), a running Tailscale and what it changes for RemoHop, the
+mesh network (` + "`remohop net`" + `) and VPN tunnels. Ends with advice.
+
+With a TARGET (a 9-digit ID, a saved name or HOST:PORT) it also looks that
+machine up: what is saved for it here, and whether the rendezvous server
+has it online right now. It does not log in; ` + "`remohop TARGET ping`" + ` shows the path
+a session takes.
 
   --offline   do not contact the rendezvous server
   --json      machine-readable report
@@ -37,7 +48,8 @@ Tailscale is detected through its local API, its CLI (` + "`tailscale status --j
 or its network interface; REMOHOP_TAILSCALE=off makes RemoHop ignore it.`
 
 func init() {
-	cli.Register(&cli.Command{Name: "doctor", Summary: "explain the network situation (rendezvous, NAT, Tailscale, mesh)", Usage: usage, Run: run})
+	cli.Register(&cli.Command{Name: "doctor", Summary: "explain the network situation (rendezvous, NAT, Tailscale, mesh), or why a host cannot be reached",
+		Usage: usage, Run: run, RemoteRun: run})
 }
 
 // Report is what remohop doctor finds.
@@ -47,6 +59,8 @@ type Report struct {
 	Host      *HostReport     `json:"host,omitempty"`
 	Signal    SignalReport    `json:"signal"`
 	Addresses []string        `json:"addresses"`
+	Screen    ScreenReport    `json:"screen"`
+	Target    *TargetReport   `json:"target,omitempty"`
 	Tailscale *tailnet.Status `json:"tailscale"`
 	Net       *mesh.Status    `json:"net,omitempty"`
 	NetOn     bool            `json:"net_on"`
@@ -73,19 +87,82 @@ type SignalReport struct {
 	NAT        string `json:"nat,omitempty"`
 	Error      string `json:"error,omitempty"`
 	RelayLocal bool   `json:"relay_allowed"`
+	// PinMismatch: the server presented another key than signal-pin.
+	PinMismatch bool `json:"pin_mismatch,omitempty"`
+	// WrongServer: something answered at the address, but not a
+	// rendezvous server.
+	WrongServer bool `json:"wrong_server,omitempty"`
+}
+
+// ScreenReport is what screen sharing to helpers needs here.
+type ScreenReport struct {
+	FFmpeg       string `json:"ffmpeg,omitempty"`
+	FFmpegError  string `json:"ffmpeg_error,omitempty"`
+	Display      string `json:"display,omitempty"`
+	DisplayError string `json:"display_error,omitempty"`
+	Warning      string `json:"warning,omitempty"`
+}
+
+// TargetReport is a machine looked up with ` + "`remohop doctor TARGET`" + `.
+type TargetReport struct {
+	Target string `json:"target"`
+	// ID is the 9-digit ID dialled, if any (an alias resolves to it).
+	ID      string `json:"id,omitempty"`
+	Address string `json:"address,omitempty"`
+	Saved   bool   `json:"saved"`
+	Alias   string `json:"alias,omitempty"`
+	// Login is how this machine would log in: pairing, grant, key,
+	// saved_password or password (asked for).
+	Login string `json:"login"`
+	// Presence is online, offline, unknown (no host has the ID),
+	// rate_limited, not_checked or error.
+	Presence string `json:"presence"`
+	Error    string `json:"error,omitempty"`
 }
 
 func run(ctx context.Context, env *cli.Env, args []string) int {
 	fs := cli.NewFlagSet(env, "doctor", usage)
 	asJSON := fs.Bool("json", false, "")
 	offline := fs.Bool("offline", false, "")
-	if err := fs.Parse(args); err != nil {
+	var pos []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return cli.ExitUsage
+		}
+		if fs.NArg() == 0 {
+			break
+		}
+		pos = append(pos, fs.Arg(0))
+		args = fs.Args()[1:]
+	}
+	target := env.Target
+	switch {
+	case len(pos) == 1 && target == "":
+		target = cli.NormalizeTarget(pos[0])
+	case len(pos) > 0:
+		env.Errorf("doctor: unexpected argument %q (%s)", pos[len(pos)-1], cli.FlagHint("doctor"))
 		return cli.ExitUsage
 	}
 	r, err := Collect(ctx, env.Globals.Signal, *offline)
 	if err != nil {
 		env.Errorf("doctor: %v", err)
 		return cli.ExitError
+	}
+	if target != "" {
+		// Asking a server that is missing or did not answer again would
+		// only wait for the same failure.
+		down := ""
+		switch {
+		case r.Signal.Server == "" && r.Signal.Bridge == "":
+			down = "no rendezvous server is configured (see the advice)"
+		case r.Signal.Checked && !r.Signal.Reachable && r.Signal.Bridge == "":
+			down = "the rendezvous server does not answer (see above)"
+		}
+		r.Target = CheckTarget(ctx, target, env.Globals.Signal, *offline || down != "")
+		if down != "" && r.Target.ID != "" && !*offline {
+			r.Target.Presence, r.Target.Error = "error", down
+		}
+		r.Advice = append(r.Advice, adviseTarget(r)...)
 	}
 	if *asJSON {
 		b, _ := json.MarshalIndent(r, "", "  ")
@@ -111,9 +188,12 @@ func Collect(ctx context.Context, signalOverride string, offline bool) (*Report,
 	}
 	r.Signal.RelayLocal = signal.RelayAllowed(dir)
 	addr, sopts, rerr := signal.Resolve(signalOverride)
-	if rerr == nil {
+	switch {
+	case rerr == nil:
 		r.Signal.Server, r.Signal.Pinned, r.Signal.Bridge = addr, sopts.Pin != "", sopts.WS
-	} else {
+	case errors.Is(rerr, signal.ErrNotConfigured):
+		// Said by "none configured" and the advice, which list the choices.
+	default:
 		r.Signal.Error = rerr.Error()
 	}
 	for _, a := range nat.InterfaceAddrs() {
@@ -140,11 +220,23 @@ func Collect(ctx context.Context, signalOverride string, offline bool) (*Report,
 				c.Close()
 			} else {
 				r.Signal.Error = err.Error()
+				r.Signal.PinMismatch = errors.Is(err, signal.ErrPinMismatch)
+				r.Signal.WrongServer = signal.IsWrongServer(err)
 			}
 			sock.Close()
 		} else {
 			r.Signal.Error = err.Error()
 		}
+	}
+	if p, err := desktop.FindFFmpeg(); err == nil {
+		r.Screen.FFmpeg = p
+	} else {
+		r.Screen.FFmpegError = err.Error()
+	}
+	if found, warn, err := desktop.CheckScreen(); err == nil {
+		r.Screen.Display, r.Screen.Warning = found, warn
+	} else {
+		r.Screen.DisplayError = err.Error()
 	}
 	values, _ := config.AllIn(dir)
 	r.NetOn = config.Bool(values[mesh.SettingNet], false)
@@ -176,10 +268,28 @@ func advise(r *Report) []string {
 	case r.Signal.Server == "" && r.Signal.Bridge == "":
 		out = append(out, "No rendezvous server is configured, so 9-digit IDs cannot be looked up. Choose one:\n"+
 			strings.TrimRight(signal.Choices("      "), "\n"))
+	case r.Signal.PinMismatch:
+		out = append(out, "The rendezvous server presented another key than the one pinned with `signal-pin`, so this machine refuses it. "+
+			"If its operator reinstalled it or you moved to another server, get the new key from them (`remohop signal --show-key` on the server) "+
+			"and run `remohop config set signal-pin KEY`; `remohop config unset signal-pin` stops checking. "+
+			"Otherwise something on the way is pretending to be the server: keep the pin.")
+	case r.Signal.WrongServer:
+		out = append(out, "Something answers at the rendezvous server's address, but it is not a RemoHop rendezvous server (see the problem above). "+
+			"Check the address and port: `remohop config get signal`.")
 	case r.Signal.Checked && !r.Signal.Reachable && r.Signal.Bridge == "":
-		out = append(out, "The rendezvous server does not answer over UDP. If this network allows only HTTPS, configure its websocket bridge (`remohop config set signal-ws wss://...`).")
+		out = append(out, fmt.Sprintf("The rendezvous server %s does not answer. Check, in this order: the address and port "+
+			"(`remohop config get signal`); that `remohop signal` is running there; that its firewall and its cloud provider's let UDP %s in "+
+			"(`remohop signal --print-firewall` on the server prints the commands). Only if this network lets nothing but HTTPS out, "+
+			"use the server's websocket bridge as the last resort (`remohop config set signal-ws wss://...`).", r.Signal.Server, udpPorts(r.Signal.Server)))
 	case r.Signal.Checked && !r.Signal.Reachable:
 		out = append(out, "The rendezvous server does not answer over UDP; connections will use its websocket bridge and therefore its relay.")
+	}
+	if r.Screen.FFmpegError != "" {
+		out = append(out, "Helpers cannot see this machine's screen live: "+r.Screen.FFmpegError+
+			" Screenshots (`remohop ID screenshot`), files and commands work without it.")
+	} else if r.Screen.DisplayError != "" {
+		out = append(out, "Helpers cannot see this machine's screen from here: "+r.Screen.DisplayError+
+			". A host started in the desktop session (or the desktop app) usually can.")
 	}
 	if !r.Signal.Pinned && r.Signal.Server != "" {
 		out = append(out, "The rendezvous server's key is not pinned (`remohop signal --show-key` on the server, then `remohop config set signal-pin KEY`). Sessions stay end-to-end authenticated either way.")
@@ -277,6 +387,43 @@ func Print(w io.Writer, r *Report) {
 	}
 	for _, a := range r.Addresses {
 		fmt.Fprintf(w, "  %s\n", a)
+	}
+
+	sec("Screen sharing (for helpers)")
+	if r.Screen.FFmpeg != "" {
+		kv("ffmpeg", r.Screen.FFmpeg)
+	} else {
+		kv("ffmpeg", "not found (screen sharing needs it; screenshots do not)")
+	}
+	switch {
+	case r.Screen.Display != "":
+		kv("screen", r.Screen.Display)
+	case r.Screen.DisplayError != "":
+		kv("screen", "not found from this process: "+r.Screen.DisplayError)
+	}
+	if r.Screen.Warning != "" {
+		kv("note", r.Screen.Warning)
+	}
+
+	if t := r.Target; t != nil {
+		sec("Target " + t.Target)
+		switch {
+		case t.ID != "":
+			kv("ID", signal.FormatID(t.ID))
+		case t.Address != "":
+			kv("address", t.Address+" (no rendezvous server involved)")
+		}
+		saved := "no"
+		if t.Saved {
+			saved = "yes"
+			if t.Alias != "" {
+				saved += ", as " + t.Alias
+			}
+		}
+		kv("saved here", saved)
+		kv("login", loginText(t.Login))
+		kv("lookup", presenceText(t, r.Signal.Server))
+		kv("path", "`remohop "+t.Target+" ping` shows it once this machine can log in")
 	}
 
 	sec("Tailscale")
@@ -377,4 +524,132 @@ func ifaceNote(name string) string {
 		return ""
 	}
 	return " on " + name
+}
+
+// udpPorts names the UDP ports a rendezvous server at addr needs open: its
+// port and the next one (NAT detection).
+func udpPorts(addr string) string {
+	_, port, err := signal.SplitAddr(addr)
+	if n, perr := strconv.Atoi(port); err == nil && perr == nil && n < 65535 {
+		return fmt.Sprintf("%d-%d", n, n+1)
+	}
+	return "21116-21117"
+}
+
+// CheckTarget looks target up without logging in: what this machine has
+// saved for it, and, for an ID, whether the rendezvous server has it online.
+func CheckTarget(ctx context.Context, target, signalOverride string, offline bool) *TargetReport {
+	t := &TargetReport{Target: target, Login: "password", Presence: "not_checked"}
+	store, err := dial.OpenStore("")
+	if err != nil {
+		t.Presence, t.Error = "error", err.Error()
+		return t
+	}
+	p, ok, _ := store.Get(target)
+	if !ok {
+		p, ok, _ = store.ByAlias(target)
+	}
+	if ok {
+		t.Saved, t.Alias = true, p.Alias
+		switch {
+		case p.Paired() && p.Grant:
+			t.Login = "grant"
+		case p.Paired():
+			t.Login = "pairing"
+		case p.KeyLogin:
+			t.Login = "key"
+		case p.SavedPassword():
+			t.Login = "saved_password"
+		}
+		target = p.Target
+	}
+	switch {
+	case cli.IsID(target):
+		t.ID = target
+	case strings.Contains(target, ":"):
+		t.Address = target
+		return t
+	default:
+		t.Presence, t.Error = "error", "not a 9-digit ID, a saved name or HOST:PORT"
+		return t
+	}
+	if offline {
+		return t
+	}
+	cctx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	got, err := dial.Presence(cctx, dial.Options{Signal: signalOverride}, []string{t.ID})
+	switch {
+	case err != nil:
+		t.Presence, t.Error = "error", err.Error()
+	case got[t.ID] != "":
+		t.Presence = got[t.ID]
+	default:
+		t.Presence = signal.PresenceUnknown
+	}
+	return t
+}
+
+func loginText(login string) string {
+	switch login {
+	case "pairing":
+		return "a saved pairing (no password needed)"
+	case "grant":
+		return "a saved grant (limited access, see `remohop TARGET limits`)"
+	case "key":
+		return "this machine's key, authorised there"
+	case "saved_password":
+		return "a saved password"
+	}
+	return "nothing saved: the first connection asks for its password"
+}
+
+func presenceText(t *TargetReport, server string) string {
+	if server == "" {
+		server = "the rendezvous server"
+	}
+	switch t.Presence {
+	case signal.PresenceOnline:
+		return "online: registered with " + server + " right now"
+	case signal.PresenceOffline:
+		return "offline: the ID exists on " + server + ", but its host is not connected"
+	case signal.PresenceUnknown:
+		return "unknown to " + server + ": no host has this ID there"
+	case signal.PresenceLimited:
+		return "not answered: " + server + " is limiting requests; try again in a minute"
+	case "error":
+		return "not possible: " + t.Error
+	}
+	if t.Address != "" {
+		return "not needed for an address"
+	}
+	return "not checked (--offline)"
+}
+
+// adviseTarget says what to do about the target looked up.
+func adviseTarget(r *Report) []string {
+	t := r.Target
+	if t == nil {
+		return nil
+	}
+	var out []string
+	switch t.Presence {
+	case signal.PresenceOffline:
+		out = append(out, fmt.Sprintf("%s is not connected to the rendezvous server: start RemoHop there (`remohop host`, the desktop app or "+
+			"Quick Support) and check that the computer is awake and online.", t.Target))
+	case signal.PresenceUnknown:
+		out = append(out, fmt.Sprintf("No host has the ID %s on this rendezvous server. Check the ID with the person at that computer, "+
+			"and that both computers use the same server: an ID belongs to the server the host registered with.", signal.FormatID(t.ID)))
+	case signal.PresenceOnline:
+		out = append(out, fmt.Sprintf("%s is online. If connecting still fails, `remohop -v %s ping` shows where it stops.", t.Target, t.Target))
+	}
+	if t.Address != "" {
+		out = append(out, fmt.Sprintf("%s is an address: RemoHop must be listening there on that UDP port (`remohop host --listen`), "+
+			"reachable through any firewall on the way. `remohop %s ping` tries it.", t.Address, t.Target))
+	}
+	if t.Login == "password" {
+		out = append(out, fmt.Sprintf("Nothing is saved to log in to %s: the first connection asks for its password; `remohop %s pair` once "+
+			"stops that.", t.Target, t.Target))
+	}
+	return out
 }
