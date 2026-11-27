@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/netip"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -752,6 +753,10 @@ func (s *Server) handleStream(c *serverConn, st *quic.Stream) {
 	case "outcome":
 		s.handleOutcome(c, st, &req, fail)
 	default:
+		if strings.HasPrefix(req.T, ExtPrefix) {
+			s.handleExt(c, st, &req, fail) // extend.go
+			return
+		}
 		fail(CodeBadRequest, "unknown request", 0)
 	}
 }
@@ -1101,6 +1106,7 @@ func (s *Server) handleRelay(c *serverConn, st *quic.Stream, req *request, fail 
 		stats := nat.ServeRelay(relayCtx, pc, req.Nonce, nat.RelayLimits{Rate: dec.rate, Global: s.relayBudget, Idle: rc.Idle, Meter: s.relayUsage.add})
 		s.log.Info("relay session ended", "client", c.addr, "host", host.addr, "duration", time.Since(start).Round(time.Second),
 			"bytes", stats.Bytes, "delayed_packets", stats.Delayed, "dropped_packets", stats.Dropped)
+		relayEnded(clientKey, hostKey, stats.Bytes, time.Since(start)) // extend.go
 	}()
 	st.SetDeadline(time.Now().Add(requestTimeout + offerTimeout))
 	answer, err := s.offer(host, request{T: "relay", V: protoVersion, Nonce: req.Nonce, RelayPort: port})
