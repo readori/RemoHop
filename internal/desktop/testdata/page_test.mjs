@@ -108,7 +108,7 @@ try {
   check(await p.eval(`!document.getElementById('peers-empty').hidden`), 'no saved computers yet');
   await p.shot('connect-empty');
   await p.goto(url);
-  check(await p.waitFor(`!document.getElementById('v-computer').hidden`), 'a new start without saved computers opens on This computer');
+  check(await p.waitFor(`!document.getElementById('v-computer').hidden`), 'a new start opens on Home (this computer)');
   await p.eval(`document.getElementById('tab-connect').click()`);
 
   // This computer: off until switched on.
@@ -134,13 +134,15 @@ try {
   // Again: allowed with control, not files.
   control('/dial?name=Alex-Laptop');
   check(await p.waitFor(`document.getElementById('dlg-req').open`), 'second request');
+  check(await p.waitFor(`document.querySelectorAll('#queue .qcard').length === 1 && document.getElementById('nav-queue').textContent === '1'`), 'the request waits in the approval queue');
   check(await p.eval(`document.getElementById('req-warn').hidden && document.getElementById('req-chips').textContent.includes('Connected before')`), 'asked before: no longer new');
   await p.eval(`document.getElementById('req-control').click(); document.getElementById('req-allow').click()`);
   check(await p.waitFor(`document.querySelectorAll('#sessions .sess').length === 1`), 'the helper is connected');
   { const r = await control('/result'); check(r.includes('connected'), 'helper sees the login succeed', r); }
   const chips = () => p.eval(`[...document.querySelectorAll('#sessions .chip')].map(c => c.textContent + '=' + c.getAttribute('aria-pressed')).join(',')`);
   check((await chips()) === 'View=true,Control=true,Files=false', 'session access shows', await chips());
-  check(await p.eval(`!document.getElementById('badge').hidden`), 'the tab shows a badge');
+  check(await p.eval(`!document.getElementById('badge').hidden`), 'the sidebar shows a badge');
+  check(await p.eval(`document.getElementById('k-live').textContent === '1' && document.getElementById('live-count').textContent === '1'`), 'Home and Sessions count the session');
   check((await control('/features')).includes('input') && !(await control('/features')).includes('file'), 'the host enforces control without files', await control('/features'));
   await p.shot('session');
   await p.eval(`[...document.querySelectorAll('#sessions .chip')].find(c => c.textContent === 'Files').click()`);
@@ -154,9 +156,15 @@ try {
   await p.eval(`document.getElementById('tab-connect').click()`);
   check(await p.waitFor(`document.querySelectorAll('#peers .peer').length === 1`), 'the saved computer is listed');
   check(await p.waitFor(`document.querySelector('#peers .peer .s').textContent.includes('Online')`), 'with its presence');
+  check(await p.eval(`document.querySelectorAll('#recent .rec').length === 1 && document.getElementById('k-saved').textContent === '1'`), 'Home lists it too');
+  await p.eval(`document.getElementById('tab-sessions').click()`);
+  check(await p.waitFor(`!document.getElementById('v-sessions').hidden && !document.getElementById('queue-empty').hidden && !document.getElementById('sessions-empty').hidden`), 'Sessions: nothing waiting, nobody connected');
+  await p.shot('sessions');
+  await p.eval(`document.getElementById('tab-connect').click()`);
   await p.shot('connect');
   await p.eval(`document.querySelector('#peers .peer .btn').click()`);
   check(await p.waitFor(`document.querySelectorAll('#tabs .tab.host').length === 1 && !document.querySelector('#hostviews .view').hidden`), 'Connect opens a tab');
+  check(await p.eval(`document.querySelectorAll('#out-list .list-row').length === 1`), 'Sessions lists the open computer');
   let fc = 0;
   for (let i = 0; i < 50 && !fc; i++) { fc = await p.frameContext(); if (!fc) await sleep(200); }
   const ok = await p.waitFor(`document.documentElement.classList.contains('embed') && !document.getElementById('connect').hidden`, 20000, fc);
@@ -221,7 +229,7 @@ try {
   await p.eval(`document.getElementById('tab-computer').click()`);
   await p.shot('computer-dark');
   await p.eval(`document.querySelector('#set-lang [data-lang=zh]').click()`);
-  check(await p.waitFor(`document.getElementById('tab-computer').textContent.includes('这台电脑')`), 'Chinese');
+  check(await p.waitFor(`document.getElementById('tab-computer').textContent.includes('首页')`), 'Chinese');
   await p.shot('computer-dark-zh');
   await p.eval(`document.querySelector('#set-theme [data-theme=""]').click()`);
   await p.waitFor(`!document.documentElement.dataset.theme`);
@@ -239,7 +247,7 @@ try {
   await p.eval(`document.getElementById('tab-connect').click()`);
   await p.shot('connect-zh');
   await p.eval(`document.querySelector('#set-lang [data-lang=""]').click()`);
-  await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('This computer')`);
+  await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('Home')`);
   await p.size(480, 720);
   await p.shot('computer-small');
   await p.eval(`document.getElementById('tab-settings').click()`);
