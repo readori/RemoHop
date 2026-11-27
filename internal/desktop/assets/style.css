@@ -121,6 +121,12 @@ h3 { font-size: 14px; line-height: 20px; font-weight: 600; margin: 20px 0 8px; c
 .switch::after { content: ""; position: absolute; top: 3px; left: 4px; width: 12px; height: 12px; border-radius: 50%; background: var(--on-surface-variant); transition: all .12s; }
 .switch:checked { background: var(--primary); border-color: var(--primary); }
 .switch:checked::after { left: 23px; background: var(--on-primary); }
+/* An on/off state at a glance: red while off, green while on. */
+.switch.onoff:not(:disabled) { background: var(--error); border-color: var(--error); }
+.switch.onoff:not(:disabled)::after { background: var(--on-error); }
+.switch.onoff:checked:not(:disabled) { background: var(--ok); border-color: var(--ok); }
+.switch.onoff:checked:not(:disabled)::after { background: var(--ok-container); }
+.switch:disabled { opacity: .5; cursor: default; }
 .chip { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--outline-variant);
   font-size: 12px; font-weight: 600; color: var(--on-surface-variant); background: none; white-space: nowrap; }
 button.chip { cursor: pointer; }
@@ -155,6 +161,8 @@ button.chip { cursor: pointer; }
 /* ---- this computer ---- */
 .creds { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; margin-top: 12px; }
 @media (max-width: 560px) { .creds { grid-template-columns: 1fr; } }
+#dlg-uncreds .creds { grid-template-columns: 1fr; } /* a dialog is too narrow for a long password beside the ID */
+#dlg-uncreds .cred .v { white-space: normal; overflow-wrap: anywhere; }
 .cred { padding: 10px 12px; border-radius: 6px; background: var(--surface-3); min-width: 0; }
 .cred .v { font: 600 24px/32px var(--mono); letter-spacing: .02em; margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all; }
 .cred .v.pending { font: 400 14px/20px inherit; color: var(--on-surface-variant); user-select: none; }
