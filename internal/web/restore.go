@@ -52,6 +52,10 @@ func (s *Server) saveOpen() {
 	if !s.restoring() || s.ctx.Err() != nil {
 		return
 	}
+	// Held while the list is made, too: two saves at once then write in
+	// the order they looked, so the last write is the newest list.
+	openMu.Lock()
+	defer openMu.Unlock()
 	list := []openSession{}
 	for _, p := range s.allPooled() {
 		select {
@@ -71,8 +75,6 @@ func (s *Server) saveOpen() {
 	if err != nil {
 		return
 	}
-	openMu.Lock()
-	defer openMu.Unlock()
 	if err := config.WriteFileAtomic(filepath.Join(s.cfg.ConfigDir, openSessionsFile), b, 0o600); err != nil {
 		s.log.Warn("web: could not save the open sessions", "err", err)
 	}
