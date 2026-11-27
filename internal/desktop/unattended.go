@@ -499,7 +499,7 @@ func hostFailure(dir string, from int64) string {
 	if len(lines) == 0 || !strings.Contains(lines[len(lines)-1], "host stopped") {
 		return ""
 	}
-	for i := len(lines) - 2; i >= 0 && i >= len(lines)-6; i-- {
+	for i := len(lines) - 2; i >= 0 && i >= len(lines)-12; i-- {
 		if l := strings.TrimSpace(lines[i]); strings.HasPrefix(l, "remohop: host: ") {
 			return cli.Sanitize(strings.TrimPrefix(l, "remohop: host: "))
 		}

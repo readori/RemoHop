@@ -38,9 +38,19 @@ var (
 )
 
 // ErrNotConfigured is returned by Resolve when no rendezvous server is set.
-var ErrNotConfigured = errors.New("no rendezvous server configured: pass --signal HOST[:PORT], set REMOHOP_SIGNAL, " +
-	"or run `remohop config set signal HOST[:PORT]` (and, where only HTTPS gets out, `remohop config set signal-ws wss://HOST/remohop/v1/udp`; " +
-	"you can run your own server with `remohop signal`)")
+// Its text lists the ways to go on, one per line.
+var ErrNotConfigured = errors.New("no rendezvous server configured. Choose one:\n" + Choices("  ") +
+	"For one command only, pass --signal HOST[:PORT] or set REMOHOP_SIGNAL.")
+
+// Choices lists, one per line and each line starting with indent, the
+// ways to go on without a rendezvous server: the official one (which the
+// desktop app and quick support offer; nothing uses it unless chosen),
+// one's own, or none at all on the same network.
+func Choices(indent string) string {
+	return indent + "official server: remohop config set signal " + OfficialAddr + "  (as offered by the desktop app and Quick Support)\n" +
+		indent + "your own server: remohop config set signal HOST[:PORT]  (start one with `remohop signal`)\n" +
+		indent + "same network:    remohop HOST:PORT <command>  (no server needed)\n"
+}
 
 func init() {
 	config.RegisterSetting(config.Setting{

@@ -174,7 +174,8 @@ func advise(r *Report) []string {
 	var out []string
 	switch {
 	case r.Signal.Server == "" && r.Signal.Bridge == "":
-		out = append(out, "No rendezvous server is configured: only direct addresses (remohop HOST:PORT) work. Set one with `remohop config set signal HOST:PORT`.")
+		out = append(out, "No rendezvous server is configured, so 9-digit IDs cannot be looked up. Choose one:\n"+
+			strings.TrimRight(signal.Choices("      "), "\n"))
 	case r.Signal.Checked && !r.Signal.Reachable && r.Signal.Bridge == "":
 		out = append(out, "The rendezvous server does not answer over UDP. If this network allows only HTTPS, configure its websocket bridge (`remohop config set signal-ws wss://...`).")
 	case r.Signal.Checked && !r.Signal.Reachable:

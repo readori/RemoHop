@@ -43,9 +43,8 @@ func rendezvousFirst(target string, opts Options) error {
 	}
 	if _, _, err := signal.Resolve(opts.Signal); errors.Is(err, signal.ErrNotConfigured) {
 		return &explained{msg: fmt.Sprintf("%s is a RemoHop ID, and IDs are looked up on a rendezvous server, a meeting point "+
-			"that introduces this machine to its hosts; none is set up here. Set yours once with "+
-			"`remohop config set signal HOST[:PORT]` (or pass --signal HOST[:PORT]), or connect by the host's address "+
-			"instead: `remohop HOST:PORT <command>`", signal.FormatID(t)), err: err}
+			"that introduces this machine to its hosts. None is set up here. Choose one:\n%s"+
+			"For one command only, pass --signal HOST[:PORT] or set REMOHOP_SIGNAL.", signal.FormatID(t), signal.Choices("  ")), err: err}
 	}
 	return nil
 }
