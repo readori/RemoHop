@@ -55,9 +55,12 @@ type Job struct {
 	Log     string `json:"log"`
 	LogSize int64  `json:"log_size"`
 	// Grant is the grant the job was spawned under, empty for full
-	// access. A session under a grant sees and handles only the jobs of
-	// its grant.
+	// access. Owner is who spawned it: the grant and the client's
+	// identity (grant.OwnerOf). A session under a grant sees and handles
+	// only the jobs of its own owner, so two identities on one grant an
+	// authorizer gives do not share them.
 	Grant string `json:"grant,omitempty"`
+	Owner string `json:"owner,omitempty"`
 }
 
 // jobMeta is what is persisted per job (<id>.json next to <id>.log).
@@ -138,14 +141,14 @@ func handleSpawn(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawM
 	if err := peer.DecodeReq(raw, &req); err != nil {
 		return wire.WriteJSON(s, jobsReply{Error: "bad request: " + err.Error()})
 	}
-	owner := ""
+	name, owner := "", ""
 	if g := grant.Of(c); g != nil {
 		if err := g.Command(ctx, "spawn", req.Command, false, req.Env); err != nil {
 			return wire.WriteJSON(s, jobsReply{Error: err.Error()})
 		}
-		owner = g.Name()
+		name, owner = g.Name(), grant.OwnerOf(g)
 	}
-	j, err := jobs.spawn(&req, owner)
+	j, err := jobs.spawn(&req, name, owner)
 	if err != nil {
 		return wire.WriteJSON(s, jobsReply{Error: err.Error()})
 	}
@@ -163,11 +166,12 @@ func handleJobs(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawMe
 		}
 		return wire.WriteJSON(s, r)
 	}
-	// A session under a grant sees and handles only its grant's jobs, as
-	// with terminals: other jobs' logs can hold the owner's secrets.
+	// A session under a grant sees and handles only the jobs started
+	// under its grant by its own identity, as with terminals: other jobs'
+	// logs can hold the owner's (or another member's) secrets.
 	owner := ""
 	if g := grant.Of(c); g != nil {
-		owner = g.Name()
+		owner = grant.OwnerOf(g)
 		if req.Op == "kill" || req.Op == "remove" {
 			g.Log("jobs-"+req.Op, "job", req.Job, "jobs", strings.Join(req.Jobs, " "), "signal", req.Signal)
 		}
@@ -190,7 +194,7 @@ func handleJobs(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.RawMe
 	case "list":
 		js, err := jobs.list()
 		if owner != "" {
-			js = slices.DeleteFunc(js, func(j Job) bool { return j.Grant != owner })
+			js = slices.DeleteFunc(js, func(j Job) bool { return j.Owner != owner })
 		}
 		return reply(jobsReply{Jobs: js}, err)
 	case "kill":
@@ -233,9 +237,9 @@ func newJobID() string {
 	return hex.EncodeToString(b[:])
 }
 
-// spawn starts a background job; owner is the grant it is spawned under
-// ("" for full access).
-func (m *jobManager) spawn(req *spawnReq, owner string) (*Job, error) {
+// spawn starts a background job; name is the grant it is spawned under
+// and owner who spawned it (grant.OwnerOf), both "" for full access.
+func (m *jobManager) spawn(req *spawnReq, name, owner string) (*Job, error) {
 	if strings.TrimSpace(req.Command) == "" {
 		return nil, errors.New("empty command")
 	}
@@ -290,7 +294,7 @@ func (m *jobManager) spawn(req *spawnReq, owner string) (*Job, error) {
 	meta := &jobMeta{
 		Job: Job{
 			ID: id, Name: req.Name, Command: req.Command, Cwd: cwd, PID: cmd.Process.Pid,
-			State: JobRunning, Started: time.Now().UTC(), Log: logf.Name(), Grant: owner,
+			State: JobRunning, Started: time.Now().UTC(), Log: logf.Name(), Grant: name, Owner: owner,
 		},
 		Ident: procStart(cmd.Process.Pid),
 	}
@@ -438,8 +442,9 @@ func (m *jobManager) list() ([]Job, error) {
 	return out, nil
 }
 
-// ownedRef resolves ref (an ID or a unique name) among the jobs of grant
-// owner and returns the job's ID; a job of anyone else is "no job".
+// ownedRef resolves ref (an ID or a unique name) among the jobs of owner
+// (grant.OwnerOf) and returns the job's ID; a job of anyone else is "no
+// job".
 func (m *jobManager) ownedRef(ref, owner string) (string, error) {
 	dir, err := m.dir()
 	if err != nil {
@@ -450,7 +455,7 @@ func (m *jobManager) ownedRef(ref, owner string) (string, error) {
 	if err := validName(ref); err != nil {
 		return "", fmt.Errorf("invalid job %q", ref)
 	}
-	if meta, err := m.loadLocked(dir, ref); err == nil && meta.Grant == owner {
+	if meta, err := m.loadLocked(dir, ref); err == nil && meta.Owner == owner {
 		return meta.ID, nil
 	}
 	all, err := m.allLocked(dir)
@@ -459,7 +464,7 @@ func (m *jobManager) ownedRef(ref, owner string) (string, error) {
 	}
 	found := ""
 	for _, meta := range all {
-		if meta.Grant == owner && meta.Name == ref {
+		if meta.Owner == owner && meta.Name == ref {
 			if found != "" {
 				return "", fmt.Errorf("job name %q is ambiguous; use the job ID", ref)
 			}
@@ -467,7 +472,7 @@ func (m *jobManager) ownedRef(ref, owner string) (string, error) {
 		}
 	}
 	if found == "" {
-		return "", fmt.Errorf("no job %q (a session under grant %s sees only the jobs started under it)", ref, owner)
+		return "", fmt.Errorf("no job %q (a session under a grant sees only the jobs it started under that grant, from the same identity)", ref)
 	}
 	return found, nil
 }
@@ -489,7 +494,7 @@ func (m *jobManager) ownedRefs(refs []string, exited bool, owner string) ([]stri
 			return nil, err
 		}
 		for _, j := range js {
-			if j.Grant == owner && j.State != JobRunning {
+			if j.Owner == owner && j.State != JobRunning {
 				out = append(out, j.ID)
 			}
 		}

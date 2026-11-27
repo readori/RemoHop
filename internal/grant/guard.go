@@ -44,6 +44,27 @@ type Guard interface {
 	Record(kind, title string, cols, rows int) Recorder
 }
 
+// Owned is a Guard that tells apart the identities using its grant. A grant
+// an authorizer gives (RemoHop Teams' team rules) can be used by many
+// client keys at once; what one of them leaves running must not be the
+// others'.
+type Owned interface {
+	// Owner names who owns the background jobs and terminals a session
+	// starts: the grant's name and the client's identity.
+	Owner() string
+}
+
+// OwnerOf is the owner of what a session under g starts (see Owned), or
+// the grant's name when g does not say.
+func OwnerOf(g Guard) string {
+	if o, ok := g.(Owned); ok {
+		if s := o.Owner(); s != "" {
+			return s
+		}
+	}
+	return g.Name()
+}
+
 // Recorder receives a terminal stream as it happens. Implementations are
 // safe for concurrent use and never block the stream for long; Close
 // writes the end marker.
@@ -112,7 +133,8 @@ func (noGrantState) Is(target error) bool { return target == fs.ErrPermission }
 
 func (unset) refuse() error { return ErrNoGrantState }
 
-func (unset) Name() string { return unsetName }
+func (unset) Name() string  { return unsetName }
+func (unset) Owner() string { return unsetName }
 func (u unset) Command(context.Context, string, string, bool, []string) error {
 	return u.refuse()
 }

@@ -1004,7 +1004,7 @@ func (h *Host) admit(q *quic.Conn, remote netip.AddrPort, res *auth.Result, limi
 
 	h.mu.Lock()
 	if sess.grant != "" {
-		if err := h.grantFullLocked(sess.grant, maxSessions); err != nil {
+		if err := h.grantFullLocked(sess.grant, sess.authz, res.ClientKey, maxSessions); err != nil {
 			h.mu.Unlock()
 			return denied(err)
 		}

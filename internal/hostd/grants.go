@@ -386,21 +386,32 @@ func (h *Host) grantLogin(res *auth.Result) error {
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.grantFullLocked(res.Grant, e.g.MaxSessions)
+	return h.grantFullLocked(res.Grant, nil, res.ClientKey, e.g.MaxSessions)
 }
 
-// grantFullLocked reports a grant whose live sessions are at its limit.
-func (h *Host) grantFullLocked(name string, max int) error {
+// grantFullLocked reports a grant whose live sessions are at its limit. A
+// grant the owner issued counts all its sessions (its credential is bound
+// to one identity). A grant authorizer a gives is counted per client key:
+// it stands for a rule that many identities share, and one of them must
+// not use up the others' sessions.
+func (h *Host) grantFullLocked(name string, a *Authorizer, key ed25519.PublicKey, max int) error {
 	n := 0
 	for s := range h.sessions {
-		if s.grant == name {
-			n++
+		if s.grant != name || s.authz != a {
+			continue
 		}
+		if a != nil && !s.Auth.ClientKey.Equal(key) {
+			continue
+		}
+		n++
 	}
 	if max <= 0 {
 		max = grant.DefaultMaxSessions
 	}
 	if n >= max {
+		if a != nil {
+			return fmt.Errorf("grant %s allows at most %d concurrent session(s) per identity", name, max)
+		}
 		return fmt.Errorf("grant %s allows at most %d concurrent session(s)", name, max)
 	}
 	return nil
@@ -495,6 +506,13 @@ type sessionGuard struct{ s *Session }
 var _ grant.Guard = sessionGuard{}
 
 func (g sessionGuard) Name() string { return g.s.grant }
+
+// Owner is the grant's name and the client's identity: what one identity
+// starts under a grant (background jobs, terminals) is not another's, also
+// when an authorizer gives many identities the same grant.
+func (g sessionGuard) Owner() string {
+	return g.s.grant + "/" + auth.Fingerprint(g.s.Auth.ClientKey)
+}
 
 func (g sessionGuard) refuse(kind string, err error, kv ...string) error {
 	g.s.host.audit.addRefused(grantKey(g.s.grant, g.s.Auth.ClientKey), "grant-refused", g.s.fields(append([]string{"kind", kind, "reason", err.Error()}, kv...)...)...)
