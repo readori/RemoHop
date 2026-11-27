@@ -169,7 +169,7 @@ func TestOutcomeClassification(t *testing.T) {
 			if o.Path != tc.path || o.NAT != string(tc.nat) || o.PeerNAT != string(tc.peerNAT) {
 				t.Errorf("reported %+v, want path %s, NATs %s/%s", o, tc.path, tc.nat, tc.peerNAT)
 			}
-			if o.MS <= 0 || o.MS > took.Milliseconds() {
+			if o.MS <= 0 || o.MS > outcomeMS(took) {
 				t.Errorf("reported %d ms for a dial of %s", o.MS, took)
 			}
 			rec.only(t)
@@ -443,6 +443,23 @@ func TestOutcomePath(t *testing.T) {
 	} {
 		if got := outcomePath(c.path, c.win, c.host); got != c.want {
 			t.Errorf("%s: %s, want %s", c.name, got, c.want)
+		}
+	}
+}
+
+func TestOutcomeMS(t *testing.T) {
+	for _, tc := range []struct {
+		d    time.Duration
+		want int64
+	}{
+		{0, 1},
+		{300 * time.Microsecond, 1},
+		{time.Millisecond, 1},
+		{3218 * time.Microsecond, 4},
+		{48 * time.Hour, signal.MaxOutcomeMS},
+	} {
+		if got := outcomeMS(tc.d); got != tc.want {
+			t.Errorf("outcomeMS(%s) = %d, want %d", tc.d, got, tc.want)
 		}
 	}
 }
