@@ -393,7 +393,7 @@ func (a *App) running() (*hostd.Host, error) {
 func requestOf(p hostd.Approval, timeout time.Duration, now time.Time) Request {
 	left := int((timeout - now.Sub(p.Since) + time.Second - 1) / time.Second)
 	return Request{N: p.N, Name: clean(p.Name), Device: clean(p.Device), Identity: p.Identity,
-		From: addrOnly(p.From), Auth: string(p.Auth), Action: cli.Sanitize(auth.CleanText(p.Action, 200)), Grant: clean(p.Grant), Left: max(left, 0)}
+		From: addrOnly(p.From), Auth: string(p.Auth), Action: shortAction(p.Action), Grant: clean(p.Grant), Left: max(left, 0)}
 }
 
 // clean makes text chosen by the other side safe to show in one line.
@@ -668,4 +668,14 @@ func checkServer(server string) error {
 		}
 	}
 	return nil
+}
+
+// shortAction shows an action a granted session asks for on one line, with
+// control characters escaped (cli.OneLine), and marks a cut.
+func shortAction(a string) string {
+	s := cli.OneLine(a)
+	if len(s) > 200 {
+		return auth.CleanText(s, 200) + "…"
+	}
+	return s
 }

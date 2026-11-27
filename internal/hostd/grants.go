@@ -466,7 +466,10 @@ func (g sessionGuard) Command(ctx context.Context, kind, command string, tty boo
 	if err := grant.CheckCommand(command, r.Commands); err != nil {
 		return g.refuse(kind, &grant.Refusal{Grant: s.grant, What: "command " + strconv.Quote(command), Why: err.Error()}, "command", command)
 	}
-	if err := s.approveAction(ctx, &e.g, kind+": "+command, ""); err != nil {
+	// The command is quoted: it is the client's text, and the owner must
+	// see all of it on one line (a line break could push its start off
+	// the screen).
+	if err := s.approveAction(ctx, &e.g, kind+": "+strconv.Quote(command), ""); err != nil {
 		return g.refuse(kind, err, "command", command)
 	}
 	s.host.audit.add("grant-action", s.fields("kind", kind, "command", command)...)
@@ -499,7 +502,7 @@ func (g sessionGuard) File(ctx context.Context, op string, a grant.Access, p str
 		return g.refuse("file", &grant.Refusal{Grant: s.grant, What: a.String(), Why: err.Error()}, "op", op, "path", p)
 	}
 	if a == grant.Write {
-		if err := s.approveAction(ctx, &e.g, "change file "+p+" ("+op+")", p); err != nil {
+		if err := s.approveAction(ctx, &e.g, "change file "+strconv.Quote(p)+" ("+op+")", p); err != nil {
 			return g.refuse("file", err, "op", op, "path", p)
 		}
 	}

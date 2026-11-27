@@ -287,7 +287,7 @@ func TestApproval(t *testing.T) {
 	if json.Unmarshal([]byte(out), &listed) != nil || len(listed) != 1 || listed[0].N != a.N {
 		t.Fatalf("host approve --json: %d %s", code, out)
 	}
-	if code, _, errOut := runCmd("host", "", "deny", "999"); code != cli.ExitError || !strings.Contains(errOut, "no pending connection 999") {
+	if code, _, errOut := runCmd("host", "", "deny", "999"); code != cli.ExitError || !strings.Contains(errOut, "no pending request 999") {
 		t.Fatalf("deny of an unknown request: %d %q", code, errOut)
 	}
 	if code, out, errOut := runCmd("host", "", "approve", strconv.Itoa(a.N)); code != cli.ExitOK || !strings.Contains(out, "approved") {

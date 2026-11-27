@@ -137,3 +137,19 @@ func TestHelpAndTargetOnly(t *testing.T) {
 		t.Error("wantsHelp")
 	}
 }
+
+func TestOneLine(t *testing.T) {
+	for in, want := range map[string]string{
+		"exec: \"git status\"":    "exec: \"git status\"",
+		"touch x\n\n\ngit status": `touch x\n\n\ngit status`,
+		"a\tb\r\x1b[2Jc":          `a\tb\r\x1b[2Jc`,
+		"evil\u202etxt.exe":       `evil\u202etxt.exe`,
+		"bad\xffbyte":             `bad\xffbyte`,
+		"line\u2028sep":           `line\u2028sep`,
+		"\u4e2d\u6587 \U0001f600": "\u4e2d\u6587 \U0001f600",
+	} {
+		if got := OneLine(in); got != want {
+			t.Errorf("OneLine(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

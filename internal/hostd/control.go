@@ -123,10 +123,15 @@ func (h *Host) control(req controlRequest) controlReply {
 	case "approvals":
 		return controlReply{Approvals: h.Pending()}
 	case "decide":
-		if err := h.Decide(req.N, req.Allow); err != nil {
+		if req.N <= 0 {
+			return controlReply{Error: "name the request to answer by its number"}
+		}
+		a, err := h.DecideShown(req.N, req.Allow)
+		if err != nil {
 			return controlReply{Error: err.Error()}
 		}
-		return controlReply{}
+		// The answered request, for the confirmation.
+		return controlReply{Approvals: []Approval{a}}
 	case "otp-new":
 		if err := h.RotatePassword(); err != nil {
 			return controlReply{Error: err.Error()}

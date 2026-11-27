@@ -4,8 +4,12 @@ import (
 	"context"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 )
+
+// markupEscaper escapes the characters notification markup gives meaning.
+var markupEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
 
 // notifyDesktop shows a desktop notification, best effort: notify-send
 // where it is installed (Linux and BSD desktops), osascript on macOS.
@@ -24,6 +28,9 @@ var notifyDesktop = func(title, body string) {
 	case "windows", "android", "ios":
 	default:
 		if p, err := exec.LookPath("notify-send"); err == nil {
+			// Many notification daemons read the body as markup, which
+			// could hide part of it.
+			body = markupEscaper.Replace(body)
 			exec.CommandContext(ctx, p, "--app-name=RemoHop", "--urgency=critical", "--", title, body).Run()
 		}
 	}
