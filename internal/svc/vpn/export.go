@@ -74,3 +74,15 @@ func Forward(c *Changes, dev string, src netip.Prefix) (release func(), err erro
 	}
 	return sys.hostRelease, nil
 }
+
+// ProcessAlive reports whether the process pid runs (for the status of a
+// daemon that left a state file).
+func ProcessAlive(pid int) bool { return processAlive(pid) }
+
+// UsedNets lists the IPv4 networks this machine already uses: those of its
+// interfaces and, where the platform reads them, of its routes.
+func UsedNets() []netip.Prefix { return sys.usedNets() }
+
+// IsTunnelName reports whether an interface name is one of RemoHop's
+// tunnel interfaces (on macOS any utun, which may also be another program's).
+func IsTunnelName(name string) bool { return isTunnelName(name) }

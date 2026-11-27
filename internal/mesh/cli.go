@@ -36,7 +36,8 @@ needed: hole punched where possible, else through the rendezvous server's
 relay or websocket bridge; end-to-end encrypted either way.
 
 The mesh runs inside the host daemon (` + "`remohop host`" + ` or the host service), as root
-or with CAP_NET_ADMIN, on Linux. ` + "`remohop net up`" + ` switches it on in the
+or with CAP_NET_ADMIN on Linux, as root on macOS, as Administrator (the
+service) on Windows. ` + "`remohop net up`" + ` switches it on in the
 configuration; the running host brings it up within seconds and on every
 start after that. Every device that should be reachable runs the host.
 
@@ -56,8 +57,9 @@ Flags for up (each changes its setting; the others stay as they are):
                      NAME, which must offer --exit; --no-exit-node stops it
   --accept-routes    use the networks other devices route for the mesh
   --dns MODE         auto (default): .remohop goes to the mesh's resolver
-                     through systemd-resolved where present; hosts: a marked
-                     block in /etc/hosts; off: nothing (resolver answers on
+                     through systemd-resolved, /etc/resolver (macOS) or an
+                     NRPT rule (Windows); hosts: a marked block in the hosts
+                     file; off: nothing (resolver answers on
                      this device's mesh address, port 53)
   --reset            clear all of the above before applying the flags
 

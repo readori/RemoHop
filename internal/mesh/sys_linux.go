@@ -100,7 +100,7 @@ func checkPrefixFree(p netip.Prefix) error {
 // systemd-resolved's per-link settings, which go away with the link. A
 // note with false means split DNS was possible in principle but is unsafe
 // here.
-func sysSplitDNS(dev string, server netip.Addr) (string, bool) {
+func sysSplitDNS(_ *vpn.Changes, dev string, server netip.Addr) (string, bool) {
 	if _, err := exec.LookPath("resolvectl"); err != nil {
 		return "", false
 	}

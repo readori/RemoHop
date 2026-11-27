@@ -18,8 +18,8 @@ sudo remohop net down
 
 - 设备之间的链路就是普通的 RemoHop 会话，有流量时才建立（先打洞，不行再走中继或 websocket 桥），有保活，设备重启或换网络后会重新建立。这种登录只限于网状网络：同一账号的设备并不因此获得对方的 shell 或文件。
 - 签名的访问策略（哪台设备可以访问哪些端口）在设备之间传递，由接收方执行。没有策略时，每台设备可以访问其他设备的所有端口。
-- 网状网络运行在被控端守护进程里（需要 root 或 `CAP_NET_ADMIN`），随被控端服务一起启动。目前只支持 Linux；子网路由和出口节点只支持 IPv4。
-- 对系统 DNS 的改动尽量保守：有 systemd-resolved 时只为 `.remohop` 设置按接口的分流 DNS，否则只在要求时（`--dns hosts`）改动。
+- 网状网络运行在被控端守护进程里，随被控端服务一起启动：Linux 上需要 root 或 `CAP_NET_ADMIN`，macOS 上需要 root，Windows 上以管理员服务运行。支持 Linux、macOS 和 Windows；只有 Linux 设备可以做出口节点或子网路由（只支持 IPv4）。macOS 和 Windows 部分还没有在真机上试过。Windows 和 [VPN](vpn.md) 一样需要 `wintun.dll`。
+- 对系统 DNS 的改动尽量保守：只把 `.remohop` 分流到网状网络的解析器。Linux 上用 systemd-resolved，macOS 上用 `/etc/resolver`，Windows 上用 NRPT 规则；都没有时，只在要求时（`--dns hosts`）改动。
 
 详细说明、测试范围，以及没有复刻的 Tailscale 功能（单点登录、与他人共享、管理后台、Funnel 等）见 [net.md](../net.md)（英文）。
 
