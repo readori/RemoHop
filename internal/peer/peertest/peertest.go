@@ -121,6 +121,10 @@ func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *p
 	t.Cleanup(func() {
 		client.Close()
 		host.Close()
+		// Let the host's handlers finish before the next test starts: a
+		// handler still running would hold shared state (a reserved
+		// network, a swapped test seam) into it.
+		host.WaitHandlers(10 * time.Second)
 	})
 	return client, host
 }

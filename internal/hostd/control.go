@@ -80,11 +80,26 @@ func (h *Host) serveControl(ctx context.Context) {
 		ln.Close()
 		os.Remove(path)
 	}()
+	backoff := 5 * time.Millisecond
 	for {
 		c, err := ln.Accept()
 		if err != nil {
-			return
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) {
+				return
+			}
+			// A passing error (too many open files, say) must not end
+			// `remohop host approve`, `otp` and `sessions` until the
+			// daemon restarts: wait a little and accept again.
+			h.log.Warn("control socket: accept failed; retrying", "err", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(backoff):
+			}
+			backoff = min(backoff*2, time.Second)
+			continue
 		}
+		backoff = 5 * time.Millisecond
 		go func() {
 			defer c.Close()
 			c.SetDeadline(time.Now().Add(5 * time.Second))

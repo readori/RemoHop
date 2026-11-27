@@ -121,7 +121,12 @@ func decodeErrors(t *testing.T, path string) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-v", "error", "-xerror", "-i", path, "-f", "null", "-").CombinedOutput()
+	// -enc_time_base demux: the null muxer keeps the file's timestamps.
+	// With its default 1/fps time base, two frames captured within one
+	// frame period (a loaded machine) collide and ffmpeg reports
+	// "non monotonically increasing dts", though the file is valid.
+	out, err := exec.CommandContext(ctx, "ffmpeg", "-hide_banner", "-v", "error", "-xerror", "-i", path,
+		"-enc_time_base", "demux", "-f", "null", "-").CombinedOutput()
 	if err != nil {
 		return err.Error() + ": " + string(out)
 	}

@@ -340,9 +340,18 @@ func ServeRelay(ctx context.Context, pc net.PacketConn, nonce []byte, limits Rel
 		now := time.Now()
 		switch src {
 		case peers[RoleClient]:
-			to, heard[RoleClient], active = peers[RoleHost], now, now
+			to, heard[RoleClient] = peers[RoleHost], now
 		case peers[RoleHost]:
-			to, heard[RoleHost], active = peers[RoleClient], now, now
+			to, heard[RoleHost] = peers[RoleClient], now
+		}
+		if to.IsValid() {
+			// Live while both sides speak: one side alone (a client that
+			// keeps a session up with junk the host never answers) does
+			// not hold the relay past Idle.
+			active = heard[RoleClient]
+			if heard[RoleHost].Before(active) {
+				active = heard[RoleHost]
+			}
 		}
 		if !to.IsValid() {
 			continue // a stranger, or the other side has not bound yet
