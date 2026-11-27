@@ -87,6 +87,7 @@ Xk3...base64-identity-key...=</code></pre>
 <li>The startup line shows the limits in force and this month's usage so far.</li>
 <li>Once an hour the log has a <code>relay summary</code> line: sessions started, bytes relayed, active sessions, and refusals by reason (<code>per_source</code>, <code>mode</code>, <code>deny</code>, <code>budget</code>, <code>full</code>). It contains no addresses.</li>
 <li>Lines at 50&nbsp;%, 80&nbsp;%, 100&nbsp;% and 110&nbsp;% of the budget are logged once per month.</li>
+<li><code>--panel 127.0.0.1:8810</code> (or <code>remohop service install --role signal ... --panel 127.0.0.1:8810</code>) serves a read-only web panel with the same counts and their trends over 24&nbsp;hours and 7&nbsp;days, the limits and how close the server is to each, and recent warnings. Like the summary it shows no addresses, IDs, emails or keys. Reach it over an SSH tunnel or a Cloudflare Tunnel with Access: see <a href="/en/docs/self-hosting/#the-operators-web-panel">The operator's web panel</a>.</li>
 <li><code>journalctl -u remohop-signal</code> shows everything else.</li>
 </ul>
 <h2 id="what-a-public-operator-can-and-cannot-see">What a public operator can and cannot see</h2>

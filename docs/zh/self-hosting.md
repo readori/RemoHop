@@ -99,3 +99,89 @@ sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8
 - `--relay-monthly-gb N`：每月流量预算，重启后继续累计。达到 80% 时匿名会话的带宽减半；达到 100% 时拒绝匿名会话；达到 110% 时拒绝所有会话。`remohop signal --status` 显示当月用量，每小时一行日志汇总会话数、字节数和拒绝次数，不含地址。
 
 这些选项的完整说明以 [public-server.md](../public-server.md)（英文）为准，那里还说明了这样的运营者能看到和看不到什么，并附有隐私声明模板。
+
+## 运营者网页面板
+
+`--panel ADDR` 为服务器的运营者增加一个只读网页：在线主机和已存 ID 数、打开的连接和 websocket 桥、中继（当前和今天的会话、本月流量与预算对比、每日用量、按原因统计的拒绝次数）、最近 24 小时和 7 天的趋势、当前生效的限额以及服务器离各项限额有多近、内存和 goroutine 数，以及日志中最近的警告和错误。默认关闭。
+
+面板只显示计数和汇总，从不列出 IP 地址、主机 ID、账号邮箱或密钥；日志记录在送到面板之前已去除这些内容。它的历史数据（每分钟一个样本保留 24 小时，每 15 分钟一个点保留 7 天）写在 `--data` 目录的 `panel-history.json` 里，重启后仍在。
+
+```bash
+remohop signal --relay --relay-ports 40000-40099 --panel 127.0.0.1:8810
+sudo remohop service install --role signal --relay --relay-ports 40000-40099 --panel 127.0.0.1:8810
+```
+
+谁可以打开：
+
+- **在服务器本机，无需登录。** 面板监听回环地址。从你自己的电脑通过 SSH 访问，然后打开 `http://127.0.0.1:8810/`：
+
+  ```bash
+  ssh -L 8810:127.0.0.1:8810 server
+  ```
+
+  回环请求的 Host 必须是 `127.0.0.1` 或 `localhost`，这样网页无法通过 DNS 重绑定访问面板。
+- **通过 Cloudflare Tunnel 和 Cloudflare Access**，在任何地方用浏览器打开。凡是经过 Cloudflare 的请求（带有 `Cf-Ray`、`Cf-Connecting-Ip` 或 `Cf-Access-Jwt-Assertion` 头）都必须带有效的 Access 令牌，放在该请求头或 `CF_Authorization` cookie 里。面板用团队的公钥（`https://TEAM/cdn-cgi/access/certs`，缓存一小时，遇到新的 key ID 时重新获取）校验 RS256 签名，并检查受众（应用的 AUD 标签）、签发者（`https://TEAM`）和有效期（允许少量时钟偏差）。设置了邮箱名单时，令牌中的邮箱必须在名单上。面板顶部显示当前登录的邮箱。没有设置 `REMOHOP_PANEL_CF_TEAM` 和 `REMOHOP_PANEL_CF_AUD` 时，经过 Cloudflare 的请求一律拒绝，所以没有 Access 保护的隧道永远打不开面板。
+- **用密码。** 设置 `REMOHOP_PANEL_PASSWORD` 后，除 `/healthz` 外的每个页面都要求输入它（HTTP Basic，用户名任意）。没有密码时，拒绝在回环以外的地址上监听（例如 `--panel 0.0.0.0:8810`）。更推荐回环加隧道：普通 HTTP 上的 Basic 认证是明文传输的。
+
+| 环境变量 | 含义 |
+|---|---|
+| `REMOHOP_PANEL_CF_TEAM` | Cloudflare Zero Trust 团队域名，例如 `myteam.cloudflareaccess.com` |
+| `REMOHOP_PANEL_CF_AUD` | Access 应用的 Audience（AUD）标签 |
+| `REMOHOP_PANEL_CF_EMAILS` | 可选，逗号分隔：只允许这些邮箱（Access 策略仍先生效） |
+| `REMOHOP_PANEL_PASSWORD` | 可选：所有页面的密码；在回环以外监听时必需 |
+
+这些设置只用环境变量，不用命令行参数，因此不会出现在命令行里。安装为服务时，把它们写进 `/etc/remohop/remohop-signal-panel.env`（服务启动时读取；没有这个文件也能启动），只让 root 可读，然后重启：
+
+```bash
+sudo install -m 600 /dev/null /etc/remohop/remohop-signal-panel.env
+sudoedit /etc/remohop/remohop-signal-panel.env       # 每行一个，例如 REMOHOP_PANEL_CF_TEAM=...
+sudo systemctl restart remohop-signal
+```
+
+页面是内置在程序里的纯 HTML、CSS 和 JavaScript：不用 CDN、不用网络字体，有严格的内容安全策略，禁止被嵌入框架，数据不缓存，只接受 `GET` 请求。界面语言跟随浏览器（中文或英文），主题跟随系统的浅色或深色，两者都可在侧栏切换。
+
+### Cloudflare Tunnel 与 Access
+
+1. 在 Cloudflare Zero Trust 控制台添加一个 *Self-hosted* 类型的 Access 应用，主机名例如 `panel.example.com`，策略允许你的团队。复制它的 *Application Audience (AUD) tag*。
+2. 用隧道把这个主机名转发到面板。服务器上 `cloudflared` 的 `config.yml`：
+
+   ```yaml
+   tunnel: <tunnel-id>
+   credentials-file: /etc/cloudflared/<tunnel-id>.json
+   ingress:
+     - hostname: panel.example.com
+       service: http://127.0.0.1:8810
+     - hostname: relay.example.com          # websocket 桥（如果使用）
+       service: http://127.0.0.1:8080
+     - service: http_status:404
+   ```
+
+3. 用 `--panel 127.0.0.1:8810` 启动服务器，并设置 `REMOHOP_PANEL_CF_TEAM=myteam.cloudflareaccess.com` 和 `REMOHOP_PANEL_CF_AUD=<AUD 标签>`（需要的话再设置 `REMOHOP_PANEL_CF_EMAILS`）。
+
+Cloudflare Access 是第一道锁，面板自己校验令牌是第二道：绕过 Access 到达隧道的请求也会被面板拒绝。
+
+### Docker
+
+容器里的回环地址只属于容器自己。有两种方式访问面板：
+
+- **主机网络**（Linux）：使用 `network_mode: host` 时，`--panel=127.0.0.1:8810` 监听在宿主机的回环地址上，SSH 隧道和宿主机上的 `cloudflared` 都按上文的方式使用，不需要密码。
+- **默认的 bridge 网络**：面板必须在容器内监听 `0.0.0.0:8810`，因此需要 `REMOHOP_PANEL_PASSWORD`。只把它发布到宿主机的回环地址（`127.0.0.1:8810:8810`），或让同一网络中的 `cloudflared` 容器访问它（`service: http://signal:8810`），并设置 Cloudflare 相关变量。设置了密码后，每个页面都会要求输入，在 Access 后面也一样。
+
+在 `packaging/docker/compose.yaml` 中：
+
+```yaml
+services:
+  signal:
+    command:
+      - --relay
+      - --relay-ports=40000-40099
+      - --panel=0.0.0.0:8810
+    environment:
+      REMOHOP_PANEL_PASSWORD: ${REMOHOP_PANEL_PASSWORD:?在 .env 中设置}
+      REMOHOP_PANEL_CF_TEAM: ${REMOHOP_PANEL_CF_TEAM:-}
+      REMOHOP_PANEL_CF_AUD: ${REMOHOP_PANEL_CF_AUD:-}
+    ports:
+      - "127.0.0.1:8810:8810"   # 面板：只在宿主机回环地址上
+```
+
+`GET /healthz` 无需登录，返回 `ok`，可用于健康检查。
