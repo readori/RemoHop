@@ -403,7 +403,8 @@ func (z *zmtpConn) readFrame() (flags byte, body []byte, err error) {
 func keyForceWorks(ctx context.Context, ffmpeg string) bool {
 	kfProbeMu.Lock()
 	defer kfProbeMu.Unlock()
-	if p, ok := kfProbeCache[ffmpeg]; ok && (p.err == nil || time.Since(p.at) < failedProbeLife) {
+	bin := stampOf(ffmpeg)
+	if p, ok := kfProbeCache[ffmpeg]; ok && p.bin.current(bin, p.at, failedProbeLife) {
 		return p.err == nil
 	}
 	err := kfProbe(ctx, ffmpeg)
@@ -413,8 +414,23 @@ func keyForceWorks(ctx context.Context, ffmpeg string) bool {
 	if err != nil {
 		slog.Debug("desktop: ffmpeg cannot force key frames on demand; restarting the encoder for them instead", "err", err)
 	}
-	kfProbeCache[ffmpeg] = probed{err: err, at: time.Now()}
+	kfProbeCache[ffmpeg] = probed{err: err, at: time.Now(), bin: bin}
 	return err == nil
+}
+
+// refreshKeyForce probes again, for refreshProbes, a key frame probe of
+// ffmpeg that failed more than failedProbeLife ago.
+func refreshKeyForce(ctx context.Context, ffmpeg string, bin binStamp) {
+	kfProbeMu.Lock()
+	p, ok := kfProbeCache[ffmpeg]
+	kfProbeMu.Unlock()
+	if !ok || p.err == nil || time.Since(p.at) < failedProbeLife {
+		return
+	}
+	err := kfProbe(ctx, ffmpeg)
+	kfProbeMu.Lock()
+	kfProbeCache[ffmpeg] = probed{err: err, at: time.Now(), bin: bin}
+	kfProbeMu.Unlock()
 }
 
 var (

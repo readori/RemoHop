@@ -26,6 +26,9 @@ import (
 
 func init() {
 	peer.Handle(ServiceName, serveDesktop)
+	// Encoder detection runs once when a host starts, so that its first
+	// session does not wait for it.
+	hostd.RegisterExtension(func(ctx context.Context, _ *hostd.Host) { warmEncoders(ctx) })
 }
 
 // hostViewOnlyEnv makes a host refuse input on every desktop session (and
@@ -119,6 +122,7 @@ func serveDesktop(ctx context.Context, c *peer.Conn, s peer.Stream, raw json.Raw
 	stop := watchInput(c, h.setHostInput)
 	defer stop()
 	h.setHostInput(hostd.Allowed(c, perm.Input)) // a change before the watch began
+	refreshProbes(h.ffmpeg)                      // what failed long ago, for the next session
 	return h.run()
 }
 

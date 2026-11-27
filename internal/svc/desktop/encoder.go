@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/readori/RemoHop/internal/nowindow"
@@ -514,21 +516,59 @@ type probed struct {
 	slowSVT bool
 	err     error
 	at      time.Time
+	bin     binStamp // the ffmpeg binary probed
 }
 
 type probeKey struct{ ffmpeg, name string }
 
+// Encoder detection runs ffmpeg several times (a listing, then a test
+// encode per candidate, most of them GPU encoders without a GPU behind
+// them). What it finds is kept while the ffmpeg binary stays the same
+// file (path, size and time). A session uses a failed probe however old it
+// is; once the session has started, failures older than failedProbeLife
+// are tried again in the background (refreshProbes), so that installing a
+// driver needs no host restart and delays no session. The host also
+// probes once when it starts (warmEncoders). Measured with x264 on a
+// 4-core box without a GPU (TestTimingFirstFrame), the first frame of a
+// 1080p session came 430-470 ms after the request when detection ran on
+// the way, which it did on most sessions, and 140-165 ms when it did not.
 const (
-	// failedProbeLife is how long a failed probe is believed, so that
-	// installing a driver or a codec needs no host restart, yet opening a
-	// session does not retry a dozen absent GPU encoders every time.
 	failedProbeLife = 2 * time.Minute
-	listingLife     = 2 * time.Minute
+	// listingLife bounds how long a listing is kept when the binary
+	// cannot be identified (stat fails).
+	listingLife = 2 * time.Minute
 )
+
+// binStamp identifies an ffmpeg binary: a rebuilt, upgraded or replaced
+// one has a different size or time. ok is false when it could not be read.
+type binStamp struct {
+	size  int64
+	mtime time.Time
+	ok    bool
+}
+
+func stampOf(ffmpeg string) binStamp {
+	fi, err := os.Stat(ffmpeg)
+	if err != nil {
+		return binStamp{}
+	}
+	return binStamp{size: fi.Size(), mtime: fi.ModTime(), ok: true}
+}
+
+// current reports whether what was learnt about binary b at time at still
+// holds for binary now: while it is the same file, or for life where a
+// binary cannot be identified.
+func (b binStamp) current(now binStamp, at time.Time, life time.Duration) bool {
+	if !b.ok || !now.ok {
+		return time.Since(at) < life
+	}
+	return b.size == now.size && b.mtime.Equal(now.mtime)
+}
 
 type listing struct {
 	names map[string]bool
 	at    time.Time
+	bin   binStamp
 }
 
 var (
@@ -539,7 +579,11 @@ var (
 
 // listEncoders asks ffmpeg which encoders it was built with.
 func listEncoders(ctx context.Context, ffmpeg string) (map[string]bool, error) {
-	if l, ok := listCache[ffmpeg]; ok && time.Since(l.at) < listingLife {
+	return listEncodersOf(ctx, ffmpeg, stampOf(ffmpeg))
+}
+
+func listEncodersOf(ctx context.Context, ffmpeg string, bin binStamp) (map[string]bool, error) {
+	if l, ok := listCache[ffmpeg]; ok && l.bin.current(bin, l.at, listingLife) {
 		return l.names, nil
 	}
 	out, err := nowindow.Set(exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-encoders")).Output()
@@ -553,19 +597,30 @@ func listEncoders(ctx context.Context, ffmpeg string) (map[string]bool, error) {
 			names[f[1]] = true
 		}
 	}
-	listCache[ffmpeg] = listing{names, time.Now()}
+	listCache[ffmpeg] = listing{names, time.Now(), bin}
 	return names, nil
 }
 
 // probe test-encodes with e (a listed GPU encoder often has no GPU or
 // driver behind it) and, for SVT-AV1, binds it to the plan for its version.
-func probe(ctx context.Context, ffmpeg string, e *encoder) probed {
+// What an earlier probe of the same binary found is used instead, failures
+// included (see failedProbeLife). Call it with probeMu held.
+func probe(ctx context.Context, ffmpeg string, bin binStamp, e *encoder) probed {
 	key := probeKey{ffmpeg, e.name}
-	if p, ok := probeCache[key]; ok && (p.err == nil || time.Since(p.at) < failedProbeLife) {
+	if p, ok := probeCache[key]; ok && p.bin.current(bin, p.at, failedProbeLife) {
 		return p
 	}
+	p := runProbe(ctx, ffmpeg, bin, e)
+	if ctx.Err() == nil {
+		probeCache[key] = p
+	}
+	return p
+}
+
+// runProbe is probe without the cache.
+func runProbe(ctx context.Context, ffmpeg string, bin binStamp, e *encoder) probed {
 	stderr, err := testEncode(ctx, ffmpeg, e)
-	p := probed{enc: e, err: err, at: time.Now()}
+	p := probed{enc: e, err: err, at: time.Now(), bin: bin}
 	if err == nil && e.name == "libsvtav1" {
 		v, text, known := parseSVTVersion(stderr)
 		plan := svtPlanFor(v, known)
@@ -578,10 +633,76 @@ func probe(ctx context.Context, ffmpeg string, e *encoder) probed {
 		}
 		p.enc = &bound
 	}
-	if ctx.Err() == nil {
-		probeCache[key] = p
-	}
 	return p
+}
+
+// refreshing is set while refreshProbes runs.
+var refreshing atomic.Bool
+
+// refreshDelay is how long after a session has started refreshProbes
+// waits, so that its test encodes do not compete with the session's own
+// start. A variable for tests.
+var refreshDelay = 5 * time.Second
+
+// refreshProbes tries again, in the background, the probes of ffmpeg that
+// failed more than failedProbeLife ago (and the key frame probe), so that
+// an encoder that works now is found by the next session without delaying
+// this one. One refresh runs at a time.
+func refreshProbes(ffmpeg string) {
+	if !refreshing.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer refreshing.Store(false)
+		time.Sleep(refreshDelay)
+		ctx := context.Background()
+		bin := stampOf(ffmpeg)
+		probeMu.Lock()
+		var stale []*encoder
+		for k, p := range probeCache {
+			if k.ffmpeg == ffmpeg && p.err != nil && time.Since(p.at) >= failedProbeLife {
+				if e := lookupEncoder(k.name); e != nil {
+					stale = append(stale, e)
+				}
+			}
+		}
+		probeMu.Unlock()
+		for _, e := range stale {
+			p := runProbe(ctx, ffmpeg, bin, e)
+			probeMu.Lock()
+			probeCache[probeKey{ffmpeg, e.name}] = p
+			probeMu.Unlock()
+			if p.err == nil {
+				slog.Debug("desktop: an encoder that failed before works now", "encoder", e.name)
+			}
+		}
+		refreshKeyForce(ctx, ffmpeg, bin)
+	}()
+}
+
+// warming is set once warmEncoders has started.
+var warming atomic.Bool
+
+// warmEncoders runs encoder detection once, in the background when the
+// host starts, so that the first session finds it done.
+func warmEncoders(ctx context.Context) {
+	if !warming.CompareAndSwap(false, true) {
+		return
+	}
+	ffmpeg, err := ffmpegPath()
+	if err != nil {
+		return
+	}
+	start := time.Now()
+	e, err := selectEncoder(ctx, ffmpeg, encRequest{})
+	if ctx.Err() != nil {
+		warming.Store(false) // the host stopped first: the next one tries again
+		return
+	}
+	keyForceWorks(ctx, ffmpeg)
+	if err == nil {
+		slog.Debug("desktop: encoders probed", "encoder", e.name, "took", time.Since(start).Round(time.Millisecond).String())
+	}
 }
 
 // selectEncoder picks the encoder for a session: the best-ranked one that
@@ -590,7 +711,8 @@ func probe(ctx context.Context, ffmpeg string, e *encoder) probed {
 func selectEncoder(ctx context.Context, ffmpeg string, req encRequest) (*encoder, error) {
 	probeMu.Lock()
 	defer probeMu.Unlock()
-	listed, err := listEncoders(ctx, ffmpeg)
+	bin := stampOf(ffmpeg)
+	listed, err := listEncodersOf(ctx, ffmpeg, bin)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +721,7 @@ func selectEncoder(ctx context.Context, ffmpeg string, req encRequest) (*encoder
 		if e == nil || !listed[e.name] {
 			return nil, fmt.Errorf("ffmpeg at %s has no %s encoder", ffmpeg, req.forced)
 		}
-		p := probe(ctx, ffmpeg, e)
+		p := probe(ctx, ffmpeg, bin, e)
 		if p.err != nil {
 			return nil, fmt.Errorf("encoder %s does not work on this host: %v", e.name, p.err)
 		}
@@ -624,7 +746,7 @@ func selectEncoder(ctx context.Context, ffmpeg string, req encRequest) (*encoder
 			if e.name == "libsvtav1" && class != classSVTFast && class != classSVTSlow {
 				continue
 			}
-			p := probe(ctx, ffmpeg, e)
+			p := probe(ctx, ffmpeg, bin, e)
 			if p.err != nil {
 				if class != classSVTSlow {
 					tried = append(tried, fmt.Sprintf("%s (%v)", e.name, p.err))

@@ -301,7 +301,7 @@ func TestMacEncoders(t *testing.T) {
 			continue
 		}
 		probeMu.Lock()
-		p := probe(ctx, ffmpeg, e)
+		p := probe(ctx, ffmpeg, stampOf(ffmpeg), e)
 		probeMu.Unlock()
 		working[e.name] = p.err == nil
 		if p.err != nil {
@@ -464,7 +464,7 @@ func TestMacDesktopE2E(t *testing.T) {
 	var auto Hello
 	t.Run("host choice", func(t *testing.T) {
 		probeMu.Lock()
-		vt := probe(context.Background(), ffmpeg, lookupEncoder("h264_videotoolbox"))
+		vt := probe(context.Background(), ffmpeg, stampOf(ffmpeg), lookupEncoder("h264_videotoolbox"))
 		probeMu.Unlock()
 		sess, h := stream(t, Options{FPS: 30})
 		auto = h

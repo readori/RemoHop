@@ -107,7 +107,7 @@ func TestWinEncoders(t *testing.T) {
 			continue
 		}
 		probeMu.Lock()
-		p := probe(ctx, ffmpeg, e)
+		p := probe(ctx, ffmpeg, stampOf(ffmpeg), e)
 		probeMu.Unlock()
 		if p.err != nil {
 			t.Logf("RESULT encoder %-12s listed, does not work here: %v", e.name, p.err)
