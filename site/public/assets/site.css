@@ -558,7 +558,7 @@
   @media (max-width: 40rem) {
     /* Phones: the hero terminal scrolls sideways like a real one instead of
        wrapping every line. */
-    .agent-stage pre.term { white-space: pre; overflow-x: auto; }
+    .agent-stage pre.term, .grant pre.term { white-space: pre; overflow-x: auto; }
     .agent-stage pre .hang { display: inline; padding: 0; text-indent: 0; }
     .grant pre.term code { font-size: 0.72rem; }
     .h-stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
