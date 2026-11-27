@@ -88,7 +88,9 @@ func (h *Host) policy() policy { return h.cfg.Overrides.apply(h.policies.get(h.d
 // authorize decides whether a session may open a stream for service. It is
 // the session layer's Authorize hook.
 func (s *Session) authorize(service string) error {
-	if s.Auth.Scope != "" {
+	if s.Auth.Scope != "" && s.authz == nil {
+		// An authorizer's session is limited by its grant (below), not by
+		// a scope's service list.
 		if err := s.authorizeScope(service); err != nil {
 			return err
 		}

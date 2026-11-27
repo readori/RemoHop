@@ -31,9 +31,10 @@ type Scope struct {
 }
 
 var extensions struct {
-	mu     sync.Mutex
-	scopes []Scope
-	run    []func(ctx context.Context, h *Host)
+	mu          sync.Mutex
+	scopes      []Scope
+	authorizers []*Authorizer // authorizer.go
+	run         []func(ctx context.Context, h *Host)
 }
 
 // RegisterScope adds a scope. Call it from init().
@@ -64,6 +65,7 @@ func (h *Host) startExtensions(ctx context.Context, wg *sync.WaitGroup) {
 func (h *Host) scopedKey(key ed25519.PublicKey) (name, scope string, ok bool) {
 	extensions.mu.Lock()
 	scopes := slices.Clone(extensions.scopes)
+	authorizers := slices.Clone(extensions.authorizers)
 	extensions.mu.Unlock()
 	for _, s := range scopes {
 		if s.Admit == nil {
@@ -72,6 +74,19 @@ func (h *Host) scopedKey(key ed25519.PublicKey) (name, scope string, ok bool) {
 		if n, ok := s.Admit(h, key); ok {
 			return n, s.Name, true
 		}
+	}
+	for _, a := range authorizers {
+		if a.Grant == nil {
+			continue
+		}
+		g, n, ok := a.Grant(h, key)
+		if !ok || !usableGrant(g) {
+			continue
+		}
+		if n == "" {
+			n = g.Name
+		}
+		return n, AuthorizerScope(a.Name), true
 	}
 	return "", "", false
 }

@@ -137,6 +137,7 @@ remohop host revoke NAME        # delete it; its live sessions end at once
 remohop host grant NAME ...     # reissue: replaces the grant and its code; old sessions end</code></pre>
 <p>Sessions on a reissued grant's old code never get the new rules: every check compares the session's credential with the grant's current one, so they are refused (and ended) at their next request, whether or not <code>remohop host grant</code> reached the running host.</p>
 <p>From the agent's machine, <code>remohop &lt;ID&gt; limits</code> shows what its credential allows.</p>
+<p>Code built on RemoHop can also hand out grants without a code: <code>hostd.RegisterAuthorizer</code> (<code>internal/hostd/authorizer.go</code>) lets it vouch for an identity key the owner never paired, with a grant the host then enforces exactly like these. RemoHop Teams uses it for team policies. The authorizer is asked again at every check, so a grant it withdraws or changes ends the session at its next request. Such sessions cannot mint pairings and skip <code>remohop config ask</code>, as scoped logins do.</p>
 <h2 id="approving-actions">Approving actions</h2>
 <p>With <code>--approve each</code> (or <code>first</code>), a command or file change waits until the owner answers. The request reaches the owner in three ways:</p>
 <ul>
