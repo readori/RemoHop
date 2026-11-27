@@ -3,7 +3,6 @@ package xfer
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -113,14 +112,13 @@ func modeString(m fs.FileMode) string {
 }
 
 func runLs(ctx context.Context, env *cli.Env, args []string) int {
-	fset := flag.NewFlagSet("ls", flag.ContinueOnError)
-	fset.SetOutput(env.Stderr)
+	fset := cli.NewFlagSet(env, "ls", "")
 	long := fset.Bool("l", false, "long format")
 	all := fset.Bool("a", false, "show dot files")
 	asJSON := fset.Bool("json", false, "JSON output")
 	pos, err := parseArgs(fset, args)
 	if err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if len(pos) > 1 {
 		env.Errorf("ls: one path at most (see `remohop help ls`)")

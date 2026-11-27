@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -178,8 +177,7 @@ func sendFile(ctx context.Context, c *rfs.Client, sp, dp string, e *entry, perm 
 }
 
 func runSend(ctx context.Context, env *cli.Env, args []string) int {
-	fset := flag.NewFlagSet("send", flag.ContinueOnError)
-	fset.SetOutput(env.Stderr)
+	fset := cli.NewFlagSet(env, "send", "")
 	var o SendOptions
 	var asJSON, quiet bool
 	fset.BoolVar(&o.Recursive, "r", false, "recursive")
@@ -188,7 +186,7 @@ func runSend(ctx context.Context, env *cli.Env, args []string) int {
 	fset.BoolVar(&asJSON, "json", false, "JSON output")
 	pos, err := parseArgs(fset, args)
 	if err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if len(pos) == 0 {
 		env.Errorf("send: name at least one file (see `remohop help send`)")

@@ -11,7 +11,6 @@ package mount
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -145,8 +144,7 @@ type mountArgs struct {
 }
 
 func runMount(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("mount", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "mount", "")
 	var a mountArgs
 	var opts string
 	fs.BoolVar(&a.o.ReadOnly, "ro", false, "read-only")
@@ -157,7 +155,7 @@ func runMount(ctx context.Context, env *cli.Env, args []string) int {
 	var pos []string
 	for {
 		if err := fs.Parse(args); err != nil {
-			return cli.ExitUsage
+			return cli.FlagExit(err)
 		}
 		if fs.NArg() == 0 {
 			break
@@ -217,14 +215,13 @@ func runMount(ctx context.Context, env *cli.Env, args []string) int {
 }
 
 func runUmount(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("umount", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "umount", "")
 	lazy := fs.Bool("l", false, "lazy unmount")
 	if err := fs.Parse(args); err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if fs.NArg() == 0 {
-		env.Errorf("umount: need a directory")
+		env.Errorf("umount: need a directory (%s)", cli.FlagHint("umount"))
 		return cli.ExitUsage
 	}
 	code := cli.ExitOK

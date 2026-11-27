@@ -169,15 +169,10 @@ func run(ctx context.Context, env *cli.Env, args []string) int {
 // parse handles flag errors uniformly: -h prints the usage, anything else is
 // a usage error.
 func parse(env *cli.Env, name string, args []string, define func(*flag.FlagSet)) (*flag.FlagSet, int, bool) {
-	fs := flag.NewFlagSet("clip "+name, flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, usage) }
+	fs := cli.NewFlagSet(env, "clip "+name, usage)
 	define(fs)
 	if err := fs.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil, cli.ExitOK, false
-		}
-		return nil, cli.ExitUsage, false
+		return nil, cli.FlagExit(err), false
 	}
 	return fs, 0, true
 }

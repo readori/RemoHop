@@ -186,10 +186,7 @@ func (l *listFlag) String() string     { return strings.Join(*l, ",") }
 func (l *listFlag) Set(v string) error { *l = append(*l, v); return nil }
 
 func newFlags(env *cli.Env, name, usage string) *flag.FlagSet {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprintln(env.Stderr, usage) }
-	return fs
+	return cli.NewFlagSet(env, name, usage)
 }
 
 // parseArgs parses flags anywhere among the arguments (stdlib flag stops at

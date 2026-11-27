@@ -271,8 +271,7 @@ func connect(ctx context.Context, env *cli.Env) (*rfs.Client, int) {
 }
 
 func runCp(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("cp", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "cp", "")
 	var o CopyOptions
 	var asJSON, quiet bool
 	fs.BoolVar(&o.Recursive, "r", false, "recursive")
@@ -284,7 +283,7 @@ func runCp(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&asJSON, "json", false, "JSON summary")
 	pos, err := parseArgs(fs, args)
 	if err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if len(pos) < 2 {
 		env.Errorf("cp: need a source and a destination (see `remohop help cp`)")
@@ -342,8 +341,7 @@ func runCp(ctx context.Context, env *cli.Env, args []string) int {
 }
 
 func runSync(ctx context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "sync", "")
 	var o SyncOptions
 	var excludes multiFlag
 	var asJSON, verbose, quiet bool
@@ -360,7 +358,7 @@ func runSync(ctx context.Context, env *cli.Env, args []string) int {
 	fs.BoolVar(&asJSON, "json", false, "JSON report")
 	pos, err := parseArgs(fs, args)
 	if err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if len(pos) != 2 {
 		env.Errorf("sync: need exactly a source and a destination (see `remohop help sync`)")

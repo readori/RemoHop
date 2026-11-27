@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -612,6 +613,16 @@ func NewFlagSet(env *Env, name, usage string) *flag.FlagSet {
 		fmt.Fprintln(env.Stderr, strings.TrimRight(usage, "\n"))
 	}
 	return fs
+}
+
+// FlagExit is the exit code after Parse of a NewFlagSet flag set failed
+// with err: ExitOK for -h (the usage is printed), ExitUsage otherwise (the
+// one line is printed).
+func FlagExit(err error) int {
+	if errors.Is(err, flag.ErrHelp) {
+		return ExitOK
+	}
+	return ExitUsage
 }
 
 // FlagHint is the pointer to a command's full help that follows a one-line
