@@ -235,7 +235,7 @@ func (u *upgrader) attempt(ctx context.Context) (done bool, err error) {
 			u.moved(intro, addr)
 			if report {
 				reported = true
-				d.report(sc, signal.Outcome{Path: signal.PathUpgraded, MS: min(time.Since(u.start).Milliseconds(), signal.MaxOutcomeMS),
+				d.report(sc, signal.Outcome{Path: signal.PathUpgraded, MS: outcomeMS(time.Since(u.start)),
 					NAT: string(natType), PeerNAT: string(intro.Peer.NAT)})
 			}
 			return true, nil

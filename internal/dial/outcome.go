@@ -150,7 +150,7 @@ func (d *dialer) outcomeOf(ctx context.Context, intro *signal.Introduction, rt r
 	if _, retry := errors.AsType[*errRetryPunch](err); retry {
 		return signal.Outcome{}, false
 	}
-	o := signal.Outcome{Path: rt.outcome, MS: time.Since(d.connectStart).Milliseconds(),
+	o := signal.Outcome{Path: rt.outcome, MS: outcomeMS(time.Since(d.connectStart)),
 		NAT: string(d.natType), PeerNAT: string(intro.Peer.NAT)}
 	if err != nil {
 		o.Path = signal.PathFailed
@@ -199,4 +199,11 @@ func mappedCandidate(remote netip.AddrPort, host signal.Peer) bool {
 		return false
 	}
 	return remote.Port() != host.Reflexive.Port() || host.NAT == nat.TypeCone || host.NAT == nat.TypeSymmetric
+}
+
+// outcomeMS is a report's duration in whole milliseconds, rounded up: a
+// dial on a fast LAN can take under one, and 0 would read as not measured.
+// It is capped at what the server accepts.
+func outcomeMS(d time.Duration) int64 {
+	return min(max(int64((d+time.Millisecond-1)/time.Millisecond), 1), signal.MaxOutcomeMS)
 }
