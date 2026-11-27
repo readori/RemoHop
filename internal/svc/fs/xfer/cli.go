@@ -61,12 +61,15 @@ remote files to stdout.
 Flags:
   -r, -R     copy directories recursively
   -p         preserve modification times and exact permission bits
-  -j N       transfer N files in parallel (default 8)
-  -q         no progress display
+  -j N       transfer N large files in parallel (default 8); small files
+             and directories go at least 48 at a time
+  -q         no progress display and no summary
   --no-resume  do not resume interrupted copies of large files
   --json     print a JSON summary on stdout
 
-Progress is shown on stderr when it is a terminal.
+Progress is shown on stderr when it is a terminal, and a summary line
+("copied 12 files and 3 directories (4.2 MB) in 0.8s") on stderr when the
+copy succeeded.
 
 Examples:
   remohop 123456789 cp ./build.tar.gz :/tmp/
@@ -114,7 +117,8 @@ Flags:
   --perms           copy permission bits exactly, ignoring the umask
   --no-resume       do not resume interrupted transfers of large files
                     (files of 8 MiB or more resume as with cp)
-  -j N              transfer N files in parallel (default 8)
+  -j N              transfer N large files in parallel (default 8); small
+                    files and directories go at least 48 at a time
   -v                list every change (a dry run always does)
   -q                no progress display
   --json            print a JSON report on stdout
@@ -337,7 +341,39 @@ func runCp(ctx context.Context, env *cli.Env, args []string) int {
 	if err != nil {
 		return cli.ExitError
 	}
+	if !quiet && !asJSON && dst.Path != "-" {
+		// On stderr, beside the progress line it replaces: stdout stays
+		// what it always was (empty, or the data of a "-" destination).
+		fmt.Fprintln(env.Stderr, copySummary(res))
+	}
 	return cli.ExitOK
+}
+
+// copySummary is the line cp prints when it is done, such as "copied 12
+// files and 3 directories (4.2 MB) in 0.8s".
+func copySummary(r *CopyResult) string {
+	count := func(n int, one, many string) string {
+		if n == 1 {
+			return "1 " + one
+		}
+		return fmt.Sprintf("%d %s", n, many)
+	}
+	what := []string{count(r.Files, "file", "files")}
+	if r.Dirs > 0 {
+		what = append(what, count(r.Dirs, "directory", "directories"))
+	}
+	if r.Symlinks > 0 {
+		what = append(what, count(r.Symlinks, "symlink", "symlinks"))
+	}
+	list := what[0]
+	if len(what) > 1 {
+		list = strings.Join(what[:len(what)-1], ", ") + " and " + what[len(what)-1]
+	}
+	size := humanBytes(r.Bytes)
+	if r.Resumed > 0 {
+		size += ", and " + humanBytes(r.Resumed) + " kept from an interrupted copy"
+	}
+	return fmt.Sprintf("copied %s (%s) in %.1fs", list, size, r.Seconds)
 }
 
 func runSync(ctx context.Context, env *cli.Env, args []string) int {
