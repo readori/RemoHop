@@ -70,6 +70,12 @@
 //	  → {t:"account", v:1, op, ...}
 //	  ← {ok, account:{...}}     at most maxAccountMsg bytes
 //
+//	x-NAME (client → server; request types that code built on the server
+//	registers, see extend.go)
+//	  → {t:"x-NAME", v:1, key?, proof?}
+//	  → {ext: PAYLOAD}          at most MaxExtMsg bytes
+//	  ← {ok, ext: REPLY}        at most MaxExtMsg bytes
+//
 //	via is "ws" for a peer that reaches the server through its websocket
 //	bridge (see ws.go): its addresses are placeholders, and the two
 //	peers go straight to the relay instead of punching.

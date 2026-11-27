@@ -67,7 +67,7 @@ RELEASED = True
 # that runs --release-docs. CI compares it with the repository's newest vX.Y.Z
 # tag (REMOHOP_LATEST_TAG), so a stale value fails the "website is up to
 # date" check instead of leaving people on an old version.
-LATEST_RELEASE = "v1.0.5"
+LATEST_RELEASE = "v1.0.6"
 
 # The mobile apps in the App Store and on Google Play, one switch per store.
 # Same mechanism, with <!--ios-->...<!--/ios-->, <!--play-->...<!--/play--> and

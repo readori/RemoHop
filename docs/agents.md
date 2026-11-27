@@ -109,6 +109,8 @@ Sessions on a reissued grant's old code never get the new rules: every check com
 
 From the agent's machine, `remohop <ID> limits` shows what its credential allows.
 
+Code built on RemoHop can also hand out grants without a code: `hostd.RegisterAuthorizer` (`internal/hostd/authorizer.go`) lets it vouch for an identity key the owner never paired, with a grant the host then enforces exactly like these. RemoHop Teams uses it for team policies. The authorizer is asked again at every check, so a grant it withdraws or changes ends the session at its next request. Such sessions cannot mint pairings and skip `remohop config ask`, as scoped logins do.
+
 ## Approving actions
 
 With `--approve each` (or `first`), a command or file change waits until the owner answers. The request reaches the owner in three ways:
@@ -128,7 +130,7 @@ remohop host audit --grant claude-session        # the last 100 entries of that 
 remohop host audit --grant claude-session 1000 --json
 ```
 
-With `--record`, the output of every command and interactive terminal under the grant is saved as an [asciicast v2](https://docs.asciinema.org/manual/asciicast/v2/) file in `recordings/NAME/` inside the config directory (files mode 0600). Play one back with `asciinema play FILE`, or read it as text: it is JSON lines. A recording stops at 64 MiB. Background jobs (`remohop_spawn`) are not recorded this way; their output is kept in the host's job logs (`jobs/` in the config directory) as for any job. The audit log is rotated at 1 MB with four old files kept, so a very busy grant can still push older entries out; copy the log away if you need to keep it. Refusals go to a separate file (`audit-refused.jsonl`) and are summarised past 10 a minute per session, so a session cannot evict its own trail by provoking refusals.
+With `--record`, the output of every command and interactive terminal under the grant is saved as an [asciicast v2](https://docs.asciinema.org/manual/asciicast/v2/) file in `recordings/NAME/` inside the config directory (files mode 0600). Play one back with `asciinema play FILE`, or read it as text: it is JSON lines. A recording stops at 64 MiB. Background jobs (`remohop_spawn`) are not recorded this way; their output is kept in the host's job logs (`jobs/` in the config directory) as for any job. The audit log is rotated at 1 MB with four old files kept, so a very busy grant can still push older entries out; copy the log away if you need to keep it. Code built on RemoHop can receive every entry as it is written, and each recording when it is closed, with `hostd.RegisterAuditSink` and `hostd.RegisterRecordingSink` (`internal/hostd/sinks.go`), to ship them off the machine. Refusals go to a separate file (`audit-refused.jsonl`) and are summarised past 10 a minute per session, so a session cannot evict its own trail by provoking refusals.
 
 ## Stopping everything
 
@@ -260,7 +262,7 @@ Grants narrow what an authenticated client may do; they are enforced by the host
 - **Background jobs and terminals are separated by grant.** A granted session sees, waits for, reads the logs of, stops and removes only the background jobs started under its grant (stopping and removing are logged), and sees and attaches only to terminals it started. Jobs and terminals of full-access sessions and of other grants are invisible to it. A job keeps running as the host user after the grant ends, and a later grant with the same name sees it.
 - **File roots confine names, not files.** The file service cannot leave a root, but a hard link that the host's user (or other software) already put in a root shares its content with a file elsewhere, and a granted session can change that content. A root that is replaced is refused, but one that was already replaced before the host loaded the grant (or restarted) is taken as it is then. Keep roots to directories whose contents you control.
 - **Approvals rely on the person reading them.** Approving `exec: ./deploy.sh` approves whatever that script does.
-- **Recordings and the audit log live on the host**, readable by its user, and are as trustworthy as that account. A full-shell grant can, in principle, edit them; prefer `shell:run-only` with `--cmd` when the record matters.
+- **Recordings and the audit log live on the host**, readable by its user, and are as trustworthy as that account. A full-shell grant can, in principle, edit them; prefer `shell:run-only` with `--cmd` when the record matters, and ship them off the host (see the sinks above) when it must survive the host.
 - **The agent's machine holds a credential.** Anyone who can read its `peers.json` and identity key can use the grant until it expires or is revoked. Keep grants short.
 
 See [security.md](security.md) for the rest of RemoHop's security model.

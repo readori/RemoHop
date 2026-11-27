@@ -10,9 +10,10 @@ import (
 )
 
 // System DNS is touched conservatively: by default (net-dns auto) only
-// where the system routes one domain to one interface's resolver and drops
-// that setting with the interface (systemd-resolved), so nothing can be
-// left behind. net-dns hosts writes a clearly marked block into the hosts
+// where the system routes one domain to one resolver: systemd-resolved's
+// per-link setting, which goes with the interface; /etc/resolver/remohop on
+// macOS and an NRPT rule on Windows, which are recorded as changes to undo
+// (after a crash too), so nothing is left behind. net-dns hosts writes a clearly marked block into the hosts
 // file instead, which `remohop net down` removes and the next start rewrites.
 
 const (
@@ -110,10 +111,10 @@ func (n *Node) setupDNS(v *view) []string {
 		return []string{"DNS: mesh names are in " + hostsPath()}
 	}
 	writeHosts(nil) // a block left by an earlier hosts-mode run
-	if note, ok := sysSplitDNS(n.dev.Name(), v.self.Addr4); ok || note != "" {
+	if note, ok := sysSplitDNS(n.changes, n.dev.Name(), v.self.Addr4); ok || note != "" {
 		return []string{note}
 	}
-	return []string{fmt.Sprintf("DNS: this system has no per-interface DNS that remohop uses (systemd-resolved); names like %s "+
+	return []string{fmt.Sprintf("DNS: this system has no per-domain DNS that remohop uses (systemd-resolved, /etc/resolver on macOS, NRPT on Windows); names like %s "+
 		"are answered at %s:53, or use `remohop config set net-dns hosts`", v.self.FQDN(), v.self.Addr4)}
 }
 
@@ -128,5 +129,6 @@ func (n *Node) cleanupDNS() {
 	if n.cfg.dns == DNSHosts {
 		writeHosts(nil)
 	}
-	// Per-interface settings go with the interface.
+	// Per-interface settings go with the interface; the macOS resolver
+	// file and the Windows NRPT rule are undone with the other changes.
 }

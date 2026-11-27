@@ -12,7 +12,7 @@ RemoHop is a peer-to-peer remote control tool. One static Go binary, `remohop`, 
 | Files | list, copy, sync, deliver to the remote Downloads folder; large files resume; mount a remote directory locally | [Files](docs/en/files.md) |
 | Port forwarding and Wake-on-LAN | TCP and UDP forwards, TCP reverse forwards, Wake-on-LAN | [Forwarding](docs/en/forwarding.md) |
 | VPN | a virtual IPv4 link inside the session, to reach the host's networks or use the host as an exit | [VPN](docs/en/vpn.md) |
-| Mesh network | the Linux devices of your account in one private network with names like `nas.remohop`; works next to Tailscale | [Mesh network and Tailscale](docs/en/mesh-and-tailscale.md) |
+| Mesh network | the devices of your account (Linux, macOS, Windows) in one private network with names like `nas.remohop`; works next to Tailscale | [Mesh network and Tailscale](docs/en/mesh-and-tailscale.md) |
 | Serial and USB | a remote serial port as a local virtual one; USB/IP (Linux) | [Serial and USB](docs/en/serial-and-usb.md) |
 | Clipboard | two-way sync of text and images, with history | [Clipboard](docs/en/clipboard.md) |
 | Remote desktop and GUI automation | view and control the screen in a browser (H.264 or AV1), with audio, multiple monitors and recording; screenshots, clicks, typing | [Screen and remote desktop](docs/en/remote-desktop.md) |

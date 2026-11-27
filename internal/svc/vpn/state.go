@@ -39,6 +39,11 @@ type undoStep struct {
 	Cmd    []string `json:"cmd,omitempty"`
 	Sysctl string   `json:"sysctl,omitempty"`
 	Value  string   `json:"value,omitempty"`
+	// Remove is a file to delete; only those in removableFiles are.
+	Remove string `json:"remove,omitempty"`
+	// NRPT is the comment of Windows name resolution policy rules to
+	// remove (validNRPTComment).
+	NRPT string `json:"nrpt,omitempty"`
 }
 
 // stateDir is where state files live: commands a later root process may
@@ -92,6 +97,10 @@ func (s *state) undo() {
 			run(st.Cmd...)
 		case st.Sysctl != "" && strings.HasPrefix(filepath.Clean(st.Sysctl), "/proc/sys/net/"):
 			os.WriteFile(st.Sysctl, []byte(st.Value), 0o644)
+		case st.Remove != "" && removableFiles[st.Remove]:
+			os.Remove(st.Remove)
+		case st.NRPT != "" && validNRPTComment(st.NRPT):
+			run(NRPTRemoveCmd(st.NRPT)...)
 		}
 	}
 	s.Steps = nil
