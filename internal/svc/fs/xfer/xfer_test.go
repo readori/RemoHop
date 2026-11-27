@@ -921,7 +921,7 @@ func partials(t *testing.T, dir, base string) []string {
 // session once cut bytes have crossed it.
 func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 	t.Helper()
-	conn := testPair(t)
+	conn, host := testPairs(t)
 	ctx := context.Background()
 	c, err := rfs.NewClient(ctx, conn)
 	if err != nil {
@@ -932,7 +932,12 @@ func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 		for p.BytesDone.Load() < cut {
 			time.Sleep(time.Millisecond)
 		}
-		conn.Close() // the network goes away mid-transfer
+		// The network goes away mid-transfer. Both ends are closed: with
+		// the client's alone, the host's end would notice only at its
+		// idle timeout, and its upload would hold the partial file
+		// locked until then.
+		conn.Close()
+		host.Close()
 	}()
 	if _, err := Copy(ctx, c, []Path{src}, dst, CopyOptions{Progress: p, Parallel: 1}); err == nil {
 		t.Fatal("interrupted copy succeeded")
@@ -944,11 +949,17 @@ func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 var hostGuard grant.Guard
 
 func testPair(t *testing.T) *peer.Conn {
-	conn, host := peertest.Pair(t)
+	conn, _ := testPairs(t)
+	return conn
+}
+
+// testPairs is testPair with the host end.
+func testPairs(t *testing.T) (client, host *peer.Conn) {
+	client, host = peertest.Pair(t)
 	if hostGuard != nil {
 		grant.Attach(host, hostGuard)
 	}
-	return conn
+	return client, host
 }
 
 func copyWith(t *testing.T, src, dst Path, o CopyOptions) *Progress {
@@ -1081,7 +1092,7 @@ func waitStablePartial(t *testing.T, dir, base string) []string {
 		if len(ps) == 1 {
 			fi, err := os.Stat(filepath.Join(dir, ps[0]))
 			if err == nil && fi.Size() == last && last > 0 {
-				waitUnlocked(filepath.Join(dir, ps[0])) // let the host close (unlock) it
+				waitUnlocked(t, filepath.Join(dir, ps[0])) // let the host close (unlock) it
 				return ps
 			}
 			if err == nil {
