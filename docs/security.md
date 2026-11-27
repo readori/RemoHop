@@ -345,7 +345,7 @@ On Linux and macOS the directory is created with mode 0700 and the files below w
 
 A session that logs in with a grant cannot read, list or change anything in the host's config directory, even when its file roots contain it (see [Grants](agents.md#grants)). A session with full access, or a grant with a shell that has no command allow-list, runs as the host's user and can.
 
-Nothing in the config directory is encrypted at rest. Clipboard history can hold copied passwords; `remohop clip history off` stops recording and `remohop clip history clear` removes entries. The service definition written by `remohop service install` never contains the password. A `--password-file` for `remohop web` and a `key export --private` file are secrets of their own.
+Nothing in the config directory is encrypted at rest. Clipboard history can hold copied passwords; `remohop clip history off` stops recording and `remohop clip history clear` removes entries. A session on a grant, even one that allows `clip`, cannot read the host's history. The service definition written by `remohop service install` never contains the password. A `--password-file` for `remohop web` and a `key export --private` file are secrets of their own.
 
 ## MCP server and agents
 

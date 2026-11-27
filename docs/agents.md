@@ -65,7 +65,7 @@ Allow-list items:
 | `screen` | Screenshots and desktop viewing, without keyboard and mouse. |
 | `desktop` | `screen` plus keyboard and mouse. |
 | `input` | Keyboard and mouse. |
-| `clip` | The clipboard. |
+| `clip` | The clipboard as it is now: reading, setting and syncing it. Not the host's clipboard history, which holds what the owner and other sessions copied; a granted session is refused it. |
 | `info` | System information. |
 | `forward`, `vpn`, `serial`, `usb` | Port forwarding (and Wake-on-LAN), the VPN, serial ports, USB devices. Never included unless named. |
 
