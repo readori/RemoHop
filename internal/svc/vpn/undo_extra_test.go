@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUndoRemove(t *testing.T) {
@@ -69,5 +70,14 @@ func TestNRPTRemoval(t *testing.T) {
 	}
 	if s := NRPTRemoveCmd("x'; evil")[len(cmd)-1]; strings.Contains(s, "evil") {
 		t.Fatalf("an invalid comment reached the script: %s", s)
+	}
+}
+
+func TestCommandTimeout(t *testing.T) {
+	if commandTimeout("powershell.exe") < 30*time.Second || commandTimeout(`C:\Windows\System32\WindowsPowerShell\v1.0\PowerShell.exe`) < 30*time.Second {
+		t.Error("PowerShell gets the short timeout")
+	}
+	if commandTimeout("netsh") != 10*time.Second || commandTimeout("ip") != 10*time.Second {
+		t.Error("other tools' timeout changed")
 	}
 }
