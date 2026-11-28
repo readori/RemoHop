@@ -142,8 +142,8 @@ func serveFor(ctx context.Context, c packetConn, d time.Duration, info func() (I
 			}
 			return err
 		}
-		if !toGroup {
-			continue // only questions to the group are answered
+		if !toGroup || n < 12 || buf[2]&0x80 != 0 {
+			continue // only questions to the group are answered, and most of what the group carries are answers
 		}
 		in, on := info()
 		if !on {
