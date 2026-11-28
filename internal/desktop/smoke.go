@@ -178,6 +178,9 @@ func runSmoke(ctx context.Context, env *cli.Env, app *App, srv *Server, o runOpt
 		}
 		srv.setSmokeView("settings")
 		step("settings")
+		// The built-in guide, loaded by the page from its assets.
+		srv.setSmokeView("guide")
+		step("guide")
 		app.SetTheme("dark")
 		srv.setSmokeView("computer")
 		step("computer-dark")

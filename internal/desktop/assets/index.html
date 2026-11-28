@@ -45,6 +45,7 @@
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13.5 6.5 19 12l-5.5 5.5"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 6.5c-1.8-1.3-4.3-2-7.5-2v14c3.2 0 5.7.7 7.5 2 1.8-1.3 4.3-2 7.5-2v-14c-3.2 0-5.7.7-7.5 2zM12 6.5v14"/></symbol>
   <symbol id="i-activity" viewBox="0 0 24 24"><path d="M4 20V10M9 20V4M14 20v-7M19 20V8"/></symbol>
 </svg>
 
@@ -66,6 +67,7 @@
     <div class="host-tabs" id="host-tabs"></div>
   </nav>
   <div class="side-foot">
+    <button class="tab" id="tab-guide" data-view="guide"><svg class="i ic"><use href="#i-book"/></svg><span class="lbl" data-t="tab.guide">Guide</span></button>
     <button class="tab" id="tab-settings" data-view="settings"><svg class="i ic"><use href="#i-settings"/></svg><span class="lbl" data-t="tab.settings">Settings</span></button>
     <button class="me" id="me" data-view="computer"><span class="me-av"><svg class="i"><use href="#i-computer"/></svg><span class="pres" id="me-pres"></span></span>
       <span class="me-txt"><span class="me-t" data-t="me.title">This computer</span><span class="me-s mono" id="me-s"></span></span></button>
@@ -100,12 +102,12 @@
         <div class="row end mt"><button class="btn" id="wiz-next" data-t="next">Next</button></div>
       </div>
       <div id="wiz-2" hidden>
-        <h3 data-t="wiz.server">Rendezvous server <button class="info" data-help="h-server" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h3>
-        <p class="help" id="h-server" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
-        <label class="opt"><input type="radio" name="wsrv" value="official" checked><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
+        <h3><span data-t="wiz.server">Rendezvous server</span> <button class="info" data-help="h-server" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h3>
+        <div class="help" id="h-server" hidden><span data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</span></div>
+        <label class="opt"><input type="radio" name="wsrv" value="official" checked><span class="t" data-t="srv.official">Official server</span></label>
         <label class="opt"><input type="radio" name="wsrv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
           <span class="field mt8"><input id="wiz-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
-        <label class="opt"><input type="radio" name="wsrv" value=""><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Only on the same network, by address</span></span></label>
+        <label class="opt"><input type="radio" name="wsrv" value=""><span class="t" data-t="srv.none">No server</span></label>
         <label class="check mt8"><input type="checkbox" id="wiz-incoming"><span data-t="wiz.incoming">Let others connect to this computer now (each connection asks me)</span></label>
         <p class="err" id="wiz-err"></p>
         <div class="row between mt"><button class="btn text" id="wiz-back" data-t="back">Back</button><button class="btn" id="wiz-done" data-t="done">Done</button></div>
@@ -117,8 +119,7 @@
   <!-- home: this computer, who is connected, the computers it reaches -->
   <section class="view" id="v-computer" aria-labelledby="h-home" hidden>
     <div class="page">
-      <header class="ph"><div class="grow"><div class="eyebrow mono" id="home-date"></div><h1 id="h-home" data-t="tab.home">Home</h1>
-        <p class="lead" data-t="home.lead">This computer, who is connected to it, and the computers you reach.</p></div></header>
+      <header class="ph"><div class="grow"><div class="eyebrow mono" id="home-date"></div><h1 id="h-home" data-t="tab.home">Home</h1></div></header>
       <div class="grid home">
         <section class="card hero" aria-labelledby="in-allow-l">
           <div class="card-h">
@@ -126,10 +127,10 @@
             <div class="grow"><h2 class="ct" id="in-allow-l" data-t="in.allow">Allow incoming connections</h2>
               <div class="status" id="in-status"><span class="d"></span><span id="in-status-t"></span></div>
               <button class="link" id="in-fix" type="button" hidden data-t="in.fix">Rendezvous server settings</button></div>
-            <button class="info" data-help="h-incoming" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button>
+            <button class="info" data-help="h-incoming" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button>
             <input type="checkbox" class="switch" id="incoming" role="switch" aria-labelledby="in-allow-l">
           </div>
-          <p class="help" id="h-incoming" hidden data-t="help.incoming">While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.</p>
+          <div class="help" id="h-incoming" hidden><span data-t="help.incoming">While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.</span> <button type="button" class="link glink" data-guide="incoming-allow"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
           <div class="creds" id="creds" hidden>
             <div class="cred"><div class="mlabel mono" data-t="in.id">ID</div><div class="v num" id="in-id"></div>
               <div class="acts"><button class="btn text sm" data-copy="in-id"><svg class="i"><use href="#i-copy"/></svg><span data-t="copy">Copy</span></button></div></div>
@@ -143,8 +144,10 @@
             <svg class="i"><use href="#i-warn"/></svg>
             <div class="grow"><p data-t="ff.missing">Screen sharing needs ffmpeg, which is not installed on this computer. Whoever connects can still use files and commands.</p>
               <div class="ff-row" id="ff-row" hidden><button class="btn sm" id="ff-install" hidden><svg class="i"><use href="#i-download"/></svg><span id="ff-install-t"></span></button>
+                <button class="info" id="ff-info" data-help="h-ff" aria-expanded="false" data-ta="ff.about" hidden><svg class="i"><use href="#i-info"/></svg></button>
                 <span id="ff-status" role="status" aria-live="polite"></span></div>
-              <p class="note" id="ff-note" hidden></p></div>
+              <div class="help" id="h-ff" hidden><span id="ff-src"></span> <button type="button" class="link glink" data-guide="ffmpeg"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+              <p id="ff-note" hidden></p></div>
           </div>
           <div class="off-note" id="in-offnote"><svg class="i"><use href="#i-power"/></svg><span data-t="in.offnote">Switch on to show this computer's ID and a password to give to whoever helps you.</span></div>
           <p class="muted small mono" id="in-addr" hidden></p>
@@ -182,9 +185,9 @@
 
         <section class="card un" aria-labelledby="un-h">
           <div class="card-h"><span class="tile"><svg class="i"><use href="#i-key"/></svg></span>
-            <h2 class="ct grow" id="un-h"><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+            <h2 class="ct grow" id="un-h"><span data-t="un.title">Unattended access</span> <button class="info" data-help="h-un" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2>
             <input type="checkbox" class="switch onoff" id="un-switch" role="switch" data-ta="un.title"></div>
-          <p class="help" id="h-un" hidden data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</p>
+          <div class="help" id="h-un" hidden><span data-t="help.un">Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.</span> <button type="button" class="link glink" data-guide="unattended"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
           <div class="un-st"><div class="status" id="un-status"><span class="d"></span><span id="un-state"></span></div><div class="note" id="un-sub"></div></div>
           <div class="row wrap" id="un-manage" hidden><button class="btn tonal sm" id="un-sess" data-t="un.sessions">Connections</button>
             <button class="btn tonal sm" id="un-pw" data-t="un.change">Change password</button>
@@ -193,8 +196,9 @@
 
         <section class="card act" aria-labelledby="act-h">
           <div class="card-h"><span class="tile"><svg class="i"><use href="#i-activity"/></svg></span>
-            <div class="grow"><h2 class="ct" id="act-h" data-t="act.title">Activity</h2><div class="note" data-t="act.sub">Devices connected to this computer, per minute, last hour</div></div>
+            <h2 class="ct grow" id="act-h"><span data-t="act.title">Activity</span> <button class="info" data-help="h-act" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2>
             <span class="chip" id="act-peak"></span></div>
+          <div class="help" id="h-act" hidden><span data-t="help.act">How many devices were connected to this computer during the last hour, in steps of two minutes. Dashed squares are minutes this window did not see.</span></div>
           <div class="dm-wrap" id="act-chart"></div>
           <div class="dm-axis mono"><span data-t="act.ago">60 min ago</span><span id="act-since"></span><span data-t="act.now">now</span></div>
           <p class="muted small" id="act-none" data-t="act.none">Nobody has connected in the last hour.</p>
@@ -218,29 +222,29 @@
       </section>
       <!-- computers on this network that answered discovery (lan.go) -->
       <div class="sec-h">
-        <h2 class="st"><span data-t="lan.title">On this network</span> <span class="count" id="lan-count" hidden></span> <button class="info" data-help="h-lan" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+        <h2 class="st"><span data-t="lan.title">On this network</span> <span class="count" id="lan-count" hidden></span> <button class="info" data-help="h-lan" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2>
       </div>
-      <p class="help" id="h-lan" hidden data-t="help.lan">Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.</p>
+      <div class="help" id="h-lan" hidden><span data-t="help.lan">Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.</span> <button type="button" class="link glink" data-guide="lan"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
       <section class="card table lan-card">
         <div class="thead mono" id="lan-head" hidden><span data-t="col.name">Computer</span><span data-t="col.id">ID</span><span data-t="col.key">Key fingerprint</span><span></span></div>
         <div class="peers" id="lan"></div>
         <div class="empty" id="lan-empty"><span class="empty-ic"><svg class="i"><use href="#i-search"/></svg></span>
-          <div class="empty-t" id="lan-empty-t" data-t="lan.looking">Looking for computers on this network…</div><div class="muted small" data-t="lan.none.sub">A computer appears here while RemoHop runs on it with incoming connections on.</div></div>
+          <div class="empty-t" id="lan-empty-t" data-t="lan.looking">Looking for computers on this network…</div></div>
       </section>
       <div class="sec-h">
-        <h2 class="st"><span data-t="c.saved">Saved computers</span> <span class="count" id="peers-count"></span> <button class="info" data-help="h-saved" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+        <h2 class="st"><span data-t="c.saved">Saved computers</span> <span class="count" id="peers-count"></span> <button class="info" data-help="h-saved" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2>
         <div class="tools">
           <div class="seg pill" id="peer-filter"><button data-f="" aria-pressed="true" data-t="f.all">All</button><button data-f="online" aria-pressed="false" data-t="p.online">Online</button><button data-f="paired" aria-pressed="false" data-t="p.paired">Paired</button></div>
           <label class="search"><svg class="i"><use href="#i-search"/></svg><span class="vh" data-t="c.search">Search saved computers</span><input id="peer-q" type="search" data-tp="c.search" autocomplete="off" spellcheck="false"></label>
           <button class="icon-btn bordered" id="peers-refresh" data-ta="c.refresh"><svg class="i"><use href="#i-refresh"/></svg></button>
         </div>
       </div>
-      <p class="help" id="h-saved" hidden data-t="help.saved">Computers you connected to or paired with. A paired computer needs no password.</p>
+      <div class="help" id="h-saved" hidden><span data-t="help.saved">Computers you connected to or paired with, and your account's devices. A paired computer needs no password.</span> <button type="button" class="link glink" data-guide="saved"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
       <section class="card table">
         <div class="thead mono" id="peers-head"><span data-t="col.name">Computer</span><span data-t="col.platform">System</span><span data-t="col.seen">Last seen online</span><span></span></div>
         <div class="peers" id="peers"></div>
         <div class="empty" id="peers-empty" hidden><span class="empty-ic"><svg class="i"><use href="#i-connect"/></svg></span>
-          <div class="empty-t" data-t="c.none">No saved computers yet.</div><div class="muted small" data-t="c.none.sub">The computers you connect to or pair with, and your account's devices, are listed here.</div></div>
+          <div class="empty-t" data-t="c.none">No saved computers yet.</div></div>
         <div class="empty" id="peers-nomatch" hidden><div class="muted" data-t="c.nomatch">No saved computer matches.</div></div>
       </section>
     </div>
@@ -250,26 +254,26 @@
        computers open here, and the devices let in without asking -->
   <section class="view" id="v-sessions" aria-labelledby="h-sessions" hidden>
     <div class="page">
-      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="sess.eyebrow">Sessions and approvals</div><h1 id="h-sessions" data-t="tab.sessions">Sessions</h1>
-        <p class="lead" data-t="sess.lead">Who is waiting, who is connected, and who may come back without asking.</p></div></header>
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="sess.eyebrow">Sessions and approvals</div><h1 id="h-sessions" data-t="tab.sessions">Sessions</h1></div></header>
       <div class="grid sessgrid">
         <section class="card queue" aria-labelledby="q-h">
-          <div class="card-h"><h2 class="ct grow" id="q-h"><span data-t="q.title">Needs you</span> <span class="count warn" id="q-count" hidden></span></h2></div>
+          <div class="card-h"><h2 class="ct grow" id="q-h"><span data-t="q.title">Needs you</span> <span class="count warn" id="q-count" hidden></span> <button class="info" data-help="h-q" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2></div>
+          <div class="help" id="h-q" hidden><span id="h-q-t"></span> <button type="button" class="link glink" data-guide="approval"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
           <div class="qlist" id="queue"></div>
           <div class="empty" id="queue-empty"><span class="empty-ic ok"><svg class="i"><use href="#i-check"/></svg></span>
-            <div class="empty-t" data-t="q.none">Nothing needs you</div><div class="muted small" data-t="q.none.sub">When someone asks to connect, the question appears in front of every window and waits here.</div></div>
-          <div class="card-f mono small muted" id="q-foot"></div>
+            <div class="empty-t" data-t="q.none">Nothing needs you</div></div>
         </section>
 
         <section class="card live" aria-labelledby="live-h">
-          <div class="card-h"><h2 class="ct grow" id="live-h"><span data-t="in.sessions">Connected now</span> <span class="count ok" id="live-count" hidden></span></h2></div>
+          <div class="card-h"><h2 class="ct grow" id="live-h"><span data-t="in.sessions">Connected now</span> <span class="count ok" id="live-count" hidden></span> <button class="info" data-help="h-live" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2></div>
+          <div class="help" id="h-live" hidden><span data-t="help.live">Control and Files change what each device may do, at once. Disconnect everyone ends every connection; so does switching off Allow incoming connections.</span> <button type="button" class="link glink" data-guide="ending"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
           <div id="sessions-box" hidden>
             <div id="sessions"></div>
             <div class="row end mt12"><button class="btn danger sm" id="disc-all"><svg class="i"><use href="#i-power"/></svg><span data-t="in.discall">Disconnect everyone</span></button></div>
           </div>
           <div class="empty" id="sessions-empty"><span class="empty-ic"><svg class="i"><use href="#i-computer"/></svg></span>
             <div class="empty-t" data-t="sess.none">Nobody is connected to this computer.</div></div>
-          <div class="svc-row" id="svc-row" hidden><svg class="i"><use href="#i-key"/></svg><span class="grow" data-t="un.svc">Connections through unattended access are listed apart.</span>
+          <div class="svc-row" id="svc-row" hidden><svg class="i"><use href="#i-key"/></svg><span class="grow" data-t="un.title">Unattended access</span>
             <button class="btn tonal sm" id="un-sess2" data-t="un.sessions">Connections</button></div>
         </section>
 
@@ -277,15 +281,15 @@
           <div class="card-h"><h2 class="ct grow" id="out-h"><span data-t="out.title">Computers open here</span> <span class="count" id="out-count" hidden></span></h2></div>
           <div id="out-list"></div>
           <div class="empty" id="out-empty"><span class="empty-ic"><svg class="i"><use href="#i-connect"/></svg></span>
-            <div class="empty-t" data-t="out.none">No computer is open.</div><div class="muted small" data-t="out.none.sub">Computers you open from Connect show here and in the sidebar.</div></div>
+            <div class="empty-t" data-t="out.none">No computer is open.</div></div>
         </section>
 
         <section class="card trust" aria-labelledby="tr-h">
-          <div class="card-h"><h2 class="ct grow" id="tr-h"><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2></div>
-          <p class="help" id="h-tr" hidden data-t="help.tr">These devices connect without asking, with the access you chose, while incoming connections are on.</p>
+          <div class="card-h"><h2 class="ct grow" id="tr-h"><span data-t="tr.title">Remembered devices</span> <button class="info" data-help="h-tr" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2></div>
+          <div class="help" id="h-tr" hidden><span data-t="help.tr">These devices connect without asking, with the access you chose, while incoming connections are on. Tick "Remember this device" when you allow one to add it here.</span> <button type="button" class="link glink" data-guide="sessions"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
           <div id="trusted-box" hidden><div id="trusted"></div></div>
           <div class="empty" id="trusted-empty"><span class="empty-ic"><svg class="i"><use href="#i-license"/></svg></span>
-            <div class="empty-t" data-t="tr.none">No remembered devices.</div><div class="muted small" data-t="tr.none.sub">Tick "Remember this device" when you allow one, and it is let in next time without asking.</div></div>
+            <div class="empty-t" data-t="tr.none">No remembered devices.</div></div>
         </section>
       </div>
     </div>
@@ -294,8 +298,7 @@
   <!-- settings: grouped lists, a row per setting -->
   <section class="view" id="v-settings" aria-labelledby="h-settings" hidden>
     <div class="page">
-      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="set.eyebrow">Preferences</div><h1 id="h-settings" data-t="tab.settings">Settings</h1>
-        <p class="lead" data-t="set.lead">How RemoHop works on this computer.</p></div></header>
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="set.eyebrow">Preferences</div><h1 id="h-settings" data-t="tab.settings">Settings</h1></div></header>
       <div class="set-layout">
       <nav class="set-index" id="set-index" aria-label="Settings">
         <button data-sec="sg-conn" data-t="set.g.conn">Connection</button>
@@ -306,16 +309,16 @@
         <button data-sec="sg-about" data-t="about.h">About</button>
       </nav>
       <div class="set-body">
-      <h3 class="gh" id="sg-conn"><span data-t="set.g.conn">Connection</span> <button class="info" data-help="h-server2" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h3>
-      <p class="help" id="h-server2" hidden data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</p>
+      <h3 class="gh" id="sg-conn"><span data-t="set.g.conn">Connection</span> <button class="info" data-help="h-server2" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h3>
+      <div class="help" id="h-server2" hidden><span data-t="help.server">It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.</span> <button type="button" class="link glink" data-guide="start-first"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
       <div class="group">
         <button class="item" id="srv-row" aria-expanded="false" aria-controls="srv-panel"><span class="tile"><svg class="i"><use href="#i-globe"/></svg></span>
           <span class="lbl" data-t="wiz.server">Rendezvous server</span><span class="val mono" id="srv-val"></span><svg class="i chev"><use href="#i-chev"/></svg></button>
         <div class="sub" id="srv-panel" hidden>
-          <label class="opt"><input type="radio" name="srv" value="official"><span><span class="t" data-t="srv.official">Official server</span><br><span class="muted small" data-t="srv.official.sub">Run by RemoHop, nothing to set up</span></span></label>
+          <label class="opt"><input type="radio" name="srv" value="official"><span class="t" data-t="srv.official">Official server</span></label>
           <label class="opt"><input type="radio" name="srv" value="custom"><span class="grow"><span class="t" data-t="srv.custom">My own server</span>
             <span class="field mt8"><input id="srv-addr" class="mono" placeholder="signal.example.com" autocomplete="off" spellcheck="false" autocapitalize="off"></span></span></label>
-          <label class="opt"><input type="radio" name="srv" value="none"><span><span class="t" data-t="srv.none">No server</span><br><span class="muted small" data-t="srv.skip.sub">Only on the same network, by address</span></span></label>
+          <label class="opt"><input type="radio" name="srv" value="none"><span class="t" data-t="srv.none">No server</span></label>
           <p class="err" id="srv-err"></p>
           <div class="row end"><button class="btn sm" id="srv-save" data-t="save">Save</button></div>
         </div>
@@ -328,7 +331,7 @@
         <div class="item"><span class="tile"><svg class="i"><use href="#i-theme"/></svg></span><span class="lbl" data-t="set.theme">Theme</span>
           <div class="seg pill" id="set-theme"><button data-theme="" data-t="auto">Auto</button><button data-theme="light" data-t="set.light">Light</button><button data-theme="dark" data-t="set.dark">Dark</button></div></div>
         <label class="item" id="autostart-box"><span class="tile"><svg class="i"><use href="#i-power"/></svg></span>
-          <span class="lbl"><span data-t="set.start">Start automatically</span><span class="note" data-t="set.autostart">Start RemoHop when the computer starts (in the tray)</span></span>
+          <span class="lbl" data-t="set.start">Start automatically</span>
           <input type="checkbox" class="switch" id="autostart" role="switch"></label>
       </div>
 
@@ -338,20 +341,21 @@
           <span class="status" id="un-open-st"><span class="d"></span><span id="un-open-t"></span></span><svg class="i chev"><use href="#i-chev"/></svg></button>
       </div>
 
-      <h3 class="gh" id="sg-upd" data-t="upd.h">Updates</h3>
+      <h3 class="gh" id="sg-upd"><span data-t="upd.h">Updates</span> <button class="info" data-help="h-upd" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h3>
+      <div class="help" id="h-upd" hidden><span data-t="upd.privacy">Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.</span> <button type="button" class="link glink" data-guide="settings"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
       <div class="group">
         <label class="item"><span class="tile"><svg class="i"><use href="#i-refresh"/></svg></span><span class="lbl" data-t="upd.auto">Check for updates automatically (once a day)</span>
           <input type="checkbox" class="switch" id="upd-auto" role="switch"></label>
         <div class="item"><span class="tile"><svg class="i"><use href="#i-download"/></svg></span><span class="lbl"><span data-t="upd.version">Version</span><span class="note" id="upd-status"></span></span><button class="btn sm tonal" id="upd-now" data-t="upd.now">Check now</button></div>
       </div>
-      <p class="gfoot" data-t="upd.privacy">Only the latest version number is read from remohop.com; nothing about this computer is sent, and nothing is installed without you.</p>
 
       <h3 class="gh" id="sg-sup" data-t="set.g.support">Support</h3>
       <div class="group">
         <div class="item"><span class="tile"><svg class="i"><use href="#i-diag"/></svg></span><span class="lbl" data-t="diag.h">Diagnostic logs</span>
-          <button class="info" data-help="h-diag" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button>
+          <button class="info" data-help="h-diag" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button>
           <button class="btn sm tonal" id="diag-export" data-t="diag.export">Export</button></div>
-        <p class="help in" id="h-diag" hidden data-t="diag.help">A text file with the app's version, the system, its state and its recent log, to send to support when something does not work. Passwords, tokens and keys are removed; IDs, names and addresses stay. It is saved in your Downloads folder and goes nowhere unless you send it.</p>
+        <div class="help in" id="h-diag" hidden><span data-t="diag.help">A text file with the app's version, the system, its state and its recent log, to send to support when something does not work. Passwords, tokens and keys are removed; IDs, names and addresses stay. It is saved in your Downloads folder and goes nowhere unless you send it.</span> <button type="button" class="link glink" data-guide="trouble-more"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+        <button class="item" id="set-guide" data-guide="start"><span class="tile"><svg class="i"><use href="#i-book"/></svg></span><span class="lbl" data-t="guide.open">User guide</span><svg class="i chev"><use href="#i-chev"/></svg></button>
         <button class="item" data-page="support"><span class="tile"><svg class="i"><use href="#i-help"/></svg></span><span class="lbl" data-t="about.support">Help and support</span><svg class="i chev"><use href="#i-chev"/></svg></button>
         <button class="item" data-page="telegram"><span class="tile"><svg class="i"><use href="#i-telegram"/></svg></span><span class="lbl">Telegram</span><span class="val mono">@remohop</span><svg class="i chev"><use href="#i-chev"/></svg></button>
       </div>
@@ -365,6 +369,19 @@
       </div>
       </div>
       </div>
+    </div>
+  </section>
+
+  <!-- the user guide: guide.en.md or guide.zh.md, rendered by app.js -->
+  <section class="view" id="v-guide" aria-labelledby="h-guide" hidden>
+    <div class="page">
+      <header class="ph"><div class="grow"><div class="eyebrow mono" data-t="guide.eyebrow">Help</div><h1 id="h-guide"></h1></div>
+        <label class="search"><svg class="i"><use href="#i-search"/></svg><span class="vh" data-t="guide.search">Search the guide</span><input id="guide-q" type="search" data-tp="guide.search" autocomplete="off" spellcheck="false"></label></header>
+      <div class="guide-layout">
+        <nav class="guide-toc" id="guide-toc" aria-labelledby="guide-toc-h"><div class="mlabel mono" id="guide-toc-h" data-t="guide.toc">Contents</div><ol id="guide-toc-list"></ol></nav>
+        <div class="guide-body" id="guide-body"></div>
+      </div>
+      <div class="empty" id="guide-nomatch" hidden><span class="empty-ic"><svg class="i"><use href="#i-search"/></svg></span><div class="empty-t" data-t="guide.nomatch">Nothing in the guide matches.</div></div>
     </div>
   </section>
 
@@ -411,12 +428,12 @@
 <!-- the password for incoming connections: temporary, or the user's own -->
 <dialog id="dlg-pw" aria-labelledby="pw-title">
   <form method="dialog" class="dlg" id="pw-form">
-    <h2 id="pw-title" data-t="pwm.title">Password for incoming connections</h2>
-    <label class="opt"><input type="radio" name="pwmode" value="temporary"><span><span class="t" data-t="pwm.temp">A new random password</span><br><span class="muted small" data-t="pwm.temp.sub">Made each time RemoHop starts; "New" replaces it whenever you like</span></span></label>
-    <label class="opt"><input type="radio" name="pwmode" value="fixed"><span class="grow"><span class="t" data-t="pwm.fixed">My own password</span><br><span class="muted small" data-t="pwm.fixed.sub">Stays the same until you change it; at least 8 characters, with letters and digits</span>
+    <h2 id="pw-title"><span data-t="pwm.title">Password for incoming connections</span> <button type="button" class="info" data-help="h-pw" aria-expanded="false" data-ta="more"><svg class="i"><use href="#i-info"/></svg></button></h2>
+    <div class="help" id="h-pw" hidden><span data-t="help.pw">A random password is made each time RemoHop starts, and New replaces it. Your own password stays until you change it: at least 8 characters, with letters and digits. Either way, every connection still asks you first.</span> <button type="button" class="link glink" data-guide="incoming-allow"><span data-t="guide.more">More in the guide</span><svg class="i"><use href="#i-arrow"/></svg></button></div>
+    <label class="opt"><input type="radio" name="pwmode" value="temporary"><span class="t" data-t="pwm.temp">A new random password</span></label>
+    <label class="opt"><input type="radio" name="pwmode" value="fixed"><span class="grow"><span class="t" data-t="pwm.fixed">My own password</span>
       <span class="field mt8"><span class="lbl-sm" data-t="un.pw">Password</span><input id="pw-1" type="password" autocomplete="new-password"></span>
       <span class="field mt8"><span class="lbl-sm" data-t="un.pw2">Repeat</span><input id="pw-2" type="password" autocomplete="new-password"></span></span></label>
-    <p class="muted small mt8" data-t="pwm.note">Either way, every connection still asks you first.</p>
     <p class="err" id="pw-err"></p>
     <div class="acts"><button class="btn text" value="cancel" data-t="cancel">Cancel</button><button class="btn" value="ok" id="pw-ok" data-t="save">Save</button></div>
   </form>

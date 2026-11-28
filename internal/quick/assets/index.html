@@ -26,8 +26,10 @@
       <div id="noffmpeg" class="notice" hidden>
         <p data-t="no_ffmpeg"></p>
         <p id="ffmpeg-row" class="ffrow" hidden><button id="ffmpeg-install" class="small" type="button" hidden></button>
+          <button id="ffmpeg-info" class="info" type="button" data-help="ffmpeg-src" aria-expanded="false" data-ta="ffmpeg_about" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></svg></button>
           <span id="ffmpeg-status" role="status" aria-live="polite"></span></p>
-        <p id="ffmpeg-note" class="ffnote" hidden></p>
+        <p id="ffmpeg-src" class="more" hidden></p>
+        <p id="ffmpeg-note" hidden></p>
       </div>
       <div class="creds">
         <div class="card cred">
@@ -42,7 +44,7 @@
             <button id="regen" class="small" type="button" data-t="new_password">Create a new password</button></div>
         </div>
       </div>
-      <p class="hint creds-hint" data-t="creds_hint"></p>
+      <p class="creds-hint" data-t="creds_hint"></p>
 
       <div class="card" id="sessioncard">
         <h2 data-t="connected_title">Who is connected</h2>
@@ -55,8 +57,9 @@
         <label class="check"><input type="checkbox" checked disabled><span data-t="opt_screen">See your screen</span></label>
         <label class="check"><input type="checkbox" id="opt-input"><span data-t="opt_input">Use your mouse and keyboard</span></label>
         <label class="check"><input type="checkbox" id="opt-files"><span data-t="opt_files">Transfer files and use the clipboard</span></label>
-        <label class="check"><input type="checkbox" id="opt-advanced"><span><span data-t="opt_advanced">Run commands and reach your network</span>
-          <span class="hint block" data-t="opt_advanced_hint"></span></span></label>
+        <div class="check-row"><label class="check"><input type="checkbox" id="opt-advanced"><span data-t="opt_advanced">Run commands and reach your network</span></label>
+          <button id="adv-info" class="info" type="button" data-help="adv-help" aria-expanded="false" data-ta="more"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></svg></button></div>
+        <p id="adv-help" class="more" hidden data-t="opt_advanced_hint"></p>
       </div>
 
       <details class="card">
@@ -76,14 +79,12 @@
         <fieldset class="choices">
           <legend class="vh" data-t="setup_title">One step before you start</legend>
           <label class="choice"><input type="radio" name="mode" value="official" checked>
-            <span><span class="choice-t" data-t="setup_official">Use the official server</span>
-              <span class="hint block" data-t="setup_official_sub">Run by RemoHop, nothing to set up</span></span></label>
+            <span class="choice-t" data-t="setup_official">Use the official server</span></label>
           <label class="choice"><input type="radio" name="mode" value="custom">
             <span class="grow"><span class="choice-t" data-t="setup_custom">My helper gave me a server address</span>
               <input id="server" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="support.example.com" data-ta="setup_label" aria-label="Server address"></span></label>
           <label class="choice"><input type="radio" name="mode" value="none">
-            <span><span class="choice-t" data-t="setup_none">No server</span>
-              <span class="hint block" data-t="setup_none_hint">Only on the same network, by address</span></span></label>
+            <span class="choice-t" data-t="setup_none">No server</span></label>
         </fieldset>
         <p id="setuperr" class="err" role="alert"></p>
         <button class="primary" type="submit" data-t="setup_go">Continue</button>
@@ -102,7 +103,6 @@
 
   <footer class="bottom">
     <button id="stop" class="danger" type="button" data-t="stop">Stop sharing</button>
-    <p class="hint" id="closehint" data-t="close_hint"></p>
     <p class="hint" id="version"></p>
   </footer>
 </div>

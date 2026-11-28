@@ -56,6 +56,14 @@ async function shot(page, name) {
     check(await page.textContent('#pw') === 'abcd-efgh', 'password shown');
     check((await page.textContent('#statustext')).startsWith('Ready'), 'ready status');
     check(await page.isChecked('#opt-input') && await page.isChecked('#opt-files') && !(await page.isChecked('#opt-advanced')), 'default options');
+    // No fine print: what "commands and network" covers opens with ⓘ.
+    check(await page.isHidden('#adv-help'), 'the advanced option has no fine print');
+    await page.click('#adv-info');
+    check((await page.textContent('#adv-help')).includes('Terminal, port forwarding'), 'ⓘ explains the advanced option');
+    check(!(await page.isChecked('#opt-advanced')), 'and ⓘ does not tick it');
+    await page.click('#adv-info');
+    check(await page.isHidden('#adv-help'), 'ⓘ closes it again');
+    check(!(await page.isVisible('.hint.block')), 'no hint lines under the options');
     const idSize = await page.$eval('#id', (e) => parseFloat(getComputedStyle(e).fontSize));
     check(idSize >= 30, 'the ID is shown large (' + idSize + 'px)');
     check(await page.$eval('#id', (e) => e.scrollWidth <= e.clientWidth), 'the ID fits its box');
@@ -126,7 +134,11 @@ async function shot(page, name) {
     check((await page.textContent('#noffmpeg')).includes('Screen sharing needs ffmpeg, which is not installed on this computer'), 'ffmpeg notice');
     // ... and offers to install it, with its progress.
     check((await page.textContent('#ffmpeg-install')) === 'Install screen sharing component (ffmpeg, about 119 MB)', 'install button');
-    check((await page.textContent('#ffmpeg-note')).includes('ffmpeg 9.1 from gyan.dev'), 'where ffmpeg comes from');
+    // Where it comes from is not fine print: it opens with ⓘ.
+    check(await page.isHidden('#ffmpeg-src') && await page.isHidden('#ffmpeg-note'), 'no fine print under the install button');
+    await page.click('#ffmpeg-info');
+    check(await page.isVisible('#ffmpeg-src') && (await page.textContent('#ffmpeg-src')).includes('ffmpeg 9.1 from gyan.dev'), 'ⓘ: where ffmpeg comes from');
+    check(await page.getAttribute('#ffmpeg-info', 'aria-expanded') === 'true', 'the ⓘ says it is open');
     await shot(page, 'quick-no-ffmpeg-en');
     await page.click('#ffmpeg-install');
     await waitLog(page, 'ffmpeg install');
@@ -222,7 +234,8 @@ async function shot(page, name) {
     check(!(await page.isVisible('#ready')), 'no credentials in setup');
     // The same choice as the desktop app's wizard, the official server first.
     check(await page.isChecked('input[name=mode][value=official]'), 'the official server is the default choice');
-    check((await page.textContent('#setup')).includes('Run by RemoHop'), 'the official server is described');
+    check(!(await page.isVisible('#setup .hint.block')), 'no fine print under the choices');
+    check((await page.textContent('#setup details')).includes('run by RemoHop'), 'the official server is described under "Why is this needed?"');
     check(!(await page.textContent('#setup')).includes('signal.remohop.com'), 'its address is not shown');
     check(!(await page.textContent('#setup')).includes('has no server of its own'), 'no "RemoHop has no server" text');
     await shot(page, 'quick-setup-en');

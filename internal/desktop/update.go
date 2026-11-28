@@ -362,15 +362,15 @@ func openURL(u string) error {
 // page and footer link to it too).
 const TelegramURL = "https://t.me/remohop"
 
-// sitePage is one of the pages the app links to (Settings › About):
-// privacy, terms, licensing or support on the website, in lang, or the
-// Telegram channel. Only these: the page cannot ask the app to open
-// anything else.
+// sitePage is one of the pages the app links to (Settings › About, and
+// the guide): privacy, terms, licensing, support or the AI agents guide on
+// the website, in lang, or the Telegram channel. Only these: the page
+// cannot ask the app to open anything else.
 func sitePage(page, lang string) (string, error) {
 	switch page {
 	case "telegram":
 		return TelegramURL, nil
-	case "privacy", "terms", "licensing", "support":
+	case "privacy", "terms", "licensing", "support", "docs/ai-agents":
 	default:
 		return "", Errorf("bad_request", "unknown page")
 	}

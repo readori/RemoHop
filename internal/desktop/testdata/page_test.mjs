@@ -100,6 +100,10 @@ try {
   await p.eval(`document.querySelector('#wiz-lang [data-lang=""]').click()`);
   await p.eval(`document.getElementById('wiz-next').click()`);
   await p.eval(`document.querySelector('input[name=wsrv][value=custom]').checked = true; document.getElementById('wiz-addr').value = 'not a server'`);
+  // The choices carry no fine print; ⓘ explains them.
+  check(await p.eval(`!document.querySelector('#wiz-2 .opt .small')`), 'no fine print under the server choices');
+  await p.eval(`document.querySelector('#wiz-2 [data-help="h-server"]').click()`);
+  check(await p.eval(`!document.getElementById('h-server').hidden && document.getElementById('h-server').textContent.includes('official server is run by RemoHop')`), 'ⓘ explains the server choices');
   await p.shot('wizard-2');
   await p.eval(`document.getElementById('wiz-done').click()`);
   check(await p.waitFor(`document.getElementById('wiz-err').textContent.includes('not a server address')`), 'a bad server address is refused');
@@ -140,7 +144,10 @@ try {
   await control('/ffmpeg/missing');
   check(await p.waitFor(`!document.getElementById('ff').hidden`), 'no ffmpeg: the notice shows');
   check(await p.eval(`document.getElementById('ff-install-t').textContent`) === 'Install screen sharing component (ffmpeg, about 119 MB)', 'the install button');
-  check(await p.eval(`document.getElementById('ff-note').textContent.includes('ffmpeg 9.1 from gyan.dev')`), 'where it comes from');
+  // Where it comes from is behind ⓘ, not fine print under the button.
+  check(await p.eval(`document.getElementById('h-ff').hidden && document.getElementById('ff-note').hidden`), 'no fine print under the install button');
+  await p.eval(`document.getElementById('ff-info').click()`);
+  check(await p.eval(`!document.getElementById('h-ff').hidden && document.getElementById('ff-src').textContent.includes('ffmpeg 9.1 from gyan.dev')`), 'ⓘ says where it comes from');
   await p.shot('computer-no-ffmpeg');
   await p.eval(`document.getElementById('ff-install').click()`);
   check(await p.waitFor(`document.getElementById('ff-status').textContent === 'Downloading… 50%' && document.getElementById('ff-install').disabled`), 'the download shows its progress');
@@ -245,6 +252,44 @@ try {
   await p.eval(`document.querySelector('input[name=pwmode][value=temporary]').checked = true; document.getElementById('pw-ok').click()`);
   check(await p.waitFor(`document.getElementById('in-pw-l').textContent === 'Temporary password' && !document.getElementById('regen').hidden`), 'back to a temporary password');
 
+  // The guide: from the sidebar, in English; its contents, the search, and
+  // an ⓘ that opens the section it is about.
+  await p.eval(`document.getElementById('tab-guide').click()`);
+  check(await p.waitFor(`!document.getElementById('v-guide').hidden && document.querySelectorAll('#guide-body .gsec').length >= 8`), 'the guide opens from the sidebar');
+  check(await p.eval(`document.getElementById('h-guide').textContent === 'User guide' && document.getElementById('g-start').textContent === 'Getting started'`), 'the guide in English');
+  check(await p.eval(`document.querySelectorAll('#guide-toc-list button').length === document.querySelectorAll('#guide-body .gsec').length`), 'with its contents');
+  check(await p.eval(`(t => t.includes('More info') && t.includes('Run anyway') && t.includes('Screen Recording') && t.includes('WebKitGTK'))(document.getElementById('guide-body').textContent)`), 'getting started on each system');
+  check(await p.eval(`!document.querySelector('#guide-body script, #guide-body img, #guide-body a[href]')`), 'the guide is text only');
+  await p.shot('guide');
+  await p.eval(`(q => { q.value = 'ffmpeg'; q.dispatchEvent(new Event('input')); })(document.getElementById('guide-q'))`);
+  check(await p.eval(`(v => v.length >= 2 && v.length < document.querySelectorAll('#guide-body .gsec').length)([...document.querySelectorAll('#guide-body .gsec')].filter(s => !s.hidden))`), 'the search keeps the sections that match');
+  check(await p.eval(`![...document.querySelectorAll('#guide-body .gpart')].some(x => !x.hidden && !x.textContent.toLowerCase().includes('ffmpeg') && !x.closest('.gsec').querySelector('h2').textContent.toLowerCase().includes('ffmpeg'))`), 'and only the parts that match');
+  await p.shot('guide-search');
+  await p.eval(`(q => { q.value = 'zzzz-nothing'; q.dispatchEvent(new Event('input')); })(document.getElementById('guide-q'))`);
+  check(await p.eval(`!document.getElementById('guide-nomatch').hidden`), 'a search without a match says so');
+  await p.eval(`document.getElementById('tab-computer').click()`);
+  await p.eval(`document.querySelector('[data-help="h-un"]').click()`);
+  check(await p.eval(`!document.getElementById('h-un').hidden && document.querySelector('[data-help="h-un"]').getAttribute('aria-expanded') === 'true'`), 'ⓘ opens its explanation in place');
+  await p.eval(`document.querySelector('#h-un [data-guide]').click()`);
+  check(await p.waitFor(`!document.getElementById('v-guide').hidden && document.activeElement && document.activeElement.id === 'g-unattended' && document.getElementById('g-unattended').classList.contains('hit')`), '"More in the guide" opens the right section');
+  check(await p.eval(`document.getElementById('guide-q').value === '' && !document.getElementById('g-unattended').closest('.gpart').hidden`), 'with the search cleared');
+  check(await p.waitFor(`(r => r.top >= 0 && r.top < 200)(document.getElementById('g-unattended').getBoundingClientRect())`, 5000), 'scrolled to it');
+  await p.shot('guide-from-help');
+  // From a dialog: the dialog closes, the guide opens there.
+  await p.eval(`document.getElementById('tab-computer').click()`);
+  await p.eval(`document.getElementById('pw-set').click()`);
+  await p.eval(`document.querySelector('[data-help="h-pw"]').click()`);
+  check(await p.eval(`document.getElementById('h-pw').textContent.includes('at least 8 characters')`), 'the password dialog explains itself behind ⓘ');
+  await p.eval(`document.querySelector('#h-pw [data-guide]').click()`);
+  check(await p.waitFor(`!document.getElementById('dlg-pw').open && document.activeElement && document.activeElement.id === 'g-incoming-allow'`), 'its guide link closes the dialog and opens the section');
+  // Links in the guide lead to the app's pages.
+  await p.eval(`document.querySelector('#g-trouble-noserver').closest('.gpart').querySelector('[data-app="settings"]').click()`);
+  check(await p.waitFor(`!document.getElementById('v-settings').hidden`), 'a link in the guide opens Settings');
+  await p.eval(`document.getElementById('set-guide').click()`);
+  check(await p.waitFor(`!document.getElementById('v-guide').hidden && document.activeElement && document.activeElement.id === 'g-start'`), 'Settings › User guide opens the guide');
+  // No fine print on the app's pages: no small explanatory lines.
+  check(await p.eval(`![...document.querySelectorAll('#main .view:not(#v-guide) .lead, #main .empty .muted.small, .gfoot, .opt .muted.small, .item .lbl .note')].filter(e => e.id !== 'upd-status' && e.dataset.t !== 'c.lead' && e.textContent.trim()).length`), 'no fine print under headings, items or empty states');
+
   // Settings, theme, language, small window.
   await p.eval(`document.getElementById('tab-settings').click()`);
   check(await p.waitFor(`!document.getElementById('v-settings').hidden && document.querySelector('input[name=srv][value=custom]').checked`), 'Settings show the server choice');
@@ -277,6 +322,20 @@ try {
   await p.eval(`document.getElementById('tab-connect').click()`);
   check(await p.waitFor(`document.querySelector('#lan .chip.bad').textContent === '密钥已变'`), 'On this network in Chinese');
   await p.shot('connect-zh');
+  await p.waitFor(`!document.getElementById('dlg-req').open`); // a modal dialog would keep the focus
+  await p.eval(`document.getElementById('tab-guide').click()`);
+  check(await p.waitFor(`document.getElementById('h-guide').textContent === '使用说明' && document.getElementById('g-start').textContent === '开始使用'`), 'the guide in Chinese');
+  check(await p.eval(`document.getElementById('tab-guide').textContent.includes('使用说明') && document.getElementById('guide-body').textContent.includes('仍要运行')`), 'the Chinese guide, from the same ids');
+  await p.shot('guide-zh');
+  await p.eval(`document.getElementById('tab-connect').click()`);
+  await p.eval(`document.querySelector('[data-help="h-lan"]').click()`);
+  await p.eval(`document.querySelector('#h-lan [data-guide]').click()`);
+  check(await p.waitFor(`document.activeElement && document.activeElement.id === 'g-lan' && document.activeElement.textContent === '本网络中的电脑'`), 'an ⓘ opens the Chinese section');
+  await p.eval(`document.querySelector('#set-theme [data-theme=dark]').click()`);
+  await p.waitFor(`document.documentElement.dataset.theme === 'dark'`);
+  await p.shot('guide-zh-dark');
+  await p.eval(`document.querySelector('#set-theme [data-theme=""]').click()`);
+  await p.waitFor(`!document.documentElement.dataset.theme`);
   await p.eval(`document.querySelector('#set-lang [data-lang=""]').click()`);
   await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('Home')`);
   await p.size(480, 720);
