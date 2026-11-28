@@ -67,7 +67,7 @@ RELEASED = True
 # that runs --release-docs. CI compares it with the repository's newest vX.Y.Z
 # tag (REMOHOP_LATEST_TAG), so a stale value fails the "website is up to
 # date" check instead of leaving people on an old version.
-LATEST_RELEASE = "v1.0.7"
+LATEST_RELEASE = "v1.0.8"
 
 # The mobile apps in the App Store and on Google Play, one switch per store.
 # Same mechanism, with <!--ios-->...<!--/ios-->, <!--play-->...<!--/play--> and
@@ -282,18 +282,14 @@ DOWNLOAD = REPO + "/releases/latest/download/"
 # The double-click programs, one row per system: (platform, CPU, the desktop
 # app's file, quick support's file, note). Both are the same signed program
 # under two names (cmd/remohop-quick/launch.go); zh and en texts as pairs.
+# The desktop app and quick support per system. The page shows only the
+# buttons; how to open each one is in docs/*/install.md and in the app.
 APP_ASSETS = [
-    (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip", "RemoHop-QuickSupport-windows-amd64.zip",
-     ("解压后双击。尚未代码签名，SmartScreen 会提示：点“更多信息”，再点“仍要运行”。",
-      "Unzip, then double-click. Not code-signed yet: SmartScreen warns; choose More info, then Run anyway.")),
-    (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", "RemoHop-QuickSupport-windows-arm64.zip", ("同上。", "As above.")),
-    (("macOS 12 及以上", "macOS 12 or later"), ("Apple 芯片和 Intel", "Apple silicon and Intel"), "RemoHop-macos.dmg", "RemoHop-QuickSupport-macos.zip",
-     ("RemoHop：打开后拖到“应用程序”文件夹。快速协助：解压后直接打开。均已用 Developer ID 签名并经 Apple 公证。",
-      "RemoHop: open it and drag it to Applications. Quick support: unzip and open it. Both signed with a Developer ID and notarized by Apple.")),
-    (("Linux", "Linux"), "x86-64", "remohop-app_linux_amd64.tar.gz", "remohop-quick_linux_amd64.tar.gz",
-     ("解压后运行 ./remohop-app 或 ./remohop-quick。应用窗口需要 WebKitGTK（否则在浏览器中打开）和 glibc。",
-      "Unpack, then run ./remohop-app or ./remohop-quick. The app's window needs WebKitGTK (else it opens in a browser) and glibc.")),
-    (("Linux", "Linux"), "ARM64", "remohop-app_linux_arm64.tar.gz", "remohop-quick_linux_arm64.tar.gz", ("同上。", "As above.")),
+    (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip", "RemoHop-QuickSupport-windows-amd64.zip"),
+    (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", "RemoHop-QuickSupport-windows-arm64.zip"),
+    (("macOS 12 及以上", "macOS 12 or later"), ("Apple 芯片和 Intel", "Apple silicon and Intel"), "RemoHop-macos.dmg", "RemoHop-QuickSupport-macos.zip"),
+    (("Linux", "Linux"), "x86-64", "remohop-app_linux_amd64.tar.gz", "remohop-quick_linux_amd64.tar.gz"),
+    (("Linux", "Linux"), "ARM64", "remohop-app_linux_arm64.tar.gz", "remohop-quick_linux_arm64.tar.gz"),
 ]
 CLI_ASSETS = [
     (("Linux", "Linux"), "x86-64", "remohop_linux_amd64.tar.gz", ("静态链接", "statically linked")),
@@ -358,11 +354,11 @@ def app_table(lang):
 
     def cell(name, text, primary):
         cls = "btn primary" if primary else "btn"
-        b = f'<a class="{cls}" href="{DOWNLOAD}{name}">{text}</a>' if RELEASED else f'<span class="{cls}">{text}</span>'
-        return f'<td class="file">{b}<br><code class="small">{name}</code></td>'
-    for plat, cpu, app, quick, note in APP_ASSETS:
+        b = f'<a class="{cls}" href="{DOWNLOAD}{name}" title="{name}">{text}</a>' if RELEASED else f'<span class="{cls}">{text}</span>'
+        return f'<td class="file">{b}</td>'
+    for plat, cpu, app, quick in APP_ASSETS:
         cpu = cpu[i] if isinstance(cpu, tuple) else cpu
-        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span><br><span class="small">{note[i]}</span></td>'
+        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span></td>'
                    + cell(app, "RemoHop", True) + cell(quick, t["quick"], False) + "</tr>")
     out += ["</tbody>", "</table>", "</div>"]
     return "\n".join(out)
