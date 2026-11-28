@@ -181,7 +181,7 @@ sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
 <section class="task">
 <div>
 <h3>屏幕和远程桌面</h3>
-<p><code>desktop</code> 在本机浏览器里打开查看器，用 H.264&nbsp;或&nbsp;AV1 传输，可以录制成 MP4。被控机需要装有带编码器的 ffmpeg。在一台只有 CPU 的 4&nbsp;核虚拟机上实测，H.264 的端到端延迟约 20&nbsp;ms（720p）和 31&nbsp;ms（1080p）。查看器可以选画质（原始分辨率或最高 2160p 到 480p）、帧率（30 到 144&nbsp;fps，“自动”按显示器刷新率，最高 120）和显示器，“统计”按钮显示码率、延迟和近 10&nbsp;秒的丢帧数。</p>
+<p><code>desktop</code> 在本机浏览器里打开查看器，用 H.264&nbsp;或&nbsp;AV1 传输，可以录制成 MP4。被控机需要装有带编码器的 ffmpeg；在 Windows&nbsp;和&nbsp;macOS 上没有时，RemoHop 可以一键安装一个经过校验的版本。在一台只有 CPU 的 4&nbsp;核虚拟机上实测，H.264 的端到端延迟约 20&nbsp;ms（720p）和 31&nbsp;ms（1080p）。查看器可以选画质（原始分辨率或最高 2160p 到 480p）、帧率（30 到 144&nbsp;fps，“自动”按显示器刷新率，最高 120）和显示器，“统计”按钮显示码率、延迟和近 10&nbsp;秒的丢帧数。</p>
 </div>
 <div>
 <pre tabindex="0"><code>remohop dev desktop --max-height 1080 --fps 30

@@ -47,9 +47,33 @@ remohop dev desktop --bench --bench-duration 20s
 
   These stop at the moment a frame reaches the viewer process, and x11grab stamps a frame when it grabs it, up to one frame period after the screen changed. The true change-to-picture figure, measured in headless Chromium 157 (H.264, 800x300, 30 fps; the test flashes a patch of the remote screen and a `requestAnimationFrame` loop notes when the canvas shows it, so it includes up to 33 ms of grab wait and up to 16 ms of detection): median 31 ms, p95 47 ms over 40 flashes (`go test ./internal/svc/desktop -run TestViewerPageXvfb -v`). Audio at 96 kbit/s adds 50 packets per second; its capture time is estimated from packet arrival (the host assumes a 37 ms capture-and-encode pipeline), so its capture-to-received mean of 47 ms is mostly that assumption, not an independent measurement. Real links add their own round trip, and a GPU encoder changes the encode figure.
 
-The viewer listens on `127.0.0.1` behind a random URL; Ctrl-C ends it. The host needs ffmpeg with an H.264 or AV1 encoder; see [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders).
+The viewer listens on `127.0.0.1` behind a random URL; Ctrl-C ends it. The host needs ffmpeg with an H.264 or AV1 encoder (see [Screen sharing and ffmpeg](#screen-sharing-and-ffmpeg) and [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders)).
 
 A macOS host needs the Screen Recording permission to capture and Accessibility for input. macOS gives the screen to one capture at a time, so all sessions of a macOS host share a single capture; `REMOHOP_MAC_DIRECT_CAPTURE=1` on the host turns that off (one capture per session) if the shared one misbehaves.
+
+## Screen sharing and ffmpeg
+
+The host (the computer whose screen is shared) encodes its screen with ffmpeg, which it runs as a separate program. It uses, in this order:
+
+1. the program that `REMOHOP_FFMPEG` names;
+2. `ffmpeg` on `PATH`, the system's (`winget install Gyan.FFmpeg`, `brew install ffmpeg`, `apt install ffmpeg`);
+3. RemoHop's own copy, on Windows and macOS.
+
+RemoHop's copy is downloaded only when someone asks for it: `remohop ffmpeg install`, or **Install screen sharing component** in the desktop app (on Home, while incoming connections are on) and in the Quick Support window, which show its progress. It is a build pinned in RemoHop's source: a fixed, versioned file and its SHA-256. The download goes over HTTPS, through the proxy that `HTTPS_PROXY` names if there is one, is checked against that hash before it is unpacked, and only the `ffmpeg` program is taken out of it. A file that does not match is deleted and never run.
+
+| Host | Build | Download |
+|---|---|---|
+| Windows x64 | ffmpeg 9.1 "essentials" from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (its GitHub mirror first) | 119 MB |
+| Windows arm64 | ffmpeg 9.0.2 from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) (the build of 31 October 2026) | 137 MB |
+| macOS, Apple silicon / Intel | ffmpeg 9.1 from [Martin Riedl's build server](https://ffmpeg.martin-riedl.de/) (signed; macOS 12 or newer) | 29 MB / 34 MB |
+
+All three are GPL builds. They include libx264, the fast software H.264 encoder the host falls back to where no hardware encoder works (a virtual machine, a computer without a GPU); builds under the LGPL lack it. RemoHop runs ffmpeg as a separate program and does not ship it: the computer downloads it from its publisher.
+
+The program goes to `%LocalAppData%\remohop\ffmpeg\ffmpeg.exe` on Windows and to `~/Library/Application Support/remohop/ffmpeg/ffmpeg` on macOS (under `REMOHOP_CONFIG_DIR`, when that is set), next to `ffmpeg.json`, which says what it is. On macOS RemoHop clears the download quarantine of that one file. `remohop ffmpeg` (and `remohop doctor`) shows which ffmpeg is used and its version; `remohop ffmpeg remove` deletes RemoHop's copy. A newer RemoHop may pin a newer build: `remohop ffmpeg` then says so, and `remohop ffmpeg install` replaces the copy.
+
+On managed computers, `REMOHOP_FFMPEG_DOWNLOAD=off` in the environment (or `remohop config set ffmpeg-download off`) switches downloads off: the windows then say so and offer no button. A copy that is already there is still used.
+
+The Windows service (unattended access) runs as LocalSystem with its own directory, `%ProgramData%\RemoHop`, and never uses a copy from a user's profile. Give it ffmpeg on the machine's `PATH`, set `REMOHOP_FFMPEG` in the service's environment, or install a copy for it from an elevated prompt: `set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install`.
 
 ## GUI automation
 

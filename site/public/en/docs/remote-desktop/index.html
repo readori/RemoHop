@@ -111,8 +111,30 @@ remohop dev desktop --bench --bench-duration 20s</code></pre>
 <p>These stop at the moment a frame reaches the viewer process, and x11grab stamps a frame when it grabs it, up to one frame period after the screen changed. The true change-to-picture figure, measured in headless Chromium&nbsp;157 (H.264, 800x300, 30&nbsp;fps; the test flashes a patch of the remote screen and a <code>requestAnimationFrame</code> loop notes when the canvas shows it, so it includes up to 33&nbsp;ms of grab wait and up to 16&nbsp;ms of detection): median 31&nbsp;ms, p95 47&nbsp;ms over 40 flashes (<code>go test ./internal/svc/desktop -run TestViewerPageXvfb -v</code>). Audio at 96&nbsp;kbit/s adds 50&nbsp;packets per second; its capture time is estimated from packet arrival (the host assumes a 37&nbsp;ms capture-and-encode pipeline), so its capture-to-received mean of 47&nbsp;ms is mostly that assumption, not an independent measurement. Real links add their own round trip, and a GPU encoder changes the encode figure.</p>
 </li>
 </ul>
-<p>The viewer listens on <code>127.0.0.1</code> behind a random URL; Ctrl-C ends it. The host needs ffmpeg with an H.264 or AV1 encoder; see <a href="/en/docs/troubleshooting/#ffmpeg-and-encoders">troubleshooting.md</a>.</p>
+<p>The viewer listens on <code>127.0.0.1</code> behind a random URL; Ctrl-C ends it. The host needs ffmpeg with an H.264 or AV1 encoder (see <a href="#screen-sharing-and-ffmpeg">Screen sharing and ffmpeg</a> and <a href="/en/docs/troubleshooting/#ffmpeg-and-encoders">troubleshooting.md</a>).</p>
 <p>A macOS host needs the Screen Recording permission to capture and Accessibility for input. macOS gives the screen to one capture at a time, so all sessions of a macOS host share a single capture; <code>REMOHOP_MAC_DIRECT_CAPTURE=1</code> on the host turns that off (one capture per session) if the shared one misbehaves.</p>
+<h2 id="screen-sharing-and-ffmpeg">Screen sharing and ffmpeg</h2>
+<p>The host (the computer whose screen is shared) encodes its screen with ffmpeg, which it runs as a separate program. It uses, in this order:</p>
+<ol>
+<li>the program that <code>REMOHOP_FFMPEG</code> names;</li>
+<li><code>ffmpeg</code> on <code>PATH</code>, the system's (<code>winget install Gyan.FFmpeg</code>, <code>brew install ffmpeg</code>, <code>apt install ffmpeg</code>);</li>
+<li>RemoHop's own copy, on Windows and macOS.</li>
+</ol>
+<p>RemoHop's copy is downloaded only when someone asks for it: <code>remohop ffmpeg install</code>, or <strong>Install screen sharing component</strong> in the desktop app (on Home, while incoming connections are on) and in the Quick Support window, which show its progress. It is a build pinned in RemoHop's source: a fixed, versioned file and its SHA-256. The download goes over HTTPS, through the proxy that <code>HTTPS_PROXY</code> names if there is one, is checked against that hash before it is unpacked, and only the <code>ffmpeg</code> program is taken out of it. A file that does not match is deleted and never run.</p>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Host / Build / Download">
+<table>
+<thead><tr><th scope="col">Host</th><th scope="col">Build</th><th scope="col">Download</th></tr></thead>
+<tbody>
+<tr><td>Windows x64</td><td>ffmpeg&nbsp;9.1 "essentials" from <a href="https://www.gyan.dev/ffmpeg/builds/">gyan.dev</a> (its GitHub mirror first)</td><td>119&nbsp;MB</td></tr>
+<tr><td>Windows arm64</td><td>ffmpeg&nbsp;9.0.2 from <a href="https://github.com/BtbN/FFmpeg-Builds">BtbN/FFmpeg-Builds</a> (the build of 31 October 2026)</td><td>137&nbsp;MB</td></tr>
+<tr><td>macOS, Apple silicon / Intel</td><td>ffmpeg&nbsp;9.1 from <a href="https://ffmpeg.martin-riedl.de/">Martin Riedl's build server</a> (signed; macOS&nbsp;12 or newer)</td><td>29&nbsp;MB / 34&nbsp;MB</td></tr>
+</tbody>
+</table>
+</div>
+<p>All three are GPL builds. They include libx264, the fast software H.264 encoder the host falls back to where no hardware encoder works (a virtual machine, a computer without a GPU); builds under the LGPL lack it. RemoHop runs ffmpeg as a separate program and does not ship it: the computer downloads it from its publisher.</p>
+<p>The program goes to <code>%LocalAppData%\remohop\ffmpeg\ffmpeg.exe</code> on Windows and to <code>~/Library/Application Support/remohop/ffmpeg/ffmpeg</code> on macOS (under <code>REMOHOP_CONFIG_DIR</code>, when that is set), next to <code>ffmpeg.json</code>, which says what it is. On macOS RemoHop clears the download quarantine of that one file. <code>remohop ffmpeg</code> (and <code>remohop doctor</code>) shows which ffmpeg is used and its version; <code>remohop ffmpeg remove</code> deletes RemoHop's copy. A newer RemoHop may pin a newer build: <code>remohop ffmpeg</code> then says so, and <code>remohop ffmpeg install</code> replaces the copy.</p>
+<p>On managed computers, <code>REMOHOP_FFMPEG_DOWNLOAD=off</code> in the environment (or <code>remohop config set ffmpeg-download off</code>) switches downloads off: the windows then say so and offer no button. A copy that is already there is still used.</p>
+<p>The Windows service (unattended access) runs as LocalSystem with its own directory, <code>%ProgramData%\RemoHop</code>, and never uses a copy from a user's profile. Give it ffmpeg on the machine's <code>PATH</code>, set <code>REMOHOP_FFMPEG</code> in the service's environment, or install a copy for it from an elevated prompt: <code>set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop &amp; remohop ffmpeg install</code>.</p>
 <h2 id="gui-automation">GUI automation</h2>
 <p>These commands drive the remote pointer and keyboard. Coordinates are pixels of the selected display as a full-size screenshot shows it, with 0,0 at the top left:</p>
 <pre tabindex="0"><code class="language-bash">remohop dev click 412 230
