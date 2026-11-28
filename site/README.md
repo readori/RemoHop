@@ -26,8 +26,8 @@ with guardrails (the hero shows a real `remohop host grant` and the refusal an
 agent gets; then a grant explained flag by flag), one tool instead of several
 (the browser client with the connection request floating over it, and what it
 does), trust you can check (the animated picture of how a connection is made,
-what is protected and what is not done yet), and fair pricing (the plans).
-Then the downloads, the current status and links. Everything else lives on
+what is protected and, folded, what is not done yet), and fair pricing (the
+plans). Then the downloads and links. Everything else lives on
 `features/` (commands, the browser client, how a connection is made,
 platforms, install, limits) and the other pages.
 
@@ -59,6 +59,28 @@ The visual layer is in tokens at the top of `site.css` (`--font-display`,
 `.panel`, `.tier`, `.feat`, `.term-win`, ...). Restyling the site starts there. The icons (`favicon.*`,
 `apple-touch-icon.png`, `assets/icon-*.png`) and the header mark are the
 RemoHop mark: two screen corners and an arrow on a cobalt tile.
+
+## No fine print
+
+A core rule for every page, in both languages, and for the desktop app
+(`docs/design/desktop-ui.md`):
+
+- Pages carry no fine print: no small explanatory lines under buttons, cards,
+  tables, terminals, screenshots or headings, and no caveat paragraphs
+  between sections.
+- Say it in the main copy, or leave it to the documentation (`docs/`), where
+  every detail already lives.
+- When a page genuinely needs an explanation or a caveat (an honest
+  limitation, a warning), put it in a collapsed
+  `<details class="fold"><summary>…</summary>…</details>` with a short
+  summary. It opens on a click, needs no script, and looks like the pricing
+  page's questions in light and dark.
+- Under the hero buttons, at most one row of short tags (`.hero-tags`):
+  words, never sentences.
+
+Labels that belong to a picture (the boxes of the How it works map, the
+policy example on `teams/`) are part of the picture, not fine print. The
+generated documentation pages are long-form text and are not affected.
 
 ## Editing
 
@@ -152,8 +174,7 @@ Search for `TODO(owner)` in `site/`. Open items:
 - **Terms.** Governing law and venue, if wanted, after legal review.
 - **App store links** on `apps/` once the apps are released.
 - **Online checkout.** The Teams "Get a license" button on `pricing/` opens
-  an email until the Paddle checkout is live; then link it and remove the
-  note under it.
+  an email until the Paddle checkout is live; then link it.
 
 ## Screenshots
 

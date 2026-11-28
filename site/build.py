@@ -280,10 +280,10 @@ LOGO = (
 DOWNLOAD = REPO + "/releases/latest/download/"
 
 # The double-click programs, one row per system: (platform, CPU, the desktop
-# app's file, quick support's file, note). Both are the same signed program
-# under two names (cmd/remohop-quick/launch.go); zh and en texts as pairs.
-# The desktop app and quick support per system. The page shows only the
-# buttons; how to open each one is in docs/*/install.md and in the app.
+# app's file, quick support's file); zh and en texts as pairs. Both are the
+# same signed program under two names (cmd/remohop-quick/launch.go). The page
+# shows only the buttons; how to open each one is in docs/*/install.md and in
+# the app.
 APP_ASSETS = [
     (("Windows 10、11", "Windows 10, 11"), "x64", "RemoHop-windows-amd64.zip", "RemoHop-QuickSupport-windows-amd64.zip"),
     (("Windows 11", "Windows 11"), "ARM64", "RemoHop-windows-arm64.zip", "RemoHop-QuickSupport-windows-arm64.zip"),
@@ -291,13 +291,14 @@ APP_ASSETS = [
     (("Linux", "Linux"), "x86-64", "remohop-app_linux_amd64.tar.gz", "remohop-quick_linux_amd64.tar.gz"),
     (("Linux", "Linux"), "ARM64", "remohop-app_linux_arm64.tar.gz", "remohop-quick_linux_arm64.tar.gz"),
 ]
+# The command-line archives: (platform, CPU, file). No notes under the files:
+# the site carries no fine print (site/README.md, "No fine print").
 CLI_ASSETS = [
-    (("Linux", "Linux"), "x86-64", "remohop_linux_amd64.tar.gz", ("静态链接", "statically linked")),
-    (("Linux", "Linux"), "ARM64", "remohop_linux_arm64.tar.gz", ("静态链接", "statically linked")),
-    (("macOS", "macOS"), ("通用（Apple 芯片和 Intel）", "universal (Apple silicon and Intel)"), "remohop_darwin_universal.tar.gz",
-     ("Developer ID 签名，已公证", "Developer ID signed, notarized")),
-    (("Windows", "Windows"), "x64", "remohop_windows_amd64.zip", ("尚未代码签名", "not code-signed yet")),
-    (("Windows", "Windows"), "ARM64", "remohop_windows_arm64.zip", ("尚未代码签名", "not code-signed yet")),
+    (("Linux", "Linux"), "x86-64", "remohop_linux_amd64.tar.gz"),
+    (("Linux", "Linux"), "ARM64", "remohop_linux_arm64.tar.gz"),
+    (("macOS", "macOS"), ("通用（Apple 芯片和 Intel）", "universal (Apple silicon and Intel)"), "remohop_darwin_universal.tar.gz"),
+    (("Windows", "Windows"), "x64", "remohop_windows_amd64.zip"),
+    (("Windows", "Windows"), "ARM64", "remohop_windows_arm64.zip"),
 ]
 
 # Package managers, stores and images. Each entry is one channel; set "live" to
@@ -336,10 +337,10 @@ def asset_table(lang, rows, label):
     i = 0 if lang == "zh" else 1
     out = [f'<div class="table-wrap dl" tabindex="0" role="region" aria-label="{html.escape(label)}">', "<table>",
            f'<thead><tr><th scope="col">{t["platform"]}</th><th scope="col">{t["file"]}</th></tr></thead>', "<tbody>"]
-    for plat, cpu, name, note in rows:
+    for plat, cpu, name in rows:
         cpu = cpu[i] if isinstance(cpu, tuple) else cpu
         f = f'<a href="{DOWNLOAD}{name}"><code>{name}</code></a>' if RELEASED else f"<code>{name}</code>"
-        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span></td><td class="file">{f}<br><span class="small">{note[i]}</span></td></tr>')
+        out.append(f'<tr><td>{plat[i]}<br><span class="small">{cpu}</span></td><td class="file">{f}</td></tr>')
     out += ["</tbody>", "</table>", "</div>"]
     return "\n".join(out)
 

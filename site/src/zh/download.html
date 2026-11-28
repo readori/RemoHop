@@ -4,9 +4,6 @@
 <p><strong>首个发布版本正在准备中。</strong>RemoHop 1.0 将发布在 GitHub Releases 上；在那之前，下面列出的文件还不存在，列出来是为了让你知道会有什么。现在可以<a href="{{L:docs/building}}">从源码编译 RemoHop</a>。</p>
 </div>
 <!--/norel-->
-<!--rel-->
-<p>所有文件都在 <a href="{{REPO}}/releases/latest">GitHub Releases</a> 上，下面的链接总是指向最新版本。每个文件都列在发布页的 <code>SHA256SUMS</code> 里，这个文件带有签名（见<a href="#verify">校验下载</a>）。</p>
-<!--/rel-->
 <p>大多数人需要 <a href="#quick">RemoHop</a> 桌面应用：一个窗口，连接你的电脑，也让别人连接这台电脑。只需要被帮一次的人，用<a href="#quick">快速协助</a>，无需安装。服务器和脚本用<a href="#cli">命令行程序 <code>remohop</code></a>；手机用<a href="#mobile">手机应用</a>。</p>
 
 <h2 id="quick">RemoHop 与快速协助</h2>
@@ -22,27 +19,20 @@ sh install.sh</code></pre>
 <pre><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <h3>压缩包</h3>
-<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。每个压缩包里还有 <code>LICENSE</code>、<code>NOTICE</code> 和 <code>THIRD_PARTY_LICENSES.txt</code>。</p>
+<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。</p>
 {{DL:cli}}
 <h3>Linux 软件包</h3>
 <p>x86-64 和 ARM64 的 <code>.deb</code>、<code>.rpm</code>、<code>.apk</code>。文件名里带版本号（例如 <code>remohop_1.0.1_amd64.deb</code>），所以请到<!--rel--><a href="{{REPO}}/releases/latest">发布页</a><!--/rel--><!--norel-->发布页<!--/norel-->下载。它们安装 <code>remohop</code> 和 systemd 单元，但不启用任何东西；<code>remohop service install</code> 让被控端开机自启。详见<a href="{{L:docs/install}}">安装</a>。</p>
 
 <h2 id="channels">包管理器、应用商店和容器</h2>
-<p>标着“可用”的渠道已经开通；其余的陆续开通，开通后这里会显示安装命令。</p>
 {{DL:channels}}
 
 <h2 id="mobile">手机应用</h2>
-<p>Android 和 iOS / iPadOS 应用：在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许后还能被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕（只能观看）。</p>
-<!--ios-->
+<p>Android 和 iOS / iPadOS 应用：在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许后还能被控制，<span class="nobr">iPhone 和 iPad</span> 可以共享屏幕（只能观看）。见<a href="{{L:apps}}">移动应用</a>。</p>
 <div class="actions">
-<a class="btn primary" href="{{APP_STORE}}">App Store（iPhone、iPad）</a>
-<!--play--><a class="btn" href="{{GOOGLE_PLAY}}">Google Play（Android）</a><!--/play-->
+<!--ios--><a class="btn primary" href="{{APP_STORE}}">App Store（iPhone、iPad）</a><!--/ios--><!--noios--><span class="chip wait">App Store 即将上架</span><!--/noios-->
+<!--play--><a class="btn" href="{{GOOGLE_PLAY}}">Google Play（Android）</a><!--/play--><!--noplay--><span class="chip wait">Google Play 即将上架</span><!--/noplay-->
 </div>
-<!--/ios-->
-<!--noplay-->
-<p><span class="chip wait">Google Play 即将上架</span></p>
-<p><!--ios-->Android 应用已提交 Google Play 审核，上架后这里会链接到商店。<!--/ios--><!--noios-->两个应用都已提交审核，即将上架 App Store 和 Google Play。上架后，这里会链接到商店。<!--/noios-->应用能做什么，见<a href="{{L:apps}}">移动应用</a>。</p>
-<!--/noplay-->
 
 <h2 id="verify">校验下载</h2>
 <p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>
@@ -50,7 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
-<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。macOS 的下载另外用 Developer ID 签名并经过 Apple 公证；Windows 程序尚未做代码签名。详见<a href="{{L:docs/install}}#校验下载">安装</a>和<a href="{{L:security}}">安全模型</a>。</p>
+<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。详见<a href="{{L:docs/install}}#校验下载">安装</a>和<a href="{{L:security}}">安全模型</a>。</p>
 
 <h2 id="source">源码</h2>
 <p>RemoHop 是以 GNU AGPL-3.0 发布的自由软件，完整源码在 <a href="{{REPO}}">github.com/readori/RemoHop</a><!--rel-->，每个发布页都附有该版本的源码压缩包<!--/rel-->。想自己编译，见<a href="{{L:docs/building}}">从源码编译</a>。AGPL 不适合的场景可以购买商业授权，见<a href="{{L:licensing}}">许可证</a>。</p>

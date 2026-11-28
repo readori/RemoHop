@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Support and contact | RemoHop</title>
 <meta name="description" content="Contact RemoHop at support@remohop.com: what to include in a report, where the troubleshooting guide is, and how to report a security issue privately.">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -84,7 +84,10 @@
 <li>The network on both sides: home broadband, office network, mobile data, any proxy, and whose rendezvous server you use.</li>
 <li>What you expected to happen and what happened.</li>
 </ol>
-<p class="note warn"><strong>Remove secrets before you send.</strong> Do not send us passwords, pairing tokens, the contents of <code>identity.key</code>, the token in a gateway URL, or a Cloudflare Access secret. You may also redact IDs and public IP addresses if you prefer.</p>
+<details class="fold">
+<summary>Remove secrets before you send</summary>
+<p>Do not send us passwords, pairing tokens, the contents of <code>identity.key</code>, the token in a gateway URL, or a Cloudflare Access secret. You may also redact IDs and public IP addresses if you prefer.</p>
+</details>
 
 <h2 id="security">Security issues</h2>
 <p>If you find a vulnerability, please do <strong>not</strong> disclose it in a public issue or forum. Write to <a href="mailto:support@remohop.com?subject=RemoHop%20security">support@remohop.com</a> with “security” in the subject. Include the affected version or commit, steps to reproduce, and the impact as you see it. We will reply to confirm receipt and agree a disclosure date with you once there is a fix. The security model is described on the <a href="/en/security/">Security</a> page.</p>
