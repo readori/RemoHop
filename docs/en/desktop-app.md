@@ -12,7 +12,9 @@ One window to connect to your other computers and to let someone connect to this
 |---|---|
 | ![Connect with a saved computer that is online](../img/desktop-connect-en.png) | ![A connected computer open in the window, with the Desktop, Terminal, Files, Clipboard and Info tabs](../img/desktop-host-tab-en.png) |
 
-The sidebar on the left has **Home**, **Connect** and **Sessions**, then every computer open in the window, then **Settings** and this computer's status. In a narrow window, or with the button beside the logo, it folds into a column of icons.
+The sidebar on the left has **Home**, **Connect** and **Sessions**, then every computer open in the window, then **Guide**, **Settings** and this computer's status. In a narrow window, or with the button beside the logo, it folds into a column of icons.
+
+**Guide** is the app's own user guide, in the app's language and available offline: getting started on each system, connecting, letting others connect, the remote desktop, Quick Support and what to do about common messages. F1 opens it, and so does *More in the guide* in the box that each ⓘ in the app opens. The screens themselves carry no fine print: an explanation stays behind its ⓘ until you click it.
 
 ## First start
 
@@ -38,7 +40,7 @@ Each computer opens **in the window**, listed in the sidebar under *Open compute
 
 ## Settings
 
-The rendezvous server, the language (Chinese, English or the system's), light or dark (or the system's), and **Start RemoHop when I sign in** (it starts in the tray, without its window).
+The rendezvous server, the language (Chinese, English or the system's), light or dark (or the system's), and **Start automatically** (RemoHop starts in the tray when you sign in, without its window).
 
 ## Updates
 
