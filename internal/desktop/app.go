@@ -19,6 +19,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/signal"
@@ -77,6 +78,9 @@ type Config struct {
 	UpdateKeys    []ed25519.PublicKey
 	UpdateRestart func(update.Plan) error
 	UpdatePlan    *update.Plan // what an upgrade replaces (tests); default: this program
+	// FFmpeg finds and installs the ffmpeg screen sharing needs; nil
+	// means the real one.
+	FFmpeg *ffmpeg.Installer
 }
 
 // Hooks are how the window shell learns what needs the user's attention.
@@ -131,6 +135,8 @@ type App struct {
 	peersErr   string
 
 	upd updateInfo
+
+	ffmpeg *ffmpeg.Installer
 }
 
 // NewApp loads the settings. Start brings things up.
@@ -162,6 +168,11 @@ func NewApp(cfg Config) (*App, error) {
 		a.upd.method, a.upd.plan, a.upd.planOK = update.Method{Kind: update.KindDownload}, *cfg.UpdatePlan, true
 	}
 	a.ctx, a.cancel = context.WithCancel(context.Background())
+	a.ffmpeg = cfg.FFmpeg
+	if a.ffmpeg == nil {
+		a.ffmpeg = &ffmpeg.Installer{}
+	}
+	a.ffmpeg.OnChange = a.wake
 	return a, nil
 }
 
@@ -346,6 +357,8 @@ func (a *App) SetIncoming(on bool) error {
 		return err
 	}
 	if on {
+		// Look for ffmpeg afresh: it may have been installed meanwhile.
+		a.ffmpeg.Refresh()
 		a.startHost()
 	} else {
 		a.stopHost()
@@ -895,6 +908,9 @@ type State struct {
 	Trusted  []TrustedDevice `json:"trusted"`
 	Timeout  int             `json:"ask_timeout"`
 	Update   UpdateState     `json:"update"`
+	// FFmpeg: whether screen sharing lacks ffmpeg, and its one-click
+	// install (InstallFFmpeg).
+	FFmpeg ffmpeg.UIState `json:"ffmpeg"`
 }
 
 // ServerState is the rendezvous server choice.
@@ -992,7 +1008,19 @@ func (a *App) State() State {
 	}
 	st.Incoming = in
 	st.Update = a.updateState()
+	st.FFmpeg = a.ffmpeg.State()
 	return st
+}
+
+// InstallFFmpeg downloads and installs the ffmpeg that screen sharing
+// needs, in the background; State.FFmpeg follows it. Sessions that start
+// after it has finished can share the screen.
+func (a *App) InstallFFmpeg() error {
+	if err := a.ffmpeg.Start(a.ctx); err != nil {
+		return Errorf("ffmpeg", err.Error())
+	}
+	a.log.Info("installing ffmpeg for screen sharing")
+	return nil
 }
 
 func featureSet(fs []perm.Feature) map[perm.Feature]bool {

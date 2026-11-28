@@ -124,7 +124,25 @@ async function shot(page, name) {
     await step('noffmpeg');
     await page.waitForSelector('#noffmpeg:not([hidden])');
     check((await page.textContent('#noffmpeg')).includes('Screen sharing needs ffmpeg, which is not installed on this computer'), 'ffmpeg notice');
+    // ... and offers to install it, with its progress.
+    check((await page.textContent('#ffmpeg-install')) === 'Install screen sharing component (ffmpeg, about 119 MB)', 'install button');
+    check((await page.textContent('#ffmpeg-note')).includes('ffmpeg 9.1 from gyan.dev'), 'where ffmpeg comes from');
     await shot(page, 'quick-no-ffmpeg-en');
+    await page.click('#ffmpeg-install');
+    await waitLog(page, 'ffmpeg install');
+    await page.waitForSelector('#ffmpeg-install[disabled]');
+    check((await page.textContent('#ffmpeg-status')) === 'Downloading… 42%', 'download progress');
+    await step('ffmpegverify');
+    await page.waitForFunction(() => document.getElementById('ffmpeg-status').textContent === 'Checking the download…');
+    await step('ffmpegfail');
+    await page.waitForSelector('#ffmpeg-install:not([disabled])');
+    check((await page.textContent('#ffmpeg-status')).includes('The install did not work: downloading ffmpeg 9.1: github.com: HTTP 404'), 'failure shown');
+    // Switched off by an administrator: the notice, without the button.
+    await step('ffmpegoff');
+    await page.waitForSelector('#ffmpeg-install', { state: 'hidden' });
+    check(await page.isHidden('#ffmpeg-row'), 'no empty row');
+    check((await page.textContent('#ffmpeg-note')).includes('REMOHOP_FFMPEG_DOWNLOAD=off'), 'switched off');
+    // Installed: the notice goes.
     await step('ffmpeg');
     await page.waitForSelector('#noffmpeg', { state: 'hidden' });
 
@@ -140,6 +158,11 @@ async function shot(page, name) {
     check(await page.title() === 'RemoHop 快速协助', 'Chinese title');
     check((await page.textContent('#stop')) === '停止共享', 'Chinese stop button');
     check(await page.getAttribute('html', 'lang') === 'zh-CN', 'lang attribute');
+    await step('noffmpeg');
+    await page.waitForSelector('#noffmpeg:not([hidden])');
+    check((await page.textContent('#ffmpeg-install')) === '安装屏幕共享组件（ffmpeg，约 119 MB）', 'Chinese install button');
+    await shot(page, 'quick-no-ffmpeg-zh');
+    await step('ffmpeg');
     await page.close();
 
     await step('reset');

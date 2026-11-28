@@ -118,7 +118,20 @@ try {
   check(await p.waitFor(`/^\\d{3} \\d{3} \\d{3}$/.test(document.getElementById('in-id').textContent)`), 'switched on: the ID shows');
   const pw = await p.eval(`document.getElementById('in-pw').textContent`);
   check(pw.length >= 8, 'and the temporary password');
+  check(await p.eval(`document.getElementById('ff').hidden`), 'no ffmpeg notice while there is ffmpeg');
   await p.shot('computer');
+
+  // Without ffmpeg: a notice, and the one-click install with its progress.
+  await control('/ffmpeg/missing');
+  check(await p.waitFor(`!document.getElementById('ff').hidden`), 'no ffmpeg: the notice shows');
+  check(await p.eval(`document.getElementById('ff-install-t').textContent`) === 'Install screen sharing component (ffmpeg, about 119 MB)', 'the install button');
+  check(await p.eval(`document.getElementById('ff-note').textContent.includes('ffmpeg 9.1 from gyan.dev')`), 'where it comes from');
+  await p.shot('computer-no-ffmpeg');
+  await p.eval(`document.getElementById('ff-install').click()`);
+  check(await p.waitFor(`document.getElementById('ff-status').textContent === 'Downloading… 50%' && document.getElementById('ff-install').disabled`), 'the download shows its progress');
+  await p.shot('computer-ffmpeg-installing');
+  await control('/ffmpeg/finish');
+  check(await p.waitFor(`document.getElementById('ff').hidden`), 'installed: the notice goes');
 
   // A helper asks: new device, scam warning, view only by default. Deny.
   control('/dial?name=Alex-Laptop');

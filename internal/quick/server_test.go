@@ -135,6 +135,13 @@ func (f *fake) Configure(mode, server string) error {
 	f.set(func(s *State) { s.Phase, s.Server = PhaseConnecting, server })
 	return nil
 }
+func (f *fake) InstallFFmpeg() error {
+	if err := f.call("ffmpeg install"); err != nil {
+		return err
+	}
+	f.set(func(s *State) { s.FFmpeg.Stage, s.FFmpeg.Percent, s.FFmpeg.Error = "downloading", 42, "" })
+	return nil
+}
 func (f *fake) Stop() {
 	f.call("stop")
 	f.set(func(s *State) { s.Phase = PhaseStopped })

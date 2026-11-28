@@ -262,6 +262,7 @@ func (s *Server) routes() {
 		}
 		return map[string]any{"path": path}, nil
 	})
+	post("/api/ffmpeg/install", func(*http.Request, req) (any, error) { return nil, a.InstallFFmpeg() })
 	post("/api/update/check", func(r *http.Request, _ req) (any, error) {
 		a.CheckUpdate(r.Context())
 		return nil, nil

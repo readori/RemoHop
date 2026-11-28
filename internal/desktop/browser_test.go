@@ -16,6 +16,7 @@ import (
 
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/dial"
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/signal"
@@ -43,12 +44,17 @@ func testSignal(t *testing.T) string {
 	return main.LocalAddr().String()
 }
 
-// startApp runs an App and its UI server on a fresh configuration.
-func startApp(t *testing.T, sig string) (*App, *Server) {
+// startApp runs an App and its UI server on a fresh configuration; adjust,
+// if any, changes its Config first.
+func startApp(t *testing.T, sig string, adjust ...func(*Config)) (*App, *Server) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("REMOHOP_CONFIG_DIR", dir)
-	app, err := NewApp(Config{Signal: sig, AskTimeout: 20 * time.Second, NoUpdateCheck: true})
+	cfg := Config{Signal: sig, AskTimeout: 20 * time.Second, NoUpdateCheck: true}
+	for _, f := range adjust {
+		f(&cfg)
+	}
+	app, err := NewApp(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +88,36 @@ func TestPageInBrowser(t *testing.T) {
 		t.Skip("no node")
 	}
 	sig := testSignal(t)
-	app, srv := startApp(t, "")
+	// ffmpeg as the page sees it: found until /ffmpeg/missing, then
+	// installed by a fake download that waits for /ffmpeg/finish.
+	var ffMu sync.Mutex
+	ffHave, ffFinish := true, make(chan struct{})
+	fakeFFmpeg := &ffmpeg.Installer{
+		Find: func() (ffmpeg.Found, error) {
+			ffMu.Lock()
+			defer ffMu.Unlock()
+			if ffHave {
+				return ffmpeg.Found{Path: "ffmpeg", Kind: ffmpeg.KindSystem}, nil
+			}
+			return ffmpeg.Found{}, ffmpeg.ErrNotFound
+		},
+		Pinned: func() (ffmpeg.Build, bool) {
+			return ffmpeg.Build{Version: "9.1", Source: "gyan.dev (release essentials build)", Size: 119467219}, true
+		},
+		Install: func(ctx context.Context, progress ffmpeg.Progress) (string, error) {
+			progress("downloading", 50, 100)
+			select {
+			case <-ffFinish:
+			case <-ctx.Done():
+				return "", ctx.Err()
+			}
+			ffMu.Lock()
+			ffHave = true
+			ffMu.Unlock()
+			return "ffmpeg", nil
+		},
+	}
+	app, srv := startApp(t, "", func(c *Config) { c.FFmpeg = fakeFFmpeg })
 
 	var mu sync.Mutex
 	result := ""
@@ -112,6 +147,14 @@ func TestPageInBrowser(t *testing.T) {
 				}
 				helper, result = c, "connected"
 			}()
+		case "/ffmpeg/missing":
+			ffMu.Lock()
+			ffHave = false
+			ffMu.Unlock()
+			fakeFFmpeg.Refresh()
+			app.wake()
+		case "/ffmpeg/finish":
+			close(ffFinish)
 		case "/result":
 			for i := 0; i < 100; i++ {
 				mu.Lock()

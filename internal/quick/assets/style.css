@@ -117,4 +117,8 @@ label.choice .grow { flex: 1; min-width: 0; }
 label.choice input[type=text] { margin-top: 8px; width: 100%; }
 .slow { margin: -4px 0 12px; }
 .notice { margin: 0 0 12px; padding: 10px 13px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); }
+.notice p { margin: 0; }
+.notice .ffrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.notice p + p { margin-top: 8px; }
+.notice .ffnote { font-size: .86rem; }
 #setupcancel { margin-left: 12px; }
