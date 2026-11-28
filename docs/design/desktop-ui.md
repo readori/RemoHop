@@ -40,6 +40,13 @@ CSS custom properties and vanilla JavaScript.
    body). It still works at 480 px wide.
 6. **Words with every colour.** A status dot always sits beside its words; a
    chip always has a label.
+7. **No fine print.** No small explanatory lines under buttons, cards,
+   tables, terminals, screenshots or headings, and no caveat paragraphs
+   between sections. Say it in the main copy, or leave it to the
+   documentation (`docs/`), where every detail already lives. When a screen
+   genuinely needs an explanation or a caveat, it stays closed until clicked:
+   the ⓘ **Help** button (`.help`) beside the thing it explains. The website
+   follows the same rule (`site/README.md`, "No fine print").
 
 ## Tokens
 
@@ -95,7 +102,7 @@ Menlo, Consolas, ...`. Semibold (600) for emphasis, never bold body text.
 | Card title | 15 / 22 | 600 | |
 | Section title | 16 / 24 | 600 | |
 | Body | 14 / 20 | 400 | |
-| Small | 12 / 16 | 400 | notes, sub-lines |
+| Small | 12 / 16 | 400 | secondary values (a CPU, a time), never explanations |
 | Micro-label | 11 / 16 mono, uppercase | 400-500 | letter-spacing 0.06em: eyebrows, column heads, settings groups, sidebar sections |
 
 ### Space, radius, elevation, motion

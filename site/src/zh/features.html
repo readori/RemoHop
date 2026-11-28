@@ -15,6 +15,7 @@
 </ul>
 
 <h2 id="session">一次会话的样子</h2>
+<p>ID 来自被控机的身份密钥，重启后不变；临时密码每次启动都重新生成。配对之后就不再需要密码。</p>
 <div class="pair">
 <figure>
 <p class="term-title">被控机</p>
@@ -25,7 +26,6 @@ RemoHop host ready
   Direct:    203.0.113.7:51820
   Identity:  7197:70c3:1130:65a3:9c97
 Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
-<figcaption>文档中的示例输出。ID 属于主机的身份密钥，重启后不变；临时密码每次启动都会重新生成。</figcaption>
 </figure>
 <figure>
 <p class="term-title">你的机器</p>
@@ -41,7 +41,6 @@ reply from 127.0.0.1:21118: seq=2 time=0.68 ms
 <span class="p">$ </span>remohop dev shell -c 'uname -sm &amp;&amp; uptime'
 Linux x86_64
  23:01:39 up 19 min,  0 user,  load average: 0.35, 0.16, 0.23</code></pre>
-<figcaption>一次真实会话的输出，被控端和客户端在同一台 Linux 机器的回环地址上，所以用地址代替了 ID，延迟也不代表真实网络。</figcaption>
 </figure>
 </div>
 
@@ -179,14 +178,13 @@ remohop log</code></pre>
 </div>
 
 <h2 id="web">在浏览器里用：<code>remohop web</code></h2>
-<p><code>remohop web</code> 在本机启动一个浏览器客户端，里面有远程桌面、终端、文件、剪贴板和系统信息。默认只监听 <code>127.0.0.1</code>，地址里带一个猜不到的令牌。Android 和 iOS 应用就是把这个网关放进了应用进程里，见<a href="{{L:apps}}">移动应用</a>。</p>
+<p><code>remohop web</code> 在本机启动一个浏览器客户端，里面有远程桌面、终端、文件、剪贴板和系统信息。默认只监听 <code>127.0.0.1</code>，地址里带一个猜不到的令牌。界面有简体中文和英文。Android 和 iOS 应用就是把这个网关放进了应用进程里，见<a href="{{L:apps}}">移动应用</a>。</p>
 <figure class="shot">
 <picture>
 <source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" loading="lazy" decoding="async" alt="remohop web 的“Desktop”标签页：页面中间显示远程 Linux 机器的屏幕，上面有两个终端窗口，一个列出项目文件，一个定时显示负载和磁盘用量；页面上方显示被控机名称 studio 和连接路径 direct。">
 </picture>
-<figcaption>桌面标签页的实际截图：Chromium 通过 <code>remohop web</code> 连接同一台机器回环地址上的 Linux 被控端（Xvfb 虚拟显示器，2560×1440）。截图里是英文界面，网页客户端也可以切换为简体中文。</figcaption>
 </figure>
 <figure class="shot">
 <picture>
@@ -194,9 +192,11 @@ remohop log</code></pre>
 <source type="image/webp" srcset="/assets/img/web-terminal-640.webp 640w, /assets/img/web-terminal-1120.webp 1120w, /assets/img/web-terminal-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <img src="/assets/img/web-terminal-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="remohop web 的“Terminal”标签页：一个名为 main 的持久终端会话，里面执行了 ls -l、uname 和 df 命令。">
 </picture>
-<figcaption>终端标签页，同一次会话。</figcaption>
 </figure>
-<p class="note warn">浏览器没法自己打洞，也不会说 RemoHop 的 QUIC 会话，所以 <code>remohop web</code> 这个进程才是真正的客户端：屏幕、按键、文件和你在页面里输入的主机密码，它都看得到。只使用你自己控制的网关。</p>
+<details class="fold">
+<summary>网关能看到什么</summary>
+<p>浏览器没法自己打洞，也不会说 RemoHop 的 QUIC 会话，所以 <code>remohop web</code> 这个进程才是真正的客户端：屏幕、按键、文件和你在页面里输入的主机密码，它都看得到。只使用你自己控制的网关。</p>
+</details>
 
 <h2 id="how">连接是怎么建立的</h2>
 <div class="diagram" tabindex="0" role="group" aria-label="连接示意图，可横向滚动">
@@ -274,7 +274,7 @@ remohop log</code></pre>
 <p>全部下载都在<a href="{{L:download}}">下载页</a>上：安装脚本，Linux、macOS 和 Windows 的压缩包，<code>.deb</code>/<code>.rpm</code>/<code>.apk</code> 软件包，以及快速协助程序，都列在带签名的 <code>SHA256SUMS</code> 里。在 Linux 和 macOS 上：</p>
 <pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
 sh install.sh</code></pre>
-<p>得到的是一个静态链接的程序，已经在 <code>PATH</code> 里。macOS 的下载已签名并经过公证，Windows 的下载尚未做代码签名。也可以从源码编译，见<a href="{{L:docs/building}}">从源码编译</a>。</p>
+<p>得到的是一个静态链接的程序，已经在 <code>PATH</code> 里。也可以从源码编译，见<a href="{{L:docs/building}}">从源码编译</a>。</p>
 <!--/rel-->
 <!--norel-->
 <!--src-->
@@ -304,4 +304,4 @@ make cross        <span class="c"># 可选：linux、macOS、Windows 各架构�
 <li>被控端重启后，shell 会话不会保留。</li>
 <li>手机作为被控端：真机上的屏幕采集和控制尚未测试；<span class="nobr">iPhone 和 iPad</span> 只能被观看。</li>
 </ul>
-<p>以上内容来自文档中的<a href="{{L:docs/platforms}}">平台支持与限制</a>一页，以那里的版本为准。遇到问题请看<a href="{{L:support}}">支持</a>。</p>
+<p class="links"><a href="{{L:docs/platforms}}">平台支持与限制</a> <a href="{{L:support}}">支持</a></p>

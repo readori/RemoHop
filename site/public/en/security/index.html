@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Security model | RemoHop</title>
 <meta name="description" content="What RemoHop protects and what it does not: end-to-end encryption, the CPace password-authenticated key exchange, host key pinning, rate limits, host access control, and the exceptions such as the browser gateway.">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -52,7 +52,10 @@
 <div class="wrap prose">
 <h1>Security model</h1>
 <p>This page summarises the <a href="/en/docs/security/">security model</a> reference document. It is written for people who run a host, people who connect to machines with <code>remohop</code>, and people who let an AI agent or a browser gateway use RemoHop. Where the two differ, that document is right.</p>
-<p class="note warn"><strong>RemoHop has not had an independent security audit.</strong> The mechanisms below are described from the code and its tests, and the limits are stated as they are.</p>
+<details class="fold">
+<summary>No independent security audit yet</summary>
+<p>RemoHop has not had an independent security audit. The mechanisms below are described from the code and its tests, and the limits are stated as they are.</p>
+</details>
 
 <h2 id="summary">In short</h2>
 <ul>

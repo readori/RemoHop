@@ -302,7 +302,7 @@
   .btn.glow:hover { box-shadow: 0 14px 40px -8px #4c6bffee; }
   .btn.ghost { background: #ffffff0a; border-color: #ffffff30; color: #e8ecff; }
   .btn.ghost:hover { background: #ffffff16; border-color: #7fe3ff99; }
-  .actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-block: 1.4rem 0; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; margin-block: 1.4rem 0; }
 
   .toc { font-size: 0.94rem; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 0.2rem 1.2rem; }
   .toc li { margin: 0; }
@@ -380,7 +380,9 @@
     animation: text-flow 9s linear infinite;
   }
   .home-hero .lede { color: var(--dark-ink-2); font-size: var(--fs-lede); max-inline-size: 34rem; margin-block: 1.3rem 0; }
-  .home-hero .meta { color: var(--dark-ink-3); font-size: 0.88rem; margin-block: 1.2rem 0; }
+  /* A row of short tags under the hero buttons: words, never sentences. */
+  ul.hero-tags { list-style: none; padding: 0; margin: 1.3rem 0 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .hero-tags li { margin: 0; padding: 0.12rem 0.7rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; color: var(--dark-ink-2); background: #ffffff0d; border: 1px solid #ffffff24; }
 
   .h-pill { margin: 0 0 1.3rem; }
   .h-pill a {
@@ -483,8 +485,6 @@
   @media (min-width: 48rem) { .home .cards { grid-template-columns: 1fr 1fr; } }
   .typing .caret { display: inline-block; inline-size: 0.55em; block-size: 1.05em; margin-inline-start: 0.15em; vertical-align: -0.15em; background: #7fe3ff; animation: blink 1s steps(2, jump-none) infinite; }
 
-  .status-note { max-inline-size: none; margin-block: clamp(2.2rem, 1.5rem + 2vw, 3rem) 0; font-size: 0.95rem; }
-
   .band { padding-block: var(--band-pad); }
   .band > h2, .band .wrap > h2 { margin-block: 0 1.2rem; font-size: var(--fs-section); }
   .band.alt { background: var(--surface); border-block: 1px solid var(--rule); }
@@ -559,8 +559,7 @@
   .ask-top .chip { background: #fdecea; color: #a72336; }
   .ask-q { margin: 0 0 0.35rem; font-size: 1.05rem; font-weight: 650; }
   .ask-q code { font-size: 0.95em; background: #eef1f8; }
-  .ask-why { margin: 0 0 0.45rem; font: 0.76rem/1.5 var(--mono); color: #a72336; background: #fdecea; border-radius: 8px; padding: 0.45rem 0.6rem; overflow-wrap: anywhere; }
-  .ask-card figcaption { font-size: 0.74rem; color: #566178; line-height: 1.4; }
+  .ask-why { margin: 0; font: 0.76rem/1.5 var(--mono); color: #a72336; background: #fdecea; border-radius: 8px; padding: 0.45rem 0.6rem; overflow-wrap: anywhere; }
   @media (max-width: 40rem) {
     /* Phones: long commands wrap inside the terminal, with continuation
        lines indented, rather than running off its right edge. */
@@ -579,8 +578,6 @@
     .grant-cmd { position: sticky; inset-block-start: 6rem; }
   }
   .grant-cmd { display: grid; gap: 1rem; }
-  .term-foot { margin: 0; padding: 0 1.1rem 0.95rem; color: #93a3c8; font-size: 0.84rem; line-height: 1.5; }
-  .term-foot code { background: #ffffff14; color: #dce5ff; }
   .term-win.light-edge { border-color: light-dark(#1c2647, #2a3762); box-shadow: var(--shadow); }
   .grant pre.term code { font-size: 0.86rem; line-height: 1.9; }
   ol.grant-notes { list-style: none; padding: 0; margin: 0; counter-reset: g; display: grid; gap: 0.7rem; }
@@ -598,7 +595,7 @@
   .panel h3 code { font-size: 0.9em; background: none; padding: 0; }
   .panel pre.cmd code { font-size: 0.8rem; }
   @media (min-width: 60rem) { .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .band > .note { margin-block: 1.4rem 0; }
+  .band > .fold { margin-block: 1.4rem 0; }
 
   /* ---- home: one tool (the screenshot and the list of what it does) ---- */
   .showcase { display: grid; gap: 2rem 3rem; margin-block: 1.6rem 1.4rem; align-items: start; }
@@ -617,9 +614,9 @@
   .caps span { display: block; color: var(--ink-2); font-size: 0.9rem; line-height: 1.5; margin-block-start: 0.15rem; }
 
   /* ---- home: trust ---- */
-  .trust { display: grid; gap: 1.2rem 2.5rem; margin-block: 0.4rem 1.4rem; }
+  .trust { display: grid; gap: 1.2rem; margin-block: 0.4rem 1.4rem; }
   .trust > * { min-inline-size: 0; margin: 0; }
-  @media (min-width: 60rem) { .trust { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); align-items: start; } }
+  @media (min-width: 60rem) { .trust ul.checks { max-inline-size: none; columns: 2; column-gap: 2.5rem; } .trust ul.checks li { break-inside: avoid; } }
   .trust ul.checks li { font-size: 0.96rem; margin-block: 0 0.8rem; }
   .note ul { margin: 0.4rem 0 0; padding-inline-start: 1.2em; }
   .note li { margin-block: 0.35rem; }
@@ -639,7 +636,6 @@
   .tier ul.checks { margin-block: 0 1.1rem; }
   .tier ul.checks li { font-size: 0.92rem; margin-block: 0.45rem; }
   .tier .btn { margin-block-start: auto; inline-size: 100%; }
-  .tier .sub { color: var(--ink-2); font-size: 0.85rem; margin: 0.6rem 0 0; }
   ul.promises { list-style: none; padding: 0; margin: 0 0 1.2rem; max-inline-size: none; display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; font-size: 0.94rem; font-weight: 600; }
   ul.promises li { margin: 0; display: flex; align-items: center; gap: 0.5rem; }
   ul.promises li::before { content: "✓"; display: grid; place-items: center; inline-size: 1.3rem; block-size: 1.3rem; border-radius: 6px; background: var(--ok-bg); color: var(--ok); font-weight: 800; font-size: 0.8rem; }
@@ -648,7 +644,6 @@
   .prose > .kicker + h1 { margin-block-start: 0.5rem; }
   .prose > .lede { font-size: var(--fs-lede); color: var(--ink-2); max-inline-size: 42rem; margin-block: 1.1rem 0; }
   .prose > .actions { margin-block: 1.4rem 0; }
-  .prose > .actions + .small { margin-block-start: 0.9rem; }
   .prose > h2 + .section-lede { margin-block: -0.3rem 1.2rem; }
   .feat-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); margin-block: 1.2rem 1.4rem; }
   .feat { background: var(--card-bg); border: 1px solid var(--card-line); border-radius: var(--radius); box-shadow: var(--card-shadow); padding: 1.1rem 1.2rem 1.15rem; min-inline-size: 0; }
@@ -709,14 +704,19 @@
   .compare td.no { color: var(--ink-2); }
   .compare .grp th { font: var(--label-font); letter-spacing: var(--label-track); text-transform: var(--label-case); color: var(--label-color); padding-block-start: 1.2rem; }
 
-  /* Questions and answers, no script. */
+  /* Questions and answers, no script. details.fold is the same thing on its
+     own: an explanation or caveat that opens on a click (site/README.md,
+     "No fine print"). */
   .faq { max-inline-size: var(--prose); margin-block: 0 1.2rem; }
-  .faq details { border-block-start: 1px solid var(--rule); }
-  .faq details:last-child { border-block-end: 1px solid var(--rule); }
-  .faq summary { cursor: pointer; font-weight: 650; padding-block: 0.75rem; min-block-size: 2.75rem; }
-  .faq summary::marker { color: var(--accent); }
-  .faq details > p { margin: 0 0 0.9rem; color: var(--ink-2); }
-  .faq details[open] summary { color: var(--accent); }
+  .faq details, details.fold { border-block-start: 1px solid var(--rule); }
+  .faq details:last-child, details.fold { border-block-end: 1px solid var(--rule); }
+  details.fold { max-inline-size: var(--prose); margin-block: 0 1.05rem; }
+  :is(.faq details, details.fold) > summary { cursor: pointer; font-weight: 650; padding-block: 0.75rem; min-block-size: 2.75rem; }
+  :is(.faq details, details.fold) > summary::marker { color: var(--accent); }
+  :is(.faq details, details.fold) > :not(summary) { margin: 0 0 0.9rem; color: var(--ink-2); }
+  :is(.faq details, details.fold) > ul { padding-inline-start: 1.2em; }
+  :is(.faq details, details.fold) li { margin-block: 0.35rem; }
+  :is(.faq details, details.fold)[open] > summary { color: var(--accent); }
 
   /* ---- how it works (/how-it-works/): the connection map and its cards ----
      One column on phones; the map becomes a three-column picture (server on
@@ -870,7 +870,6 @@
     .hiw-cards :is(tbody th.word, thead th) { white-space: normal; }
     .hiw-cards th, .hiw-cards td { padding-inline-end: 0.45rem; }
   }
-  .hiw-cards .small { margin-block: 0.8rem 0; }
   .hiw-cards ul.dots { font-size: 0.92rem; }
 
   ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; display: grid; gap: 0.5rem; }

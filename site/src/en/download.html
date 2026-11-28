@@ -4,9 +4,6 @@
 <p><strong>The first release is being prepared.</strong> RemoHop 1.0 will be published on GitHub Releases; until then the files below do not exist yet. They are listed so you know what to expect. Today you can <a href="{{L:docs/building}}">build RemoHop from source</a>.</p>
 </div>
 <!--/norel-->
-<!--rel-->
-<p>Every file is on <a href="{{REPO}}/releases/latest">GitHub Releases</a>; the links below always fetch the newest release. All of them are listed in its <code>SHA256SUMS</code>, which is signed (see <a href="#verify">Verify a download</a>).</p>
-<!--/rel-->
 <p>Most people want <a href="#quick">RemoHop</a>, the desktop app: one window to connect to your computers and to let others connect to this one. Someone who only needs help once takes <a href="#quick">Quick Support</a>, which runs without installing anything. Servers and scripts use <a href="#cli">the <code>remohop</code> program</a>; phones use the <a href="#mobile">apps</a>.</p>
 
 <h2 id="quick">RemoHop and Quick Support</h2>
@@ -22,27 +19,20 @@ sh install.sh</code></pre>
 <pre><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <h3>Archives</h3>
-<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>. Each archive also holds <code>LICENSE</code>, <code>NOTICE</code> and <code>THIRD_PARTY_LICENSES.txt</code>.</p>
+<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>.</p>
 {{DL:cli}}
 <h3>Linux packages</h3>
 <p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.1_amd64.deb</code>), so take them from the <!--rel--><a href="{{REPO}}/releases/latest">release page</a><!--/rel--><!--norel-->release page<!--/norel-->. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="{{L:docs/install}}">Install</a>.</p>
 
 <h2 id="channels">Package managers, store and container</h2>
-<p>The ones marked Available are live; the others are being set up, and each shows its command here once it is published.</p>
 {{DL:channels}}
 
 <h2 id="mobile">Phone apps</h2>
-<p>For Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can also be controlled if you allow it, and an iPhone or iPad can share its screen (view only).</p>
-<!--ios-->
+<p>For Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can also be controlled if you allow it, and an iPhone or iPad can share its screen (view only). See <a href="{{L:apps}}">Apps</a>.</p>
 <div class="actions">
-<a class="btn primary" href="{{APP_STORE}}">App Store (iPhone, iPad)</a>
-<!--play--><a class="btn" href="{{GOOGLE_PLAY}}">Google Play (Android)</a><!--/play-->
+<!--ios--><a class="btn primary" href="{{APP_STORE}}">App Store (iPhone, iPad)</a><!--/ios--><!--noios--><span class="chip wait">App Store: coming soon</span><!--/noios-->
+<!--play--><a class="btn" href="{{GOOGLE_PLAY}}">Google Play (Android)</a><!--/play--><!--noplay--><span class="chip wait">Google Play: coming soon</span><!--/noplay-->
 </div>
-<!--/ios-->
-<!--noplay-->
-<p><span class="chip wait">Google Play: coming soon</span></p>
-<p><!--ios-->The Android app has been submitted to Google Play for review; this section will link to it when it is available.<!--/ios--><!--noios-->Both apps have been submitted for review and are coming to the App Store and Google Play. This section will link to the stores when they are available.<!--/noios--> See <a href="{{L:apps}}">Apps</a> for what they do.</p>
-<!--/noplay-->
 
 <h2 id="verify">Verify a download</h2>
 <p>Every file of a release is listed in its <code>SHA256SUMS</code>. That file has a keyless cosign signature: it proves that this repository's release workflow made it, for that tag, and the signature is recorded in the public Sigstore log. Download <code>SHA256SUMS</code>, <code>SHA256SUMS.sigstore.json</code> and your files into one directory, then:</p>
@@ -50,7 +40,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
-<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. The macOS downloads are also signed with a Developer ID and notarized by Apple; the Windows programs are not code-signed yet. Details: <a href="{{L:docs/install}}#verifying-a-download">Install</a> and the <a href="{{L:security}}">security model</a>.</p>
+<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. Details: <a href="{{L:docs/install}}#verifying-a-download">Install</a> and the <a href="{{L:security}}">security model</a>.</p>
 
 <h2 id="source">Source code</h2>
 <p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="{{REPO}}">github.com/readori/RemoHop</a><!--rel-->, and each release page has the source of that version as an archive<!--/rel-->. To build it yourself, see <a href="{{L:docs/building}}">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="{{L:licensing}}">Licensing</a>.</p>

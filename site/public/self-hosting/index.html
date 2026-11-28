@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>自建汇合服务器与公共服务器 | RemoHop</title>
 <meta name="description" content="在一台小虚拟机上运行 remohop signal：端口、内存占用、中继、websocket 桥，以及面向公众提供中继时的限额、流量预算和运营者能看到的数据。">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -71,7 +71,10 @@ remohop signal --show-key</code></pre>
 sudo /usr/local/bin/remohop service install --role signal --relay --relay-ports 40000-40099
 remohop service status --role signal
 sudo remohop signal --show-key --data /var/lib/remohop-signal</code></pre>
-<p class="note">必须开放 UDP <code>21116</code>、<code>21117</code> 和中继端口范围，而且要在<strong>两处</strong>都开放：机器自己的防火墙，以及云厂商的安全列表（Oracle Cloud 的 security list、AWS 的 security group 等）。Cloudflare Tunnel 不转发 UDP，汇合服务器本身不能放到隧道后面。</p>
+<details class="fold">
+<summary>端口要在两处开放</summary>
+<p>必须开放 UDP <code>21116</code>、<code>21117</code> 和中继端口范围，而且要在<strong>两处</strong>都开放：机器自己的防火墙，以及云厂商的安全列表（Oracle Cloud 的 security list、AWS 的 security group 等）。Cloudflare Tunnel 不转发 UDP，汇合服务器本身不能放到隧道后面。</p>
+</details>
 
 <h2 id="clients">让客户端指向它</h2>
 <pre tabindex="0"><code>remohop config set signal HOST:PORT

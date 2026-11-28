@@ -15,6 +15,7 @@
 </ul>
 
 <h2 id="session">What a session looks like</h2>
+<p>The ID belongs to the host's identity key and survives restarts; the temporary password is new on every start. After pairing, no password is needed.</p>
 <div class="pair">
 <figure>
 <p class="term-title">the host</p>
@@ -25,7 +26,6 @@ RemoHop host ready
   Direct:    203.0.113.7:51820
   Identity:  7197:70c3:1130:65a3:9c97
 Connect with `remohop 276941009 &lt;command&gt;`.</code></pre>
-<figcaption>Sample output from the documentation. The ID belongs to the host's identity key and survives restarts. The temporary password is new on every start.</figcaption>
 </figure>
 <figure>
 <p class="term-title">your machine</p>
@@ -41,7 +41,6 @@ reply from 127.0.0.1:21118: seq=2 time=0.68 ms
 <span class="p">$ </span>remohop dev shell -c 'uname -sm &amp;&amp; uptime'
 Linux x86_64
  23:01:39 up 19 min,  0 user,  load average: 0.35, 0.16, 0.23</code></pre>
-<figcaption>Output of a real session with host and client on the loopback interface of one Linux machine. That is why it uses an address instead of an ID, and why the latency says nothing about a real network.</figcaption>
 </figure>
 </div>
 
@@ -179,14 +178,13 @@ remohop log</code></pre>
 </div>
 
 <h2 id="web">In a browser: <code>remohop web</code></h2>
-<p><code>remohop web</code> serves a browser client from your machine, with remote desktop, terminal, files, clipboard and system information. By default it listens only on <code>127.0.0.1</code> and its URL carries an unguessable token. The Android and iOS apps run this same gateway inside the app process; see <a href="{{L:apps}}">Apps</a>.</p>
+<p><code>remohop web</code> serves a browser client from your machine, with remote desktop, terminal, files, clipboard and system information. By default it listens only on <code>127.0.0.1</code> and its URL carries an unguessable token. Its interface is in English and Simplified Chinese. The Android and iOS apps run this same gateway inside the app process; see <a href="{{L:apps}}">Apps</a>.</p>
 <figure class="shot">
 <picture>
 <source type="image/avif" srcset="/assets/img/web-desktop-v2-640.avif 640w, /assets/img/web-desktop-v2-1280.avif 1280w, /assets/img/web-desktop-v2-1920.avif 1920w, /assets/img/web-desktop-v2-2640.avif 2640w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <source type="image/webp" srcset="/assets/img/web-desktop-v2-640.webp 640w, /assets/img/web-desktop-v2-1280.webp 1280w, /assets/img/web-desktop-v2-1920.webp 1920w, /assets/img/web-desktop-v2-2640.webp 2640w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <img src="/assets/img/web-desktop-v2-1280.png" width="1008" height="792" loading="lazy" decoding="async" alt="The Desktop tab of remohop web. The middle of the page shows the screen of a remote Linux machine with two terminal windows, one listing project files and one showing load and disk use every two seconds. Above the tabs the page shows the host, studio, and the connection path, direct.">
 </picture>
-<figcaption>An unedited capture of the Desktop tab: Chromium, through <code>remohop web</code>, connected to a Linux host on the loopback interface of the same machine (an Xvfb virtual display, 2560×1440).</figcaption>
 </figure>
 <figure class="shot">
 <picture>
@@ -194,9 +192,11 @@ remohop log</code></pre>
 <source type="image/webp" srcset="/assets/img/web-terminal-640.webp 640w, /assets/img/web-terminal-1120.webp 1120w, /assets/img/web-terminal-2240.webp 2240w" sizes="(min-width: 70rem) 62rem, calc(100vw - 32px)">
 <img src="/assets/img/web-terminal-1120.png" width="1120" height="700" loading="lazy" decoding="async" alt="The Terminal tab of remohop web: a persistent terminal session named main in which ls -l, uname and df have been run.">
 </picture>
-<figcaption>The Terminal tab, same session.</figcaption>
 </figure>
-<p class="note warn">A browser cannot hole-punch or speak RemoHop's QUIC session, so the <code>remohop web</code> process is the real client. It sees the screen, every keystroke, files, and any host password you type into the page. Use only a gateway you control.</p>
+<details class="fold">
+<summary>What the gateway can see</summary>
+<p>A browser cannot hole-punch or speak RemoHop's QUIC session, so the <code>remohop web</code> process is the real client. It sees the screen, every keystroke, files, and any host password you type into the page. Use only a gateway you control.</p>
+</details>
 
 <h2 id="how">How a connection is made</h2>
 <div class="diagram" tabindex="0" role="group" aria-label="Connection diagram, scrolls sideways">
@@ -275,7 +275,7 @@ remohop log</code></pre>
 <p>Every download is on the <a href="{{L:download}}">download page</a>: install scripts, archives for Linux, macOS and Windows, <code>.deb</code>/<code>.rpm</code>/<code>.apk</code> packages and the quick-support apps, all listed in a signed <code>SHA256SUMS</code>. On Linux and macOS:</p>
 <pre><code>curl -fsSLO https://github.com/readori/RemoHop/releases/latest/download/install.sh
 sh install.sh</code></pre>
-<p>The result is one statically linked binary on your <code>PATH</code>. The macOS downloads are signed and notarized; the Windows ones are not code-signed yet. You can also build from source; see <a href="{{L:docs/building}}">Building from source</a>.</p>
+<p>The result is one statically linked binary on your <code>PATH</code>. You can also build from source; see <a href="{{L:docs/building}}">Building from source</a>.</p>
 <!--/rel-->
 <!--norel-->
 <!--src-->
@@ -305,4 +305,4 @@ make cross        <span class="c"># optional: linux, macOS and Windows targets i
 <li>Shell sessions do not survive a restart of the host.</li>
 <li>Phones as hosts: screen capture and control on a real phone are not tested yet, and an iPhone or iPad can only be viewed.</li>
 </ul>
-<p>This list follows the <a href="{{L:docs/platforms}}">platform support and limitations</a> page of the documentation, which is the authoritative version. If something goes wrong, see <a href="{{L:support}}">Support</a>.</p>
+<p class="links"><a href="{{L:docs/platforms}}">Platform support and limitations</a> <a href="{{L:support}}">Support</a></p>

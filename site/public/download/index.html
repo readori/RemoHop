@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>下载 | RemoHop</title>
 <meta name="description" content="下载 RemoHop：给被协助的人用的快速协助程序（Windows、macOS、Linux），命令行程序 remohop 的压缩包、软件包和安装脚本，包管理器，手机应用，以及如何校验下载。">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -51,7 +51,6 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>下载 RemoHop</h1>
-<p>所有文件都在 <a href="https://github.com/readori/RemoHop/releases/latest">GitHub Releases</a> 上，下面的链接总是指向最新版本。每个文件都列在发布页的 <code>SHA256SUMS</code> 里，这个文件带有签名（见<a href="#verify">校验下载</a>）。</p>
 <p>大多数人需要 <a href="#quick">RemoHop</a> 桌面应用：一个窗口，连接你的电脑，也让别人连接这台电脑。只需要被帮一次的人，用<a href="#quick">快速协助</a>，无需安装。服务器和脚本用<a href="#cli">命令行程序 <code>remohop</code></a>；手机用<a href="#mobile">手机应用</a>。</p>
 
 <h2 id="quick">RemoHop 与快速协助</h2>
@@ -78,16 +77,16 @@ sh install.sh</code></pre>
 <pre tabindex="0"><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <h3>压缩包</h3>
-<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。每个压缩包里还有 <code>LICENSE</code>、<code>NOTICE</code> 和 <code>THIRD_PARTY_LICENSES.txt</code>。</p>
+<p>也可以自己解压，把 <code>remohop</code> 放进 <code>PATH</code>。</p>
 <div class="table-wrap dl" tabindex="0" role="region" aria-label="命令行程序下载">
 <table>
 <thead><tr><th scope="col">系统</th><th scope="col">文件</th></tr></thead>
 <tbody>
-<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_amd64.tar.gz"><code>remohop_linux_amd64.tar.gz</code></a><br><span class="small">静态链接</span></td></tr>
-<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_arm64.tar.gz"><code>remohop_linux_arm64.tar.gz</code></a><br><span class="small">静态链接</span></td></tr>
-<tr><td>macOS<br><span class="small">通用（Apple 芯片和 Intel）</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_darwin_universal.tar.gz"><code>remohop_darwin_universal.tar.gz</code></a><br><span class="small">Developer ID 签名，已公证</span></td></tr>
-<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_amd64.zip"><code>remohop_windows_amd64.zip</code></a><br><span class="small">尚未代码签名</span></td></tr>
-<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_arm64.zip"><code>remohop_windows_arm64.zip</code></a><br><span class="small">尚未代码签名</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_amd64.tar.gz"><code>remohop_linux_amd64.tar.gz</code></a></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_arm64.tar.gz"><code>remohop_linux_arm64.tar.gz</code></a></td></tr>
+<tr><td>macOS<br><span class="small">通用（Apple 芯片和 Intel）</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_darwin_universal.tar.gz"><code>remohop_darwin_universal.tar.gz</code></a></td></tr>
+<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_amd64.zip"><code>remohop_windows_amd64.zip</code></a></td></tr>
+<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_arm64.zip"><code>remohop_windows_arm64.zip</code></a></td></tr>
 </tbody>
 </table>
 </div>
@@ -95,7 +94,6 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <p>x86-64&nbsp;和&nbsp;ARM64 的 <code>.deb</code>、<code>.rpm</code>、<code>.apk</code>。文件名里带版本号（例如 <code>remohop_1.0.1_amd64.deb</code>），所以请到<a href="https://github.com/readori/RemoHop/releases/latest">发布页</a>下载。它们安装 <code>remohop</code> 和 systemd 单元，但不启用任何东西；<code>remohop service install</code> 让被控端开机自启。详见<a href="/docs/install/">安装</a>。</p>
 
 <h2 id="channels">包管理器、应用商店和容器</h2>
-<p>标着“可用”的渠道已经开通；其余的陆续开通，开通后这里会显示安装命令。</p>
 <div class="cards">
 <article class="panel">
 <p class="chip">可用</p>
@@ -142,12 +140,11 @@ scoop install remohop</code></pre>
 </div>
 
 <h2 id="mobile">手机应用</h2>
-<p>Android&nbsp;和&nbsp;iOS / iPadOS 应用：在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许后还能被控制，<span class="nobr">iPhone&nbsp;和&nbsp;iPad</span> 可以共享屏幕（只能观看）。</p>
+<p>Android&nbsp;和&nbsp;iOS / iPadOS 应用：在手机或平板上连接并操作你的电脑，断线自动重连。手机本身也能被远程：Android 经你允许后还能被控制，<span class="nobr">iPhone&nbsp;和&nbsp;iPad</span> 可以共享屏幕（只能观看）。见<a href="/apps/">移动应用</a>。</p>
 <div class="actions">
 <a class="btn primary" href="https://apps.apple.com/app/id6838609056">App Store（iPhone、iPad）</a>
+<span class="chip wait">Google Play 即将上架</span>
 </div>
-<p><span class="chip wait">Google Play 即将上架</span></p>
-<p>Android 应用已提交 Google Play 审核，上架后这里会链接到商店。应用能做什么，见<a href="/apps/">移动应用</a>。</p>
 
 <h2 id="verify">校验下载</h2>
 <p>发布版本里的每个文件都列在 <code>SHA256SUMS</code> 中。这个文件带有 cosign 无密钥签名：它证明文件出自本仓库针对该标签运行的发布工作流，签名记录在公开的 Sigstore 日志里。把 <code>SHA256SUMS</code>、<code>SHA256SUMS.sigstore.json</code> 和你下载的文件放在同一个目录，然后执行：</p>
@@ -155,7 +152,7 @@ scoop install remohop</code></pre>
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
-<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。macOS 的下载另外用 Developer ID 签名并经过 Apple 公证；Windows 程序尚未做代码签名。详见<a href="/docs/install/#校验下载">安装</a>和<a href="/security/">安全模型</a>。</p>
+<p>在 Windows 上，用 <code>Get-FileHash 文件名</code> 算出哈希，和 <code>SHA256SUMS</code> 里对应的一行比较。详见<a href="/docs/install/#校验下载">安装</a>和<a href="/security/">安全模型</a>。</p>
 
 <h2 id="source">源码</h2>
 <p>RemoHop 是以 GNU AGPL-3.0 发布的自由软件，完整源码在 <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>，每个发布页都附有该版本的源码压缩包。想自己编译，见<a href="/docs/building/">从源码编译</a>。AGPL 不适合的场景可以购买商业授权，见<a href="/licensing/">许可证</a>。</p>
