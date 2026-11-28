@@ -65,8 +65,8 @@ func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
 	if backend == "gdigrab" {
 		return gdigrabSpec(idx, fps, ddaErr)
 	}
-	spec := captureSpec{
-		input: []string{
+	dda := func(mouse int) []string {
+		return []string{
 			// ddagrab stamps its frames with a monotonic clock counted
 			// from its first frame, not with wall-clock time, so the host
 			// could not tell when a frame was captured: the viewers then
@@ -77,8 +77,12 @@ func discoverCaptureMonitor(display, fps int) (captureSpec, error) {
 			// and gdigrab give.
 			"-use_wallclock_as_timestamps", "1",
 			"-f", "lavfi",
-			"-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=1", idx, fps),
-		},
+			"-i", fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=%d", idx, fps, mouse),
+		}
+	}
+	spec := captureSpec{
+		input:     dda(1),
+		noCursor:  dda(0),
 		filter:    "hwdownload,format=bgra",
 		gpu:       func(e *encoder, w, h int) (string, bool) { return ddagrabGPUChain(idx, e, w, h) },
 		gpuFailed: func(e *encoder) { forgetGPUChain(idx, e) },
@@ -108,22 +112,33 @@ func gdigrabSpec(idx, fps int, why string) (captureSpec, error) {
 	}
 	d := ds[idx]
 	spec := captureSpec{
-		input: []string{
-			// No -thread_queue_size: gdigrab is not a threaded demuxer and
-			// ffmpeg rejects the option for it.
-			"-f", "gdigrab",
-			"-framerate", fmt.Sprint(fps),
-			"-draw_mouse", "1",
-			"-offset_x", fmt.Sprint(d.X), "-offset_y", fmt.Sprint(d.Y),
-			"-video_size", fmt.Sprintf("%dx%d", d.Width, d.Height),
-			"-i", "desktop",
-		},
-		x: d.X, y: d.Y, width: d.Width, height: d.Height,
+		input:    gdigrabInput(fps, d.X, d.Y, d.Width, d.Height, true),
+		noCursor: gdigrabInput(fps, d.X, d.Y, d.Width, d.Height, false),
+		x:        d.X, y: d.Y, width: d.Width, height: d.Height,
 	}
 	if why != "" {
 		spec.warning = "Windows: Desktop Duplication (ddagrab) does not work here (" + why + "); capturing with GDI (gdigrab), which uses more CPU"
 	}
 	return spec, nil
+}
+
+// gdigrabInput captures an area of the virtual desktop with GDI, with or
+// without the mouse pointer.
+func gdigrabInput(fps, x, y, w, h int, mouse bool) []string {
+	m := "0"
+	if mouse {
+		m = "1"
+	}
+	return []string{
+		// No -thread_queue_size: gdigrab is not a threaded demuxer and
+		// ffmpeg rejects the option for it.
+		"-f", "gdigrab",
+		"-framerate", fmt.Sprint(fps),
+		"-draw_mouse", m,
+		"-offset_x", fmt.Sprint(x), "-offset_y", fmt.Sprint(y),
+		"-video_size", fmt.Sprintf("%dx%d", w, h),
+		"-i", "desktop",
+	}
 }
 
 type ddaProbe struct {

@@ -1120,6 +1120,11 @@ func (p *providedSession) inject(ev InputEvent) {
 	if p.inErr != "" || p.sc.cfg.Input == nil {
 		return
 	}
+	if ev.Kind == InputMoveBy || ev.Rel {
+		// Relative input: a provided screen does not offer it (its Hello
+		// leaves Relative unset), and the native side would not know it.
+		return
+	}
 	if ev.Kind == InputReleaseAll {
 		p.sc.cfg.Input.ReleaseAll()
 		p.holding = false

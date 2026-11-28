@@ -190,3 +190,51 @@ func TestSetHostInputStopsTyping(t *testing.T) {
 		t.Fatalf("typed %d of %d characters", typed, len(text))
 	}
 }
+
+// Relative input (a pointer locked by the viewer) is input like any other:
+// it reaches the host while the session may control it, and nothing of it
+// does once the host's owner switches input off, or in a session without
+// input (view-only).
+func TestRelativeInputGated(t *testing.T) {
+	h, inj, client := inputSession(t)
+	roundTrip(t, h, client, Control{Type: InputMoveBy, DX: 3, DY: -2})
+	roundTrip(t, h, client, Control{Type: InputButton, Button: 0, Down: true, Rel: true})
+	ev, _, _ := inj.snapshot()
+	if len(ev) != 2 || ev[0].Kind != InputMoveBy || ev[0].DX != 3 || ev[0].DY != -2 || !ev[1].Rel {
+		t.Fatalf("relative input on a session with input: %+v", ev)
+	}
+	h.setHostInput(false)
+	roundTrip(t, h, client, Control{Type: InputMoveBy, DX: 3})
+	roundTrip(t, h, client, Control{Type: InputButton, Button: 0, Down: false, Rel: true})
+	if ev, _, _ := inj.snapshot(); len(ev) != 2 {
+		t.Fatalf("relative input reached the host after input was switched off: %+v", ev[2:])
+	}
+
+	viewOnly, _, client2 := inputSession(t)
+	viewOnly.injMu.Lock()
+	viewOnly.inj, viewOnly.inErr = nil, "view-only session"
+	viewOnly.injMu.Unlock()
+	roundTrip(t, viewOnly, client2, Control{Type: InputMoveBy, DX: 5}) // would panic on a nil injector
+}
+
+// Fractional relative movement adds up to whole pixels, and one huge
+// event is bounded.
+func TestMoveAcc(t *testing.T) {
+	var m moveAcc
+	sum := 0
+	for range 10 {
+		x, _ := m.steps(0.25, 0)
+		sum += x
+	}
+	if sum != 2 {
+		t.Errorf("ten moves of 0.25 gave %d pixels", sum)
+	}
+	if x, y := m.steps(1e9, -1e9); x != maxMoveBy || y != -maxMoveBy {
+		t.Errorf("a huge move gave %d,%d", x, y)
+	}
+	nan := 0.0
+	nan /= nan
+	if x, y := m.steps(nan, 1); x != 0 || y != 0 {
+		t.Errorf("NaN gave %d,%d", x, y)
+	}
+}
