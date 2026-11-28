@@ -219,7 +219,10 @@ func (v *viewer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Set("Content-Type", "text/html; charset=utf-8")
-		h.Set("Content-Security-Policy", fmt.Sprintf("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "+
+		// img-src data: is for the pointer's CSS cursor images, which the
+		// page makes itself (pointer.js); without it the browser shows its
+		// default arrow instead.
+		h.Set("Content-Security-Policy", fmt.Sprintf("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; "+
 			"connect-src 'self' ws://127.0.0.1:%d ws://localhost:%d; frame-ancestors 'none'; base-uri 'none'; form-action 'none'", v.port, v.port))
 		w.Write(viewerHTML)
 	case "ws":

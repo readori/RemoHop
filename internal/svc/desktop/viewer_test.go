@@ -67,7 +67,7 @@ func TestViewerHTTPAccess(t *testing.T) {
 		}
 		if c.want == 200 {
 			csp := resp.Header.Get("Content-Security-Policy")
-			if !strings.Contains(csp, "default-src 'none'") || !strings.Contains(csp, "frame-ancestors 'none'") {
+			if !strings.Contains(csp, "default-src 'none'") || !strings.Contains(csp, "frame-ancestors 'none'") || !strings.Contains(csp, "img-src data:;") {
 				t.Errorf("%s: CSP %q", c.name, csp)
 			}
 			if resp.Header.Get("Referrer-Policy") != "no-referrer" {
