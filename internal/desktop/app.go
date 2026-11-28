@@ -1028,6 +1028,7 @@ func (a *App) InstallFFmpeg() error {
 		return Errorf("ffmpeg", err.Error())
 	}
 	a.log.Info("installing ffmpeg for screen sharing")
+	a.serviceFFmpegToo()
 	return nil
 }
 
