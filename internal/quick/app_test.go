@@ -519,3 +519,36 @@ func TestSetupChoices(t *testing.T) {
 		t.Fatalf("server not stored: %s", b)
 	}
 }
+
+// Quick support answers LAN discovery only when there is no rendezvous
+// server: with one, the helper uses its ID and temporary password.
+func TestQuickLANDiscoveryOnlyWithoutServer(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		cfg      AppConfig
+		silenced bool
+	}{
+		{"no server", AppConfig{NoSignal: true}, false},
+		{"server", AppConfig{Signal: "127.0.0.1:9"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := tc.cfg
+			cfg.Dir = t.TempDir()
+			var got *bool
+			cfg.Host = func(hc *hostd.Config) {
+				hc.Listen, hc.Locals, hc.Control = "127.0.0.1:0", noLocals, false
+				v := hc.NoLANDiscovery
+				got = &v
+			}
+			a := NewApp(cfg)
+			a.Start()
+			t.Cleanup(a.Stop)
+			if got == nil {
+				t.Fatalf("the host was not configured: %+v", a.State())
+			}
+			if *got != tc.silenced {
+				t.Fatalf("NoLANDiscovery = %v, want %v", *got, tc.silenced)
+			}
+		})
+	}
+}

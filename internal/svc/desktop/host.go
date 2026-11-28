@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"log/slog"
 	"os/exec"
@@ -263,6 +264,9 @@ type encProc struct {
 	gpu     bool
 	// kf asks the encoder for key frames (nil: it takes a restart).
 	kf *keyForcer
+	// noCursor: the capture leaves the mouse pointer out, for a client
+	// that draws it (cursor.go).
+	noCursor bool
 
 	mu     sync.Mutex
 	reaped bool
@@ -338,6 +342,13 @@ type hostSession struct {
 	// capture area, which run owns) and to announce the change.
 	inputChanged chan struct{}
 
+	// The pointer drawn by the client (cursor.go). cursorAt is the
+	// captured area's top-left for the pointer loop; cursorFailed is how
+	// the loop says it cannot read the pointer (true: it cannot even
+	// start).
+	cursorAt     atomic.Pointer[image.Point]
+	cursorFailed chan bool
+
 	frames chan encFrame
 	exits  chan encExit
 	ctl    chan Control
@@ -410,6 +421,15 @@ type hostSession struct {
 	// gpuChain: the next encoder is fed by the capture's GPU chain
 	// (captureSpec.gpu); noGPU: that chain failed in this session.
 	gpuChain, noGPU bool
+	// cursorWant: the client draws the pointer (Options.Cursor, or the
+	// cursor control); cursorBroken: the pointer could not be read in
+	// this session, so it stays in the video; cursorArgs: the encoder
+	// whose arguments are being built leaves it out. cursorRun is the
+	// running pointer loop, cursor its tracker (which remembers the
+	// shapes the client has across loops).
+	cursorWant, cursorBroken, cursorArgs bool
+	cursorRun                            *cursorRun
+	cursor                               *cursorTracker
 
 	// Throughput of the current encoder over the current second (see
 	// fitAfter): frames, and the sum and count of capture-to-encoded
@@ -455,8 +475,11 @@ func newHostSession(ctx context.Context, s peer.Stream, opts Options, hostOff, f
 		viewOnly:     opts.ViewOnly,
 		hostOff:      hostOff,
 		inputChanged: make(chan struct{}, 1),
+		cursorFailed: make(chan bool, 1),
+		cursorWant:   opts.Cursor,
 	}
 	h.inputOff.Store(hostOff)
+	h.cursorAt.Store(&image.Point{spec.x, spec.y})
 	req := encRequest{forced: opts.Encoder, codec: opts.Codec, decode: opts.Decode}
 	h.enc, err = selectEncoder(ctx, ffmpeg, req)
 	if err != nil {
@@ -655,7 +678,12 @@ func (h *hostSession) argsFor(spec captureSpec) []string {
 	if h.enc.preInput != nil {
 		args = append(args, h.enc.preInput()...)
 	}
-	args = append(args, spec.input...)
+	h.cursorArgs = h.cursorWant && !h.cursorBroken && spec.noCursor != nil && spec.width > 0 && newCursorSource != nil
+	if h.cursorArgs {
+		args = append(args, spec.noCursor...)
+	} else {
+		args = append(args, spec.input...)
+	}
 	var chain []string
 	if h.kfArgs != nil {
 		// Passthrough filters: they go ahead of everything, the GPU chain
@@ -791,7 +819,7 @@ func (h *hostSession) startEncoder() error {
 	if kf != nil {
 		kf.start()
 	}
-	p := &encProc{gen: gen, cmd: cmd, done: make(chan struct{}), stderr: tail, bitrate: h.bitrate, fps: h.fps, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain, kf: kf}
+	p := &encProc{gen: gen, cmd: cmd, done: make(chan struct{}), stderr: tail, bitrate: h.bitrate, fps: h.fps, h264: h.enc.codec == codecH264, release: release, shared: shared, gpu: h.gpuChain, kf: kf, noCursor: h.cursorArgs}
 	h.lastRestart = time.Now()
 	h.restartAt, h.keyOnly = time.Time{}, false
 	if overlap {
@@ -808,6 +836,7 @@ func (h *hostSession) startEncoder() error {
 // its display.
 func (h *hostSession) setSpec(spec captureSpec) {
 	h.spec = spec
+	h.cursorAt.Store(&image.Point{spec.x, spec.y})
 	h.injMu.Lock()
 	h.ctlSpec = spec
 	if h.inj != nil {
@@ -959,6 +988,7 @@ func (h *hostSession) run() error {
 	defer func() {
 		h.stopEncoder()
 		h.cancel()
+		h.setCursorLoop(false)
 		<-h.wdone
 		// readControl may still deliver an event until the stream is
 		// closed; injMu orders it before or after this release.
@@ -999,6 +1029,8 @@ func (h *hostSession) run() error {
 			return h.werr
 		case <-h.inputChanged:
 			h.onInputChanged(time.Now())
+		case fatal := <-h.cursorFailed:
+			h.onCursorFailed(time.Now(), fatal)
 		case f := <-h.frames:
 			switch {
 			case h.next != nil && f.gen == h.next.gen:
@@ -1243,6 +1275,8 @@ func (h *hostSession) sendHello() bool {
 		Display: h.opts.Display, Displays: h.spec.displays, AllDisplays: h.spec.all,
 		Unsupported: unsupportedControls(inErr),
 		Generation:  h.gen,
+		Relative:    true,
+		Cursor:      h.proc != nil && h.proc.noCursor,
 	}
 	if h.enc.codec == codecH264 {
 		// Some encoders (Quick Sync among them) label 1440p60 with level
@@ -1267,6 +1301,7 @@ func (h *hostSession) sendHello() bool {
 		return false
 	}
 	h.helloGen = h.gen
+	h.setCursorLoop(hello.Cursor)
 	return true
 }
 
@@ -1697,6 +1732,11 @@ func (h *hostSession) onControl(c Control) {
 			h.onCongestion(now, false)
 		}
 		h.waitKey = true
+	case ctlCursor:
+		if c.On != h.cursorWant {
+			h.cursorWant = c.On
+			h.scheduleRestart(now)
+		}
 	case ctlConfig:
 		next := h.opts
 		if c.FPS != 0 {

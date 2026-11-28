@@ -216,6 +216,17 @@
         </form>
         <p class="err" id="c-err"></p>
       </section>
+      <!-- computers on this network that answered discovery (lan.go) -->
+      <div class="sec-h">
+        <h2 class="st"><span data-t="lan.title">On this network</span> <span class="count" id="lan-count" hidden></span> <button class="info" data-help="h-lan" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+      </div>
+      <p class="help" id="h-lan" hidden data-t="help.lan">Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.</p>
+      <section class="card table lan-card">
+        <div class="thead mono" id="lan-head" hidden><span data-t="col.name">Computer</span><span data-t="col.id">ID</span><span data-t="col.key">Key fingerprint</span><span></span></div>
+        <div class="peers" id="lan"></div>
+        <div class="empty" id="lan-empty"><span class="empty-ic"><svg class="i"><use href="#i-search"/></svg></span>
+          <div class="empty-t" id="lan-empty-t" data-t="lan.looking">Looking for computers on this network…</div><div class="muted small" data-t="lan.none.sub">A computer appears here while RemoHop runs on it with incoming connections on.</div></div>
+      </section>
       <div class="sec-h">
         <h2 class="st"><span data-t="c.saved">Saved computers</span> <span class="count" id="peers-count"></span> <button class="info" data-help="h-saved" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
         <div class="tools">

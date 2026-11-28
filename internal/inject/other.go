@@ -31,4 +31,5 @@ func (*Injector) TypeRune(rune) error                 { return errUnsupported() 
 func (*Injector) ReleaseAll() error                   { return nil }
 func (*Injector) Close() error                        { return nil }
 func (*Injector) MoveToF(float64, float64) error      { return errUnsupported() }
+func (*Injector) MoveBy(int, int) error               { return errUnsupported() }
 func (*Injector) PointerF() (float64, float64, error) { return 0, 0, errUnsupported() }

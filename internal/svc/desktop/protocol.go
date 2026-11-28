@@ -22,10 +22,12 @@ import (
 //	  'S' JSON HostStats   about once a second
 //	  'P' JSON pong        answer to a ping, for clock-offset estimation
 //	  'R' JSON Reply       outcome of a control that carried an id
+//	  'C' JSON cursorMsg   the pointer's position, visibility and shape,
+//	                       only after a Hello with Cursor set (see below)
 //	  'E' JSON {"error"}   fatal error; the host closes the stream after it
 //	client -> host: wire JSON messages (Control)
-//	  ack, keyframe, behind, config, ping, input events, and the host
-//	  controls type, lock, block_input and blackout
+//	  ack, keyframe, behind, config, ping, cursor, input events, and the
+//	  host controls type, lock, block_input and blackout
 //
 // A request with Probe set is answered with one 'I' frame (JSON HostInfo)
 // and nothing is captured.
@@ -36,6 +38,27 @@ import (
 // window is full the host drops delta frames, waits for the backlog to drain
 // and then restarts from a key frame, so latency stays bounded on any link
 // and with any slow consumer instead of queueing without limit.
+//
+// The pointer. By default the host draws the mouse pointer into the video,
+// so it moves only as fast as frames come back. A client that draws the
+// pointer itself (the browser viewer, with a CSS cursor that moves at the
+// local mouse's own rate) asks with Options.Cursor. A host that can read
+// its pointer then leaves it out of the video, says so with Hello.Cursor,
+// and sends 'C' frames: the pointer's shape when it changes (an image sent
+// once per session and later named by its ID) and its position and
+// visibility when they change. A host that cannot (an older host, macOS,
+// the Windows service's console capture, a pointer it fails to read) keeps
+// drawing it and never sets Hello.Cursor; a client that did not ask gets
+// the pointer in the video as before. The "cursor" control turns it off
+// and on again mid-session (the viewer's recordings need the pointer in
+// the picture).
+//
+// Relative mouse. A host that sets Hello.Relative takes "move_by" input
+// events (the movement of a pointer locked by the client, for games and
+// 3D views) and buttons with Rel set, which act where the pointer is
+// instead of moving it first. Like every input event they need the
+// session to have input; an older host ignores them, so a client sends
+// them only to a host that says it takes them.
 
 // ServiceName is the peer service the host registers.
 const ServiceName = "desktop"
@@ -47,7 +70,9 @@ const (
 	framePong  = 'P'
 	frameReply = 'R'
 	frameInfo  = 'I'
-	frameError = 'E'
+	// frameCursor carries a cursorMsg (see "The pointer" above).
+	frameCursor = 'C'
+	frameError  = 'E'
 )
 
 // Video frame header layout (big-endian):
@@ -128,6 +153,10 @@ type Options struct {
 	Decode []string `json:"decode,omitempty"`
 	// Probe asks only for the host's HostInfo; see Probe.
 	Probe bool `json:"probe,omitempty"`
+	// Cursor says the client draws the mouse pointer itself: the host may
+	// then leave it out of the video and send its shape and position
+	// instead (Hello.Cursor says whether it does).
+	Cursor bool `json:"cursor,omitempty"`
 
 	// ManualAck makes the client application acknowledge frames itself
 	// with Session.Ack (the browser viewer acks after decoding). By default
@@ -269,6 +298,14 @@ type Hello struct {
 	Unsupported map[string]string `json:"unsupported,omitempty"`
 	// Generation counts encoder (re)starts.
 	Generation int `json:"generation"`
+	// Cursor is true when the video of this generation leaves the mouse
+	// pointer out and the host sends it in 'C' frames instead, for a
+	// client that asked with Options.Cursor. ScreenWidth and ScreenHeight
+	// are then set: cursor positions and images are in those pixels.
+	Cursor bool `json:"cursor,omitempty"`
+	// Relative is true when the host takes relative pointer movement
+	// (InputMoveBy) and buttons that act where the pointer is (Rel).
+	Relative bool `json:"relative,omitempty"`
 }
 
 // IsH264 reports whether the stream is H.264 (otherwise it is AV1).
@@ -343,6 +380,7 @@ type Control struct {
 	DX     float64 `json:"dx,omitempty"`
 	DY     float64 `json:"dy,omitempty"`
 	Code   string  `json:"code,omitempty"`
+	Rel    bool    `json:"rel,omitempty"`
 }
 
 // Control types.
@@ -354,6 +392,11 @@ const (
 	// ctlBehind: the consumer fell behind and is skipping to the next key
 	// frame. The host treats it like congestion.
 	ctlBehind = "behind"
+	// ctlCursor: On asks the host to leave the pointer out of the video
+	// and send it in 'C' frames (as Options.Cursor does at the start),
+	// off to draw it into the video again. The host restarts its encoder
+	// to apply it; the next Hello says what it does.
+	ctlCursor = "cursor"
 	// Host controls; each is answered with a Reply.
 	ctlType       = ControlType
 	ctlLock       = ControlLock
@@ -371,7 +414,14 @@ const (
 	InputWheel      = "wheel"       // DX, DY in notches (positive: right/down)
 	InputKey        = "key"         // Code, Down
 	InputReleaseAll = "release_all" // release every key/button held
+	// InputMoveBy moves the pointer by DX, DY host pixels from where it
+	// is, like a mouse (a pointer locked by the client). Only for a host
+	// whose Hello sets Relative.
+	InputMoveBy = "move_by"
 )
+
+// maxMoveBy bounds one relative move, in pixels on each axis.
+const maxMoveBy = 4096
 
 // InputEvent is one pointer or keyboard event.
 type InputEvent struct {
@@ -383,23 +433,28 @@ type InputEvent struct {
 	// 3 back, 4 forward.
 	Button int
 	Down   bool
-	// DX, DY are wheel notches; positive scrolls right/down.
+	// DX, DY are wheel notches (positive scrolls right/down), or for
+	// InputMoveBy the movement in host pixels (positive: right/down).
 	DX, DY float64
 	// Code is a DOM KeyboardEvent.code value such as "KeyA" or "ShiftLeft".
 	Code string
+	// Rel makes a button act where the pointer is, without moving it to
+	// X, Y first (a pointer locked by the client). Only for a host whose
+	// Hello sets Relative.
+	Rel bool
 }
 
 func (e InputEvent) control() Control {
-	return Control{Type: e.Kind, X: e.X, Y: e.Y, Button: e.Button, Down: e.Down, DX: e.DX, DY: e.DY, Code: e.Code}
+	return Control{Type: e.Kind, X: e.X, Y: e.Y, Button: e.Button, Down: e.Down, DX: e.DX, DY: e.DY, Code: e.Code, Rel: e.Rel}
 }
 
 func (c Control) input() InputEvent {
-	return InputEvent{Kind: c.Type, X: c.X, Y: c.Y, Button: c.Button, Down: c.Down, DX: c.DX, DY: c.DY, Code: c.Code}
+	return InputEvent{Kind: c.Type, X: c.X, Y: c.Y, Button: c.Button, Down: c.Down, DX: c.DX, DY: c.DY, Code: c.Code, Rel: c.Rel}
 }
 
 func isInput(t string) bool {
 	switch t {
-	case InputMove, InputButton, InputWheel, InputKey, InputReleaseAll:
+	case InputMove, InputButton, InputWheel, InputKey, InputReleaseAll, InputMoveBy:
 		return true
 	}
 	return false

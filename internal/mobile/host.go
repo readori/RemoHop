@@ -408,6 +408,9 @@ func StartHost() error {
 		Services:   phoneServices(screen),
 		Locals:     localAddrs,
 		Password:   ownHostPassword(d),
+		// Not on phones for now: iOS needs a multicast entitlement, and
+		// Android a multicast lock, for mDNS.
+		NoLANDiscovery: true,
 		Overrides: &hostd.Overrides{AskAll: true, TempPasswordOnly: true, Features: func() map[perm.Feature]bool {
 			return offeredFeatures()
 		}},
