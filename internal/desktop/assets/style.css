@@ -183,6 +183,9 @@ h3 { font-size: 14px; line-height: 20px; font-weight: 600; margin: 16px 0 8px; }
   color: var(--text-3); vertical-align: -5px; padding: 0; flex: none; }
 .info:hover, .info[aria-expanded="true"] { background: var(--hover); color: var(--text); }
 .info svg.i { width: 15px; height: 15px; }
+/* "More in the guide" at the end of an explanation */
+.help .glink { padding: 0 2px; font-size: 12px; line-height: 17px; vertical-align: baseline; }
+.help .glink svg.i { width: 13px; height: 13px; }
 
 /* ---- controls ---- */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--r-2);
@@ -286,7 +289,9 @@ button.chip:hover { border-color: var(--text-3); }
 .ffbox > svg.i { width: 18px; height: 18px; flex: none; margin-top: 1px; }
 .ffbox p { margin: 0; }
 .ffbox .ff-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; font-weight: 500; }
-.ffbox .note { margin-top: 6px; color: inherit; opacity: .85; }
+.ffbox #ff-note { margin-top: 6px; }
+.ffbox .help { margin: 8px 0 0; color: var(--text); }
+.ffbox .ff-row .info { color: inherit; }
 .off-note { display: flex; align-items: center; gap: 12px; padding: 18px 16px; border-radius: var(--r-3); border: 1px dashed var(--line-2); color: var(--text-2); background: var(--card-2); }
 .off-note svg.i { width: 20px; height: 20px; color: var(--text-3); }
 #in-addr { margin: 10px 0 0; }
@@ -373,7 +378,6 @@ svg.dm g:hover rect:not(.nd) { stroke: var(--text); stroke-width: 1; }
 .runbar i.on { background: var(--warn-fill); }
 .runbar i.on.low { background: var(--bad-fill); }
 .qfoot { color: var(--text-2); font-weight: 600; }
-.queue .card-f { justify-content: flex-start; font-size: 11px; }
 .sess { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .sess:first-child { border-top: 0; padding-top: 2px; }
 .sess .grow { min-width: 140px; }
@@ -415,7 +419,6 @@ button.item:hover, label.item:hover { background: var(--card-2); }
 .item[aria-expanded="true"] svg.chev { transform: rotate(90deg); }
 .group .sub { padding: 4px 16px 14px 60px; border-top: 1px solid var(--line); }
 .group .help.in { margin: 0 16px 12px 60px; }
-.gfoot { font-size: 12px; line-height: 16px; color: var(--text-2); margin: 8px 4px 0; }
 @media (max-width: 560px) { .item .val { max-width: 40%; } .group .sub { padding-left: 16px; } .group .help.in { margin-left: 16px; } }
 .item .lbl.row { flex-direction: row; align-items: center; }
 
@@ -432,6 +435,7 @@ dialog { border: 1px solid var(--line); padding: 0; border-radius: var(--r-4); b
   max-height: calc(100vh - 32px); box-shadow: var(--sh-3); }
 dialog::backdrop { background: var(--scrim); }
 .dlg { padding: 22px 24px 20px; overflow: auto; max-height: calc(100vh - 32px); }
+.dlg h2 .info { vertical-align: -3px; }
 .dlg h2 { font-size: 19px; line-height: 26px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 8px; overflow-wrap: anywhere; }
 .dlg .acts { display: flex; justify-content: flex-end; gap: 8px; margin: 20px -24px -20px; padding: 14px 24px; flex-wrap: wrap; border-top: 1px solid var(--line); background: var(--card-2); }
 .dlg-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 11px; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
@@ -463,6 +467,36 @@ dialog::backdrop { background: var(--scrim); }
 .steps { display: flex; gap: 6px; margin: 20px 0; }
 .steps i { height: 4px; flex: 1; border-radius: 2px; background: var(--line); }
 .steps i.on { background: var(--acc); }
+
+/* ---- the guide: contents beside the sections in wide windows, above
+   them otherwise ---- */
+.ph .search { flex: none; }
+.guide-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1000px; }
+.guide-toc { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-4); padding: 12px 14px; box-shadow: var(--sh-1); }
+.guide-toc ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 12px; }
+.guide-toc button { display: block; width: 100%; border: 0; background: none; padding: 6px 8px; border-radius: var(--r-2); color: var(--text-2); cursor: pointer; text-align: left; }
+.guide-toc button:hover { background: var(--hover); color: var(--text); }
+@media (min-width: 1100px) {
+  .guide-layout { grid-template-columns: 200px minmax(0, 760px); gap: 24px; }
+  .guide-toc { position: sticky; top: 12px; align-self: start; padding: 4px 0 0; background: none; border: 0; box-shadow: none; }
+  .guide-toc ol { grid-template-columns: 1fr; }
+}
+.guide-body { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.gsec { padding: 18px 22px 8px; scroll-margin-top: 16px; }
+.gsec h2 { font-size: 18px; line-height: 26px; font-weight: 600; letter-spacing: -.01em; margin: 0 0 8px; }
+.gsec h3 { font-size: 15px; line-height: 22px; margin: 18px 0 6px; scroll-margin-top: 16px; border-radius: var(--r-1); }
+.gsec h2:focus:not(:focus-visible), .gsec h3:focus:not(:focus-visible) { outline: none; }
+.gsec p { margin: 0 0 10px; max-width: 70ch; }
+.gsec ul, .gsec ol { margin: 0 0 10px; padding-left: 22px; max-width: 70ch; }
+.gsec li { margin: 4px 0; }
+.gsec li::marker { color: var(--text-3); }
+.gsec strong { font-weight: 600; }
+.gsec code { font: 13px/18px var(--mono); padding: 1px 5px; border-radius: 4px; background: var(--card-2); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.gsec .glink { display: inline; padding: 0; font-size: inherit; line-height: inherit; }
+.gnote { padding: 10px 12px; border-radius: var(--r-2); background: var(--warn-soft); color: var(--warn); }
+.gsec.hit { border-color: var(--acc-line); box-shadow: 0 0 0 3px var(--acc-soft); }
+.gsec h3.hit { background: var(--acc-soft); box-shadow: 0 0 0 4px var(--acc-soft); }
+#guide-nomatch { max-width: 760px; }
 
 /* ---- snackbar ---- */
 .snack { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--card); padding: 10px 16px;

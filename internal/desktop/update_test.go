@@ -240,6 +240,9 @@ func TestEditDeviceAndPages(t *testing.T) {
 	if u, _ := sitePage("telegram", "zh"); u != "https://t.me/remohop" {
 		t.Fatalf("telegram: %s", u)
 	}
+	if u, _ := sitePage("docs/ai-agents", "en"); u != "https://remohop.com/en/docs/ai-agents/" {
+		t.Fatalf("agents guide: %q", u)
+	}
 	if _, err := sitePage("https://evil.example", "en"); err == nil {
 		t.Fatal("an arbitrary page was accepted")
 	}
