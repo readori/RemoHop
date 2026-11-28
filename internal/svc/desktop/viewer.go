@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -37,7 +38,18 @@ import (
 // open, which could otherwise connect to localhost ports freely).
 
 //go:embed viewer.html
-var viewerHTML []byte
+var viewerPage []byte
+
+// PointerJS draws the host's pointer in a page and locks the mouse (see
+// pointer.js): the viewer has it inlined, and the web console serves it.
+// Read only.
+//
+//go:embed pointer.js
+var PointerJS []byte
+
+// viewerHTML is the page as served, with pointer.js inlined (the page's
+// Content-Security-Policy allows inline scripts only).
+var viewerHTML = bytes.Replace(viewerPage, []byte("/*remohop:pointer.js*/"), PointerJS, 1)
 
 type viewer struct {
 	conn  *peer.Conn

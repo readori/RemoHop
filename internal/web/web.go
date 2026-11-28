@@ -82,6 +82,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/readori/RemoHop/internal/svc/desktop"
 )
 
 //go:embed assets
@@ -521,6 +523,11 @@ func (s *Server) routes() *http.ServeMux {
 		b, _ := fs.ReadFile(assets, "index.html")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(b)
+	})
+	// The pointer drawn by the page, shared with the standalone viewer.
+	m.HandleFunc("GET /assets/pointer.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Write(desktop.PointerJS)
 	})
 	m.HandleFunc("GET /assets/{name}", func(w http.ResponseWriter, r *http.Request) {
 		r2 := r.Clone(r.Context())

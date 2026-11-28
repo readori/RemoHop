@@ -88,6 +88,8 @@
         <button type="button" id="d-fs" data-i18n="d.fs">Fullscreen</button>
         <button type="button" id="d-key" title="Ask the host for a fresh key frame" data-i18n-title="d.refresh.title" data-i18n="d.refresh">Refresh</button>
         <button type="button" id="d-cad" title="Send Ctrl+Alt+Del" data-i18n-title="d.cad.title">Ctrl+Alt+Del</button>
+        <button type="button" id="d-plock" aria-pressed="false" disabled title="Lock the mouse to the picture, for games and 3D apps (Ctrl+Alt+Shift+M; Esc releases it)" data-i18n-title="d.plock.title" data-i18n="d.plock">Lock mouse</button>
+        <button type="button" id="d-plauto" aria-pressed="false" title="When a remote app hides the pointer (a game), lock the mouse at the next click on the picture" data-i18n-title="d.plauto.title" data-i18n="d.plauto">Auto lock</button>
         <label class="vh" for="d-quality" data-i18n="d.quality">Quality</label>
         <select id="d-quality"><option value="0" data-i18n="d.q.native">Native size</option><option value="2160" data-i18n="d.q.max" data-i18n-vars='{"p":2160}'>Max 2160p</option><option value="1440" data-i18n="d.q.max" data-i18n-vars='{"p":1440}'>Max 1440p</option><option value="1080" data-i18n="d.q.max" data-i18n-vars='{"p":1080}'>Max 1080p</option><option value="720" data-i18n="d.q.max" data-i18n-vars='{"p":720}'>Max 720p</option><option value="480" data-i18n="d.q.max" data-i18n-vars='{"p":480}'>Max 480p</option></select>
         <label class="vh" for="d-fps" data-i18n="d.fps">Frame rate</label>
@@ -99,7 +101,9 @@
       </div>
       <div id="d-stage" class="stage">
         <canvas id="d-canvas" tabindex="0" width="16" height="9" aria-label="Remote desktop. Keyboard and mouse go to the remote machine while this has focus." data-i18n-aria-label="d.canvas"></canvas>
+        <canvas id="d-rcursor" width="1" height="1" hidden></canvas>
         <pre id="d-hud" class="hud" hidden></pre>
+        <div id="d-toast" class="dtoast" role="status" aria-live="polite" hidden></div>
         <div id="d-msg" class="overlay" role="status" aria-live="polite"></div>
         <div id="d-paused" class="paused" role="status" aria-live="polite" hidden></div>
         <button type="button" id="d-exitfs" class="exitfs" aria-label="Exit full screen" data-i18n-aria-label="d.exitfs" title="Exit full screen" data-i18n-title="d.exitfs"></button>
@@ -212,6 +216,7 @@
 <script src="assets/term_core.js"></script>
 <script src="assets/app.js"></script>
 <script src="assets/term.js"></script>
+<script src="assets/pointer.js"></script>
 <script src="assets/desktop.js"></script>
 <script src="assets/files.js"></script>
 </body>

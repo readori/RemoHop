@@ -149,3 +149,16 @@ func TestParseRate(t *testing.T) {
 		}
 	}
 }
+
+// The page is served with the shared pointer.js inlined: its Content-
+// Security-Policy allows inline scripts only.
+func TestViewerInlinesSharedJS(t *testing.T) {
+	s := string(viewerHTML)
+	for _, f := range []struct{ marker, def string }{
+		{"/*remohop:pointer.js*/", "window.RemoHopPointer = "},
+	} {
+		if strings.Contains(s, f.marker) || !strings.Contains(s, f.def) || !strings.Contains(string(viewerPage), f.marker) {
+			t.Errorf("%s is not inlined in the viewer page", f.marker)
+		}
+	}
+}
