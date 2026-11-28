@@ -12,7 +12,6 @@
 <h2 id="quick">RemoHop 与快速协助</h2>
 <p><strong>RemoHop</strong> 是<a href="{{L:docs/desktop-app}}">桌面应用</a>：在标签页里连接其他电脑，让别人连接这台电脑（每次连接都先问你），无人值守访问，托盘图标。<strong>快速协助</strong>给被协助的人：双击，把 9 位 ID 和临时密码念给协助者，点“允许”；关闭窗口即结束，不留任何安装。详见<a href="{{L:docs/quick-support}}">快速协助说明</a>。</p>
 {{DL:quick}}
-<p>在 macOS 上，第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限。双方要用同一台汇合服务器。</p>
 
 <h2 id="cli">命令行程序 <code>remohop</code></h2>
 <p>被控端、客户端、浏览器网关、汇合服务器和给 AI 代理用的 MCP 服务器，都在这一个静态链接的程序里。安装脚本会下载与你的系统和 CPU 对应的压缩包，用 <code>SHA256SUMS</code> 校验（如果装了 <a href="https://docs.sigstore.dev/cosign/system_config/installation/">cosign</a>，还会校验该文件的签名），然后把 <code>remohop</code> 复制到 <code>~/.local/bin</code> 或 <code>%LOCALAPPDATA%\Programs\RemoHop</code>。脚本从不使用 <code>sudo</code>。运行前请先读一遍。</p>
