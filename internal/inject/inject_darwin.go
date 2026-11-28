@@ -273,19 +273,59 @@ func (m *Injector) MoveToF(x, y float64) error {
 	if math.IsNaN(x) || math.IsNaN(y) || math.Abs(x) > 1e6 || math.Abs(y) > 1e6 {
 		return fmt.Errorf("pointer position %v,%v is out of range", x, y)
 	}
-	typ, btn := uint32(cgEventMouseMoved), uint32(0)
-	switch {
-	case m.buttons[Left]:
-		typ = cgEventLeftMouseDragged
-	case m.buttons[Right]:
-		typ, btn = cgEventRightDragged, 1
-	case m.buttons[Middle]:
-		typ, btn = cgEventOtherDragged, 2
-	}
+	typ, btn := m.moveType()
 	if err := m.post(cgEventCreateMouseEvent(0, typ, cgPoint{x, y}, btn)); err != nil {
 		return err
 	}
 	m.moved, m.movedAt = cgPoint{x, y}, time.Now()
+	return nil
+}
+
+// moveType is the event type of a move, and its button: while a button
+// is held a move is a drag of that button, which is what applications
+// expect.
+func (m *Injector) moveType() (typ, btn uint32) {
+	switch {
+	case m.buttons[Left]:
+		return cgEventLeftMouseDragged, 0
+	case m.buttons[Right]:
+		return cgEventRightDragged, 1
+	case m.buttons[Middle]:
+		return cgEventOtherDragged, 2
+	}
+	return cgEventMouseMoved, 0
+}
+
+// Delta fields of a mouse event (kCGMouseEventDeltaX, kCGMouseEventDeltaY).
+const (
+	cgMouseEventDeltaX = 4
+	cgMouseEventDeltaY = 5
+)
+
+// MoveBy moves the pointer by dx, dy points from where the system says it
+// is, and puts dx, dy in the event's delta fields: applications that hide
+// and freeze the cursor to read relative motion (games, 3D viewports) look
+// only at those.
+func (m *Injector) MoveBy(dx, dy int) error {
+	if tooFar(dx) || tooFar(dy) {
+		return fmt.Errorf("relative move %d,%d is out of range", dx, dy)
+	}
+	if dx == 0 && dy == 0 {
+		return nil
+	}
+	at := m.location()
+	to := cgPoint{at.X + float64(dx), at.Y + float64(dy)}
+	typ, btn := m.moveType()
+	ev := cgEventCreateMouseEvent(0, typ, to, btn)
+	if ev == 0 {
+		return errors.New("macOS refused to create the mouse event")
+	}
+	cgEventSetIntegerValueField(ev, cgMouseEventDeltaX, int64(dx))
+	cgEventSetIntegerValueField(ev, cgMouseEventDeltaY, int64(dy))
+	if err := m.post(ev); err != nil {
+		return err
+	}
+	m.moved, m.movedAt = to, time.Now()
 	return nil
 }
 

@@ -3,7 +3,6 @@ package desktop
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/readori/RemoHop/internal/svc/screenshot"
@@ -70,15 +69,9 @@ func allMonitorsSpec(ds []DisplayInfo, fps int) (captureSpec, error) {
 	}
 	w, h := maxX-minX, maxY-minY
 	return captureSpec{
-		input: []string{
-			"-f", "gdigrab",
-			"-framerate", fmt.Sprint(fps),
-			"-draw_mouse", "1",
-			"-offset_x", fmt.Sprint(minX), "-offset_y", fmt.Sprint(minY),
-			"-video_size", fmt.Sprintf("%dx%d", w, h),
-			"-i", "desktop",
-		},
-		x: minX, y: minY, width: w, height: h,
+		input:    gdigrabInput(fps, minX, minY, w, h, true),
+		noCursor: gdigrabInput(fps, minX, minY, w, h, false),
+		x:        minX, y: minY, width: w, height: h,
 		displays: ds,
 		all:      true,
 	}, nil

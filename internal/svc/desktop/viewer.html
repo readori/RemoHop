@@ -26,10 +26,12 @@ button.on{background:#7a2020;border-color:#c44}
 .up progress{width:100%;height:6px;display:block;margin-top:3px}
 .up.err{border-left:3px solid #e55}.up.ok{border-left:3px solid #5c5}
 .hidden{display:none!important}
+#rcursor{position:fixed;left:0;top:0;pointer-events:none;z-index:3}
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="screen" tabindex="0" width="16" height="9"></canvas></div>
+<canvas id="rcursor" class="hidden" width="1" height="1"></canvas>
 <div id="hud" class="hidden"></div>
 <div id="bar">
   <button id="bview" title="Stop or resume sending mouse and keyboard input">View only</button>
@@ -44,6 +46,8 @@ button.on{background:#7a2020;border-color:#c44}
   </select>
   <select id="sfkey" title="Ctrl+Alt+F-key (switch virtual terminal)"><option value="">Ctrl+Alt+F…</option></select>
   <button id="btype" title="Type text on the remote machine">Type</button>
+  <button id="bplock" title="Lock the mouse to the picture and send its movement, for games and 3D apps (Ctrl+Alt+Shift+M; Esc releases it)">Lock mouse</button>
+  <button id="bplauto" title="When a remote app hides the pointer (a game), lock the mouse at the next click on the picture">Auto lock</button>
   <button id="bclipsend" title="Send this machine's clipboard text to the remote clipboard">Send clipboard</button>
   <button id="bclipget" title="Copy the remote clipboard text to this machine's clipboard">Get clipboard</button>
   <button id="bup" title="Copy files to the Downloads folder of the remote machine (or drop them on the page)">Upload…</button>
@@ -108,6 +112,7 @@ button.on{background:#7a2020;border-color:#c44}
   const meta = new Map();           // chunk timestamp -> {seq, cap, arr}
   const pressed = new Set();        // DOM codes held down
   const buttons = new Set();        // mouse buttons held down
+  const swallowed = new Set();      // DOM codes of the page's own shortcuts, kept from the remote
   // Counters for the overlay (and for automated tests via window.remohop).
   const st = {decoded: 0, received: 0, skipped: 0, errors: 0, bytes: 0,
               fps: 0, mbps: 0, latency: 0, decodeMs: 0, host: null, rtt: 0,
@@ -115,6 +120,7 @@ button.on{background:#7a2020;border-color:#c44}
   window.remohop = {stats: () => ({...st, hello, decodable, recording, viewOnly,
                                   configured: !!decoder && decoder.state === 'configured'}),
                    audio: () => ({...au.s, on: au.on, muted: au.muted, ctxState: au.ctx ? au.ctx.state : 'none'}),
+                   cursor: () => cursorInfo(),
                    upload: files => uploadFiles([...files])};
 
   function message(text, canReconnect) {
@@ -201,7 +207,9 @@ button.on{background:#7a2020;border-color:#c44}
     ws.binaryType = 'arraybuffer';
     ws.onopen = async () => {
       const decode = await probeDecoders();
-      send({type: 'caps', decode});
+      // cursor: this page draws the remote pointer itself (see "The
+      // remote pointer" below).
+      send({type: 'caps', decode, cursor: true});
     };
     ws.onmessage = e => {
       if (typeof e.data === 'string') onText(JSON.parse(e.data));
@@ -210,6 +218,7 @@ button.on{background:#7a2020;border-color:#c44}
     };
     ws.onclose = () => {
       releaseAll();
+      cur.state = null; // the next session starts with a fresh state
       resetDecoder();
       audioReset();
       if (!ended) {
@@ -222,6 +231,7 @@ button.on{background:#7a2020;border-color:#c44}
   function onText(m) {
     switch (m.type) {
       case 'hello': onHello(m); break;
+      case 'cursor': onCursor(m); break;
       case 'audio_end':
         audioReset();
         au.wanted = false;
@@ -317,7 +327,8 @@ button.on{background:#7a2020;border-color:#c44}
   function updateControls(h) {
     canInput = h.input && !h.view_only;
     inputOK = canInput && !viewOnly;
-    canvas.style.cursor = inputOK ? 'none' : 'default';
+    if (cur.locked && (!inputOK || !h.relative)) document.exitPointerLock();
+    scheduleCursor();
     const un = h.unsupported || {};
     const gate = (id, name) => {
       const off = !inputOK || !!un[name];
@@ -325,7 +336,7 @@ button.on{background:#7a2020;border-color:#c44}
       if (un[name]) $(id).title = $(id).dataset.title + ' — unavailable: ' + un[name];
       else $(id).title = $(id).dataset.title + (canInput ? '' : ' — unavailable: ' + (h.input_error || 'view only'));
     };
-    for (const id of ['bup', 'bview', 'skeys', 'sfkey', 'btype', 'block', 'bblock', 'bblack', 'bclipsend', 'bclipget', 'squal', 'sdisp', 'brec']) {
+    for (const id of ['bup', 'bview', 'skeys', 'sfkey', 'btype', 'block', 'bblock', 'bblack', 'bclipsend', 'bclipget', 'squal', 'sdisp', 'brec', 'bplock']) {
       if (!$(id).dataset.title) $(id).dataset.title = $(id).title;
     }
     $('bview').disabled = !canInput;
@@ -337,6 +348,10 @@ button.on{background:#7a2020;border-color:#c44}
     gate('block', 'lock');
     gate('bblock', 'block_input');
     gate('bblack', 'blackout');
+    // Mouse lock needs a host that takes relative movement.
+    $('bplock').disabled = !inputOK || !h.relative;
+    $('bplock').title = $('bplock').dataset.title + (!canInput ? ' — unavailable: ' + (h.input_error || 'view only') :
+      !h.relative ? ' — unavailable: the remote RemoHop is too old for relative mouse movement' : '');
     const ds = h.displays || [];
     const sel = $('sdisp');
     sel.classList.toggle('hidden', ds.length < 2);
@@ -485,8 +500,248 @@ button.on{background:#7a2020;border-color:#c44}
     const s = Math.min(innerWidth / w, innerHeight / h);
     canvas.style.width = Math.floor(w * s) + 'px';
     canvas.style.height = Math.floor(h * s) + 'px';
+    scheduleCursor();
   }
   addEventListener('resize', layout);
+
+  // ---- The remote pointer. A host that can (hello.cursor) leaves its
+  // pointer out of the video and sends its shape, position and visibility
+  // instead. The page shows that shape as the picture's CSS cursor, which
+  // the browser moves at the mouse's own rate however long frames take to
+  // come back, scaled from host pixels to the picture's size on screen and
+  // sharp at the display's pixel ratio. It also draws the pointer where the
+  // host says it is (#rcursor) when the local one cannot stand for it: in a
+  // view-only session, while the mouse is outside the picture or locked,
+  // and after a remote application moved the pointer itself, until the
+  // mouse moves again. The local pointer is never moved: the page must not
+  // fight the hand. A hidden remote pointer (a game) hides the local one
+  // over the picture too, and the page offers to lock the mouse.
+  const cur = {
+    shapes: new Map(),   // id -> {w, h, hx, hy, bmp}; bmp is an ImageBitmap once decoded
+    css: new Map(),      // id@scale@ratio -> CSS cursor values
+    cssNow: null,
+    state: null,         // {id, x, y, visible}: host pixels from the captured area's top-left
+    inside: false,       // the mouse is over the picture
+    warped: false,       // the remote pointer is not where this page put it
+    sent: [],            // [{t, x, y}]: where this page recently put the pointer, host pixels
+    locked: false,       // the mouse is locked to the picture (Pointer Lock)
+    hiddenAt: 0,         // when the remote pointer was hidden, 0 while it shows
+    suggested: false,    // the lock was suggested for this hiding
+    suggestTimer: 0,
+    auto: false,         // Auto lock: the next click locks while the remote pointer is hidden
+    overlay: null, overlayKey: '', raf: 0,
+  };
+  // Shapes kept: more than the host remembers having sent
+  // (CursorShapesKept, 32), since it names those by ID only.
+  const maxShapes = 64;
+  try { cur.auto = localStorage.getItem('remohop.autolock') === '1'; } catch (e) { /* no storage */ }
+
+  function onCursor(m) {
+    for (const sh of m.shapes || []) {
+      const entry = {w: sh.width, h: sh.height, hx: sh.hot_x, hy: sh.hot_y, bmp: null};
+      cur.shapes.delete(sh.id);
+      cur.shapes.set(sh.id, entry);
+      if (cur.shapes.size > maxShapes) cur.shapes.delete(cur.shapes.keys().next().value);
+      createImageBitmap(new Blob([bytesOf(sh.png)], {type: 'image/png'}))
+        .then(b => { entry.bmp = b; scheduleCursor(); })
+        .catch(e => console.warn('pointer image', e));
+    }
+    const s = m.state;
+    if (!s) return;
+    if (!s.visible && !cur.hiddenAt) cur.hiddenAt = performance.now();
+    if (s.visible) { cur.hiddenAt = 0; cur.suggested = false; }
+    cur.warped = remoteMoved(s);
+    cur.state = s;
+    scheduleCursor();
+  }
+
+  // CSS pixels per host pixel.
+  function cursorScale() {
+    if (!hello || !hello.screen_width) return 1;
+    return canvas.getBoundingClientRect().width / hello.screen_width || 1;
+  }
+
+  // remoteMoved tells whether the pointer's new position is one this page
+  // did not put it at: an application (or someone at the host) moved it.
+  function remoteMoved(s) {
+    const prev = cur.state;
+    if (!prev || (prev.x === s.x && prev.y === s.y)) return cur.warped;
+    if (!inputOK || cur.locked) return false;
+    const now = performance.now();
+    cur.sent = cur.sent.filter(p => now - p.t < 1000 + st.rtt);
+    const tol = 2 + 1 / Math.max(cursorScale(), 0.01);
+    return !cur.sent.some(p => Math.abs(p.x - s.x) <= tol && Math.abs(p.y - s.y) <= tol);
+  }
+
+  // noteSent records where an absolute move puts the remote pointer (p in
+  // fractions of the picture, as sent).
+  function noteSent(p) {
+    if (!hello || !hello.cursor) return;
+    const w = hello.screen_width, h = hello.screen_height;
+    cur.sent.push({t: performance.now(), x: Math.round(p.x * (w - 1)), y: Math.round(p.y * (h - 1))});
+    if (cur.sent.length > 256) cur.sent.splice(0, cur.sent.length - 256);
+    if (cur.warped) { cur.warped = false; scheduleCursor(); }
+  }
+
+  function scheduleCursor() {
+    if (!cur.raf) cur.raf = requestAnimationFrame(() => { cur.raf = 0; applyCursor(); });
+  }
+
+  // The CSS cursor values that show shape sh at k CSS pixels per host
+  // pixel: plain, and sharp on a high-density display (image-set, where
+  // the browser takes it for cursors). Browsers ignore cursor images
+  // larger than 128 CSS pixels, so a large one is made smaller.
+  function cssFor(id, sh, k) {
+    k = Math.min(k, 128 / sh.w, 128 / sh.h);
+    const dpr = window.devicePixelRatio || 1;
+    const key = id + '@' + k.toFixed(3) + '@' + dpr;
+    let v = cur.css.get(key);
+    if (v) return v;
+    const cw = Math.max(1, Math.round(sh.w * k)), ch = Math.max(1, Math.round(sh.h * k));
+    const urlAt = (w, h) => {
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g2 = c.getContext('2d');
+      g2.imageSmoothingQuality = 'high';
+      g2.drawImage(sh.bmp, 0, 0, w, h);
+      return c.toDataURL('image/png');
+    };
+    const hx = Math.min(cw - 1, Math.round(sh.hx * k)), hy = Math.min(ch - 1, Math.round(sh.hy * k));
+    v = {plain: `url(${urlAt(cw, ch)}) ${hx} ${hy}, default`, sharp: ''};
+    if (dpr !== 1) {
+      const dw = Math.max(1, Math.round(cw * dpr)), dh = Math.max(1, Math.round(ch * dpr));
+      v.sharp = `image-set(url(${urlAt(dw, dh)}) ${dpr}x) ${hx} ${hy}, default`;
+    }
+    if (cur.css.size >= 64) cur.css.clear();
+    cur.css.set(key, v);
+    return v;
+  }
+
+  function setCss(v) {
+    if (cur.cssNow === v) return;
+    cur.cssNow = v;
+    if (typeof v === 'string') { canvas.style.cursor = v; return; }
+    canvas.style.cursor = v.plain;
+    if (v.sharp) canvas.style.cursor = v.sharp; // left as plain where the browser rejects it
+  }
+
+  function applyCursor() {
+    const on = !!(hello && hello.cursor);
+    const s = cur.state, k = cursorScale();
+    const sh = on && s && s.visible ? cur.shapes.get(s.id) : null;
+    if (!on) setCss(inputOK ? 'none' : 'default'); // the pointer is in the video
+    else if (!inputOK || !s) setCss('default');
+    else if (!s.visible) setCss('none');
+    else if (sh && sh.bmp) setCss(cssFor(s.id, sh, k));
+    else setCss('default');
+    const show = on && s && s.visible && (cur.locked || !inputOK || !cur.inside || cur.warped) &&
+      s.x >= 0 && s.y >= 0 && s.x < hello.screen_width && s.y < hello.screen_height;
+    drawOverlay(show ? s : null, sh && sh.bmp ? sh : null, k);
+    suggestLock();
+  }
+
+  // drawOverlay draws the remote pointer where the host says it is (s
+  // null: nowhere), with shape sh or a plain arrow.
+  function drawOverlay(s, sh, k) {
+    const o = $('rcursor');
+    if (!s) { o.classList.add('hidden'); cur.overlay = null; return; }
+    const dpr = window.devicePixelRatio || 1;
+    const kk = sh ? k : 1;
+    const w = sh ? sh.w : 12, h = sh ? sh.h : 19, hx = sh ? sh.hx : 0, hy = sh ? sh.hy : 0;
+    const cw = Math.max(1, Math.round(w * kk)), ch = Math.max(1, Math.round(h * kk));
+    const key = (sh ? s.id : 0) + '@' + cw + 'x' + ch + '@' + dpr;
+    if (cur.overlayKey !== key) {
+      cur.overlayKey = key;
+      o.width = Math.round(cw * dpr); o.height = Math.round(ch * dpr);
+      o.style.width = cw + 'px'; o.style.height = ch + 'px';
+      const g2 = o.getContext('2d');
+      g2.clearRect(0, 0, o.width, o.height);
+      if (sh) {
+        g2.imageSmoothingQuality = 'high';
+        g2.drawImage(sh.bmp, 0, 0, o.width, o.height);
+      } else {
+        const u = o.width / 12;
+        g2.beginPath();
+        [[0, 0], [0, 16], [4, 12.5], [7, 18], [9, 17], [6.5, 11.5], [11, 11.5]].forEach(([x, y], i) => i ? g2.lineTo(x * u + u / 2, y * u + u / 2) : g2.moveTo(x * u + u / 2, y * u + u / 2));
+        g2.closePath();
+        g2.fillStyle = '#000'; g2.fill();
+        g2.lineWidth = u; g2.strokeStyle = '#fff'; g2.stroke();
+      }
+    }
+    const r = canvas.getBoundingClientRect();
+    const x = r.left + s.x * k, y = r.top + s.y * k;
+    o.style.transform = `translate(${x - hx * kk}px, ${y - hy * kk}px)`;
+    o.classList.remove('hidden');
+    cur.overlay = {x, y, id: sh ? s.id : 0};
+  }
+
+  // suggestLock offers the mouse lock once the remote pointer has been
+  // hidden for a moment (a game hid it) while the mouse is over the
+  // picture.
+  function suggestLock() {
+    if (!cur.hiddenAt || cur.suggested || cur.locked || !cur.inside || !canLock()) return;
+    const wait = cur.hiddenAt + 500 - performance.now();
+    if (wait > 0) {
+      if (!cur.suggestTimer) cur.suggestTimer = setTimeout(() => { cur.suggestTimer = 0; scheduleCursor(); }, wait + 10);
+      return;
+    }
+    cur.suggested = true;
+    toast(cur.auto ? 'The remote app hid its pointer: click the picture to lock the mouse (Esc releases it)'
+                   : 'The remote app hid its pointer. For a game, lock the mouse: Lock mouse or Ctrl+Alt+Shift+M (Esc releases it)');
+  }
+
+  function cursorInfo() {
+    return {on: !!(hello && hello.cursor), css: canvas.style.cursor, state: cur.state, shapes: cur.shapes.size,
+            decoded: [...cur.shapes.values()].filter(s => s.bmp).length, overlay: cur.overlay,
+            locked: cur.locked, warped: cur.warped, inside: cur.inside, auto: cur.auto};
+  }
+
+  // Mouse lock (Pointer Lock) for games and 3D apps: the mouse's movement
+  // goes to the host as relative moves (move_by), its buttons without a
+  // position, and the local pointer disappears. Raw movement
+  // (unadjustedMovement) is asked for first, so this machine's pointer
+  // acceleration (macOS's in particular) does not add to the host's.
+  const canLock = () => !!(hello && hello.relative && inputOK && canvas.requestPointerLock);
+  function lockPointer() {
+    if (!canLock() || cur.locked) return;
+    canvas.focus();
+    const fail = e => toast('Cannot lock the mouse: ' + (e && e.message || e));
+    let p;
+    try { p = canvas.requestPointerLock({unadjustedMovement: true}); } catch (e) { fail(e); return; }
+    if (p && p.catch) {
+      p.catch(e => {
+        if (!e || e.name !== 'NotSupportedError') { fail(e); return; }
+        // No raw movement on this system: the plain lock.
+        let q;
+        try { q = canvas.requestPointerLock(); } catch (e2) { fail(e2); return; }
+        if (q && q.catch) q.catch(fail);
+      });
+    }
+  }
+  function toggleLock() {
+    if (cur.locked) document.exitPointerLock();
+    else lockPointer();
+  }
+  document.addEventListener('pointerlockchange', () => {
+    const was = cur.locked;
+    cur.locked = document.pointerLockElement === canvas;
+    if (cur.locked !== was) {
+      $('bplock').classList.toggle('on', cur.locked);
+      $('bplock').textContent = cur.locked ? 'Unlock mouse' : 'Lock mouse';
+      if (cur.locked) toast('The mouse is locked to the picture: Esc or Ctrl+Alt+Shift+M releases it');
+    }
+    scheduleCursor();
+  });
+  document.addEventListener('pointerlockerror', () => toast('The browser refused to lock the mouse'));
+  $('bplock').onclick = () => toggleLock();
+  function autoButton() { $('bplauto').classList.toggle('on', cur.auto); }
+  autoButton();
+  $('bplauto').onclick = () => {
+    cur.auto = !cur.auto;
+    try { localStorage.setItem('remohop.autolock', cur.auto ? '1' : '0'); } catch (e) { /* no storage */ }
+    autoButton();
+    canvas.focus();
+  };
 
   // Overlay
   function hud() {
@@ -506,7 +761,8 @@ button.on{background:#7a2020;border-color:#c44}
       `host: ${(h.fps || 0).toFixed(0)} fps  dropped ${h.dropped || 0}  encode ${(h.pipeline_ms || 0).toFixed(0)} ms` +
       `${h.restarts ? '  restarts ' + h.restarts : ''}${st.skipped ? '  skipped here ' + st.skipped : ''}\n` +
       (au.on ? `audio opus  buffer ${au.s.bufMs.toFixed(0)} ms  delay ${au.s.delayMs.toFixed(0)} ms  skew ${au.s.skewMs.toFixed(0)} ms${au.muted ? '  muted' : ''}\n` : '') +
-      (inputOK ? 'input on' : 'view only' + (viewOnly ? ' (toggled)' : hello.input_error ? ': ' + hello.input_error : ''));
+      (inputOK ? 'input on' : 'view only' + (viewOnly ? ' (toggled)' : hello.input_error ? ': ' + hello.input_error : '')) +
+      (hello.cursor ? '  pointer drawn here' : '  pointer in the video') + (cur.locked ? '  mouse locked' : '');
   }
   setInterval(hud, 500);
 
@@ -650,7 +906,10 @@ button.on{background:#7a2020;border-color:#c44}
   function syncButtons(e, mask) {
     const changed = mask ^ btnMask;
     if (!changed) return false;
-    const p = pos(e);
+    // A locked mouse has no position: its buttons act where the remote
+    // pointer is.
+    const p = cur.locked ? {rel: true} : pos(e);
+    if (!cur.locked) noteSent(p);
     bitButton.forEach((b, i) => {
       if (!(changed & (1 << i))) return;
       const down = !!(mask & (1 << i));
@@ -670,13 +929,31 @@ button.on{background:#7a2020;border-color:#c44}
   }
   canvas.addEventListener('pointermove', e => {
     if (!inputOK) return;
-    if (!syncButtons(e, maskOf(e, false))) send({type: 'move', ...pos(e)});
+    if (cur.locked) {
+      if (!syncButtons(e, maskOf(e, false)) && (e.movementX || e.movementY)) {
+        send({type: 'move_by', dx: e.movementX, dy: e.movementY});
+      }
+      return;
+    }
+    if (!cur.inside) { cur.inside = true; scheduleCursor(); }
+    if (syncButtons(e, maskOf(e, false))) return;
+    const p = pos(e);
+    noteSent(p);
+    send({type: 'move', ...p});
   });
+  canvas.addEventListener('pointerenter', () => { cur.inside = true; scheduleCursor(); });
+  canvas.addEventListener('pointerleave', () => { cur.inside = false; scheduleCursor(); });
   canvas.addEventListener('pointerdown', e => {
     canvas.focus();
     if (!inputOK) return;
     e.preventDefault();
-    canvas.setPointerCapture(e.pointerId);
+    // Auto lock: a click while the remote pointer is hidden locks the
+    // mouse, and is not passed on.
+    if (cur.auto && !cur.locked && cur.hiddenAt && hello && hello.cursor && canLock()) {
+      lockPointer();
+      return;
+    }
+    if (!cur.locked) canvas.setPointerCapture(e.pointerId);
     syncButtons(e, maskOf(e, true));
   });
   canvas.addEventListener('pointerup', e => {
@@ -709,6 +986,13 @@ button.on{background:#7a2020;border-color:#c44}
     e.preventDefault();
     e.stopPropagation();
     if (!e.code) return;
+    // The page's own shortcut, kept from the remote machine: Ctrl+Alt+
+    // Shift+M locks or releases the mouse.
+    if (e.code === 'KeyM' && e.ctrlKey && e.altKey && e.shiftKey) {
+      if (!e.repeat) toggleLock();
+      swallowed.add(e.code);
+      return;
+    }
     if (e.repeat && pressed.has(e.code) && noRepeat.has(e.code)) return;
     pressed.add(e.code);
     send({type: 'key', code: e.code, down: true});
@@ -716,7 +1000,7 @@ button.on{background:#7a2020;border-color:#c44}
   canvas.addEventListener('keyup', e => {
     if (!inputOK) return;
     e.preventDefault();
-    if (!e.code) return;
+    if (!e.code || swallowed.delete(e.code)) return;
     pressed.delete(e.code);
     send({type: 'key', code: e.code, down: false});
   });
@@ -724,6 +1008,7 @@ button.on{background:#7a2020;border-color:#c44}
   // the pointer) when focus leaves, so no key or button stays stuck down.
   function releaseAll() {
     btnMask = 0;
+    swallowed.clear();
     if (!pressed.size && !buttons.size) return;
     pressed.clear();
     buttons.clear();
