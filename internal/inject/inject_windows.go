@@ -185,6 +185,20 @@ func (w *Injector) MoveTo(x, y int) error {
 	return sendInputs([]winInput{mouse(mouseMove|mouseAbsolute|mouseVirtualDesk, int32(nx), int32(ny), 0)})
 }
 
+// MoveBy moves the pointer by dx, dy from where it is, as a mouse does:
+// SendInput without MOUSEEVENTF_ABSOLUTE. Windows applies the pointer speed
+// and "Enhance pointer precision" to such a move; applications that read
+// raw input (games) get dx, dy as they are.
+func (w *Injector) MoveBy(dx, dy int) error {
+	if dx < -1<<20 || dx > 1<<20 || dy < -1<<20 || dy > 1<<20 {
+		return fmt.Errorf("relative move %d,%d is out of range", dx, dy)
+	}
+	if dx == 0 && dy == 0 {
+		return nil
+	}
+	return sendInputs([]winInput{mouse(mouseMove, int32(dx), int32(dy), 0)})
+}
+
 // MoveToF is MoveTo for fractional coordinates (rounded: Windows
 // positions are whole pixels).
 func (w *Injector) MoveToF(x, y float64) error {
