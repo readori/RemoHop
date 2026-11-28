@@ -69,7 +69,8 @@
 </tbody>
 </table>
 </div>
-<p>左侧边栏依次是<strong>首页</strong>、<strong>连接</strong>和<strong>会话</strong>，然后是窗口中打开的每台电脑，最下面是<strong>设置</strong>和这台电脑的状态。窗口较窄时，或点标志旁的按钮，边栏会收成一列图标。</p>
+<p>左侧边栏依次是<strong>首页</strong>、<strong>连接</strong>和<strong>会话</strong>，然后是窗口中打开的每台电脑，最下面是<strong>使用说明</strong>、<strong>设置</strong>和这台电脑的状态。窗口较窄时，或点标志旁的按钮，边栏会收成一列图标。</p>
+<p><strong>使用说明</strong>是应用自带的用户指南，跟随应用的语言，离线也能看：各个系统上的第一步、连接电脑、让别人连接、远程桌面、快速协助，以及常见提示该怎么办。按 F1 可以打开它；应用里每个 ⓘ 打开的说明框末尾的“在使用说明中查看”也会打开相应的章节。界面上没有小字说明：解释都收在 ⓘ 后面，点了才显示。</p>
 <h2 id="第一次启动">第一次启动</h2>
 <p>应用会询问语言（或跟随系统）和<strong>汇合服务器</strong>，也就是按 ID 为电脑牵线的服务：官方服务器（<code>signal.remohop.com</code>）、你自己的服务器（见<a href="/docs/self-hosting/">自建</a>），或暂时不用。不用服务器时按地址（<code>主机:端口</code>）连接，这台电脑也可以在本地网络中按地址访问。之后可在“设置”中更改；它与 <code>remohop config set signal</code> 是同一个设置。</p>
 <p>这一页上有个选项可以立即允许别人连接；否则在你打开之前，别人都连不上。</p>
@@ -83,10 +84,10 @@
 <li><strong>屏幕共享需要这台电脑上有 ffmpeg。</strong>没有时，在“允许别人连接”打开期间，首页会提示（文件和命令仍可使用）；在 Windows&nbsp;和&nbsp;macOS 上还会提供 <strong>安装屏幕共享组件</strong>：点一下就下载 RemoHop 中固定的版本，校验其 SHA-256 并显示进度。见 <a href="/docs/remote-desktop/#屏幕共享与-ffmpeg">屏幕共享与 ffmpeg</a>。</li>
 <li><strong>每次连接都会询问。</strong>无论在哪个页面，都会弹出对话框：谁在请求（对方自称的名称、密钥和地址）、是否是<strong>新设备</strong>；对新设备还会提醒：<em>有人打电话自称客服、银行或警察，让你安装远程软件，那是诈骗。</em>被允许的设备<strong>只能看屏幕</strong>，除非你勾选“控制鼠标和键盘”或“传输文件、使用剪贴板”。一分钟内没人回答的请求会被拒绝。“记住这台设备”让它下次以相同权限直接连入（在允许连接打开时）；已记住的设备会列出来，可以移除。</li>
 <li><strong>会话</strong>页面显示等待回答的请求（以及各自剩余的时间），<strong>当前连接</strong>列出每台设备，带“控制”和“文件”开关（立即生效，收回的权限会结束正在使用它的操作）和“断开”。只能查看的设备可以从它那边请求更多权限，这里会再问你一次。有人连接时边栏的“会话”上有红点，屏幕右下角有一个小<strong>横幅始终显示在所有窗口之上</strong>，带“断开”按钮。</li>
-<li><strong>无人值守访问</strong>让这台电脑在没人时也能连上，开机即可用，使用你设定的强密码（至少 12&nbsp;个字符，包含三类字符）。它把 RemoHop 安装为服务（<a href="/docs/quick-start/"><code>remohop service install</code></a>）：在 Windows 上是 RemoHop 服务，还能显示登录界面和 UAC 提示；在 macOS&nbsp;和&nbsp;Linux 上是你用户账号的服务。首页上的开关开启时为绿色、关闭时为红色。<strong>无人值守 ID</strong>（在 Windows 上服务有自己的 ID，不是应用的 ID）和<strong>无人值守密码</strong>在<strong>设置 &gt; 无人值守 ID 与密码</strong>里查看；密码默认隐藏，点“显示”才出现，一分钟后自动隐藏。“连接”列出通过它连接的人（可断开），“修改密码”可更换密码。应用本身从不以管理员身份运行：在 Windows 上服务的状态只属于管理员，所以这些操作（开启或关闭、显示密码、查看连接、断开、设置新密码）都会在当时请求管理员授权。</li>
+<li><strong>无人值守访问</strong>让这台电脑在没人时也能连上，开机即可用，使用你设定的强密码（至少 12&nbsp;个字符，包含三类字符）。它把 RemoHop 安装为服务（<a href="/docs/quick-start/"><code>remohop service install</code></a>）：在 Windows 上是 RemoHop 服务，还能显示登录界面和 UAC 提示；在 macOS&nbsp;和&nbsp;Linux 上是你用户账号的服务。首页上的开关开启时为绿色、关闭时为红色。<strong>无人值守 ID</strong>（在 Windows 上服务有自己的 ID，不是应用的 ID）和<strong>无人值守密码</strong>在<strong>设置 &gt; 无人值守 ID 与密码</strong>里查看；密码默认隐藏，点“显示”才出现，一分钟后自动隐藏。“连接”列出通过它连接的人（可断开），“修改密码”可更换密码。应用本身从不以管理员身份运行：在 Windows 上服务的状态只属于管理员，所以这些操作（开启或关闭、显示密码、查看连接、断开、设置新密码）都会在当时请求管理员授权。在 Windows 上，服务不能使用你的 ffmpeg 副本，所以开启时如果服务没有 ffmpeg，会同时为它安装一份经过校验的副本；无人值守访问开着时，点<strong>安装屏幕共享组件</strong>也会这样做（见 <a href="/docs/remote-desktop/#屏幕共享与-ffmpeg">屏幕共享与 ffmpeg</a>）。</li>
 </ul>
 <h2 id="设置">设置</h2>
-<p>汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及<strong>登录时启动 RemoHop</strong>（启动后只在托盘中，不显示窗口）。</p>
+<p>汇合服务器、语言（中文、英文或跟随系统）、浅色或深色（或跟随系统），以及<strong>开机自动启动</strong>（登录后 RemoHop 只在托盘中启动，不显示窗口）。</p>
 <h2 id="更新">更新</h2>
 <p>应用启动后不久以及之后每天一次，从 <code>https://remohop.com/version.json</code> 读取最新的版本号（请求不带任何标识）。有更新的版本时，页面上方会出现一条提示，带<strong>下载</strong>（打开下载页）、<strong>更新内容</strong>（发布说明）和 ×（跳过这个版本）。用 Homebrew、Scoop、winget&nbsp;或&nbsp;Snap 安装的，提示里给出对应的升级命令（<code>brew upgrade --cask remohop-quick</code>、<code>scoop update remohop</code>、<code>winget upgrade RemoHop.RemoHop</code>、<code>sudo snap refresh remohop</code>）；用 .deb 或 .rpm 安装的，请用系统的包管理器升级。从官网下载、放在你有写权限的文件夹里的版本，还会有<strong>立即升级</strong>：应用从 GitHub 下载新版本，只有发布的签名校验和（用内置在 RemoHop 里的 Ed25519 公钥验证）与它一致、并且在 macOS 上由 RemoHop 开发者签名时才接受，然后替换自己并重启。有人连接着这台电脑时不会升级；不点这个按钮，应用不会下载或安装任何东西。</p>
 <p><strong>设置 &gt; 更新</strong>可以关闭每天的检查，也可以<strong>立即检查</strong>。管理员可以设置环境变量 <code>REMOHOP_NO_UPDATE_CHECK=1</code> 统一关闭。开着无人值守访问的电脑，升级后请把它关闭再打开一次，让服务运行新版程序。</p>

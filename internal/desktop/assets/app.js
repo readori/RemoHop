@@ -15,48 +15,50 @@
       'tab.home': 'Home', 'tab.sessions': 'Sessions', 'nav.main': 'Main menu', 'nav.open': 'Open computers',
       'nav.collapse': 'Collapse the sidebar', 'nav.expand': 'Expand the sidebar',
       'me.title': 'This computer', 'me.off': 'Not reachable', 'me.on': 'Reachable', 'wiz.eyebrow': 'First start',
-      'home.lead': 'This computer, who is connected to it, and the computers you reach.',
       'in.offnote': "Switch on to show this computer's ID and a password to give to whoever helps you.",
       'qc.title': 'Quick connect', 'qc.recent': 'Recently seen', 'qc.all': 'All saved computers', 'qc.none': 'Computers you connect to appear here.',
       'kpi.live': 'Connected now', 'kpi.live.s0': 'Nobody is connected', 'kpi.live.s': 'Control {c} · Files {f}',
       'kpi.queue': 'Needs you', 'kpi.queue.s0': 'Nobody is waiting', 'kpi.queue.s': 'Refused in {n} s without an answer',
       'kpi.saved': 'Saved computers', 'kpi.saved.s': '{n} online now', 'kpi.saved.s0': 'None saved yet',
       'link.sessions': 'Sessions', 'link.queue': 'Approval queue', 'link.connect': 'Address book',
-      'act.title': 'Activity', 'act.sub': 'Devices connected to this computer in the last hour', 'act.ago': '60 min ago', 'act.now': 'now',
+      'act.title': 'Activity', 'act.ago': '60 min ago', 'act.now': 'now',
       'act.since': 'recorded since {t}', 'act.none': 'Nobody has connected in the last hour.', 'act.tip': '{t}: {n} connected', 'act.nodata': '{t}: not recorded',
       'act.peak': 'Peak {n}',
       'c.eyebrow': 'Address book', 'c.lead': 'Type an ID, a name you gave a computer, or host:port.',
-      'c.none.sub': "The computers you connect to or pair with, and your account's devices, are listed here.",
       'f.all': 'All', 'c.search': 'Search saved computers', 'c.refresh': 'Check who is online', 'c.nomatch': 'No saved computer matches.',
       'col.name': 'Computer', 'col.platform': 'System', 'col.seen': 'Last seen online', 'col.id': 'ID', 'col.key': 'Key fingerprint',
       'lan.title': 'On this network', 'lan.looking': 'Looking for computers on this network…', 'lan.none': 'No computer on this network answered.',
-      'lan.none.sub': 'A computer appears here while RemoHop runs on it with incoming connections on.',
       'lan.saved': 'Saved as {t}', 'lan.conflict': 'Key changed', 'lan.err': 'Could not look at this network: {m}',
       'lan.conflict.tip': 'Its key is not the one saved for {t}: it may be another computer pretending to be it.',
       'help.lan': 'Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.',
-      'sess.eyebrow': 'Sessions and approvals', 'sess.lead': 'Who is waiting, who is connected, and who may come back without asking.',
-      'q.title': 'Needs you', 'q.none': 'Nothing needs you', 'q.none.sub': 'When someone asks to connect, the question appears in front of every window and waits here.',
-      'q.foot': 'Unanswered requests are refused after {n} s · Esc denies', 'q.open': 'Answer in the dialog', 'q.next': 'Waiting its turn',
-      'sess.none': 'Nobody is connected to this computer.', 'un.svc': 'Connections through unattended access are listed apart.',
-      'out.title': 'Computers open here', 'out.none': 'No computer is open.', 'out.none.sub': 'Computers you open from Connect show here and in the sidebar.',
+      'sess.eyebrow': 'Sessions and approvals',
+      'q.title': 'Needs you', 'q.none': 'Nothing needs you', 'q.open': 'Answer in the dialog', 'q.next': 'Waiting its turn',
+      'sess.none': 'Nobody is connected to this computer.',
+      'out.title': 'Computers open here', 'out.none': 'No computer is open.',
       'out.show': 'Show', 'out.connected': 'Connected', 'out.wait': 'Connecting…', 'out.closed': 'Not connected',
-      'tr.none': 'No remembered devices.', 'tr.none.sub': 'Tick "Remember this device" when you allow one, and it is let in next time without asking.',
-      'req.eyebrow': 'Connection request', 'set.eyebrow': 'Preferences', 'set.lead': 'How RemoHop works on this computer.',
+      'tr.none': 'No remembered devices.',
+      'req.eyebrow': 'Connection request', 'set.eyebrow': 'Preferences',
       'wiz.title': 'Welcome to RemoHop', 'wiz.lead': 'Connect to your computers, or let someone help you.',
       'wiz.server': 'Rendezvous server', 'wiz.incoming': 'Let others connect to this computer now (each connection asks me)', 'next': 'Next', 'back': 'Back', 'done': 'Done', 'save': 'Save', 'cancel': 'Cancel',
       'auto': 'Auto', 'copy': 'Copy', 'copied': 'Copied', 'allow': 'Allow', 'deny': 'Deny', 'saved': 'Saved',
-      'srv.official': 'Official server', 'srv.official.sub': 'Run by RemoHop, nothing to set up', 'srv.custom': 'My own server', 'srv.none': 'No server',
-      'srv.skip.sub': 'Only on the same network, by address',
-      'help.server': 'It introduces computers to each other by ID. Connections are end-to-end encrypted; the server never sees them.',
+      'srv.official': 'Official server', 'srv.custom': 'My own server', 'srv.none': 'No server',
+      'help.server': 'It introduces computers to each other by ID. The official server is run by RemoHop, with nothing to set up. Without a server, computers connect by address, on the same network. Connections are end-to-end encrypted; the server never sees them.',
+      'tab.guide': 'Guide', 'guide.eyebrow': 'Help', 'guide.open': 'User guide', 'guide.toc': 'Contents', 'guide.search': 'Search the guide',
+      'guide.more': 'More in the guide', 'guide.nomatch': 'Nothing in the guide matches.', 'guide.err': 'The guide could not be loaded: {m}',
+      'more': 'More about this', 'ff.about': 'About this download',
+      'help.act': 'How many devices were connected to this computer during the last hour, in steps of two minutes. Dashed squares are minutes this window did not see.',
+      'help.q': 'When someone asks to connect, the question comes in front of every window and waits here. A request nobody answers is refused after {n} s; Esc denies.',
+      'help.live': 'Control and Files change what each device may do, at once. Disconnect everyone ends every connection; so does switching off Allow incoming connections.',
+      'help.pw': 'A random password is made each time RemoHop starts, and New replaces it. Your own password stays until you change it: at least 8 characters, with letters and digits. Either way, every connection still asks you first.',
       'c.target': 'Computer ID or address', 'c.connect': 'Connect', 'c.saved': 'Saved computers', 'c.none': 'No saved computers yet.',
-      'help.saved': 'Computers you connected to or paired with. A paired computer needs no password.',
+      'help.saved': "Computers you connected to or paired with, and your account's devices. A paired computer needs no password.",
       'p.online': 'Online', 'p.offline': 'Offline', 'p.unknown': 'Unknown', 'p.paired': 'Paired', 'p.account': 'Account',
       'p.savedpw': 'Password saved', 'p.showpw': 'Show saved password', 'p.forgetpw': 'Delete saved password', 'p.pw.t': 'Saved password of {t}',
       'p.forgetpw.done': 'Saved password deleted', 'close': 'Close', 'pw.show': 'Show password', 'pw.hide': 'Hide password',
       'p.rename': 'Rename', 'p.wake': 'Wake up', 'p.mac': 'Wake-on-LAN address', 'p.forget': 'Forget', 'p.woke': 'Wake-up packet sent',
       'p.rename.t': 'Name for {t}', 'p.name': 'Name', 'p.mac.t': 'Wake-on-LAN for {t}', 'p.mac.l': 'MAC address (empty removes it)',
       'p.forget.q': 'Forget {t}? Its pairing is deleted.', 'p.more': 'More for {t}',
-      'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New', 'in.pwfixed': 'My own password', 'in.setpw': 'Password settings', 'pwm.title': 'Password for incoming connections', 'pwm.temp': 'A new random password', 'pwm.temp.sub': 'Made each time RemoHop starts; "New" replaces it whenever you like', 'pwm.fixed': 'My own password', 'pwm.fixed.sub': 'Stays the same until you change it; at least 8 characters, with letters and digits', 'pwm.note': 'Either way, every connection still asks you first.', 'pwm.saved': 'Password settings saved',
+      'in.allow': 'Allow incoming connections', 'in.id': 'ID', 'in.pw': 'Temporary password', 'in.new': 'New', 'in.pwfixed': 'My own password', 'in.setpw': 'Password settings', 'pwm.title': 'Password for incoming connections', 'pwm.temp': 'A new random password', 'pwm.fixed': 'My own password', 'pwm.saved': 'Password settings saved',
       'in.off': 'Off: nobody can connect', 'in.starting': 'Connecting to the server…', 'in.ready': 'Ready: every connection asks you',
       'in.offline': 'Offline: trying again…', 'in.noserver': 'No server: reachable by address on this network',
       'in.unreach': "Can't reach {s}. Check the address in Settings › Rendezvous server.", 'in.official': 'the official server', 'in.fix': 'Rendezvous server settings',
@@ -78,14 +80,14 @@
       'un.pwdone': 'Password changed', 'un.newpw': 'New password',
       'help.un': 'Reach this computer when nobody is at it, from start-up, with a strong password you choose. It runs as a background service.',
       'tr.title': 'Remembered devices', 'tr.rename': 'Rename this device', 'about.h': 'About', 'about.privacy': 'Privacy policy', 'about.terms': 'Terms of use', 'about.licensing': 'Licenses', 'about.support': 'Help and support', 'about.telegram': 'Telegram: @remohop', 'tr.forget': 'Forget', 'tr.control': 'control', 'tr.files': 'files', 'tr.view': 'view only',
-      'help.tr': 'These devices connect without asking, with the access you chose, while incoming connections are on.',
+      'help.tr': 'These devices connect without asking, with the access you chose, while incoming connections are on. Tick "Remember this device" when you allow one to add it here.',
       'req.title': '{d} wants to connect', 'req.title.access': '{d} asks for more', 'req.new': 'New device', 'req.known': 'Connected before',
       'req.scam': 'Did someone call you saying they are from support, your bank or the police, and ask you to install this? Deny. That is a scam.',
       'req.may': 'They may see your screen, and also:', 'req.control': 'Control the mouse and keyboard', 'req.files': 'Transfer files and use the clipboard',
       'req.remember': 'Remember this device', 'req.left': 'Refused in {n} s', 'req.device': 'Device', 'req.key': 'Key', 'req.from': 'From',
       'req.asks': 'Asks to:', 'req.input': 'control the mouse and keyboard', 'req.file': 'transfer files', 'req.clip': 'use the clipboard',
       'req.unknown': 'Unnamed device', 'req.title.action': '{d} asks to act under grant {g}', 'req.action': 'Wants to:',
-      'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start automatically', 'set.autostart': 'Start RemoHop when the computer starts (in the tray)',
+      'set.lang': 'Language', 'set.theme': 'Theme', 'set.light': 'Light', 'set.dark': 'Dark', 'set.start': 'Start automatically',
       'about': '{v} · {e}', 'about.app': 'About RemoHop', 'set.g.conn': 'Connection', 'set.g.general': 'General', 'set.g.support': 'Support', 'upd.version': 'Version', 'browser': 'browser window',
       'upd.title': 'RemoHop {v} is available', 'upd.how.download': 'You have {c}. Download the new version and replace this copy.',
       'upd.how.cmd': 'You have {c}. Upgrade with:', 'upd.how.package': "You have {c}. Upgrade it with your system's package manager.",
@@ -110,48 +112,50 @@
       'tab.home': '首页', 'tab.sessions': '会话', 'nav.main': '主菜单', 'nav.open': '已打开的电脑',
       'nav.collapse': '收起侧栏', 'nav.expand': '展开侧栏',
       'me.title': '这台电脑', 'me.off': '不可连接', 'me.on': '可连接', 'wiz.eyebrow': '首次启动',
-      'home.lead': '这台电脑、谁连着它，以及你要连接的电脑。',
       'in.offnote': '打开后会显示这台电脑的 ID 和密码，把它们告诉帮你的人。',
       'qc.title': '快速连接', 'qc.recent': '最近在线', 'qc.all': '全部已保存的电脑', 'qc.none': '连接过的电脑会出现在这里。',
       'kpi.live': '当前连接', 'kpi.live.s0': '没有人连接', 'kpi.live.s': '控制 {c} · 文件 {f}',
       'kpi.queue': '待你处理', 'kpi.queue.s0': '没有人在等待', 'kpi.queue.s': '{n} 秒内不回应将自动拒绝',
       'kpi.saved': '已保存的电脑', 'kpi.saved.s': '{n} 台在线', 'kpi.saved.s0': '还没有保存',
       'link.sessions': '会话', 'link.queue': '审批队列', 'link.connect': '通讯录',
-      'act.title': '活动', 'act.sub': '最近一小时连接到这台电脑的设备数', 'act.ago': '60 分钟前', 'act.now': '现在',
+      'act.title': '活动', 'act.ago': '60 分钟前', 'act.now': '现在',
       'act.since': '自 {t} 起记录', 'act.none': '最近一小时没有人连接。', 'act.tip': '{t}：{n} 个连接', 'act.nodata': '{t}：未记录',
       'act.peak': '峰值 {n}',
       'c.eyebrow': '通讯录', 'c.lead': '输入 ID、你给电脑起的名字，或 主机:端口。',
-      'c.none.sub': '你连接过、配对过的电脑，以及账号下的设备，都会列在这里。',
       'f.all': '全部', 'c.search': '搜索已保存的电脑', 'c.refresh': '刷新在线状态', 'c.nomatch': '没有匹配的电脑。',
       'col.name': '电脑', 'col.platform': '系统', 'col.seen': '最近在线', 'col.id': 'ID', 'col.key': '密钥指纹',
       'lan.title': '本网络中的电脑', 'lan.looking': '正在查找本网络中的电脑…', 'lan.none': '本网络中没有电脑应答。',
-      'lan.none.sub': '电脑上运行 RemoHop 并允许连接时，会出现在这里。',
       'lan.saved': '已保存为 {t}', 'lan.conflict': '密钥已变', 'lan.err': '无法查找本网络：{m}',
       'lan.conflict.tip': '它的密钥与为 {t} 保存的不同：可能是另一台电脑在冒充它。',
       'help.lan': '本网络中运行 RemoHop 并允许连接的电脑，无需服务器即可找到。“连接”使用它的地址；连接时照常核对它的密钥。',
-      'sess.eyebrow': '会话与审批', 'sess.lead': '谁在等待、谁已连接，以及谁可以不经询问再次连接。',
-      'q.title': '待你处理', 'q.none': '没有待处理的请求', 'q.none.sub': '有人请求连接时，问题会出现在所有窗口最前面，并在这里排队。',
-      'q.foot': '无人回应的请求 {n} 秒后自动拒绝 · Esc 拒绝', 'q.open': '请在对话框中回答', 'q.next': '排队中',
-      'sess.none': '没有人连接这台电脑。', 'un.svc': '通过无人值守访问的连接单独列出。',
-      'out.title': '在这里打开的电脑', 'out.none': '没有打开的电脑。', 'out.none.sub': '从“连接”打开的电脑会显示在这里和侧栏中。',
+      'sess.eyebrow': '会话与审批',
+      'q.title': '待你处理', 'q.none': '没有待处理的请求', 'q.open': '请在对话框中回答', 'q.next': '排队中',
+      'sess.none': '没有人连接这台电脑。',
+      'out.title': '在这里打开的电脑', 'out.none': '没有打开的电脑。',
       'out.show': '显示', 'out.connected': '已连接', 'out.wait': '正在连接…', 'out.closed': '未连接',
-      'tr.none': '没有已记住的设备。', 'tr.none.sub': '允许连接时勾选“记住这台设备”，下次它无需询问即可连接。',
-      'req.eyebrow': '连接请求', 'set.eyebrow': '偏好设置', 'set.lead': 'RemoHop 在这台电脑上的工作方式。',
+      'tr.none': '没有已记住的设备。',
+      'req.eyebrow': '连接请求', 'set.eyebrow': '偏好设置',
       'wiz.title': '欢迎使用 RemoHop', 'wiz.lead': '连接你的电脑，或者让别人帮你。',
       'wiz.server': '汇合服务器', 'wiz.incoming': '现在就允许别人连接这台电脑（每次连接都先问我）', 'next': '下一步', 'back': '上一步', 'done': '完成', 'save': '保存', 'cancel': '取消',
       'auto': '自动', 'copy': '复制', 'copied': '已复制', 'allow': '允许', 'deny': '拒绝', 'saved': '已保存',
-      'srv.official': '官方服务器', 'srv.official.sub': '由 RemoHop 运营，无需设置', 'srv.custom': '我自己的服务器', 'srv.none': '不用服务器',
-      'srv.skip.sub': '仅限同一网络，按地址连接',
-      'help.server': '它按 ID 为电脑牵线。连接是端到端加密的，服务器看不到内容。',
+      'srv.official': '官方服务器', 'srv.custom': '我自己的服务器', 'srv.none': '不用服务器',
+      'help.server': '它按 ID 为电脑牵线。官方服务器由 RemoHop 运营，无需设置。不用服务器时，只能在同一网络中按地址连接。连接是端到端加密的，服务器看不到内容。',
+      'tab.guide': '使用说明', 'guide.eyebrow': '帮助', 'guide.open': '使用说明', 'guide.toc': '目录', 'guide.search': '搜索使用说明',
+      'guide.more': '在使用说明中查看', 'guide.nomatch': '使用说明中没有匹配的内容。', 'guide.err': '无法载入使用说明：{m}',
+      'more': '了解更多', 'ff.about': '关于这个下载',
+      'help.act': '最近一小时内连接到这台电脑的设备数，每格两分钟。虚线方格是这个窗口没有看到的时间。',
+      'help.q': '有人请求连接时，问题会出现在所有窗口最前面，并在这里排队。{n} 秒内没人回答的请求会被自动拒绝；按 Esc 拒绝。',
+      'help.live': '“控制”和“文件”立即改变每台设备的权限。“全部断开”结束所有连接；关闭“允许别人连接”也一样。',
+      'help.pw': '随机密码在每次启动 RemoHop 时生成，“换一个”可以立即更换。你自己的密码一直不变，直到你修改：至少 8 位，包含字母和数字。无论哪种，每次有人连接都会先问你。',
       'c.target': '电脑 ID 或地址', 'c.connect': '连接', 'c.saved': '已保存的电脑', 'c.none': '还没有保存的电脑。',
-      'help.saved': '连接过或配对过的电脑。已配对的电脑不用再输密码。',
+      'help.saved': '连接过或配对过的电脑，以及账号下的设备。已配对的电脑不用再输密码。',
       'p.online': '在线', 'p.offline': '离线', 'p.unknown': '未知', 'p.paired': '已配对', 'p.account': '账号',
       'p.savedpw': '已保存密码', 'p.showpw': '查看保存的密码', 'p.forgetpw': '删除保存的密码', 'p.pw.t': '{t} 的保存密码',
       'p.forgetpw.done': '已删除保存的密码', 'close': '关闭', 'pw.show': '显示密码', 'pw.hide': '隐藏密码',
       'p.rename': '重命名', 'p.wake': '唤醒', 'p.mac': '网络唤醒地址', 'p.forget': '移除', 'p.woke': '已发送唤醒包',
       'p.rename.t': '为 {t} 命名', 'p.name': '名称', 'p.mac.t': '{t} 的网络唤醒', 'p.mac.l': 'MAC 地址（留空则删除）',
       'p.forget.q': '移除 {t}？它的配对会被删除。', 'p.more': '{t} 的更多操作',
-      'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个', 'in.pwfixed': '固定密码', 'in.setpw': '密码设置', 'pwm.title': '连接密码', 'pwm.temp': '随机密码', 'pwm.temp.sub': '每次启动 RemoHop 时自动生成，随时可点“换一个”', 'pwm.fixed': '我自己的固定密码', 'pwm.fixed.sub': '一直不变，直到你修改；至少 8 位，包含字母和数字', 'pwm.note': '无论哪种，每次有人连接都会先问你。', 'pwm.saved': '密码设置已保存',
+      'in.allow': '允许别人连接', 'in.id': 'ID', 'in.pw': '临时密码', 'in.new': '换一个', 'in.pwfixed': '固定密码', 'in.setpw': '密码设置', 'pwm.title': '连接密码', 'pwm.temp': '随机密码', 'pwm.fixed': '我自己的固定密码', 'pwm.saved': '密码设置已保存',
       'in.off': '已关闭：谁都连不上', 'in.starting': '正在连接服务器…', 'in.ready': '已就绪：每次连接都会先问你',
       'in.offline': '离线：正在重试…', 'in.noserver': '没有服务器：同一网络内可按地址连接',
       'in.unreach': '无法连接 {s}。请在 设置 › 汇合服务器 中检查地址。', 'in.official': '官方服务器', 'in.fix': '汇合服务器设置',
@@ -173,14 +177,14 @@
       'un.pwdone': '密码已修改', 'un.newpw': '新密码',
       'help.un': '没人在电脑前也能连上，开机即可用，使用你设定的强密码。它作为后台服务运行。',
       'tr.title': '已记住的设备', 'tr.rename': '重命名这台设备', 'about.h': '关于', 'about.privacy': '隐私政策', 'about.terms': '使用条款', 'about.licensing': '许可证', 'about.support': '帮助与支持', 'about.telegram': 'Telegram：@remohop', 'tr.forget': '移除', 'tr.control': '控制', 'tr.files': '文件', 'tr.view': '仅查看',
-      'help.tr': '允许连接打开时，这些设备无需询问即可连接，权限为你当时的选择。',
+      'help.tr': '允许连接打开时，这些设备无需询问即可连接，权限为你当时的选择。允许连接时勾选“记住这台设备”，就会添加到这里。',
       'req.title': '{d} 请求连接', 'req.title.access': '{d} 请求更多权限', 'req.new': '新设备', 'req.known': '以前连接过',
       'req.scam': '是不是有人打电话自称客服、银行或警察，让你安装这个软件？请拒绝，这是诈骗。',
       'req.may': '对方可以看到你的屏幕，另外还可以：', 'req.control': '控制鼠标和键盘', 'req.files': '传输文件、使用剪贴板',
       'req.remember': '记住这台设备', 'req.left': '{n} 秒后自动拒绝', 'req.device': '设备', 'req.key': '密钥', 'req.from': '来自',
       'req.asks': '请求：', 'req.input': '控制鼠标和键盘', 'req.file': '传输文件', 'req.clip': '使用剪贴板',
       'req.unknown': '未命名设备', 'req.title.action': '{d} 请求在授权 {g} 下执行操作', 'req.action': '请求：',
-      'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '开机自动启动', 'set.autostart': '开机后自动启动 RemoHop（在托盘中运行）',
+      'set.lang': '语言', 'set.theme': '外观', 'set.light': '浅色', 'set.dark': '深色', 'set.start': '开机自动启动',
       'about': '{v} · {e}', 'about.app': '关于 RemoHop', 'set.g.conn': '连接', 'set.g.general': '通用', 'set.g.support': '支持', 'upd.version': '版本', 'browser': '浏览器窗口',
       'upd.title': 'RemoHop {v} 已发布', 'upd.how.download': '当前是 {c}。下载新版替换当前程序即可。',
       'upd.how.cmd': '当前是 {c}。用这条命令升级：', 'upd.how.package': '当前是 {c}。请用系统的包管理器升级。',
@@ -220,6 +224,7 @@
     sideLabel();
     homeDate();
     if (S && S.setup) { renderPeers(); renderLAN(); renderOut(); renderActivity(); }
+    if (guide.lang && guide.lang !== lang) loadGuide();
   }
 
   // ---- API ----
@@ -241,10 +246,169 @@
   }
 
   // ---- help (ⓘ) ----
+  // An ⓘ opens its explanation in place; a "More in the guide" link in it
+  // (and every [data-guide] element) opens that section of the guide.
   document.addEventListener('click', ev => {
+    const g = ev.target.closest('[data-guide]');
+    if (g) {
+      ev.preventDefault();
+      const d = g.closest('dialog'); if (d && d.id !== 'dlg-req') d.close();
+      openGuide(g.dataset.guide);
+      return;
+    }
     const b = ev.target.closest('[data-help]'); if (!b) return;
     ev.preventDefault();
     const h = $(b.dataset.help); h.hidden = !h.hidden; b.setAttribute('aria-expanded', String(!h.hidden));
+  });
+  // F1 opens the guide.
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'F1' && S && S.setup && !document.querySelector('dialog[open]')) { ev.preventDefault(); openGuide(''); }
+  });
+
+  // ---- the guide ----
+  // guide.en.md and guide.zh.md, one per language, rendered here from a
+  // small Markdown subset (described at the top of guide.en.md) with
+  // createElement and textContent only. Section ids are the same in both
+  // languages, so an ⓘ opens the same place whatever the language.
+  const guide = {lang: '', text: {}, loading: null, secs: []};
+  const GUIDE_VIEWS = ['computer', 'connect', 'sessions', 'settings'];
+  function guideInline(parent, s) {
+    const re = /\*\*(.+?)\*\*|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\)/g;
+    let i = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > i) parent.append(s.slice(i, m.index));
+      if (m[1] !== undefined) { const b = document.createElement('strong'); guideInline(b, m[1]); parent.append(b); }
+      else if (m[2] !== undefined) { const c = document.createElement('code'); c.textContent = m[2]; parent.append(c); }
+      else {
+        const a = document.createElement('button'); a.type = 'button'; a.className = 'link glink'; a.textContent = m[3];
+        const to = m[4];
+        if (to.startsWith('#')) a.dataset.guide = to.slice(1);
+        else if (to.startsWith('app:') && GUIDE_VIEWS.includes(to.slice(4))) a.dataset.app = to.slice(4);
+        else if (to.startsWith('web:')) a.dataset.web = to.slice(4);
+        parent.append(a);
+      }
+      i = re.lastIndex;
+    }
+    if (i < s.length) parent.append(s.slice(i));
+  }
+  // guideRender turns the Markdown into the page: the title, a card per
+  // "## " section and the contents beside them.
+  function guideRender(md) {
+    const body = $('guide-body'), toc = $('guide-toc-list');
+    body.textContent = ''; toc.textContent = '';
+    guide.secs = [];
+    // box is where text goes: the part of the section under its title, or
+    // under one of its "### " headings (the search shows or hides parts).
+    let sec = null, box = null, para = [], list = null, note = null;
+    const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+    const flush = () => {
+      if (para.length && box) { const p = el('p'); guideInline(p, para.join(' ')); box.append(p); }
+      para = []; list = null; note = null;
+    };
+    const head = (line, tag) => {
+      const m = line.match(/^(.*?)\s*(?:\{#([a-z0-9-]+)\})?$/);
+      const h = el(tag); h.textContent = m[1]; if (m[2]) h.id = 'g-' + m[2];
+      h.tabIndex = -1;
+      return [h, m[2] || '', m[1]];
+    };
+    const lines = md.replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/);
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      let m;
+      if (!line.trim()) { flush(); continue; }
+      if (line.startsWith('# ')) { flush(); $('h-guide').textContent = line.slice(2).trim(); continue; }
+      if (line.startsWith('## ')) {
+        flush();
+        const [h, id, title] = head(line.slice(3), 'h2');
+        sec = el('section', 'card gsec'); sec.dataset.sec = id; sec.append(h); body.append(sec);
+        box = el('div', 'gpart'); sec.append(box);
+        const li = el('li'), b = el('button'); b.type = 'button'; b.dataset.guide = id; b.textContent = title; li.append(b); toc.append(li);
+        guide.secs.push({id, el: sec, toc: li, title: title.toLowerCase(), parts: [box]});
+        continue;
+      }
+      if (!sec) continue;
+      if (line.startsWith('### ')) {
+        flush();
+        box = el('div', 'gpart'); box.append(head(line.slice(4), 'h3')[0]); sec.append(box);
+        guide.secs[guide.secs.length - 1].parts.push(box);
+        continue;
+      }
+      if ((m = line.match(/^(-|\d+\.) (.*)$/))) {
+        const tag = m[1] === '-' ? 'ul' : 'ol';
+        if (para.length || note) flush();
+        if (!list || list.tagName.toLowerCase() !== tag) { list = el(tag); box.append(list); }
+        const li = el('li'); guideInline(li, m[2]); list.append(li);
+        continue;
+      }
+      if (line.startsWith('> ')) {
+        if (!note) { flush(); note = el('p', 'gnote'); box.append(note); } else note.append(' ');
+        guideInline(note, line.slice(2));
+        continue;
+      }
+      list = null; note = null;
+      para.push(line.trim());
+    }
+    flush();
+    for (const x of guide.secs) x.texts = x.parts.map(p => p.textContent.toLowerCase());
+    filterGuide();
+  }
+  async function loadGuide() {
+    const l = lang;
+    if (!guide.text[l]) {
+      try {
+        const r = await fetch(base + 'assets/guide.' + l + '.md', {cache: 'no-store'});
+        if (!r.ok) throw new Error(r.statusText || String(r.status));
+        guide.text[l] = await r.text();
+      } catch (e) {
+        $('guide-body').textContent = t('guide.err', {m: e.message || '?'});
+        return;
+      }
+    }
+    if (l !== lang) return; // the language changed meanwhile
+    guideRender(guide.text[l]);
+    guide.lang = l;
+  }
+  // openGuide shows the guide at a section, or a part of one (its id), or
+  // at the top.
+  async function openGuide(id) {
+    if (!S || !S.setup) return;
+    $('guide-q').value = '';
+    show('guide');
+    if (guide.lang !== lang) await loadGuide();
+    filterGuide();
+    const target = id && $('g-' + id);
+    for (const x of document.querySelectorAll('#guide-body .hit')) x.classList.remove('hit');
+    if (!target) { $('v-guide').scrollTop = 0; return; }
+    const box = target.tagName === 'H2' ? target.parentElement : target;
+    box.classList.add('hit');
+    target.focus({preventScroll: true});
+    target.scrollIntoView({block: 'start', behavior: reduceMotion() ? 'auto' : 'smooth'});
+  }
+  // The search box keeps the parts of the guide that contain every word
+  // typed (all of a section whose title has them).
+  function filterGuide() {
+    const words = $('guide-q').value.toLowerCase().split(/\s+/).filter(Boolean);
+    const has = s => words.every(w => s.includes(w));
+    let shown = 0;
+    for (const x of guide.secs) {
+      const all = has(x.title);
+      let any = false;
+      x.parts.forEach((p, i) => { const ok = all || has(x.texts[i]); p.hidden = !ok; any = any || ok; });
+      x.el.hidden = x.toc.hidden = !any;
+      if (any) shown++;
+    }
+    $('guide-nomatch').hidden = shown > 0 || !guide.secs.length;
+  }
+  $('guide-q').addEventListener('input', filterGuide);
+  $('guide-q').addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && $('guide-q').value) { ev.preventDefault(); $('guide-q').value = ''; filterGuide(); }
+    if (ev.key === 'Enter') { const x = guide.secs.find(s => !s.el.hidden); if (x) { ev.preventDefault(); x.el.querySelector('h2').focus(); x.el.scrollIntoView({block: 'start'}); } }
+  });
+  // Links inside the guide to a page of the app or of remohop.com.
+  $('guide-body').addEventListener('click', ev => {
+    const a = ev.target.closest('[data-app], [data-web]'); if (!a) return;
+    if (a.dataset.app) show(a.dataset.app);
+    else api('open-page', {target: a.dataset.web, lang}).catch(e => snack(errText(e)));
   });
 
   // ---- views and the sidebar ----
@@ -263,6 +427,7 @@
     if (S && S.update) renderUpdate(S.update);
     if (v === 'connect' || v === 'computer') loadPeers(false);
     if (v === 'connect') loadLAN();
+    if (v === 'guide' && guide.lang !== lang) loadGuide();
     const h = v.startsWith('host:') && hosts.get(v.slice(5));
     if (h) h.tab.scrollIntoView({block: 'nearest', inline: 'nearest'});
     else { const el = $('v-' + v); if (el) el.scrollTop = 0; }
@@ -706,10 +871,14 @@
     else if (ff.error) st = t('ff.failed', {m: ff.error});
     $('ff-status').textContent = st;
     $('ff-row').hidden = btn.hidden && !st;
+    // Where the download comes from is behind ⓘ; what to do instead of
+    // installing it here is said plainly.
+    $('ff-info').hidden = !ff.can_install;
+    $('ff-src').textContent = ff.can_install ? t('ff.from', {v: ff.version, s: ff.source}) : '';
+    if (!ff.can_install) { $('h-ff').hidden = true; $('ff-info').setAttribute('aria-expanded', 'false'); }
     let note = '';
-    if (ff.can_install) note = t('ff.from', {v: ff.version, s: ff.source});
-    else if (ff.disabled) note = t('ff.off', {b: ff.disabled});
-    else if (S && S.ui && S.ui.platform === 'linux') note = t('ff.linux');
+    if (ff.disabled) note = t('ff.off', {b: ff.disabled});
+    else if (!ff.can_install && S && S.ui && S.ui.platform === 'linux') note = t('ff.linux');
     $('ff-note').textContent = note; $('ff-note').hidden = !note;
   }
   $('ff-install').addEventListener('click', () => api('ffmpeg/install').catch(e => snack(errText(e))));
@@ -1012,7 +1181,7 @@
     $('k-queue').textContent = list.length;
     $('k-queue-dot').classList.toggle('on', list.length > 0);
     $('k-queue-s').textContent = list.length ? t('kpi.queue.s', {n: Math.min(...list.map(r => r.left))}) : t('kpi.queue.s0');
-    $('q-foot').textContent = t('q.foot', {n: total});
+    $('h-q-t').textContent = t('help.q', {n: total});
     const box = $('queue'); box.textContent = '';
     list.forEach((r, k) => {
       const who = r.device || r.name || t('req.unknown');

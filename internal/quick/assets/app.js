@@ -26,9 +26,10 @@
       opt_files: 'Transfer files and use the clipboard',
       opt_advanced: 'Run commands and reach your network',
       opt_advanced_hint: 'Terminal, port forwarding, VPN, serial and USB devices. Leave this off unless your helper asks for it and you trust them.',
+      more: 'More about this',
+      ffmpeg_about: 'About this download',
       details: 'Connection details',
       stop: 'Stop sharing',
-      close_hint: 'Closing this window also stops sharing.',
       st_connecting: 'Connecting to the server…',
       st_slow: 'Still trying to reach {server}. Check the address with your helper.',
       change_server: 'Change server',
@@ -78,12 +79,10 @@
       setup_title: 'One step before you start',
       setup_text: 'How should your helper find this computer? If unsure, keep the first choice. You only do this once.',
       setup_why: 'Why is this needed?',
-      setup_why_text: 'A small server introduces the two computers to each other, so your helper can find this one by its ID. It cannot see your screen: the connection is end-to-end encrypted. Use the official server unless your helper gave you the address of their own. Without a server, only a helper on the same network can connect, by this computer\'s address.',
+      setup_why_text: 'A small server introduces the two computers to each other, so your helper can find this one by its ID. It cannot see your screen: the connection is end-to-end encrypted. Use the official server, run by RemoHop with nothing to set up, unless your helper gave you the address of their own. Without a server, only a helper on the same network can connect, by this computer\'s address.',
       setup_official: 'Use the official server',
-      setup_official_sub: 'Run by RemoHop, nothing to set up',
       setup_custom: 'My helper gave me a server address',
       setup_none: 'No server',
-      setup_none_hint: 'Only on the same network, by address',
       your_address: 'Your address',
       no_address: 'No network address found',
       net_noserver_addr: 'No server: helpers on this network connect to this computer\'s address.',
@@ -124,9 +123,10 @@
       opt_files: '传输文件、使用剪贴板',
       opt_advanced: '运行命令、访问你的网络',
       opt_advanced_hint: '终端、端口转发、VPN、串口和 USB 设备。除非协助者提出需要并且你信任对方，否则不要打开。',
+      more: '了解更多',
+      ffmpeg_about: '关于这个下载',
       details: '连接详情',
       stop: '停止共享',
-      close_hint: '关闭此窗口也会停止共享。',
       st_connecting: '正在连接服务器…',
       st_slow: '仍在尝试连接 {server}。请和协助者核对这个地址。',
       change_server: '更换服务器',
@@ -176,17 +176,15 @@
       setup_title: '开始之前还差一步',
       setup_text: '协助者要怎样找到这台电脑？不确定的话，保持第一项即可。只需选择一次。',
       setup_official: '使用官方服务器',
-      setup_official_sub: '由 RemoHop 运营，无需设置',
       setup_custom: '协助者给了我一个服务器地址',
       setup_none: '不用服务器',
-      setup_none_hint: '仅限同一网络，按地址连接',
       your_address: '本机地址',
       no_address: '没有找到网络地址',
       net_noserver_addr: '不用服务器：同一网络中的协助者通过本机地址连接。',
       setup_label: '服务器地址',
       setup_go: '继续',
       setup_why: '为什么需要它？',
-      setup_why_text: '一台小小的服务器负责把两台电脑介绍给对方，让协助者能凭 ID 找到你的电脑。它看不到你的屏幕：连接是端到端加密的。除非协助者给了你他们自己服务器的地址，否则请使用官方服务器。不用服务器时，只有同一网络中的协助者能通过本机地址连接。',
+      setup_why_text: '一台小小的服务器负责把两台电脑介绍给对方，让协助者能凭 ID 找到你的电脑。它看不到你的屏幕：连接是端到端加密的。除非协助者给了你他们自己服务器的地址，否则请使用由 RemoHop 运营、无需设置的官方服务器。不用服务器时，只有同一网络中的协助者能通过本机地址连接。',
       err_running_title: 'RemoHop 已经在这台电脑上运行',
       err_running_text: '它正在后台运行（作为系统服务或在终端里），因此快速协助无法再启动一份。',
       err_running_id: '它的 ID 是 {id}。密码请询问为你设置它的人。',
@@ -386,7 +384,7 @@
     $('setupcancel').hidden = !changing;
     $('message').hidden = true;
     // Stopping means something only once sharing has started.
-    $('stop').hidden = $('closehint').hidden = s.phase !== 'ready';
+    $('stop').hidden = s.phase !== 'ready';
     $('slow').hidden = true;
     $('version').textContent = s.version ? 'RemoHop ' + s.version : '';
     renderRequests(s.requests || []);
@@ -468,7 +466,12 @@
     else if (ff.error) st = t('ffmpeg_failed', { msg: ff.error });
     $('ffmpeg-status').textContent = st;
     $('ffmpeg-row').hidden = btn.hidden && !st;
-    var note = ff.can_install ? t('ffmpeg_from', { v: ff.version, source: ff.source }) : ff.disabled ? t('ffmpeg_off', { by: ff.disabled }) : '';
+    // Where the download comes from is behind ⓘ; a download switched off
+    // is said plainly.
+    $('ffmpeg-info').hidden = !ff.can_install;
+    $('ffmpeg-src').textContent = ff.can_install ? t('ffmpeg_from', { v: ff.version, source: ff.source }) : '';
+    if (!ff.can_install) { $('ffmpeg-src').hidden = true; $('ffmpeg-info').setAttribute('aria-expanded', 'false'); }
+    var note = !ff.can_install && ff.disabled ? t('ffmpeg_off', { by: ff.disabled }) : '';
     $('ffmpeg-note').textContent = note;
     $('ffmpeg-note').hidden = !note;
   }
@@ -529,6 +532,14 @@
   $('copypw').addEventListener('click', function () { copy(this, $('pw')); });
   $('regen').addEventListener('click', function () { act('regenerate'); });
   $('ffmpeg-install').addEventListener('click', function () { act('ffmpeg'); });
+  // An ⓘ shows its explanation in place, and hides it again.
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest && ev.target.closest('[data-help]');
+    if (!b) return;
+    var h = $(b.getAttribute('data-help'));
+    h.hidden = !h.hidden;
+    b.setAttribute('aria-expanded', String(!h.hidden));
+  });
   $('stop').addEventListener('click', function () { $('stop').disabled = true; act('stop'); });
   $('changeserver').addEventListener('click', function () {
     changing = true;

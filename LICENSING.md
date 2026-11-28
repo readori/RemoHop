@@ -104,8 +104,9 @@ their license texts as `THIRD_PARTY_LICENSES.txt`, produced by
 
 RemoHop does not include or distribute ffmpeg. The remote desktop runs
 `ffmpeg` on the host as a separate program: one already installed there or,
-on Windows and macOS when the user asks for it (`remohop ffmpeg install`, or
-the button in the desktop app and the Quick Support window), a build that
+on Windows and macOS when the user asks for it (`remohop ffmpeg install`,
+the button in the desktop app and the Quick Support window, or turning on
+unattended access in the desktop app on Windows, for the service), a build that
 the user's computer downloads from its publisher (gyan.dev, BtbN's
 FFmpeg-Builds, Martin Riedl's build server) at an address and SHA-256 pinned
 in `internal/ffmpeg/builds.go`. Those builds are under the GPL (they include

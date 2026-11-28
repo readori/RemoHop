@@ -176,7 +176,7 @@ func newServer(t *testing.T) *server {
 }
 
 func testOptions(s *server, b Build, dir string) Options {
-	return Options{Client: s.Client(), build: &b, dir: dir,
+	return Options{Client: s.Client(), build: &b, Dir: dir,
 		version: func(context.Context, string) string { return "ffmpeg version test" }}
 }
 
@@ -314,7 +314,7 @@ func TestMirrors(t *testing.T) {
 	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(s.files["/a.zip"]) }))
 	defer plain.Close()
 	b = buildOf(s.files["/a.zip"], "ffmpeg", len(program), plain.URL+"/a.zip")
-	if _, err := Install(context.Background(), Options{Force: true, build: &b, dir: t.TempDir()}); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+	if _, err := Install(context.Background(), Options{Force: true, build: &b, Dir: t.TempDir()}); err == nil || !strings.Contains(err.Error(), "HTTPS") {
 		t.Errorf("plain HTTP must be refused: %v", err)
 	}
 	redirect := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -322,7 +322,7 @@ func TestMirrors(t *testing.T) {
 	}))
 	defer redirect.Close()
 	b = buildOf(s.files["/a.zip"], "ffmpeg", len(program), redirect.URL+"/a.zip")
-	o := Options{Force: true, Client: redirect.Client(), build: &b, dir: t.TempDir()}
+	o := Options{Force: true, Client: redirect.Client(), build: &b, Dir: t.TempDir()}
 	if _, err := Install(context.Background(), o); err == nil || !strings.Contains(err.Error(), "not HTTPS") {
 		t.Errorf("a redirect to plain HTTP must be refused: %v", err)
 	}

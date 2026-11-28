@@ -3,7 +3,8 @@
 The visual design of the RemoHop desktop app (`internal/desktop/assets`), and
 the frame the team edition's screens are drawn in. The app's behaviour and
 architecture are in [desktop-app.md](../desktop-app.md); the user guide is
-[en/desktop-app.md](../en/desktop-app.md).
+[en/desktop-app.md](../en/desktop-app.md), and the app carries its own
+(the Guide page: `assets/guide.en.md` and `guide.zh.md`).
 
 The page runs in the system's web view (WebView2, WKWebView, WebKitGTK),
 offline, under a strict Content-Security-Policy. So: system fonts only, no
@@ -30,7 +31,7 @@ CSS custom properties and vanilla JavaScript.
    monospace capitals beside them.
 3. **Never invent data.** A chart shows only what the app saw. A minute the
    app did not see is drawn as "not recorded", never as zero. A place with
-   nothing to show has an empty state that says what will appear and how.
+   nothing to show says so in one line; how it fills is in the guide.
 4. **Decisions are approval cards.** Anything that waits on the user (a
    connection request, a request for more access, in the team edition an
    access request) is a card with who, what, from where, the time left and
@@ -45,8 +46,12 @@ CSS custom properties and vanilla JavaScript.
    between sections. Say it in the main copy, or leave it to the
    documentation (`docs/`), where every detail already lives. When a screen
    genuinely needs an explanation or a caveat, it stays closed until clicked:
-   the ⓘ **Help** button (`.help`) beside the thing it explains. The website
-   follows the same rule (`site/README.md`, "No fine print").
+   the ⓘ **Help** button (`.help`) beside the thing it explains, whose box
+   ends with *More in the guide*, the section of the app's own guide about
+   it. Real data (an address, a time, a version), status, errors and the
+   one instruction a step needs (Connect's "Type an ID ...") are not fine
+   print. Quick Support follows the rule with its own ⓘ, and the website
+   with folded sections (`site/README.md`, "No fine print").
 
 ## Tokens
 
@@ -128,7 +133,7 @@ Menlo, Consolas, ...`. Semibold (600) for emphasis, never bold body text.
 │ MAIN MENU    │ ╭────────────────── content frame ─────────────────────╮ │
 │ ⌂ Home       │ │ EYEBROW                                              │ │
 │ ⇥ Connect  6 │ │ Page title                                           │ │
-│ ▭ Sessions 2●│ │ Lead line                                            │ │
+│ ▭ Sessions 2●│ │                                                      │ │
 │              │ │                                                      │ │
 │ OPEN COMPUTERS │ cards ...                                            │ │
 │ [S] Studio ⧉×│ │                                                      │ │
@@ -160,11 +165,12 @@ Menlo, Consolas, ...`. Semibold (600) for emphasis, never bold body text.
 **Sidebar item** (`.tab`). 36 px high, 8 px radius, an 18 px line icon, the
 label, then an optional count pill or badge dot. Selected: card background,
 hairline border, `--sh-1`, semibold, `aria-current="page"`. Section labels
-are micro-labels. The foot holds Settings and the **this-computer card**
+are micro-labels. The foot holds Guide, Settings and the **this-computer card**
 (icon with a presence dot, name, the ID or "Not reachable").
 
 **Page header** (`.ph`). A micro-label eyebrow (Home: the date and time),
-the page title, a lead line in `--text-2`.
+the page title, and a lead line in `--text-2` only when it is the page's
+instruction (Connect).
 
 **Card** (`.card`). White, hairline border, 16 px radius, `--sh-1`. Header
 row (`.card-h`): an optional 32 px **tile** (neutral inset with a line
@@ -259,11 +265,13 @@ start after the tile. Groups are headed by micro-labels; in wide windows an
 index of the groups sits beside them.
 
 **Empty state** (`.empty`). A 40 px dashed tile with a line icon (a solid
-green tick for "nothing needs you"), one line in `--text`, one in
-`--text-2` that says what will appear here and how.
+green tick for "nothing needs you") and one line in `--text`.
 
-**Help** (`.help`). The ⓘ button opens a tinted box with the explanation;
-`aria-expanded` follows it.
+**Help** (`.help`). The ⓘ button (`.info`, named "More about this")
+opens a tinted box with the explanation; `aria-expanded` follows it. The
+box ends with *More in the guide ->* (`[data-guide]`), which opens the
+guide at that section and closes the dialog it is in. Never inside the
+connection request, where closing means Deny.
 
 **Update bar** (`.upd`). An accent-tinted rounded bar above the frame:
 title, how to upgrade (or the command, with Copy), Upgrade now, Download,
@@ -307,7 +315,6 @@ here.
 ```
 FRIDAY, NOVEMBER 27 · 10:42
 Home
-This computer, who is connected to it, and the computers you reach.
 ┌ ▭ Allow incoming connections        ⓘ (●━)┐ ┌ ⚡ Quick connect ──────┐
 │   ● Ready: every connection asks you      │ │ [123 456 789 ][Connect]│
 │ ┌ ID ──────────────┐ ┌ TEMPORARY PASSWORD ┐│ │ RECENTLY SEEN          │
@@ -321,7 +328,7 @@ This computer, who is connected to it, and the computers you reach.
 │      Sessions → ││ Approval q.→││ Address b.→│ │  All saved computers → │
 └─────────────────┘└─────────────┘└───────────┘ └────────────────────────┘
 ┌ 🔑 Unattended access   ⓘ    (━●) ┐┌ ▥ Activity                 (Peak 2) ┐
-│ ● On                              ││ Devices connected ... last hour     │
+│ ● On                              ││                                     │
 │ Running                           ││ ┄┄┄┄┄┄▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫▫      │
 │ [Connections] [Change password]   ││ ┄┄┄┄┄┄▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪▪      │
 └───────────────────────────────────┘│ 60 MIN AGO  RECORDED SINCE 10:01  NOW│
@@ -329,7 +336,7 @@ This computer, who is connected to it, and the computers you reach.
 ```
 
 - Off: the credentials give way to a dashed note ("Switch on to show this
-  computer's ID and a password ...").
+  computer's ID and a password ..."), the card's instruction.
 - 900-1180 px: the hero full width, the three KPIs in a row, then quick
   connect and unattended access side by side, then activity. Below 640 px
   one column.
@@ -368,11 +375,11 @@ looked for every 4 seconds while Connect is shown and never while it is
 not or the window is hidden. Connect opens the address. A computer that
 claims a saved ID with another key gets a red *Key changed* chip instead
 of its fingerprint. Empty: "Looking for computers on this network…", then
-"No computer on this network answered." with what will appear.
+"No computer on this network answered." ⓘ says what is listed.
 
 ⋮ opens the computer's menu (rename, wake, show or delete the saved
 password, Wake-on-LAN address, forget). Empty: "No saved computers yet."
-with what will appear. A filter or search with no match says so.
+A filter or search with no match says so.
 
 ### Sessions (`#v-sessions`)
 
@@ -388,9 +395,9 @@ Sessions
 │ │ Answer in the dialog       │ │ │ [S]• Sam's phone                       │
 │ └────────────────────────────┘ │ │      (•View)(Control)(Files)   [Disc.] │
 │ ┌ REQ-015 (Asks to)     52 s ┐ │ │              [⏻ Disconnect everyone]   │
-│ │ Alex-Laptop asks for more  │ │ │ 🔑 Unattended access: [Connections]    │
+│ │ Alex-Laptop asks for more  │ │ │ 🔑 Unattended access   [Connections]   │
 │ └────────────────────────────┘ │ └────────────────────────────────────────┘
-│ Refused after 60 s · Esc denies│ ┌ Remembered devices ⓘ ──────────────────┐
+│                                │ ┌ Remembered devices ⓘ ──────────────────┐
 └────────────────────────────────┘ │ ▭ Alex-Laptop  a1f09c22…               │
 ┌ Computers open here ───────────┐ │   (•View)(•Control)(Files) Rename Forget│
 │ [S]• Studio iMac               │ └────────────────────────────────────────┘
@@ -400,6 +407,8 @@ Sessions
 
 The first request is also the dialog in front of every window, so the
 queue is where the others wait their turn. Each card has an empty state.
+ⓘ on *Needs you* says how long a request waits and that Esc denies; ⓘ on
+*Connected now* how to end connections.
 
 ### A computer open in the window
 
@@ -424,11 +433,45 @@ About               │ ☾  Theme                (Auto | Light | Dark)     │
                     UNATTENDED ACCESS / UPDATES / SUPPORT / ABOUT ...
 ```
 
-Groups: Connection (rendezvous server, expands in place), General
-(language, theme, start automatically), Unattended access (*Unattended ID
-and password* opens its dialog), Updates (daily check, version and Check
-now, the privacy note), Support (diagnostic report Export, help, Telegram),
-About (privacy, terms, licenses, version and engine).
+Groups: Connection (rendezvous server, expands in place; ⓘ explains the
+three choices), General (language, theme, start automatically), Unattended
+access (*Unattended ID and password* opens its dialog), Updates (daily
+check, version and Check now; the privacy note behind ⓘ), Support
+(diagnostic report Export, User guide, help, Telegram), About (privacy,
+terms, licenses, version and engine).
+
+### Guide (`#v-guide`)
+
+The user guide, in the app's language: getting started on each system,
+connecting, letting others connect, remote desktop, files, Quick Support,
+AI agents, settings and troubleshooting. Opened from the sidebar, F1,
+Settings › User guide, and every ⓘ box's *More in the guide*.
+
+```
+HELP
+User guide                                         [⌕ Search the guide ]
+CONTENTS              ┌ Getting started ─────────────────────────────┐
+Getting started       │ Windows                                      │
+Connecting to a ...   │ 1. Unzip the download and double-click ...   │
+Letting others ...    │ macOS                                        │
+...                   └──────────────────────────────────────────────┘
+```
+
+- Source: `assets/guide.en.md` and `assets/guide.zh.md`, one file per
+  language with the same ids (`## Title {#id}`, `### Title {#id}`); the
+  format is described at the top of `guide.en.md`. `app.js` renders it
+  with `createElement` and `textContent` only (no HTML), loads it when
+  the guide is first shown, and again when the language changes.
+  `guide_test.go` checks that both files have the same ids and that every
+  `data-guide` and link leads somewhere.
+- A section is a card; the contents sit beside the cards from 1100 px,
+  above them below that. The section opened from an ⓘ gets an accent ring
+  and the focus.
+- The search keeps the parts (a `###` and what follows it) that contain
+  every word typed; Esc clears it, Enter goes to the first match.
+- Links inside: another place in the guide (`#id`), a page of the app
+  (`app:connect`), or a page of remohop.com that `sitePage` allows
+  (`web:docs/ai-agents`).
 
 ### Dialogs
 
@@ -465,7 +508,8 @@ The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial license) u
 
 - Files: `index.html` (markup and icon sprite), `style.css` (tokens and
   components), `app.js` (state, strings in `T.en` and `T.zh`),
-  `overlay.html` and `overlay.js` (the banner window).
+  `guide.en.md` and `guide.zh.md` (the guide), `overlay.html` and
+  `overlay.js` (the banner window).
 - Every visible string has a key in both `T.en` and `T.zh`: `data-t` sets
   the text, `data-ta` the `aria-label` and `title`, `data-tp` the
   placeholder.
@@ -474,9 +518,9 @@ The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial license) u
 - No inline styles (the CSP forbids `style` attributes); SVG geometry goes
   in attributes, colour in classes.
 - IDs that other code relies on: the views `v-wizard`, `v-computer`,
-  `v-connect`, `v-sessions`, `v-settings` (the smoke test shows `computer`,
-  `sessions`, `connect`, `settings` and `open:ID`); `bar` (hidden during the wizard),
-  `tabs` with `tab-computer`, `tab-connect`, `tab-settings` and the
+  `v-connect`, `v-sessions`, `v-settings`, `v-guide` (the smoke test shows `computer`,
+  `sessions`, `connect`, `settings`, `guide` and `open:ID`); `bar` (hidden during the wizard),
+  `tabs` with `tab-computer`, `tab-connect`, `tab-settings`, `tab-guide` and the
   `.tab.host` rows (`.dot`, `.name`, `.x`); `badge`; `incoming`, `creds`,
   `in-id`, `in-pw`, `in-pw-l`, `regen`, `pw-reveal`, `pw-set`; `sessions`,
   `sessions-box` with `.sess .chip` (View, Control, Files) and
@@ -484,7 +528,8 @@ The team edition (phase 2 of the [roadmap](../ROADMAP.md), commercial license) u
   `peers-empty`; the dialogs and their fields (`dlg-req`, `req-*`,
   `dlg-pw`, `pw-*`, `dlg-un`, `un-*`, `dlg-uncreds`, `dlg-svc`,
   `dlg-ask`); `set-theme`, `set-lang`, `srv-row`, `srv-panel`, `srv-val`;
-  `wiz-*`.
+  `wiz-*`; `guide-q`, `guide-body` with `.gsec`, `.gpart` and the headings
+  `g-<id>`, `set-guide`; the help boxes `h-*` and their `[data-guide]`.
 - Check a change with `REMOHOP_BROWSER_TEST=1 REMOHOP_SHOTS=/tmp/shots go
   test -run TestPageInBrowser ./internal/desktop/` (needs node and Chrome):
   it drives the real page against a real app and keeps screenshots.
