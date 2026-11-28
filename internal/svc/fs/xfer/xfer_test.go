@@ -196,6 +196,14 @@ func TestCpUploadDownloadFile(t *testing.T) {
 	if err != nil || (posix && fi.Mode() != 0o751) || fi.ModTime().Equal(old) {
 		t.Fatalf("upload: %v %v", fi, err)
 	}
+	// A summary on stderr when done, none with -q; stdout stays empty.
+	if code, out, errs := r.run("", "cp", src, ":"+filepath.Join(rdir, "summary")); code != 0 || out != "" ||
+		!regexp.MustCompile(`^copied 1 file \(5 B\) in [0-9.]+s\n$`).MatchString(errs) {
+		t.Fatalf("summary: exit %d, stdout %q, stderr %q", code, out, errs)
+	}
+	if code, out, errs := r.run("", "cp", "-q", src, ":"+filepath.Join(rdir, "quiet")); code != 0 || out != "" || errs != "" {
+		t.Fatalf("-q: exit %d, stdout %q, stderr %q", code, out, errs)
+	}
 	// -p keeps the time; an explicit new name.
 	r.must("cp", "-p", src, ":"+filepath.Join(rdir, "renamed"))
 	if fi, _ := os.Stat(filepath.Join(rdir, "renamed")); !fi.ModTime().Equal(old) {
@@ -921,7 +929,7 @@ func partials(t *testing.T, dir, base string) []string {
 // session once cut bytes have crossed it.
 func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 	t.Helper()
-	conn := testPair(t)
+	conn, host := testPairs(t)
 	ctx := context.Background()
 	c, err := rfs.NewClient(ctx, conn)
 	if err != nil {
@@ -932,7 +940,12 @@ func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 		for p.BytesDone.Load() < cut {
 			time.Sleep(time.Millisecond)
 		}
-		conn.Close() // the network goes away mid-transfer
+		// The network goes away mid-transfer. Both ends are closed: with
+		// the client's alone, the host's end would notice only at its
+		// idle timeout, and its upload would hold the partial file
+		// locked until then.
+		conn.Close()
+		host.Close()
 	}()
 	if _, err := Copy(ctx, c, []Path{src}, dst, CopyOptions{Progress: p, Parallel: 1}); err == nil {
 		t.Fatal("interrupted copy succeeded")
@@ -944,11 +957,17 @@ func interruptedCopy(t *testing.T, src, dst Path, cut int64) {
 var hostGuard grant.Guard
 
 func testPair(t *testing.T) *peer.Conn {
-	conn, host := peertest.Pair(t)
+	conn, _ := testPairs(t)
+	return conn
+}
+
+// testPairs is testPair with the host end.
+func testPairs(t *testing.T) (client, host *peer.Conn) {
+	client, host = peertest.Pair(t)
 	if hostGuard != nil {
 		grant.Attach(host, hostGuard)
 	}
-	return conn
+	return client, host
 }
 
 func copyWith(t *testing.T, src, dst Path, o CopyOptions) *Progress {
@@ -964,6 +983,23 @@ func copyWith(t *testing.T, src, dst Path, o CopyOptions) *Progress {
 		t.Fatal(err)
 	}
 	return o.Progress
+}
+
+func TestCopySummary(t *testing.T) {
+	for _, c := range []struct {
+		r    CopyResult
+		want string
+	}{
+		{CopyResult{Files: 1, Bytes: 5, Seconds: 0.04}, "copied 1 file (5 B) in 0.0s"},
+		{CopyResult{Files: 12, Dirs: 3, Bytes: 4_200_000, Seconds: 0.81}, "copied 12 files and 3 directories (4.2 MB) in 0.8s"},
+		{CopyResult{Files: 2, Dirs: 1, Symlinks: 1, Bytes: 10, Seconds: 1}, "copied 2 files, 1 directory and 1 symlink (10 B) in 1.0s"},
+		{CopyResult{Files: 1, Bytes: 40_000_000, Resumed: 8_000_000, Seconds: 2.1},
+			"copied 1 file (40.0 MB, and 8.0 MB kept from an interrupted copy) in 2.1s"},
+	} {
+		if got := copySummary(&c.r); got != c.want {
+			t.Errorf("%+v: %q, want %q", c.r, got, c.want)
+		}
+	}
 }
 
 func TestResumableCopy(t *testing.T) {
@@ -1081,7 +1117,7 @@ func waitStablePartial(t *testing.T, dir, base string) []string {
 		if len(ps) == 1 {
 			fi, err := os.Stat(filepath.Join(dir, ps[0]))
 			if err == nil && fi.Size() == last && last > 0 {
-				waitUnlocked(filepath.Join(dir, ps[0])) // let the host close (unlock) it
+				waitUnlocked(t, filepath.Join(dir, ps[0])) // let the host close (unlock) it
 				return ps
 			}
 			if err == nil {

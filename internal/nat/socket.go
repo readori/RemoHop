@@ -72,11 +72,25 @@ type ttlPacketConn interface {
 	WriteToTTL(p []byte, addr net.Addr, ttl int) (int, error)
 }
 
+// SocketOptions tune a Socket when it is made.
+type SocketOptions struct {
+	// StatelessResetKey, if set, makes the socket answer a packet of a
+	// QUIC connection it does not know, such as one of this program's
+	// previous run on the same port, with a stateless reset (RFC 9000,
+	// 10.3). The other end then drops the connection at once instead of
+	// after its idle timeout. The key must stay secret, and the same across
+	// restarts for the resets to be recognised.
+	StatelessResetKey *quic.StatelessResetKey
+}
+
 // Listen opens a UDP socket on addr ("" or ":0" for any port on all
 // interfaces) and wraps it. A socket on all interfaces is dual-stack and,
 // where NAT64Wanted, reaches IPv4 addresses through the network's NAT64
 // when there is no IPv4 (see nat64.go).
-func Listen(addr string) (*Socket, error) {
+func Listen(addr string) (*Socket, error) { return ListenWith(addr, SocketOptions{}) }
+
+// ListenWith is Listen with options.
+func ListenWith(addr string, o SocketOptions) (*Socket, error) {
 	if addr == "" {
 		addr = ":0"
 	}
@@ -101,15 +115,18 @@ func Listen(addr string) (*Socket, error) {
 	if os.Getenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING") == "" {
 		os.Setenv("QUIC_GO_DISABLE_RECEIVE_BUFFER_WARNING", "true")
 	}
-	return NewSocket(pc)
+	return NewSocketWith(pc, o)
 }
 
 // NewSocket wraps an existing packet connection, which the Socket then owns.
-func NewSocket(pc net.PacketConn) (*Socket, error) {
+func NewSocket(pc net.PacketConn) (*Socket, error) { return NewSocketWith(pc, SocketOptions{}) }
+
+// NewSocketWith is NewSocket with options.
+func NewSocketWith(pc net.PacketConn, o SocketOptions) (*Socket, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Socket{
 		pc:         pc,
-		tr:         &quic.Transport{Conn: pc},
+		tr:         &quic.Transport{Conn: pc, StatelessResetKey: o.StatelessResetKey},
 		Locals:     InterfaceAddrs,
 		Excluded:   Excluded,
 		cancel:     cancel,

@@ -240,18 +240,18 @@ func (c *Client) ReadDir(ctx context.Context, name string) ([]*FileInfo, error) 
 		h := r.rep.Handle
 		// A host must not keep a client listing forever: bound the
 		// total, and refuse batches that make no progress.
-		if len(out) > MaxDirEntries || len(r.rep.Entries) == 0 {
+		if len(out) > maxDirEntries || len(r.rep.Entries) == 0 {
 			c.closeHandle(h)
 			return nil, remoteErr("readdir", name, "E2BIG",
-				fmt.Sprintf("readdir %s: listing exceeds %d entries or stalls", name, MaxDirEntries))
+				fmt.Sprintf("readdir %s: listing exceeds %d entries or stalls", name, maxDirEntries))
 		}
 		r, err = c.call(ctx, opReadDir, "readdir", name, &request{Handle: h}, nil)
 		if err != nil {
 			c.closeHandle(h)
 		}
 	}
-	if len(out) > MaxDirEntries {
-		return nil, remoteErr("readdir", name, "E2BIG", fmt.Sprintf("readdir %s: listing exceeds %d entries", name, MaxDirEntries))
+	if len(out) > maxDirEntries {
+		return nil, remoteErr("readdir", name, "E2BIG", fmt.Sprintf("readdir %s: listing exceeds %d entries", name, maxDirEntries))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].a.Name < out[j].a.Name })
 	return out, nil
@@ -259,6 +259,10 @@ func (c *Client) ReadDir(ctx context.Context, name string) ([]*FileInfo, error) 
 
 // MaxDirEntries bounds one ReadDir.
 const MaxDirEntries = 1 << 20
+
+// maxDirEntries is MaxDirEntries, lower in tests: reaching a million
+// entries takes over a thousand round trips, too slow on a loaded machine.
+var maxDirEntries = MaxDirEntries
 
 // validName reports whether a directory entry name from the host is a
 // single path component. Hosts are not trusted: a name such as "../x" or

@@ -127,9 +127,7 @@ func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 }
 
 func runGrant(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host grant", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, grantUsage) }
+	fs := cli.NewFlagSet(env, "host grant", grantUsage)
 	var allow, cmds listFlag
 	fs.Var(&allow, "allow", "")
 	fs.Var(&cmds, "cmd", "")
@@ -141,10 +139,7 @@ func runGrant(env *cli.Env, args []string) int {
 	keyLine := fs.String("key", "", "")
 	pos, err := parseInterspersed(fs, args)
 	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return cli.ExitOK
-		}
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	switch {
 	case len(pos) == 1 && *name == "":
@@ -270,11 +265,14 @@ type GrantStatus struct {
 }
 
 func runGrants(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host grants", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	const usage = "usage: remohop host grants [--json]"
+	fs := cli.NewFlagSet(env, "host grants", usage)
 	asJSON := fs.Bool("json", false, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		env.Errorf("usage: remohop host grants [--json]")
+	if err := fs.Parse(args); err != nil {
+		return cli.FlagExit(err)
+	}
+	if fs.NArg() != 0 {
+		env.Errorf(usage)
 		return cli.ExitUsage
 	}
 	dir, err := config.Dir()
@@ -377,11 +375,14 @@ func revokeGrantRef(env *cli.Env, dir, ref string) (handled bool, code int) {
 }
 
 func runPanic(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host panic", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	const usage = "usage: remohop host panic [--all]"
+	fs := cli.NewFlagSet(env, "host panic", usage)
 	all := fs.Bool("all", false, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		env.Errorf("usage: remohop host panic [--all]")
+	if err := fs.Parse(args); err != nil {
+		return cli.FlagExit(err)
+	}
+	if fs.NArg() != 0 {
+		env.Errorf(usage)
 		return cli.ExitUsage
 	}
 	dir, err := config.Dir()
@@ -443,11 +444,14 @@ func runResume(env *cli.Env, args []string) int {
 }
 
 func runAuditCmd(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host audit", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	const usage = "usage: remohop host audit [--grant NAME] [N] [--json]"
+	fs := cli.NewFlagSet(env, "host audit", usage)
 	name := fs.String("grant", "", "")
 	asJSON := fs.Bool("json", false, "")
 	pos, err := parseInterspersed(fs, args)
+	if err != nil {
+		return cli.FlagExit(err)
+	}
 	n := 100
 	if err == nil && len(pos) == 1 {
 		n, err = strconv.Atoi(pos[0])
@@ -456,7 +460,7 @@ func runAuditCmd(env *cli.Env, args []string) int {
 		}
 	}
 	if err != nil || len(pos) > 1 {
-		env.Errorf("usage: remohop host audit [--grant NAME] [N] [--json]")
+		env.Errorf(usage)
 		return cli.ExitUsage
 	}
 	dir, err := config.Dir()

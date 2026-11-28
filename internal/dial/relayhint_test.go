@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"fmt"
 	"net"
 	"net/netip"
 	"strings"
@@ -41,20 +42,24 @@ func TestRelayHint(t *testing.T) {
 			Dir:       dir,
 			Listen:    func() (net.PacketConn, error) { pc, err := ch.Listen(0); return serverOnly{pc}, err },
 			Locals:    func() []netip.Addr { return []netip.Addr{ch.Addr()} },
-			PunchTime: 1500 * time.Millisecond,
+			PunchTime: 2 * relayAfter,
 			Notify:    func(m string) { notes = append(notes, m) },
 		}, &notes
 	}
+	var attempts []int
+	beforePunch = func(n int) { attempts = append(attempts, n) }
+	defer func() { beforePunch = nil }()
 	dialOnce := func(opts Options) time.Duration {
 		t.Helper()
+		attempts = nil
 		start := time.Now()
 		conn, err := Dial(testCtx(t), host.ID(), opts)
 		if err != nil {
 			t.Fatal(err)
 		}
 		took := time.Since(start)
-		if InfoOf(conn).Path != PathRelayed {
-			t.Fatalf("path %s", InfoOf(conn).Path)
+		if InfoOf(conn).Path != PathRelayed || fmt.Sprint(attempts) != "[1]" {
+			t.Fatalf("path %s after punch attempts %v; want the relay, raced in the first attempt", InfoOf(conn).Path, attempts)
 		}
 		echo(t, conn)
 		conn.Close()
@@ -65,7 +70,9 @@ func TestRelayHint(t *testing.T) {
 	first := dialOnce(opts)
 	second := dialOnce(opts)
 	t.Logf("relayed dial without a hint %s, with one %s", first.Round(time.Millisecond), second.Round(time.Millisecond))
-	if first < 2500*time.Millisecond {
+	// Without a hint the punch runs alone for relayAfter, then the relay
+	// joins it (and wins), in the same attempt.
+	if first < relayAfter {
 		t.Errorf("first dial took only %s: did it punch at all?", first)
 	}
 	if second > time.Second || !strings.Contains((*notes)[len(*notes)-1], "minutes ago") {
@@ -73,7 +80,7 @@ func TestRelayHint(t *testing.T) {
 	}
 	// Another network of ours: the hint does not apply.
 	opts2, _ := client("203.0.113.11")
-	if third := dialOnce(opts2); third < 2500*time.Millisecond {
+	if third := dialOnce(opts2); third < relayAfter {
 		t.Errorf("dial from another network took %s: it used a hint for a different address", third)
 	}
 	// Relays turned off: the hint is not used.

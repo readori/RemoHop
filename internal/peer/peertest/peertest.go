@@ -14,6 +14,7 @@ import (
 	"crypto/x509"
 	"math/big"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -45,17 +46,38 @@ type Options struct {
 	// NoStart returns the host end unstarted (peer.New): it serves no
 	// stream until the test calls Start.
 	NoStart bool
+	// Latency delays every packet either end sends by this much, so the
+	// round trip is twice it: what timing tests use to see how an
+	// operation behaves on a real network rather than on loopback.
+	Latency time.Duration
 }
 
 // PairOpts is PairWith with host options.
 func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *peer.Conn) {
 	t.Helper()
 
-	ln, err := quic.ListenAddr("127.0.0.1:0", serverTLS(t), peer.QUICConfig())
+	// Each transport is closed by a cleanup registered once it is used:
+	// cleanups run in reverse order, so after the sessions on it. (A pair
+	// may be made from a goroutine while the test's cleanups already run.)
+	newTransport := func() *quic.Transport {
+		uc, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatalf("peertest: listen: %v", err)
+		}
+		var pc net.PacketConn = uc
+		if o.Latency > 0 {
+			pc = newDelayConn(uc, o.Latency)
+		}
+		return &quic.Transport{Conn: pc}
+	}
+
+	st := newTransport()
+	ln, err := st.Listen(serverTLS(t), peer.QUICConfig())
 	if err != nil {
+		st.Close()
 		t.Fatalf("peertest: listen: %v", err)
 	}
-	t.Cleanup(func() { ln.Close() })
+	t.Cleanup(func() { ln.Close(); st.Close() })
 
 	// The first loopback handshake of a process has been seen to stall on a
 	// loaded macOS runner, so dial a few times rather than once for long.
@@ -77,11 +99,14 @@ func PairOpts(t testing.TB, services *peer.Registry, o Options) (client, host *p
 	var cq *quic.Conn
 	for attempt := 1; ; attempt++ {
 		dctx, dcancel := context.WithTimeout(ctx, 10*time.Second)
-		cq, err = quic.DialAddr(dctx, ln.Addr().String(), clientTLS, peer.QUICConfig())
+		ct := newTransport()
+		cq, err = ct.Dial(dctx, ln.Addr(), clientTLS, peer.QUICConfig())
 		dcancel()
 		if err == nil {
+			t.Cleanup(func() { ct.Close() })
 			break
 		}
+		ct.Close()
 		if attempt == 3 {
 			t.Fatalf("peertest: dial: %v", err)
 		}
@@ -151,8 +176,69 @@ func serverTLS(t testing.TB) *tls.Config {
 	}
 }
 
-// samePort matches the two ends of one loopback connection. The client's
-// socket is bound to the wildcard address, so only the port is comparable.
+// delayConn sends every packet a fixed time after it was written, in the
+// order written.
+type delayConn struct {
+	net.PacketConn
+	delay time.Duration
+
+	mu     sync.Mutex
+	closed bool
+	queue  chan delayed
+}
+
+type delayed struct {
+	at   time.Time
+	b    []byte
+	addr net.Addr
+}
+
+func newDelayConn(pc *net.UDPConn, delay time.Duration) *delayConn {
+	c := &delayConn{PacketConn: pc, delay: delay, queue: make(chan delayed, 1<<14)}
+	go func() {
+		for p := range c.queue {
+			if w := time.Until(p.at); w > 0 {
+				time.Sleep(w)
+			}
+			pc.WriteTo(p.b, p.addr)
+		}
+	}()
+	return c
+}
+
+func (c *delayConn) WriteTo(b []byte, addr net.Addr) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return 0, net.ErrClosed
+	}
+	select {
+	case c.queue <- delayed{time.Now().Add(c.delay), append([]byte(nil), b...), addr}:
+	default: // a full queue drops the packet, as a full router queue would
+	}
+	return len(b), nil
+}
+
+// SetReadBuffer and SetWriteBuffer let quic-go size the socket's buffers.
+func (c *delayConn) SetReadBuffer(n int) error {
+	return c.PacketConn.(*net.UDPConn).SetReadBuffer(n)
+}
+
+func (c *delayConn) SetWriteBuffer(n int) error {
+	return c.PacketConn.(*net.UDPConn).SetWriteBuffer(n)
+}
+
+func (c *delayConn) Close() error {
+	c.mu.Lock()
+	if !c.closed {
+		c.closed = true
+		close(c.queue)
+	}
+	c.mu.Unlock()
+	return c.PacketConn.Close()
+}
+
+// samePort matches the two ends of one loopback connection by port.
 func samePort(a, b net.Addr) bool {
 	ua, ok1 := a.(*net.UDPAddr)
 	ub, ok2 := b.(*net.UDPAddr)

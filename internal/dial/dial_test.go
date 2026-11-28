@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -434,6 +435,111 @@ func TestDirectDialAndHostKeyPin(t *testing.T) {
 		t.Fatalf("dial after forget: %v", err)
 	}
 	conn.Close()
+}
+
+// lockedBuffer is a bytes.Buffer safe for a logger and a test at once.
+type lockedBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (l *lockedBuffer) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.Write(p)
+}
+
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+// The host's first registration is logged at debug level only: the banner
+// of `remohop host` shows the ID already.
+func TestFirstRegistrationLoggedAtDebug(t *testing.T) {
+	var logs lockedBuffer
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	startHost(t, hostd.Config{Signal: loopbackSignal(t), Logger: logger})
+	var line string
+	waitFor(t, func() bool { // logged just after Registered closes
+		for l := range strings.Lines(logs.String()) {
+			if strings.Contains(l, `msg="registered with the rendezvous server"`) {
+				line = l
+			}
+		}
+		return line != ""
+	})
+	if !strings.Contains(line, "level=DEBUG") {
+		t.Fatalf("registration logged as %q", line)
+	}
+}
+
+// crashConn is a host's socket that can go silent at once, as when the
+// host's process is killed: nothing it sends gets out any more, not even
+// the close of its sessions.
+type crashConn struct {
+	net.PacketConn
+	dead atomic.Bool
+}
+
+func (c *crashConn) WriteTo(p []byte, addr net.Addr) (int, error) {
+	if c.dead.Load() {
+		return len(p), nil
+	}
+	return c.PacketConn.WriteTo(p, addr)
+}
+
+// A host that is killed and started again on the same port answers what
+// its clients still send on their old sessions with a QUIC stateless
+// reset, so they notice at once rather than after the idle timeout (20 s).
+func TestRestartedHostResetsSessions(t *testing.T) {
+	ctx := testCtx(t)
+	hostDir := t.TempDir()
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := pc.LocalAddr().String()
+	cc := &crashConn{PacketConn: pc}
+	h1, err := hostd.New(hostd.Config{Dir: hostDir, PacketConn: cc, Password: "direct-password", Locals: noLocals})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hctx, stopHost := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- h1.Run(hctx) }()
+	conn, err := Dial(ctx, addr, Options{Dir: t.TempDir(), Password: "direct-password", Locals: noLocals})
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	s, err := conn.Open(ctx, echoService, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cc.dead.Store(true) // killed
+	stopHost()
+	<-done
+	pc2, err := net.ListenPacket("udp", addr)
+	if err != nil {
+		t.Skipf("cannot rebind %s: %v", addr, err)
+	}
+	startHost(t, hostd.Config{Dir: hostDir, PacketConn: pc2, Password: "direct-password"})
+	select {
+	case <-conn.Done():
+		t.Fatal("the session ended before it sent anything to the new host")
+	default:
+	}
+	start := time.Now()
+	s.Write([]byte("anyone there?"))
+	select {
+	case <-conn.Done():
+		t.Logf("the session ended %s after its first packet to the restarted host", time.Since(start).Round(time.Millisecond))
+	case <-time.After(time.Second):
+		t.Fatal("the session did not notice the restarted host within a second")
+	}
 }
 
 // TestManInTheMiddle puts an active attacker between client and host: it
@@ -892,6 +998,27 @@ func TestRelayFallback(t *testing.T) {
 		if _, err := Dial(testCtx(t), host.ID(), bad); auth.CodeOf(err) != auth.CodeAuthFailed {
 			t.Fatalf("wrong password through the relay: %v", err)
 		}
+	})
+
+	// No punch gets through two symmetric NATs, so the relay is set up at
+	// once rather than after relayAfter (made long here) or after the
+	// punch (made long too) has given up.
+	t.Run("at once between symmetric NATs", func(t *testing.T) {
+		defer func(old time.Duration) { relayAfter = old }(relayAfter)
+		relayAfter = 20 * time.Second
+		w := relayWorld(t, &signal.RelayConfig{})
+		host, opts := symmetricPair(w, "")
+		opts.PunchTime = 20 * time.Second
+		start := time.Now()
+		conn, err := Dial(testCtx(t), host.ID(), opts)
+		if err != nil {
+			t.Fatalf("dial: %v", err)
+		}
+		defer conn.Close()
+		if took := time.Since(start); took > 8*time.Second || InfoOf(conn).Path != PathRelayed {
+			t.Fatalf("path %s after %s; want the relay at once", InfoOf(conn).Path, took)
+		}
+		echo(t, conn)
 	})
 
 	t.Run("direct paths are preferred", func(t *testing.T) {

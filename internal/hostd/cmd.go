@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -202,19 +201,17 @@ func runHost(ctx context.Context, env *cli.Env, args []string) int {
 			return runRevoke(env, args[1:])
 		}
 	}
-	fs := flag.NewFlagSet("host", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, hostUsage) }
+	fs := cli.NewFlagSet(env, "host", hostUsage)
 	sig := fs.String("signal", env.Globals.Signal, "")
 	noSignal := fs.Bool("no-signal", false, "")
 	password := fs.String("password", "", "")
 	listen := fs.String("listen", "", "")
 	noPairing := fs.Bool("no-pairing", false, "")
 	if err := fs.Parse(args); err != nil {
-		return cli.ExitUsage
+		return cli.FlagExit(err)
 	}
 	if fs.NArg() != 0 {
-		env.Errorf("host: unexpected argument %q (subcommands: status, approve, deny, otp, passwd, authorize, paired, revoke, grant, grants, panic, resume, audit)", fs.Arg(0))
+		env.Errorf("host: unexpected argument %q (subcommands: status, sessions, approve, deny, otp, passwd, authorize, paired, revoke, grant, grants, panic, resume, audit)", fs.Arg(0))
 		return cli.ExitUsage
 	}
 
@@ -526,11 +523,14 @@ func tokenStore() (*auth.TokenStore, error) {
 }
 
 func runPaired(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host paired", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	const usage = "usage: remohop host paired [--json]"
+	fs := cli.NewFlagSet(env, "host paired", usage)
 	asJSON := fs.Bool("json", false, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		env.Errorf("usage: remohop host paired [--json]")
+	if err := fs.Parse(args); err != nil {
+		return cli.FlagExit(err)
+	}
+	if fs.NArg() != 0 {
+		env.Errorf(usage)
 		return cli.ExitUsage
 	}
 	store, err := tokenStore()

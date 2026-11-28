@@ -12,6 +12,7 @@ package hostd
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -324,10 +325,11 @@ func New(cfg Config) (*Host, error) {
 	}
 	h.auth.ScopedKey = h.scopedKey
 
+	sockOpts := nat.SocketOptions{StatelessResetKey: h.resetKey()}
 	if cfg.PacketConn != nil {
-		h.sock, err = nat.NewSocket(cfg.PacketConn)
+		h.sock, err = nat.NewSocketWith(cfg.PacketConn, sockOpts)
 	} else {
-		h.sock, err = nat.Listen(cfg.Listen)
+		h.sock, err = nat.ListenWith(cfg.Listen, sockOpts)
 	}
 	if err != nil {
 		return nil, err
@@ -369,7 +371,7 @@ func (h *Host) openBridge(tlsConf *tls.Config, quicConf *quic.Config, budget *bu
 	if h.wc, err = h.cfg.SignalOptions.NewBridge(h.log); err != nil {
 		return err
 	}
-	if h.wsSock, err = nat.NewSocket(h.wc); err != nil {
+	if h.wsSock, err = nat.NewSocketWith(h.wc, nat.SocketOptions{StatelessResetKey: h.resetKey()}); err != nil {
 		h.wc.Close()
 		return err
 	}
@@ -379,6 +381,15 @@ func (h *Host) openBridge(tlsConf *tls.Config, quicConf *quic.Config, budget *bu
 		return err
 	}
 	return nil
+}
+
+// resetKey derives the QUIC stateless reset key of the host's sockets from
+// its identity: an Ed25519 signature is deterministic, so a restarted host
+// has the same key and its resets are recognised by the clients of its
+// previous run, and only the holder of the identity key can make it.
+func (h *Host) resetKey() *quic.StatelessResetKey {
+	k := quic.StatelessResetKey(sha256.Sum256(h.identity.Sign([]byte("remohop host stateless reset key v1"))))
+	return &k
 }
 
 // ID is the host's 9-digit ID, or "" before the first registration.
@@ -768,7 +779,14 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 		h.log.Info("registered with the rendezvous server through its websocket bridge (UDP to it is blocked; clients will come through the relay)",
 			"id", signal.FormatID(reg.ID), "bridge", h.wc.URL())
 	} else {
-		h.log.Info("registered with the rendezvous server", "id", signal.FormatID(reg.ID), "server", h.cfg.Signal, "public_addr", reg.Reflexive)
+		// The first time, the banner of `remohop host` (or the app)
+		// shows the ID already; later ones (a new network, a wake from
+		// sleep) are news.
+		level := slog.LevelInfo
+		if first {
+			level = slog.LevelDebug
+		}
+		h.log.Log(ctx, level, "registered with the rendezvous server", "id", signal.FormatID(reg.ID), "server", h.cfg.Signal, "public_addr", reg.Reflexive)
 	}
 	if prev := noteID(h.dir, h.cfg.Signal, reg.ID); prev != "" {
 		h.log.Warn("the rendezvous server assigned a different ID", "id", signal.FormatID(reg.ID), "previous", signal.FormatID(prev))

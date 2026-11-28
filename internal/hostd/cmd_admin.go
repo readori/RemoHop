@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"sort"
@@ -34,12 +33,18 @@ func printJSON(env *cli.Env, v any) {
 // runStatus is `remohop status` and, with strict set, `remohop host status`, which
 // differs only in failing when no host is running.
 func runStatus(env *cli.Env, args []string, strict bool) int {
-	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, statusUsage) }
+	name := "status"
+	if strict {
+		name = "host status"
+	}
+	fs := cli.NewFlagSet(env, name, statusUsage)
 	asJSON := fs.Bool("json", false, "")
 	show := fs.Bool("show-password", false, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
+	if err := fs.Parse(args); err != nil {
+		return cli.FlagExit(err)
+	}
+	if fs.NArg() != 0 {
+		env.Errorf("%s: unexpected argument %q (%s)", name, fs.Arg(0), cli.FlagHint(name))
 		return cli.ExitUsage
 	}
 	dir, err := config.Dir()
@@ -308,14 +313,13 @@ func runPasswd(env *cli.Env, args []string) int {
 }
 
 func runAuthorize(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host authorize", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	fs := cli.NewFlagSet(env, "host authorize", "usage: remohop host authorize \"KEY-LINE\" [--name NAME]")
 	name := fs.String("name", "", "")
 	// Accept the flag before or after the key line.
 	var line []string
 	for len(args) > 0 {
 		if err := fs.Parse(args); err != nil {
-			return cli.ExitUsage
+			return cli.FlagExit(err)
 		}
 		if fs.NArg() == 0 {
 			break
@@ -369,15 +373,13 @@ func runAuthorize(env *cli.Env, args []string) int {
 }
 
 func runLog(_ context.Context, env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("log", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
-	fs.Usage = func() { fmt.Fprint(env.Stderr, logUsage) }
+	fs := cli.NewFlagSet(env, "log", logUsage)
 	asJSON := fs.Bool("json", false, "")
 	n := 50
 	// N may come before or after --json.
 	for len(args) > 0 {
 		if err := fs.Parse(args); err != nil {
-			return cli.ExitUsage
+			return cli.FlagExit(err)
 		}
 		if fs.NArg() == 0 {
 			break
@@ -447,11 +449,14 @@ func authColumn(auth, authorizer, grant string) string {
 
 // runSessions lists the live sessions of the running host.
 func runSessions(env *cli.Env, args []string) int {
-	fs := flag.NewFlagSet("host sessions", flag.ContinueOnError)
-	fs.SetOutput(env.Stderr)
+	const usage = "usage: remohop host sessions [--json]"
+	fs := cli.NewFlagSet(env, "host sessions", usage)
 	asJSON := fs.Bool("json", false, "")
-	if err := fs.Parse(args); err != nil || fs.NArg() != 0 {
-		env.Errorf("usage: remohop host sessions [--json]")
+	if err := fs.Parse(args); err != nil {
+		return cli.FlagExit(err)
+	}
+	if fs.NArg() != 0 {
+		env.Errorf(usage)
 		return cli.ExitUsage
 	}
 	dir, err := config.Dir()

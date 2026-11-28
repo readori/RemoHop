@@ -147,10 +147,10 @@ func Sync(ctx context.Context, c *rfs.Client, src, dst Path, o SyncOptions) (*Sy
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		srcItems, srcErrs = walk(ctx, s.src, src.Path, ex, o.Parallel)
+		srcItems, srcErrs = walk(ctx, s.src, src.Path, ex, metaParallel(o.Parallel))
 	}()
 	if dstTop != nil {
-		dstItems, dstErrs = walk(ctx, s.dst, dst.Path, ex, o.Parallel)
+		dstItems, dstErrs = walk(ctx, s.dst, dst.Path, ex, metaParallel(o.Parallel))
 	}
 	wg.Wait()
 	for _, e := range append(srcErrs, dstErrs...) {
@@ -406,7 +406,7 @@ func (s *syncer) execute(p *syncPlan) {
 	}
 	for d := 0; d <= maxDepth; d++ {
 		var mu sync.Mutex
-		parallelDo(len(byDepth[d]), s.o.Parallel, func(i int) {
+		parallelDo(len(byDepth[d]), metaParallel(s.o.Parallel), func(i int) {
 			it := byDepth[d][i]
 			if isBlocked(parentRel(it.rel)) && it.rel != "" {
 				return
@@ -429,8 +429,7 @@ func (s *syncer) execute(p *syncPlan) {
 	prog.FilesTotal.Add(int64(len(p.files) + len(p.links)))
 	prog.BytesTotal.Add(p.bytes)
 	jobs := append(append([]item{}, p.files...), p.links...)
-	parallelDo(len(jobs), s.o.Parallel, func(i int) {
-		it := jobs[i]
+	parallelBySize(jobs, func(it item) bool { return isSmall(it.e) }, s.o.Parallel, func(it item) {
 		if ctx.Err() != nil || isBlocked(it.rel) {
 			return
 		}
@@ -453,26 +452,32 @@ func (s *syncer) execute(p *syncPlan) {
 		return
 	}
 
-	for _, it := range p.chmods {
+	// Files whose mode or time alone changed: one or two round trips each,
+	// all independent.
+	meta := metaParallel(s.o.Parallel)
+	parallelDo(len(p.chmods), meta, func(i int) {
+		it := p.chmods[i]
 		if err := s.dst.chmod(ctx, dpath(it.rel), s.perm(it.e)); err != nil {
 			s.fail(err)
-			continue
+			return
 		}
 		s.note(&s.res.Updated, it.rel)
-	}
-	for _, it := range p.mtimes {
+	})
+	parallelDo(len(p.mtimes), meta, func(i int) {
+		it := p.mtimes[i]
 		err := s.dst.chmod(ctx, dpath(it.rel), s.perm(it.e))
 		if err == nil {
 			err = s.dst.chtimes(ctx, dpath(it.rel), it.e.mtime)
 		}
 		if err != nil {
 			s.fail(err)
-			continue
+			return
 		}
 		s.note(&s.res.Updated, it.rel)
-	}
+	})
 
-	for _, it := range p.deletes {
+	// Deletes deepest first, so a directory is empty when its turn comes.
+	deepestFirst(p.deletes, relDepth, meta, func(it item) {
 		var err error
 		if it.e.isDir() {
 			err = s.dst.rmdir(ctx, dpath(it.rel))
@@ -484,16 +489,15 @@ func (s *syncer) execute(p *syncPlan) {
 		}
 		if err != nil {
 			s.fail(err)
-			continue
+			return
 		}
 		s.note(&s.res.Deleted, it.rel)
-	}
+	})
 
 	// Directory modes and times last, deepest first.
-	sort.SliceStable(p.dirFixes, func(a, b int) bool { return len(p.dirFixes[a].rel) > len(p.dirFixes[b].rel) })
-	for _, it := range p.dirFixes {
+	deepestFirst(p.dirFixes, relDepth, meta, func(it item) {
 		if isBlocked(it.rel) {
-			continue
+			return
 		}
 		if err := s.dst.chmod(ctx, dpath(it.rel), s.perm(it.e)); err != nil {
 			s.fail(err)
@@ -501,7 +505,15 @@ func (s *syncer) execute(p *syncPlan) {
 		if err := s.dst.chtimes(ctx, dpath(it.rel), it.e.mtime); err != nil {
 			s.fail(err)
 		}
+	})
+}
+
+// relDepth is how far below the root an item is (the root itself is 0).
+func relDepth(it item) int {
+	if it.rel == "" {
+		return 0
 	}
+	return strings.Count(it.rel, "/") + 1
 }
 
 // makeDir creates one destination directory. An entry that appeared there
