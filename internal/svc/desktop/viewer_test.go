@@ -67,7 +67,7 @@ func TestViewerHTTPAccess(t *testing.T) {
 		}
 		if c.want == 200 {
 			csp := resp.Header.Get("Content-Security-Policy")
-			if !strings.Contains(csp, "default-src 'none'") || !strings.Contains(csp, "frame-ancestors 'none'") {
+			if !strings.Contains(csp, "default-src 'none'") || !strings.Contains(csp, "frame-ancestors 'none'") || !strings.Contains(csp, "img-src data:;") {
 				t.Errorf("%s: CSP %q", c.name, csp)
 			}
 			if resp.Header.Get("Referrer-Policy") != "no-referrer" {
@@ -146,6 +146,20 @@ func TestParseRate(t *testing.T) {
 	for _, s := range []string{"", "x", "-5M", "1k", "9G", "NaN"} {
 		if _, err := parseRate(s); err == nil {
 			t.Errorf("accepted %q", s)
+		}
+	}
+}
+
+// The page is served with the shared pointer.js and audio.js inlined: its
+// Content-Security-Policy allows inline scripts only.
+func TestViewerInlinesSharedJS(t *testing.T) {
+	s := string(viewerHTML)
+	for _, f := range []struct{ marker, def string }{
+		{"/*remohop:pointer.js*/", "window.RemoHopPointer = "},
+		{"/*remohop:audio.js*/", "window.RemoHopAudio = "},
+	} {
+		if strings.Contains(s, f.marker) || !strings.Contains(s, f.def) || !strings.Contains(string(viewerPage), f.marker) {
+			t.Errorf("%s is not inlined in the viewer page", f.marker)
 		}
 	}
 }

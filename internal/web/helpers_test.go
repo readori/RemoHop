@@ -60,7 +60,9 @@ type dialer struct {
 	mu    sync.Mutex
 	calls []DialRequest
 	opts  peertest.Options
-	hosts []*peer.Conn
+	// services is what the hosts serve (default peer.HostServices).
+	services *peer.Registry
+	hosts    []*peer.Conn
 	// over is set when the test's cleanups start: closing the test pairs
 	// looks like a drop to a persistent gateway, which would otherwise
 	// redial through t after the test has ended.
@@ -83,7 +85,11 @@ func (d *dialer) dial(ctx context.Context, req DialRequest) (*peer.Conn, error) 
 	if req.Password != "hostpw" {
 		return nil, &peer.RemoteError{Service: "login", Message: "wrong password"}
 	}
-	c, h := peertest.PairOpts(d.t, peer.HostServices, d.opts)
+	services := d.services
+	if services == nil {
+		services = peer.HostServices
+	}
+	c, h := peertest.PairOpts(d.t, services, d.opts)
 	// Registered after the pair's own cleanups, so it runs before them.
 	d.t.Cleanup(func() { d.over.Store(true) })
 	d.mu.Lock()

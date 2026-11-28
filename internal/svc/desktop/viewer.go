@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -37,7 +38,25 @@ import (
 // open, which could otherwise connect to localhost ports freely).
 
 //go:embed viewer.html
-var viewerHTML []byte
+var viewerPage []byte
+
+// PointerJS draws the host's pointer in a page and locks the mouse (see
+// pointer.js): the viewer has it inlined, and the web console serves it.
+// Read only.
+//
+//go:embed pointer.js
+var PointerJS []byte
+
+// AudioJS plays the host's audio in a page (see audio.js): the viewer
+// has it inlined, and the web console serves it. Read only.
+//
+//go:embed audio.js
+var AudioJS []byte
+
+// viewerHTML is the page as served, with pointer.js and audio.js inlined
+// (the page's Content-Security-Policy allows inline scripts only).
+var viewerHTML = bytes.Replace(bytes.Replace(viewerPage, []byte("/*remohop:pointer.js*/"), PointerJS, 1),
+	[]byte("/*remohop:audio.js*/"), AudioJS, 1)
 
 type viewer struct {
 	conn  *peer.Conn
@@ -200,7 +219,10 @@ func (v *viewer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Set("Content-Type", "text/html; charset=utf-8")
-		h.Set("Content-Security-Policy", fmt.Sprintf("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "+
+		// img-src data: is for the pointer's CSS cursor images, which the
+		// page makes itself (pointer.js); without it the browser shows its
+		// default arrow instead.
+		h.Set("Content-Security-Policy", fmt.Sprintf("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; "+
 			"connect-src 'self' ws://127.0.0.1:%d ws://localhost:%d; frame-ancestors 'none'; base-uri 'none'; form-action 'none'", v.port, v.port))
 		w.Write(viewerHTML)
 	case "ws":

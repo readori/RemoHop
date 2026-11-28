@@ -75,10 +75,13 @@ button.on{background:#7a2020;border-color:#c44}
 <div id="toast" class="hidden"></div>
 <div id="paused" class="hidden" role="status"></div>
 <div id="msg"><div id="msgtext">Connecting…</div><button id="bre" class="hidden">Reconnect</button></div>
+<script>/*remohop:pointer.js*/</script>
+<script>/*remohop:audio.js*/</script>
 <script>
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
+  const P = window.RemoHopPointer;
   const canvas = $('screen');
   const g = canvas.getContext('2d', {alpha: false, desynchronized: true});
   // Wall-clock microseconds, the clock capture times are converted to.
@@ -119,7 +122,7 @@ button.on{background:#7a2020;border-color:#c44}
               winFrames: 0, winBytes: 0, winStart: performance.now()};
   window.remohop = {stats: () => ({...st, hello, decodable, recording, viewOnly,
                                   configured: !!decoder && decoder.state === 'configured'}),
-                   audio: () => ({...au.s, on: au.on, muted: au.muted, ctxState: au.ctx ? au.ctx.state : 'none'}),
+                   audio: () => ({...sound.stats(), source: au.source, on: sound.on, muted: sound.muted, ctxState: sound.ctxState()}),
                    cursor: () => cursorInfo(),
                    upload: files => uploadFiles([...files])};
 
@@ -213,7 +216,7 @@ button.on{background:#7a2020;border-color:#c44}
     };
     ws.onmessage = e => {
       if (typeof e.data === 'string') onText(JSON.parse(e.data));
-      else if (new Uint8Array(e.data, 0, 1)[0] === 0x41) onAudio(e.data);
+      else if (window.RemoHopAudio.isAudio(e.data)) sound.packet(e.data);
       else onVideo(e.data);
     };
     ws.onclose = () => {
@@ -420,7 +423,7 @@ button.on{background:#7a2020;border-color:#c44}
     queued.forEach(onVideo);
     if (h.warning) console.warn('host:', h.warning);
     if (h.audio_auto && !au.autoDone) { au.autoDone = true; au.wanted = true; }
-    if (au.wanted && !au.on && !au.requesting) setAudio(true, true);
+    if (au.wanted && !sound.on && !au.requesting) setAudio(true, true);
   }
 
   function fatal(text) {
@@ -517,35 +520,23 @@ button.on{background:#7a2020;border-color:#c44}
   // fight the hand. A hidden remote pointer (a game) hides the local one
   // over the picture too, and the page offers to lock the mouse.
   const cur = {
-    shapes: new Map(),   // id -> {w, h, hx, hy, bmp}; bmp is an ImageBitmap once decoded
-    css: new Map(),      // id@scale@ratio -> CSS cursor values
+    shapes: P.shapes(() => scheduleCursor()), // id -> {w, h, hx, hy, bmp}; bmp is an ImageBitmap once decoded
     cssNow: null,
     state: null,         // {id, x, y, visible}: host pixels from the captured area's top-left
     inside: false,       // the mouse is over the picture
     warped: false,       // the remote pointer is not where this page put it
-    sent: [],            // [{t, x, y}]: where this page recently put the pointer, host pixels
+    placed: P.placed(),  // where this page recently put the pointer, host pixels
     locked: false,       // the mouse is locked to the picture (Pointer Lock)
     hiddenAt: 0,         // when the remote pointer was hidden, 0 while it shows
     suggested: false,    // the lock was suggested for this hiding
     suggestTimer: 0,
     auto: false,         // Auto lock: the next click locks while the remote pointer is hidden
-    overlay: null, overlayKey: '', raf: 0,
+    overlay: null, raf: 0,
   };
-  // Shapes kept: more than the host remembers having sent
-  // (CursorShapesKept, 32), since it names those by ID only.
-  const maxShapes = 64;
   try { cur.auto = localStorage.getItem('remohop.autolock') === '1'; } catch (e) { /* no storage */ }
 
   function onCursor(m) {
-    for (const sh of m.shapes || []) {
-      const entry = {w: sh.width, h: sh.height, hx: sh.hot_x, hy: sh.hot_y, bmp: null};
-      cur.shapes.delete(sh.id);
-      cur.shapes.set(sh.id, entry);
-      if (cur.shapes.size > maxShapes) cur.shapes.delete(cur.shapes.keys().next().value);
-      createImageBitmap(new Blob([bytesOf(sh.png)], {type: 'image/png'}))
-        .then(b => { entry.bmp = b; scheduleCursor(); })
-        .catch(e => console.warn('pointer image', e));
-    }
+    cur.shapes.add(m.shapes);
     const s = m.state;
     if (!s) return;
     if (!s.visible && !cur.hiddenAt) cur.hiddenAt = performance.now();
@@ -567,10 +558,8 @@ button.on{background:#7a2020;border-color:#c44}
     const prev = cur.state;
     if (!prev || (prev.x === s.x && prev.y === s.y)) return cur.warped;
     if (!inputOK || cur.locked) return false;
-    const now = performance.now();
-    cur.sent = cur.sent.filter(p => now - p.t < 1000 + st.rtt);
     const tol = 2 + 1 / Math.max(cursorScale(), 0.01);
-    return !cur.sent.some(p => Math.abs(p.x - s.x) <= tol && Math.abs(p.y - s.y) <= tol);
+    return !cur.placed.near(s.x, s.y, tol, 1000 + st.rtt);
   }
 
   // noteSent records where an absolute move puts the remote pointer (p in
@@ -578,8 +567,7 @@ button.on{background:#7a2020;border-color:#c44}
   function noteSent(p) {
     if (!hello || !hello.cursor) return;
     const w = hello.screen_width, h = hello.screen_height;
-    cur.sent.push({t: performance.now(), x: Math.round(p.x * (w - 1)), y: Math.round(p.y * (h - 1))});
-    if (cur.sent.length > 256) cur.sent.splice(0, cur.sent.length - 256);
+    cur.placed.add(Math.round(p.x * (w - 1)), Math.round(p.y * (h - 1)));
     if (cur.warped) { cur.warped = false; scheduleCursor(); }
   }
 
@@ -587,56 +575,19 @@ button.on{background:#7a2020;border-color:#c44}
     if (!cur.raf) cur.raf = requestAnimationFrame(() => { cur.raf = 0; applyCursor(); });
   }
 
-  // The CSS cursor values that show shape sh at k CSS pixels per host
-  // pixel: plain, and sharp on a high-density display (image-set, where
-  // the browser takes it for cursors). Browsers ignore cursor images
-  // larger than 128 CSS pixels, so a large one is made smaller.
-  function cssFor(id, sh, k) {
-    k = Math.min(k, 128 / sh.w, 128 / sh.h);
-    const dpr = window.devicePixelRatio || 1;
-    const key = id + '@' + k.toFixed(3) + '@' + dpr;
-    let v = cur.css.get(key);
-    if (v) return v;
-    const cw = Math.max(1, Math.round(sh.w * k)), ch = Math.max(1, Math.round(sh.h * k));
-    const urlAt = (w, h) => {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const g2 = c.getContext('2d');
-      g2.imageSmoothingQuality = 'high';
-      g2.drawImage(sh.bmp, 0, 0, w, h);
-      return c.toDataURL('image/png');
-    };
-    const hx = Math.min(cw - 1, Math.round(sh.hx * k)), hy = Math.min(ch - 1, Math.round(sh.hy * k));
-    v = {plain: `url(${urlAt(cw, ch)}) ${hx} ${hy}, default`, sharp: ''};
-    if (dpr !== 1) {
-      const dw = Math.max(1, Math.round(cw * dpr)), dh = Math.max(1, Math.round(ch * dpr));
-      v.sharp = `image-set(url(${urlAt(dw, dh)}) ${dpr}x) ${hx} ${hy}, default`;
-    }
-    if (cur.css.size >= 64) cur.css.clear();
-    cur.css.set(key, v);
-    return v;
-  }
-
   function setCss(v) {
     if (cur.cssNow === v) return;
     cur.cssNow = v;
-    if (typeof v === 'string') { canvas.style.cursor = v; return; }
-    canvas.style.cursor = v.plain;
-    if (v.sharp) canvas.style.cursor = v.sharp; // left as plain where the browser rejects it
+    P.setCSS(canvas, v);
   }
 
   function applyCursor() {
-    const on = !!(hello && hello.cursor);
-    const s = cur.state, k = cursorScale();
-    const sh = on && s && s.visible ? cur.shapes.get(s.id) : null;
-    if (!on) setCss(inputOK ? 'none' : 'default'); // the pointer is in the video
-    else if (!inputOK || !s) setCss('default');
-    else if (!s.visible) setCss('none');
-    else if (sh && sh.bmp) setCss(cssFor(s.id, sh, k));
-    else setCss('default');
-    const show = on && s && s.visible && (cur.locked || !inputOK || !cur.inside || cur.warped) &&
-      s.x >= 0 && s.y >= 0 && s.x < hello.screen_width && s.y < hello.screen_height;
-    drawOverlay(show ? s : null, sh && sh.bmp ? sh : null, k);
+    const k = cursorScale(), h = hello || {};
+    const v = P.look({on: !!h.cursor, input: inputOK, state: cur.state, shapes: cur.shapes, k,
+                      w: h.screen_width, h: h.screen_height, locked: cur.locked, inside: cur.inside,
+                      warped: cur.warped, inVideo: inputOK ? 'none' : 'default'});
+    setCss(v.css);
+    drawOverlay(v.overlay ? cur.state : null, v.shape, k);
     suggestLock();
   }
 
@@ -645,32 +596,10 @@ button.on{background:#7a2020;border-color:#c44}
   function drawOverlay(s, sh, k) {
     const o = $('rcursor');
     if (!s) { o.classList.add('hidden'); cur.overlay = null; return; }
-    const dpr = window.devicePixelRatio || 1;
-    const kk = sh ? k : 1;
-    const w = sh ? sh.w : 12, h = sh ? sh.h : 19, hx = sh ? sh.hx : 0, hy = sh ? sh.hy : 0;
-    const cw = Math.max(1, Math.round(w * kk)), ch = Math.max(1, Math.round(h * kk));
-    const key = (sh ? s.id : 0) + '@' + cw + 'x' + ch + '@' + dpr;
-    if (cur.overlayKey !== key) {
-      cur.overlayKey = key;
-      o.width = Math.round(cw * dpr); o.height = Math.round(ch * dpr);
-      o.style.width = cw + 'px'; o.style.height = ch + 'px';
-      const g2 = o.getContext('2d');
-      g2.clearRect(0, 0, o.width, o.height);
-      if (sh) {
-        g2.imageSmoothingQuality = 'high';
-        g2.drawImage(sh.bmp, 0, 0, o.width, o.height);
-      } else {
-        const u = o.width / 12;
-        g2.beginPath();
-        [[0, 0], [0, 16], [4, 12.5], [7, 18], [9, 17], [6.5, 11.5], [11, 11.5]].forEach(([x, y], i) => i ? g2.lineTo(x * u + u / 2, y * u + u / 2) : g2.moveTo(x * u + u / 2, y * u + u / 2));
-        g2.closePath();
-        g2.fillStyle = '#000'; g2.fill();
-        g2.lineWidth = u; g2.strokeStyle = '#fff'; g2.stroke();
-      }
-    }
+    const hot = P.paint(o, sh, k);
     const r = canvas.getBoundingClientRect();
     const x = r.left + s.x * k, y = r.top + s.y * k;
-    o.style.transform = `translate(${x - hx * kk}px, ${y - hy * kk}px)`;
+    o.style.transform = `translate(${x - hot.x}px, ${y - hot.y}px)`;
     o.classList.remove('hidden');
     cur.overlay = {x, y, id: sh ? s.id : 0};
   }
@@ -691,8 +620,8 @@ button.on{background:#7a2020;border-color:#c44}
   }
 
   function cursorInfo() {
-    return {on: !!(hello && hello.cursor), css: canvas.style.cursor, state: cur.state, shapes: cur.shapes.size,
-            decoded: [...cur.shapes.values()].filter(s => s.bmp).length, overlay: cur.overlay,
+    return {on: !!(hello && hello.cursor), css: canvas.style.cursor, state: cur.state, shapes: cur.shapes.size(),
+            decoded: cur.shapes.decoded(), overlay: cur.overlay,
             locked: cur.locked, warped: cur.warped, inside: cur.inside, auto: cur.auto};
   }
 
@@ -705,18 +634,7 @@ button.on{background:#7a2020;border-color:#c44}
   function lockPointer() {
     if (!canLock() || cur.locked) return;
     canvas.focus();
-    const fail = e => toast('Cannot lock the mouse: ' + (e && e.message || e));
-    let p;
-    try { p = canvas.requestPointerLock({unadjustedMovement: true}); } catch (e) { fail(e); return; }
-    if (p && p.catch) {
-      p.catch(e => {
-        if (!e || e.name !== 'NotSupportedError') { fail(e); return; }
-        // No raw movement on this system: the plain lock.
-        let q;
-        try { q = canvas.requestPointerLock(); } catch (e2) { fail(e2); return; }
-        if (q && q.catch) q.catch(fail);
-      });
-    }
+    P.lock(canvas, e => toast('Cannot lock the mouse: ' + (e && e.message || e)));
   }
   function toggleLock() {
     if (cur.locked) document.exitPointerLock();
@@ -760,7 +678,7 @@ button.on{background:#7a2020;border-color:#c44}
       `latency ${st.latency ? st.latency.toFixed(0) + ' ms' : 'n/a'}  rtt ${st.rtt.toFixed(1)} ms  decode ${st.decodeMs.toFixed(1)} ms\n` +
       `host: ${(h.fps || 0).toFixed(0)} fps  dropped ${h.dropped || 0}  encode ${(h.pipeline_ms || 0).toFixed(0)} ms` +
       `${h.restarts ? '  restarts ' + h.restarts : ''}${st.skipped ? '  skipped here ' + st.skipped : ''}\n` +
-      (au.on ? `audio opus  buffer ${au.s.bufMs.toFixed(0)} ms  delay ${au.s.delayMs.toFixed(0)} ms  skew ${au.s.skewMs.toFixed(0)} ms${au.muted ? '  muted' : ''}\n` : '') +
+      (sound.on ? `audio opus  buffer ${sound.stats().bufMs.toFixed(0)} ms  delay ${sound.stats().delayMs.toFixed(0)} ms  skew ${sound.stats().skewMs.toFixed(0)} ms${sound.muted ? '  muted' : ''}\n` : '') +
       (inputOK ? 'input on' : 'view only' + (viewOnly ? ' (toggled)' : hello.input_error ? ': ' + hello.input_error : '')) +
       (hello.cursor ? '  pointer drawn here' : '  pointer in the video') + (cur.locked ? '  mouse locked' : '');
   }
@@ -988,7 +906,7 @@ button.on{background:#7a2020;border-color:#c44}
     if (!e.code) return;
     // The page's own shortcut, kept from the remote machine: Ctrl+Alt+
     // Shift+M locks or releases the mouse.
-    if (e.code === 'KeyM' && e.ctrlKey && e.altKey && e.shiftKey) {
+    if (P.isLockKey(e)) {
       if (!e.repeat) toggleLock();
       swallowed.add(e.code);
       return;
@@ -1018,48 +936,29 @@ button.on{background:#7a2020;border-color:#c44}
   addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
-  // ---- Audio: Opus packets from the host, decoded with WebCodecs and
-  // played with the Web Audio API.
-  //
-  // Each packet carries the time its sound was captured on the host (already
-  // translated to this machine's clock). The sound is scheduled to leave the
-  // speakers at capture time + a delay, so playback is steady whatever the
-  // arrival jitter: the delay is the larger of a jitter buffer (40 ms plus
-  // three times the measured arrival jitter, at most 300 ms) and the video's
-  // own capture-to-display latency, so lips and sound line up. Packets that
-  // come too late to be scheduled are played at once and the schedule slips;
-  // when more than 120 ms of sound is queued beyond the target, the excess
-  // is dropped.
-  const au = {ctx: null, gain: null, dec: null, wanted: false, on: false, requesting: false, muted: false,
-              autoDone: false, cursor: 0, jitter: 0, prevTransit: null, delayUs: 0,
-              s: {packets: 0, decoded: 0, bytes: 0, underruns: 0, trimmed: 0, errors: 0, rms: 0, peak: 0,
-                  bufMs: 0, delayMs: 0, skewMs: 0, jitterMs: 0, source: ''}};
+  // ---- Audio: the host's audio, played by audio.js (shared with the web
+  // console). The page asks the viewer for the stream.
+  const A = window.RemoHopAudio;
+  const sound = A.player(nowUs, () => st.latency);
+  const au = {wanted: false, requesting: false, autoDone: false, source: ''};
 
   function audioButtons() {
     const b = $('baudio');
-    b.classList.toggle('on', au.on);
-    const stalled = au.on && au.ctx && au.ctx.state === 'suspended';
-    b.textContent = !au.on ? 'Audio' : stalled ? 'Audio (click the page to start)' : 'Audio on';
-    $('bmute').classList.toggle('hidden', !au.on);
-    $('bmute').classList.toggle('on', au.muted);
-    $('bmute').textContent = au.muted ? 'Unmute' : 'Mute';
+    b.classList.toggle('on', sound.on);
+    b.textContent = !sound.on ? 'Audio' : sound.stalled() ? 'Audio (click the page to start)' : 'Audio on';
+    $('bmute').classList.toggle('hidden', !sound.on);
+    $('bmute').classList.toggle('on', sound.muted);
+    $('bmute').textContent = sound.muted ? 'Unmute' : 'Mute';
   }
-  setInterval(() => {
-    if (au.ctx) au.s.bufMs = Math.max(0, (au.cursor - au.ctx.currentTime) * 1000);
-    audioButtons();
-  }, 500);
+  setInterval(audioButtons, 500);
   // Browsers start audio only after a user gesture on the page.
   for (const ev of ['pointerdown', 'keydown']) {
-    addEventListener(ev, () => { if (au.ctx && au.ctx.state === 'suspended') au.ctx.resume().then(audioButtons); }, true);
+    addEventListener(ev, () => { if (sound.ctxState() === 'suspended') sound.resume().then(audioButtons); }, true);
   }
 
   function audioReset() {
-    if (au.dec && au.dec.state !== 'closed') au.dec.close();
-    au.dec = null;
-    au.on = false;
+    sound.reset();
     au.requesting = false;
-    au.cursor = 0;
-    au.prevTransit = null;
     audioButtons();
   }
 
@@ -1070,23 +969,16 @@ button.on{background:#7a2020;border-color:#c44}
       audioReset();
       return;
     }
-    if (typeof AudioDecoder === 'undefined' || typeof AudioContext === 'undefined') {
-      toast('This browser has no WebCodecs AudioDecoder, so audio is unavailable. Use a recent Chrome, Edge or Safari.');
+    const why = await A.unsupported();
+    if (why) {
+      toast(why === 'nodecoder' ? 'This browser has no WebCodecs AudioDecoder, so audio is unavailable. Use a recent Chrome, Edge or Safari.'
+                                : 'This browser cannot decode Opus audio with WebCodecs.');
       au.wanted = false;
       return;
     }
-    const cfg = {codec: 'opus', sampleRate: 48000, numberOfChannels: 2};
-    let ok = false;
-    try { ok = (await AudioDecoder.isConfigSupported(cfg)).supported; } catch (e) { /* unsupported */ }
-    if (!ok) { toast('This browser cannot decode Opus audio with WebCodecs.'); au.wanted = false; return; }
     au.wanted = true;
     au.requesting = true;
-    if (!au.ctx) {
-      au.ctx = new AudioContext({latencyHint: 'interactive', sampleRate: 48000});
-      au.gain = au.ctx.createGain();
-      au.gain.connect(au.ctx.destination);
-    }
-    if (au.ctx.state === 'suspended') au.ctx.resume().catch(() => {});
+    sound.prepare();
     const r = await request({type: 'audio', on: true});
     au.requesting = false;
     if (r.error) {
@@ -1095,90 +987,15 @@ button.on{background:#7a2020;border-color:#c44}
       audioButtons();
       return;
     }
-    if (au.dec && au.dec.state !== 'closed') au.dec.close();
-    au.dec = new AudioDecoder({output: onAudioData, error: e => { au.s.errors++; console.warn('audio decoder', e); }});
-    au.dec.configure(cfg);
-    au.on = true;
-    au.cursor = 0;
-    au.s.source = (r.audio && r.audio.source) || '';
+    sound.begin();
+    au.source = (r.audio && r.audio.source) || '';
     if (r.audio && r.audio.warning && !quiet) toast(r.audio.warning);
     audioButtons();
   }
 
-  function onAudio(buf) {
-    if (!au.dec || au.dec.state !== 'configured' || buf.byteLength < 22) return;
-    const dv = new DataView(buf);
-    const cap = Number(dv.getBigInt64(5));
-    const arr = Number(dv.getBigInt64(13));
-    const data = new Uint8Array(buf, 21);
-    au.s.packets++;
-    au.s.bytes += data.length;
-    // Arrival jitter as in RFC 3550: how much the transit time varies.
-    const transit = arr - cap;
-    if (au.prevTransit !== null) au.jitter += (Math.abs(transit - au.prevTransit) - au.jitter) / 16;
-    au.prevTransit = transit;
-    au.s.jitterMs = au.jitter / 1000;
-    if (au.dec.decodeQueueSize > 10) { au.s.trimmed++; return; }
-    try {
-      au.dec.decode(new EncodedAudioChunk({type: 'key', timestamp: cap, data}));
-    } catch (e) { au.s.errors++; }
-  }
-
-  function onAudioData(ad) {
-    try {
-      const n = ad.numberOfFrames, chs = ad.numberOfChannels;
-      const buf = au.ctx.createBuffer(chs, n, ad.sampleRate);
-      const tmp = new Float32Array(n);
-      let sq = 0;
-      for (let c = 0; c < chs; c++) {
-        ad.copyTo(tmp, {planeIndex: c, format: 'f32-planar'});
-        buf.copyToChannel(tmp, c);
-        if (c === 0) for (let i = 0; i < n; i++) { sq += tmp[i] * tmp[i]; au.s.peak = Math.max(au.s.peak * 0.9995, Math.abs(tmp[i])); }
-      }
-      const rms = Math.sqrt(sq / n);
-      au.s.rms = au.s.rms === 0 ? rms : au.s.rms + (rms - au.s.rms) / 8;
-      au.s.decoded++;
-      scheduleAudio(buf, ad.timestamp);
-    } finally {
-      ad.close();
-    }
-  }
-
-  function scheduleAudio(buf, capUs) {
-    const ctx = au.ctx;
-    const videoUs = st.latency > 0 ? st.latency * 1000 : 0;
-    const target = Math.max(Math.min(300000, Math.max(40000, 40000 + 3 * au.jitter)), videoUs + 5000);
-    au.delayUs = au.delayUs === 0 ? target : au.delayUs + (target - au.delayUs) / 32;
-    const outLat = (ctx.outputLatency || 0) + (ctx.baseLatency || 0);
-    const t = ctx.currentTime;
-    const when = t + (capUs + au.delayUs - nowUs()) / 1e6 - outLat;
-    let start;
-    if (au.cursor === 0 || au.cursor < t) {
-      if (au.cursor !== 0) au.s.underruns++;
-      start = Math.max(when, t + 0.005);
-    } else if (Math.abs(when - au.cursor) <= 0.02) {
-      start = au.cursor;                       // gapless
-    } else if (when > au.cursor) {
-      start = when;                            // a pause in the sound, or the delay grew
-    } else if (au.cursor - when > 0.12) {
-      au.s.trimmed++;                          // too much queued: drop to cut the delay
-      return;
-    } else {
-      start = au.cursor;
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.connect(au.gain);
-    src.start(start);
-    au.cursor = start + buf.duration;
-    au.s.delayMs = au.delayUs / 1000;
-    au.s.skewMs = (au.delayUs - videoUs) / 1000;
-  }
-
-  $('baudio').onclick = () => { setAudio(!au.on && !au.requesting); canvas.focus(); };
+  $('baudio').onclick = () => { setAudio(!sound.on && !au.requesting); canvas.focus(); };
   $('bmute').onclick = () => {
-    au.muted = !au.muted;
-    if (au.gain) au.gain.gain.setTargetAtTime(au.muted ? 0 : 1, au.ctx.currentTime, 0.01);
+    sound.mute(!sound.muted);
     audioButtons();
     canvas.focus();
   };

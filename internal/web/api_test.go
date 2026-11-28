@@ -31,8 +31,15 @@ type rig struct {
 
 func newRig(t *testing.T, o peertest.Options) *rig {
 	t.Helper()
+	return newRigServing(t, o, nil)
+}
+
+// newRigServing is newRig with hosts that serve services (nil:
+// peer.HostServices).
+func newRigServing(t *testing.T, o peertest.Options, services *peer.Registry) *rig {
+	t.Helper()
 	testEnv(t)
-	d := &dialer{t: t, opts: o}
+	d := &dialer{t: t, opts: o, services: services}
 	s := startServer(t, Config{Dial: d.dial, Peers: func() ([]PeerInfo, error) {
 		return []PeerInfo{{Target: "123456789", Alias: "box", Paired: true}}, nil
 	}})

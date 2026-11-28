@@ -182,6 +182,13 @@ html.pseudo-fs, html.pseudo-fs body { overflow: hidden; }
 #d-msg .errdetail { max-width: min(640px, 100%); text-align: left; color: #ccc; }
 .paused { position: absolute; z-index: 4; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 6px 12px; border-radius: 6px; background: rgba(90, 60, 0, .9); color: #fff; font-size: .9rem; text-align: center; pointer-events: none; }
 .paused[hidden] { display: none; }
+/* The remote pointer, drawn where the host says it is (desktop.js). */
+.stage canvas#d-rcursor { position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; background: transparent; }
+.stage canvas#d-rcursor[hidden] { display: none; }
+.dtoast { position: absolute; z-index: 4; bottom: 12px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 24px); padding: 6px 12px; border-radius: 6px; background: rgba(0, 0, 0, .85); color: #fff; font-size: .9rem; text-align: center; pointer-events: none; }
+.dtoast[hidden] { display: none; }
+/* Mouse lock needs a mouse. */
+@media (hover: none) and (pointer: coarse) { #d-plock, #d-plauto { display: none; } }
 
 .termhost { height: calc(100vh - 322px); min-height: 220px; background: #0c0c0c; border-radius: 10px; border: 1px solid var(--line); position: relative; overflow: hidden; }
 .keyrow { display: none; gap: 6px; flex-wrap: wrap; margin-top: 8px; }

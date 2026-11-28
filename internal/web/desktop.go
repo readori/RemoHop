@@ -22,17 +22,30 @@ import (
 // own browser viewer, re-implemented here because that package's viewer is
 // unexported).
 //
+//	query: c, t, decode, view_only, fps, max_height, display, and cursor=1:
+//	    the page draws the host's pointer itself (see below)
 //	server -> page, text JSON:
 //	    {"type":"hello", ...desktop.Hello, "view_only":bool}
+//	    {"type":"cursor","shapes":[desktop.CursorShape],"state":desktop.CursorState}
 //	    {"type":"stats","host":HostStats,"rtt_ms","local_drops"}
 //	    {"type":"end","error":"...","refused":bool}
 //	server -> page, binary: 'V' flags(1, bit0 key) seq(4) pts_us(8) capture_us(8)
 //	    arrival_us(8) payload (big endian; capture and arrival on the gateway
 //	    clock, which the page treats as its own)
 //	page -> server, text JSON: ack{seq}, keyframe, config{fps,bitrate,max_height},
-//	    display{display}, view_only{on}, and input: move{x,y}, button{button,down,x,y},
-//	    wheel{dx,dy}, key{code,down}, release_all, and text{text}: type
-//	    any Unicode text on the host (phones and input methods send this)
+//	    display{display}, view_only{on}, and input: move{x,y}, button{button,down,x,y,rel},
+//	    wheel{dx,dy}, key{code,down}, release_all, move_by{dx,dy} (a locked
+//	    mouse; host pixels), and text{text}: type any Unicode text on the
+//	    host (phones and input methods send this); audio{on}: the host's
+//	    sound, answered and sent as desktop_audio.go says
+//
+// The pointer. A page that asks with cursor=1 draws it (a CSS cursor that
+// moves at the local mouse's rate): a host that can then leaves it out of
+// the video, says so with hello.cursor and sends "cursor" messages. An
+// older page does not ask and keeps the pointer in the video. Relative
+// input (move_by, rel buttons) is input like the rest: dropped while the
+// session is view-only, and refused by the session to a host without
+// input or without hello.relative.
 
 const frameVideoTag = 'V'
 
@@ -52,12 +65,20 @@ type deskCtl struct {
 	DY        float64 `json:"dy"`
 	Code      string  `json:"code"`
 	Text      string  `json:"text"`
+	Rel       bool    `json:"rel"`
 }
 
 type deskHello struct {
 	Type string `json:"type"`
 	desktop.Hello
 	ViewOnly bool `json:"view_only"`
+}
+
+// deskCursor is the host's pointer, for a page that draws it.
+type deskCursor struct {
+	Type   string                `json:"type"` // "cursor"
+	Shapes []desktop.CursorShape `json:"shapes,omitempty"`
+	State  desktop.CursorState   `json:"state"`
 }
 
 func (s *Server) handleDesktopWS(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +93,7 @@ func (s *Server) handleDesktopWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer release()
-	opts := desktop.Options{ManualAck: true, ViewOnly: q.Get("view_only") == "1"}
+	opts := desktop.Options{ManualAck: true, ViewOnly: q.Get("view_only") == "1", Cursor: q.Get("cursor") == "1"}
 	opts.FPS, _ = strconv.Atoi(q.Get("fps"))
 	opts.MaxHeight, _ = strconv.Atoi(q.Get("max_height"))
 	opts.Display, _ = strconv.Atoi(q.Get("display"))
@@ -114,6 +135,8 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 		return
 	}
 
+	aud := newDeskAudio(ctx, conn, sess, c)
+
 	go func() { // page -> host
 		defer cancel()
 		for {
@@ -141,11 +164,13 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 				if m.Display != nil && *m.Display >= desktop.DisplayAll && *m.Display <= 64 {
 					sess.Configure(desktop.Config{Display: m.Display})
 				}
+			case "audio":
+				aud.request(m.On)
 			case "view_only":
 				viewOnly.Store(m.On)
-				if m.On {
-					sess.SendInput(desktop.InputEvent{Kind: desktop.InputReleaseAll})
-				}
+				// The session refuses input too (and lets go of what is
+				// held), whatever reaches SendInput.
+				sess.SetViewOnly(m.On)
 			case "text":
 				// Typed through the host's Unicode path, so accents, CJK input
 				// and non-US host layouts work, unlike synthesised key codes.
@@ -160,15 +185,19 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 						s.log.Debug("web: desktop text input failed", "err", err)
 					}
 				}()
-			case desktop.InputMove, desktop.InputButton, desktop.InputWheel, desktop.InputKey, desktop.InputReleaseAll:
+			case desktop.InputMove, desktop.InputButton, desktop.InputWheel, desktop.InputKey, desktop.InputReleaseAll,
+				desktop.InputMoveBy:
 				if viewOnly.Load() && m.Type != desktop.InputReleaseAll {
 					continue
 				}
 				if len(m.Code) > 40 {
 					continue
 				}
+				// The session itself refuses input to a host that takes
+				// none, and relative input (move_by, rel buttons) to one
+				// without hello.relative (desktop.ErrNoRelative).
 				sess.SendInput(desktop.InputEvent{Kind: m.Type, X: m.X, Y: m.Y, Button: m.Button, Down: m.Down,
-					DX: m.DX, DY: m.DY, Code: m.Code})
+					DX: m.DX, DY: m.DY, Code: m.Code, Rel: m.Rel})
 			}
 		}
 	}()
@@ -188,6 +217,8 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 		switch {
 		case ev.Hello != nil:
 			err = c.sendJSON(deskHello{Type: "hello", Hello: *ev.Hello, ViewOnly: viewOnly.Load()})
+		case ev.Cursor != nil:
+			err = c.sendJSON(deskCursor{Type: "cursor", Shapes: ev.Cursor.Shapes, State: ev.Cursor.State})
 		case ev.Stats != nil:
 			err = c.sendJSON(map[string]any{"type": "stats", "host": ev.Stats,
 				"rtt_ms": float64(sess.RTT().Microseconds()) / 1000, "local_drops": sess.LocalDrops()})

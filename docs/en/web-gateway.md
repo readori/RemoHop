@@ -2,7 +2,7 @@
 
 [中文](../zh/web-gateway.md)
 
-`remohop web` serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine:
+`remohop web` serves a browser client (remote desktop, terminal, files, clipboard and info) from this machine. Its remote desktop has the standalone viewer's pointer drawn by the page, mouse lock and audio ([Screen and remote desktop](remote-desktop.md)):
 
 ```bash
 remohop web
