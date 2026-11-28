@@ -36,7 +36,8 @@ import (
 //	    display{display}, view_only{on}, and input: move{x,y}, button{button,down,x,y,rel},
 //	    wheel{dx,dy}, key{code,down}, release_all, move_by{dx,dy} (a locked
 //	    mouse; host pixels), and text{text}: type any Unicode text on the
-//	    host (phones and input methods send this)
+//	    host (phones and input methods send this); audio{on}: the host's
+//	    sound, answered and sent as desktop_audio.go says
 //
 // The pointer. A page that asks with cursor=1 draws it (a CSS cursor that
 // moves at the local mouse's rate): a host that can then leaves it out of
@@ -134,6 +135,8 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 		return
 	}
 
+	aud := newDeskAudio(ctx, conn, sess, c)
+
 	go func() { // page -> host
 		defer cancel()
 		for {
@@ -161,6 +164,8 @@ func (s *Server) bridgeDesktop(conn *peer.Conn, c *wsConn, opts desktop.Options)
 				if m.Display != nil && *m.Display >= desktop.DisplayAll && *m.Display <= 64 {
 					sess.Configure(desktop.Config{Display: m.Display})
 				}
+			case "audio":
+				aud.request(m.On)
 			case "view_only":
 				viewOnly.Store(m.On)
 				// The session refuses input too (and lets go of what is

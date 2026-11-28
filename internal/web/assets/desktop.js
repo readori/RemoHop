@@ -6,6 +6,7 @@
   const $ = id => document.getElementById(id);
   const SD = window.SD;
   const P = window.RemoHopPointer; // pointer.js, shared with the standalone viewer
+  const A = window.RemoHopAudio;   // audio.js, likewise
   const canvas = $('d-canvas'), g = canvas.getContext('2d', {alpha: false, desynchronized: true});
   // Wall-clock microseconds, the clock the gateway stamps capture times
   // with. performance.timeOrigin + performance.now() is not that clock: the
@@ -42,7 +43,8 @@
   const meta = new Map(), pressed = new Set(), buttons = new Set(), swallowed = new Set();
   const stats = {decoded: 0, skipped: 0, errors: 0, fps: 0, mbps: 0, latency: 0, rtt: 0, host: null, wf: 0, wb: 0, ws: performance.now(), bytes: 0};
   window.remohopDesktop = {stats: () => Object.assign({}, stats, {hello, configured: !!decoder && decoder.state === 'configured'}),
-                          cursor: () => cursorInfo()};
+                          cursor: () => cursorInfo(),
+                          audio: () => Object.assign({}, sound.stats(), {on: sound.on, muted: sound.muted, wanted: au.wanted, ctxState: sound.ctxState()})};
 
   // The frame rate asked of the host: the menu's choice, or with Auto the
   // display's refresh rate when it is high (90, 120 Hz and more, capped at
@@ -165,19 +167,30 @@
     const sock = new WebSocket(SD.wsURL('desktop/ws', params));
     sock.binaryType = 'arraybuffer';
     ws = sock;
-    sock.onmessage = e => { if (my !== gen) return; if (typeof e.data === 'string') onText(JSON.parse(e.data)); else onVideo(e.data); };
-    sock.onclose = () => { if (my !== gen) return; releaseAll(); resetDecoder(); resetCursor(); if (!ended) msg('d.disconnected', null, true); };
+    sock.onmessage = e => {
+      if (my !== gen) return;
+      if (typeof e.data === 'string') onText(JSON.parse(e.data));
+      else if (A.isAudio(e.data)) sound.packet(e.data);
+      else onVideo(e.data);
+    };
+    sock.onclose = () => { if (my !== gen) return; releaseAll(); resetDecoder(); resetCursor(); stopSound(); if (!ended) msg('d.disconnected', null, true); };
   }
 
   function close(clear) {
     if (ws) { try { ws.close(); } catch (e) { /* ignore */ } ws = null; }
-    resetDecoder(); cfg = null; resetCursor();
+    resetDecoder(); cfg = null; resetCursor(); stopSound();
     if (clear) msg(null);
   }
 
   function onText(m) {
     if (m.type === 'hello') onHello(m);
     else if (m.type === 'cursor') onCursor(m);
+    else if (m.type === 'audio') onAudio(m);
+    else if (m.type === 'audio_end') {
+      sound.reset(); au.wanted = false; au.requesting = false;
+      toast('d.audio.ended', {err: m.error || {k: 'd.closed'}});
+      audioButtons();
+    }
     else if (m.type === 'stats') {
       stats.host = m.host; stats.rtt = m.rtt_ms;
       // The host cannot capture its screen right now (Windows' secure
@@ -224,6 +237,7 @@
     if (cur.locked && (!inputOK() || !h.relative)) document.exitPointerLock();
     lockButtons();
     scheduleCursor();
+    if (au.wanted && !sound.on && !au.requesting) setAudio(true);
     // The monitor menu is rebuilt from every hello: another host has other
     // monitors.
     const ds = $('d-display');
@@ -471,6 +485,55 @@
     canvas.focus();
   });
   lockButtons();
+
+  // ---- Audio: the host's sound, played by audio.js (shared with the
+  // standalone viewer). The gateway opens the host's audio stream when
+  // the page asks, and says why when the host cannot give it.
+  const sound = A.player(nowUs, () => stats.latency);
+  const au = {wanted: false, requesting: false};
+  function audioButtons() {
+    const b = $('d-audio'), m = $('d-mute');
+    b.setAttribute('aria-pressed', String(sound.on || au.requesting));
+    SD.say(b, sound.stalled() ? 'd.audio.stalled' : 'd.audio');
+    m.hidden = !sound.on;
+    m.setAttribute('aria-pressed', String(sound.muted));
+    SD.say(m, sound.muted ? 'd.unmute' : 'd.mute');
+  }
+  setInterval(audioButtons, 500);
+  // Browsers start sound only after a user gesture on the page.
+  for (const ev of ['pointerdown', 'keydown']) {
+    addEventListener(ev, () => { if (sound.ctxState() === 'suspended') sound.resume().then(audioButtons); }, true);
+  }
+  async function setAudio(on) {
+    if (!on) {
+      au.wanted = false; au.requesting = false;
+      send({type: 'audio', on: false});
+      sound.reset(); audioButtons();
+      return;
+    }
+    const why = await A.unsupported();
+    if (why) { toast(why === 'nodecoder' ? 'd.audio.nodecoder' : 'd.audio.noopus'); return; }
+    au.wanted = true; au.requesting = true;
+    sound.prepare();
+    send({type: 'audio', on: true});
+    audioButtons();
+  }
+  function onAudio(m) {
+    au.requesting = false;
+    if (m.error) {
+      au.wanted = false; sound.reset();
+      toast('d.audio.failed', {err: m.error});
+    } else if (m.on && au.wanted) {
+      sound.begin();
+      if (m.audio && m.audio.warning) toast('raw', {s: m.audio.warning});
+    }
+    audioButtons();
+  }
+  // stopSound: the session ended; the page asks again on the next hello
+  // (a reconnect) if the sound is still wanted.
+  function stopSound() { sound.reset(); au.requesting = false; audioButtons(); }
+  $('d-audio').addEventListener('click', () => { setAudio(!(sound.on || au.requesting)); canvas.focus(); });
+  $('d-mute').addEventListener('click', () => { sound.mute(!sound.muted); audioButtons(); canvas.focus(); });
   document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement && navigator.keyboard && navigator.keyboard.unlock) navigator.keyboard.unlock();
     layout();
@@ -506,7 +569,8 @@
       `${stats.fps.toFixed(0)} fps ${stats.mbps.toFixed(2)} Mbit/s` + (h.pipeline_ms ? ` (${tr('d.hud.encode')} ${h.pipeline_ms.toFixed(0)} ms)` : '') + `\n${tr('d.hud.latency')} ${stats.latency ? stats.latency.toFixed(0) + ' ms' : tr('d.hud.na')} ${tr('d.hud.rtt')} ${stats.rtt.toFixed(1)} ms\n` +
       tr('d.hud.host', {fps: (h.fps || 0).toFixed(0), total: num(h.dropped), recent: recent.dropped}) + (h.restarts ? ' ' + tr('d.hud.restarts', {n: h.restarts}) : '') +
       (stats.skipped ? ' ' + tr('d.hud.skipped', {total: num(stats.skipped), recent: recent.skipped}) : '') + '\n' + tr(inputOK() ? 'd.hud.input' : 'd.hud.viewonly') +
-      ' ' + tr(hello.cursor ? 'd.hud.ptr.page' : 'd.hud.ptr.video') + (cur.locked ? ' ' + tr('d.hud.locked') : '');
+      ' ' + tr(hello.cursor ? 'd.hud.ptr.page' : 'd.hud.ptr.video') + (cur.locked ? ' ' + tr('d.hud.locked') : '') +
+      (sound.on ? '\n' + tr('d.hud.audio', {buf: sound.stats().bufMs.toFixed(0), delay: sound.stats().delayMs.toFixed(0)}) : '');
   }, 500);
 
   // ---- input ----
@@ -696,6 +760,7 @@
     show(c) { conn = c; $('d-viewonly').checked = viewOnly; $('d-viewonly').disabled = false; layout(); open(); },
     hide() {
       gen++; close(true); hello = null; hostInput = false; lockButtons();
+      au.wanted = false; audioButtons(); // another host: its sound only if asked for
       const ds = $('d-display'); ds.textContent = ''; ds.hidden = true;
       $('d-paused').hidden = true;
       if (pseudoOn()) pseudoFs(false);

@@ -157,6 +157,28 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await deliver(cursorHello(false, true));
     await sleep(100);
     out.noRelative = await page.evaluate(() => ({disabled: document.getElementById('d-plock').disabled, title: document.getElementById('d-plock').title}));
+    // Audio: the button asks the gateway; its answer starts the sound and
+    // shows Mute; a refusal and an ended stream say why and switch it off.
+    await page.evaluate(() => { window.__sent.length = 0; });
+    out.audioCodec = await page.evaluate(async () => (await window.RemoHopAudio.unsupported()) || 'ok');
+    await page.click('#d-audio');
+    await sleep(300);
+    out.audioAsked = await page.evaluate(() => window.__sent.filter(m => m.type === 'audio'));
+    await deliver({type: 'audio', on: true, audio: {codec: 'opus', sample_rate: 48000, channels: 2, source: 'test'}});
+    await sleep(100);
+    const audioState = () => page.evaluate(() => ({on: window.remohopDesktop.audio().on, pressed: document.getElementById('d-audio').getAttribute('aria-pressed'),
+      mute: !document.getElementById('d-mute').hidden, muted: window.remohopDesktop.audio().muted,
+      toast: document.getElementById('d-toast').hidden ? '' : document.getElementById('d-toast').textContent}));
+    out.audioOn = await audioState();
+    await page.click('#d-mute');
+    out.audioMuted = await audioState();
+    await deliver({type: 'audio_end', error: 'the host stopped capturing'});
+    out.audioEnded = await audioState();
+    await page.click('#d-audio');
+    await sleep(300);
+    await deliver({type: 'audio', error: 'audio forwarding is switched off on this host'});
+    out.audioRefused = await audioState();
+
     // Every string desktop.js uses is in English and Chinese.
     out.strings = await page.evaluate(async () => {
       const src = await (await fetch('/desktop.js')).text();

@@ -42,7 +42,7 @@ window.SD = {tabs: {}, t: k => k, ticket: async () => 'tk', errVar: e => String(
   wsURL: (p, q) => 'ws://gw/' + p + '?' + new URLSearchParams(q),
   say: (el, k, v) => { if (!el) return; el.textContent = !k ? '' : k === 'raw' ? v.s : k + (v ? ' ' + JSON.stringify(v) : ''); },
   sayAttr: (el, a, k) => { if (el) el.setAttribute(a, k); }};
-</script><script src="/i18n.js"></script><script src="/pointer.js"></script><script src="/desktop.js"></script></body></html>`
+</script><script src="/i18n.js"></script><script src="/pointer.js"></script><script src="/audio.js"></script><script src="/desktop.js"></script></body></html>`
 }
 
 // The web console's desktop tab in a real browser: view-only and the
@@ -64,9 +64,13 @@ func TestDesktopTabBrowser(t *testing.T) {
 		switch r.URL.Path {
 		case "/desktop.js", "/style.css", "/i18n.js":
 			http.ServeFile(w, r, filepath.Join("assets", r.URL.Path[1:]))
-		case "/pointer.js":
+		case "/pointer.js", "/audio.js":
 			w.Header().Set("Content-Type", "text/javascript")
-			w.Write(desktop.PointerJS)
+			if r.URL.Path == "/audio.js" {
+				w.Write(desktop.AudioJS)
+			} else {
+				w.Write(desktop.PointerJS)
+			}
 		default:
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprint(w, page)
@@ -152,6 +156,10 @@ func TestDesktopTabBrowser(t *testing.T) {
 			Count            int
 			ZhLock, ZhLocked string
 		}
+
+		AudioCodec                                    string
+		AudioAsked                                    []map[string]any
+		AudioOn, AudioMuted, AudioEnded, AudioRefused pageAudio
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(j)), &res); err != nil {
 		t.Fatalf("result %s: %v", j, err)
@@ -219,6 +227,7 @@ func TestDesktopTabBrowser(t *testing.T) {
 	if s := res.Strings; len(s.Missing) > 0 || s.Count < 40 || s.ZhLock != "锁定鼠标" || !strings.Contains(s.ZhLocked, "Esc") {
 		t.Errorf("strings: %+v", s)
 	}
+	checkPageAudio(t, res.AudioCodec, res.AudioAsked, res.AudioOn, res.AudioMuted, res.AudioEnded, res.AudioRefused)
 	if strings.Contains(res.Ended.Text, "DISPLAY is not set") || res.Ended.Details != "DISPLAY is not set; X display :0: refused" {
 		t.Errorf("ended: %+v", res.Ended)
 	}
@@ -271,5 +280,40 @@ func checkPagePointer(t *testing.T, asked bool, in pagePointer, hiddenCSS, toast
 	}
 	if hiddenCSS != "none" || toast != "d.hidden" || lockDisabled {
 		t.Errorf("hidden remote pointer: css %q, toast %q, lock disabled %v", hiddenCSS, toast, lockDisabled)
+	}
+}
+
+// pageAudio is the Audio and Mute buttons' state.
+type pageAudio struct {
+	On, Mute, Muted bool
+	Pressed, Toast  string
+}
+
+// checkPageAudio: Audio asks the gateway for the sound, its answer turns
+// the sound on and shows Mute, which mutes; an ended stream and a refusal
+// turn it off and say why.
+func checkPageAudio(t *testing.T, codec string, asked []map[string]any, on, muted, ended, refused pageAudio) {
+	t.Helper()
+	if codec != "ok" {
+		// Without an Opus decoder the page says so instead of asking.
+		if len(asked) != 0 || on.Toast != "d.audio."+codec {
+			t.Errorf("audio without a decoder (%s): asked %v, %+v", codec, asked, on)
+		}
+		return
+	}
+	if len(asked) != 1 || asked[0]["on"] != true {
+		t.Errorf("audio asked: %v", asked)
+	}
+	if !on.On || on.Pressed != "true" || !on.Mute || on.Muted {
+		t.Errorf("audio on: %+v", on)
+	}
+	if !muted.Muted || !muted.On {
+		t.Errorf("muted: %+v", muted)
+	}
+	if ended.On || ended.Mute || ended.Pressed != "false" || !strings.HasPrefix(ended.Toast, "d.audio.ended") || !strings.Contains(ended.Toast, "stopped capturing") {
+		t.Errorf("audio ended: %+v", ended)
+	}
+	if refused.On || refused.Pressed != "false" || !strings.HasPrefix(refused.Toast, "d.audio.failed") || !strings.Contains(refused.Toast, "switched off") {
+		t.Errorf("audio refused: %+v", refused)
 	}
 }

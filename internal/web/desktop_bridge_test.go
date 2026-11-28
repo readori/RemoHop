@@ -3,9 +3,11 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"image"
 	"image/png"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -27,14 +29,20 @@ type fakeDesktop struct {
 
 	mu   sync.Mutex
 	opts []desktop.Options
+
+	// audioErr, when set, is the host's refusal of audio; audioDone is
+	// signalled each time an audio stream ends.
+	audioErr  string
+	audioDone chan struct{}
 }
 
 func newFakeDesktop(t *testing.T, hello desktop.Hello) (*fakeDesktop, *peer.Registry) {
 	t.Helper()
 	hello.Width, hello.Height, hello.Codec = 64, 64, "av01.0.04M.08"
-	f := &fakeDesktop{hello: hello, input: make(chan desktop.Control, 64)}
+	f := &fakeDesktop{hello: hello, input: make(chan desktop.Control, 64), audioDone: make(chan struct{}, 4)}
 	reg := peer.HostServices.Wrapped(func(_ string, h peer.Handler) peer.Handler { return h })
 	reg.Handle(desktop.ServiceName, f.serve)
+	reg.Handle(desktop.AudioServiceName, f.serveAudio)
 	return f, reg
 }
 
@@ -69,6 +77,34 @@ func (f *fakeDesktop) serve(ctx context.Context, c *peer.Conn, s peer.Stream, re
 			f.input <- ctl
 		}
 	}
+}
+
+// serveAudio plays the host's audio service: a hello and two packets,
+// or the refusal in audioErr.
+func (f *fakeDesktop) serveAudio(ctx context.Context, c *peer.Conn, s peer.Stream, req json.RawMessage) error {
+	defer func() { f.audioDone <- struct{}{} }()
+	f.mu.Lock()
+	refusal := f.audioErr
+	f.mu.Unlock()
+	if refusal != "" {
+		b, _ := json.Marshal(map[string]string{"error": refusal})
+		return wire.WriteFrame(s, 'E', b)
+	}
+	b, _ := json.Marshal(desktop.AudioHello{Codec: "opus", SampleRate: 48000, Channels: 2, FrameMS: 20, Source: "test source"})
+	if err := wire.WriteFrame(s, 'H', b); err != nil {
+		return err
+	}
+	for seq := uint32(1); seq <= 2; seq++ {
+		p := make([]byte, 12+3)
+		binary.BigEndian.PutUint32(p, seq)
+		binary.BigEndian.PutUint64(p[4:], uint64(time.Now().UnixMicro()))
+		copy(p[12:], "opu")
+		if err := wire.WriteFrame(s, 'A', p); err != nil {
+			return err
+		}
+	}
+	io.Copy(io.Discard, s) // until the client goes
+	return nil
 }
 
 func (f *fakeDesktop) asked() []desktop.Options {
@@ -191,5 +227,50 @@ func TestDesktopBridgeRelativeRefused(t *testing.T) {
 			}
 			f.none(t, "relative input")
 		})
+	}
+}
+
+// The host's sound reaches the page when it asks: the stream's hello, then
+// each packet as an 'A' message; asking it off ends the host's stream. A
+// host that refuses says why.
+func TestDesktopBridgeAudio(t *testing.T) {
+	f, reg := newFakeDesktop(t, desktop.Hello{Input: true})
+	r := newRigServing(t, peertest.Options{}, reg)
+	ws := openDesk(t, r)
+	readControl(t, ws, "hello")
+	sendTerm(t, ws, map[string]any{"type": "audio", "on": true})
+	m := readControl(t, ws, "audio")
+	if a, _ := m["audio"].(map[string]any); m["on"] != true || a["codec"] != "opus" || a["source"] != "test source" {
+		t.Fatalf("audio %v", m)
+	}
+	for n := 0; n < 2; {
+		ws.SetReadDeadline(time.Now().Add(10 * time.Second))
+		var msg []byte
+		if err := websocket.Message.Receive(ws, &msg); err != nil {
+			t.Fatalf("waiting for audio packets: %v", err)
+		}
+		if len(msg) == 0 || msg[0] != 'A' {
+			continue
+		}
+		n++
+		if len(msg) != 21+3 || binary.BigEndian.Uint32(msg[1:]) != uint32(n) || string(msg[21:]) != "opu" ||
+			binary.BigEndian.Uint64(msg[5:]) == 0 || binary.BigEndian.Uint64(msg[13:]) == 0 {
+			t.Fatalf("audio packet %d: %x", n, msg)
+		}
+	}
+	sendTerm(t, ws, map[string]any{"type": "audio", "on": false})
+	select {
+	case <-f.audioDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the host's audio stream did not end when the page asked it off")
+	}
+
+	const off = "audio forwarding is switched off on this host"
+	f.mu.Lock()
+	f.audioErr = off
+	f.mu.Unlock()
+	sendTerm(t, ws, map[string]any{"type": "audio", "on": true})
+	if m := readControl(t, ws, "audio"); m["on"] == true || m["error"] != off {
+		t.Fatalf("refused audio: %v", m)
 	}
 }

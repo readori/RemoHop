@@ -529,6 +529,11 @@ func (s *Server) routes() *http.ServeMux {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Write(desktop.PointerJS)
 	})
+	// The host's audio played in the page, likewise shared.
+	m.HandleFunc("GET /assets/audio.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Write(desktop.AudioJS)
+	})
 	m.HandleFunc("GET /assets/{name}", func(w http.ResponseWriter, r *http.Request) {
 		r2 := r.Clone(r.Context())
 		r2.URL.Path = "/" + r.PathValue("name")

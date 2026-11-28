@@ -47,9 +47,16 @@ var viewerPage []byte
 //go:embed pointer.js
 var PointerJS []byte
 
-// viewerHTML is the page as served, with pointer.js inlined (the page's
-// Content-Security-Policy allows inline scripts only).
-var viewerHTML = bytes.Replace(viewerPage, []byte("/*remohop:pointer.js*/"), PointerJS, 1)
+// AudioJS plays the host's audio in a page (see audio.js): the viewer
+// has it inlined, and the web console serves it. Read only.
+//
+//go:embed audio.js
+var AudioJS []byte
+
+// viewerHTML is the page as served, with pointer.js and audio.js inlined
+// (the page's Content-Security-Policy allows inline scripts only).
+var viewerHTML = bytes.Replace(bytes.Replace(viewerPage, []byte("/*remohop:pointer.js*/"), PointerJS, 1),
+	[]byte("/*remohop:audio.js*/"), AudioJS, 1)
 
 type viewer struct {
 	conn  *peer.Conn
