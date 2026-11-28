@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>安全模型 | RemoHop</title>
 <meta name="description" content="RemoHop 保护什么、不保护什么：端到端加密、CPace 密码认证密钥交换、主机密钥固定、限速、被控端访问控制，以及浏览器网关等例外。">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -52,7 +52,10 @@
 <div class="wrap prose">
 <h1>安全模型</h1>
 <p>这一页是英文参考文档 <a href="/en/docs/security/">RemoHop security model</a> 的摘要，写给三类人：运行被控端的人、用 <code>remohop</code> 连接机器的人，以及让 AI 代理或浏览器网关使用 RemoHop 的人。细节以那份文档为准。</p>
-<p class="note warn"><strong>RemoHop 没有经过独立的安全审计。</strong>下面的机制是根据代码和测试描述的，局限也照实写出。</p>
+<details class="fold">
+<summary>还没有经过独立的安全审计</summary>
+<p>RemoHop 没有经过独立的安全审计。下面的机制是根据代码和测试描述的，局限也照实写出。</p>
+</details>
 
 <h2 id="summary">要点</h2>
 <ul>
