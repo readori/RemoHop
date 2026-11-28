@@ -75,7 +75,9 @@ macOS 被控端采集需要“屏幕录制”权限，输入需要“辅助功�
 
 在统一管理的电脑上，可以在环境变量中设置 `REMOHOP_FFMPEG_DOWNLOAD=off`（或运行 `remohop config set ffmpeg-download off`）关闭下载：窗口会说明这一点，不再显示按钮。已经存在的副本仍会被使用。
 
-Windows 服务（无人值守访问）以 LocalSystem 身份运行，使用自己的目录 `%ProgramData%\RemoHop`，不会使用某个用户配置文件里的副本。请把 ffmpeg 放在系统的 `PATH` 上，或在服务的环境中设置 `REMOHOP_FFMPEG`，或在管理员命令提示符中为它安装一份：`set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install`。
+Windows 服务（无人值守访问）以 LocalSystem 身份运行，使用自己的目录 `%ProgramData%\RemoHop`，不会使用某个用户配置文件里的副本：那个用户可以把它换成别的程序，服务就会以 LocalSystem 身份运行它。服务按同样的顺序、用自己的环境查找 ffmpeg：服务环境中的 `REMOHOP_FFMPEG`，系统的 `PATH`（不是某个用户的），然后是它自己在 `%ProgramData%\RemoHop\ffmpeg` 里的副本。桌面应用会为它装好这份副本：开启**无人值守访问**时，如果服务没有 ffmpeg，安装服务的那一步管理员操作会再次下载固定的版本、以同样方式校验，并安装到那里（完成前开关下显示“处理中…”）。如果无人值守访问已经开着，点**安装屏幕共享组件**时会再请求一次管理员授权，同时为服务安装一份。在管理员命令提示符中，`remohop ffmpeg install --service` 做的是同一件事，`remohop ffmpeg` 会显示服务使用哪个 ffmpeg。
+
+服务的副本不是从用户的副本复制来的，而是以管理员身份重新下载并校验。它的目录属于 Administrators，只有 SYSTEM 和 Administrators 能打开，和 `%ProgramData%\RemoHop` 的其余部分一样；那里如果已有别人创建的目录，或其中有链接，会先被移到一旁。服务本身也只在这一点仍然成立时才运行这份副本。如果下载被关闭（用户或系统环境中的 `REMOHOP_FFMPEG_DOWNLOAD=off`、用户的设置，或服务自己的设置：以管理员身份运行 `set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop config set ffmpeg-download off`），就不会为它安装。在 macOS 和 Linux 上，无人值守访问的服务以用户身份运行、使用用户的目录，因此用的就是用户的副本。
 
 ## 图形界面自动化
 
