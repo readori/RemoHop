@@ -51,11 +51,11 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <p class="kicker">商业版 · 自托管</p>
-<h1>RemoHop 团队版：团队里的人、设备和代理，用同一套策略</h1>
-<p class="lede">团队版在 RemoHop 之上加了分组、策略、单点登录、管理员审批和集中审计。它运行在你自己的服务器上，就在你自己的汇合服务器里；团队的成员和策略是一份由管理员密钥签名的日志，服务器能保存，但无法伪造。</p>
+<h1>RemoHop 团队版：AI 代理能连哪台机器、能做什么，由你的团队说了算</h1>
+<p class="lede">团队里的代理越来越多，它们会在构建机、测试机甚至生产服务器上执行命令。团队版给每个代理和每个人同一套规则：只能连到指定的机器，只能用指定的功能，删除、推送、部署这类操作要管理员批准，每一步都留下签名的审计记录和录像。它运行在你自己的服务器上，规则是一份由管理员密钥签名的日志，服务器能保存，但无法伪造。</p>
 <div class="actions">
-<a class="btn primary" href="/pricing/">查看价格</a>
-<a class="btn" href="mailto:info@remohop.com?subject=RemoHop%20Teams">咨询团队版</a>
+<a class="btn primary" href="mailto:info@remohop.com?subject=RemoHop%20Teams%20%E8%AF%95%E7%94%A8">申请试用</a>
+<a class="btn" href="/pricing/">查看价格</a>
 </div>
 
 <h2 id="policy">谁能连到哪里，在一处设定</h2>
@@ -64,6 +64,7 @@
 <figcaption class="kicker">一个策略示例</figcaption>
 <div class="pol-head" aria-hidden="true"><span>人员分组</span><span>可以连到</span><span>可以使用</span></div>
 <ul class="pol" role="list">
+<li class="pol-row"><span><b class="who">AI 代理</b></span><span><span class="arrow">可以连到</span> <b class="what">构建服务器</b></span><span><span class="arrow">可以使用</span> <span class="pill">终端</span><span class="pill">文件</span><span class="pill warn">部署要管理员批准</span></span></li>
 <li class="pol-row"><span><b class="who">客服</b></span><span><span class="arrow">可以连到</span> <b class="what">办公室电脑</b></span><span><span class="arrow">可以使用</span> <span class="pill">桌面</span><span class="pill">文件</span></span></li>
 <li class="pol-row"><span><b class="who">开发</b></span><span><span class="arrow">可以连到</span> <b class="what">构建服务器</b></span><span><span class="arrow">可以使用</span> <span class="pill">终端</span><span class="pill">文件</span><span class="pill">端口转发</span></span></li>
 <li class="pol-row"><span><b class="who">外包</b></span><span><span class="arrow">可以连到</span> <b class="what">预发布环境</b></span><span><span class="arrow">可以使用</span> <span class="pill">终端</span><span class="pill warn">每条命令都要批准</span></span></li>
@@ -73,6 +74,10 @@
 
 <h2 id="features">团队版多了什么</h2>
 <div class="feat-grid">
+<article class="feat">
+<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>代理遵守同样的规则</h3></div>
+<p>AI 代理和人一样，受同样的策略、审批和审计约束。代理算设备，不算用户。</p>
+</article>
 <article class="feat">
 <div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><h3>人员、设备和分组</h3></div>
 <p>团队里的人和他们的设备、人员分组和设备分组，以及把它们连起来的策略。改动以新授权的形式送到被控机。</p>
@@ -100,10 +105,6 @@
 <article class="feat">
 <div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg><h3>就在你的汇合服务器里</h3></div>
 <p>团队服务器运行在你自己的 <code>remohop signal</code> 里，不用另外部署。它可以按团队统计中继流量。</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>代理遵守同样的规则</h3></div>
-<p>AI 代理和人一样，受同样的策略、审批和审计约束。代理算设备，不算用户。</p>
 </article>
 </div>
 
