@@ -242,6 +242,20 @@ func (x *Injector) MoveTo(px, py int) error {
 	return x.fake(xproto.MotionNotify, 0, int16(px), int16(py))
 }
 
+// MoveBy moves the pointer by dx, dy pixels from where it is: XTEST's
+// relative motion, which the server handles like a mouse's own movement
+// (pointer acceleration included) and which clients that grab the pointer
+// for relative input (games, 3D viewports) see as motion.
+func (x *Injector) MoveBy(dx, dy int) error {
+	if dx < -32768 || dx > 32767 || dy < -32768 || dy > 32767 {
+		return fmt.Errorf("relative move %d,%d is out of range", dx, dy)
+	}
+	if dx == 0 && dy == 0 {
+		return nil
+	}
+	return x.fake(xproto.MotionNotify, 1, int16(dx), int16(dy))
+}
+
 // MoveToF is MoveTo for fractional coordinates (rounded: X11 positions
 // are whole pixels).
 func (x *Injector) MoveToF(px, py float64) error {

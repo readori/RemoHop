@@ -250,3 +250,33 @@ func TestRepeatedPressIgnored(t *testing.T) {
 		t.Fatalf("typed %q, want one a", got)
 	}
 }
+
+// A relative move goes from where the pointer is, by the amount asked
+// (small steps, below the X server's acceleration threshold).
+func TestMoveBy(t *testing.T) {
+	display := startXvfb(t)
+	c, err := xgb.NewConnDisplay(display)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x, err := NewX11(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer x.Close()
+	if err := x.MoveTo(100, 100); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.MoveBy(3, -2); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.MoveBy(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	if px, py, err := x.Pointer(); err != nil || px != 103 || py != 98 {
+		t.Fatalf("pointer at %d,%d (%v), want 103,98", px, py, err)
+	}
+	if err := x.MoveBy(40000, 0); err == nil {
+		t.Fatal("an out-of-range move was accepted")
+	}
+}

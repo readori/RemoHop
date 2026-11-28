@@ -241,6 +241,14 @@ type pageStats struct {
 	LocalDrops uint64     `json:"local_drops"`
 }
 
+// pageCursor is the host's pointer (Event.Cursor), for a page that draws
+// it.
+type pageCursor struct {
+	Type   string        `json:"type"` // "cursor"
+	Shapes []CursorShape `json:"shapes,omitempty"`
+	State  CursorState   `json:"state"`
+}
+
 type pageEnd struct {
 	Type  string `json:"type"`
 	Error string `json:"error"`
@@ -272,6 +280,8 @@ type pageRecording struct {
 type pageMsg struct {
 	Control
 	Decode []string `json:"decode,omitempty"` // caps
+	// Cursor (caps): the page draws the pointer itself.
+	Cursor bool `json:"cursor,omitempty"`
 }
 
 // Page message types handled by the viewer itself.
@@ -341,12 +351,34 @@ func (v *viewer) bridge(ws *websocket.Conn) {
 		sendText(pageEnd{Type: "end", Error: "this browser can decode neither AV1 nor H.264 with WebCodecs; use a recent Chrome, Edge, Firefox or Safari"})
 		return
 	}
+	// A page that draws the pointer gets it apart from the video, except
+	// while recording: a recording shows the pointer only if the video
+	// has it (see cursorFor).
+	opts.Cursor = first.Cursor
+	var curMu sync.Mutex
+	cursorOn := opts.Cursor
 	sess, err := Open(ctx, v.conn, opts)
 	if err != nil {
 		sendText(pageEnd{Type: "end", Error: err.Error()})
 		return
 	}
 	defer sess.Close()
+	// cursorFor keeps the pointer in the video while recording and out of
+	// it otherwise, for a page that draws it.
+	cursorFor := func(recording bool) {
+		if !opts.Cursor {
+			return
+		}
+		curMu.Lock()
+		defer curMu.Unlock()
+		if on := !recording; on != cursorOn {
+			cursorOn = on
+			sess.SetCursor(on)
+		}
+	}
+	if v.recorder() != nil {
+		cursorFor(true) // recording already (--record)
+	}
 	hello := sess.Hello()
 	if rec := v.recorder(); rec != nil {
 		rec.SetStream(hello)
@@ -434,11 +466,14 @@ func (v *viewer) bridge(ws *websocket.Conn) {
 				reply(c.ID, func() (pageReply, error) {
 					if !on {
 						files, err := v.stopRecording()
+						cursorFor(false)
 						sendText(pageRecording{Type: "recording", Files: files})
 						return pageReply{Files: files}, err
 					}
+					cursorFor(true)
 					rec, err := v.startRecording(v.recordName(), false)
 					if err != nil {
+						cursorFor(false)
 						return pageReply{}, err
 					}
 					// Begin at the next key frame rather than wait up
@@ -503,10 +538,13 @@ func (v *viewer) bridge(ws *websocket.Conn) {
 			if rec := v.recorder(); rec != nil {
 				if rerr := rec.SetStream(*ev.Hello); rerr != nil {
 					v.stopRecording()
+					cursorFor(false)
 					sendText(pageRecording{Type: "recording", Files: rec.Files(), Error: rerr.Error()})
 				}
 			}
 			err = sendText(v.pageHello(*ev.Hello, opts.ViewOnly))
+		case ev.Cursor != nil:
+			err = sendText(pageCursor{Type: "cursor", Shapes: ev.Cursor.Shapes, State: ev.Cursor.State})
 		case ev.Stats != nil:
 			err = sendText(pageStats{Type: "stats", Host: ev.Stats,
 				RTTMS: float64(sess.RTT().Microseconds()) / 1000, LocalDrops: sess.LocalDrops()})
@@ -514,6 +552,7 @@ func (v *viewer) bridge(ws *websocket.Conn) {
 			if rec := v.recorder(); rec != nil {
 				if rerr := rec.WriteFrame(ev.Frame); rerr != nil {
 					v.stopRecording()
+					cursorFor(false)
 					sendText(pageRecording{Type: "recording", Files: rec.Files(), Error: rerr.Error()})
 				}
 			}

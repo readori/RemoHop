@@ -1,10 +1,12 @@
 package desktop
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/png"
 	"regexp"
 	"strings"
 	"sync"
@@ -40,6 +42,11 @@ type Event struct {
 	Hello *Hello
 	Frame *Frame
 	Stats *HostStats
+	// Cursor is the host's pointer, for a session opened with
+	// Options.Cursor while the latest Hello has Cursor set. Updates are
+	// coalesced: a client that falls behind gets the latest state with
+	// every shape it has not had yet.
+	Cursor *CursorUpdate
 }
 
 // Session is an open remote-desktop stream.
@@ -70,6 +77,14 @@ type Session struct {
 	nextID      uint32
 	waiting     map[uint32]chan Reply
 
+	// The pointer, coalesced for Next (see Event.Cursor): shapes not
+	// delivered yet, the latest state, and whether there is news;
+	// cursorReady wakes Next.
+	cursorShapes []CursorShape
+	cursorState  CursorState
+	cursorNew    bool
+	cursorReady  chan struct{}
+
 	closeOnce sync.Once
 }
 
@@ -90,7 +105,7 @@ func Open(ctx context.Context, conn *peer.Conn, opts Options) (*Session, error) 
 		return nil, err
 	}
 	sess := &Session{s: s, opts: opts, events: make(chan Event, eventQueue), done: make(chan struct{}),
-		viewOnly: opts.ViewOnly, waiting: map[uint32]chan Reply{}}
+		viewOnly: opts.ViewOnly, waiting: map[uint32]chan Reply{}, cursorReady: make(chan struct{}, 1)}
 	first := make(chan error, 1)
 	go sess.readLoop(first)
 	select {
@@ -119,22 +134,71 @@ func (s *Session) Hello() Hello {
 // sees gaps, never growing latency. Unless Options.ManualAck is set, each
 // returned frame is acknowledged to the host.
 func (s *Session) Next(ctx context.Context) (Event, error) {
-	select {
-	case ev := <-s.events:
-		if ev.Frame != nil && !s.opts.ManualAck {
-			s.Ack(ev.Frame.Seq)
-		}
-		return ev, nil
-	case <-ctx.Done():
-		return Event{}, ctx.Err()
-	case <-s.done:
+	for {
 		select {
 		case ev := <-s.events:
+			if ev.Frame != nil && !s.opts.ManualAck {
+				s.Ack(ev.Frame.Seq)
+			}
 			return ev, nil
-		default:
+		case <-s.cursorReady:
+			if u := s.takeCursor(); u != nil {
+				return Event{Cursor: u}, nil
+			}
+		case <-ctx.Done():
+			return Event{}, ctx.Err()
+		case <-s.done:
+			select {
+			case ev := <-s.events:
+				return ev, nil
+			default:
+			}
+			return Event{}, s.Err()
 		}
-		return Event{}, s.Err()
 	}
+}
+
+// takeCursor returns what changed about the pointer since the last call,
+// nil if nothing did.
+func (s *Session) takeCursor() *CursorUpdate {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.cursorNew {
+		return nil
+	}
+	u := &CursorUpdate{Shapes: s.cursorShapes, State: s.cursorState}
+	s.cursorShapes, s.cursorNew = nil, false
+	return u
+}
+
+// onCursor keeps a pointer update from the host for Next.
+func (s *Session) onCursor(m cursorMsg) {
+	s.mu.Lock()
+	if m.Shape != nil {
+		s.cursorShapes = append(s.cursorShapes, *m.Shape)
+		if n := len(s.cursorShapes) - 2*CursorShapesKept; n > 0 {
+			// A client that does not read: it keeps the newest.
+			s.cursorShapes = append(s.cursorShapes[:0:0], s.cursorShapes[n:]...)
+		}
+	}
+	s.cursorState, s.cursorNew = m.CursorState, true
+	s.mu.Unlock()
+	select {
+	case s.cursorReady <- struct{}{}:
+	default:
+	}
+}
+
+// SetCursor asks the host to leave the pointer out of the video and send
+// it as Event.Cursor (on), or to draw it into the video again (off), for a
+// session opened with Options.Cursor. The host restarts its encoder for
+// it; the next Hello says what it does. A host that cannot read its
+// pointer keeps drawing it.
+func (s *Session) SetCursor(on bool) error {
+	if !s.opts.Cursor {
+		return errors.New("desktop: the session was not opened with Options.Cursor")
+	}
+	return s.send(Control{Type: ctlCursor, On: on})
 }
 
 // Ack tells the host the frame seq (and everything before it) has been
@@ -261,6 +325,10 @@ func (s *Session) ViewOnly() bool {
 // ErrViewOnly is returned by SendInput on a session without input.
 var ErrViewOnly = errors.New("desktop: input is disabled on this session")
 
+// ErrNoRelative is returned by SendInput for relative input (InputMoveBy,
+// InputEvent.Rel) to a host that does not take it (Hello.Relative).
+var ErrNoRelative = errors.New("desktop: the host does not take relative mouse input")
+
 // SendInput injects a pointer or keyboard event on the host.
 func (s *Session) SendInput(ev InputEvent) error {
 	if s.ViewOnly() {
@@ -268,6 +336,14 @@ func (s *Session) SendInput(ev InputEvent) error {
 	}
 	if !isInput(ev.Kind) {
 		return fmt.Errorf("desktop: unknown input kind %q", ev.Kind)
+	}
+	if ev.Kind == InputMoveBy || ev.Rel {
+		s.mu.Lock()
+		rel := s.hello.Relative
+		s.mu.Unlock()
+		if !rel {
+			return ErrNoRelative
+		}
 	}
 	return s.send(ev.control())
 }
@@ -399,6 +475,33 @@ func validateHello(h *Hello) error {
 	h.InputError = sanitize(h.InputError, 300)
 	h.Warning = sanitize(h.Warning, 600)
 	h.Unsupported = sanitizeReasons(h.Unsupported)
+	if h.Cursor && (h.ScreenWidth <= 0 || h.ScreenHeight <= 0 || h.ScreenWidth > 1<<16 || h.ScreenHeight > 1<<16) {
+		return errors.New("desktop: host sent a pointer without the screen size")
+	}
+	return nil
+}
+
+// validateCursor checks a host-supplied pointer update.
+func validateCursor(m *cursorMsg) error {
+	const far = 1 << 20
+	if m.X < -far || m.X > far || m.Y < -far || m.Y > far {
+		return errors.New("desktop: host sent a pointer position out of range")
+	}
+	sh := m.Shape
+	if sh == nil {
+		return nil
+	}
+	if sh.ID == 0 || sh.ID != m.ID {
+		return errors.New("desktop: host sent a pointer shape with a bad ID")
+	}
+	if sh.Width <= 0 || sh.Height <= 0 || sh.Width > maxCursorSide || sh.Height > maxCursorSide ||
+		sh.HotX < 0 || sh.HotY < 0 || sh.HotX >= sh.Width || sh.HotY >= sh.Height || len(sh.PNG) > maxCursorPNG {
+		return fmt.Errorf("desktop: host sent a bad pointer shape (%dx%d)", sh.Width, sh.Height)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(sh.PNG))
+	if err != nil || cfg.Width != sh.Width || cfg.Height != sh.Height {
+		return errors.New("desktop: host sent a pointer image that does not match its shape")
+	}
 	return nil
 }
 
@@ -515,6 +618,13 @@ func (s *Session) readLoop(first chan<- error) {
 			var p pong
 			if json.Unmarshal(payload, &p) == nil {
 				s.onPong(p)
+			}
+		case frameCursor:
+			// Only for a client that asked (an older one never gets
+			// these); a bad update is dropped, not fatal.
+			var m cursorMsg
+			if s.opts.Cursor && json.Unmarshal(payload, &m) == nil && validateCursor(&m) == nil {
+				s.onCursor(m)
 			}
 		}
 	}

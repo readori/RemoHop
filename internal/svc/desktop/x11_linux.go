@@ -95,17 +95,20 @@ func discoverCapture(display, fps int) (captureSpec, error) {
 	if os.Getenv("WAYLAND_DISPLAY") != "" {
 		spec.warning = "the host runs Wayland; only X11 (XWayland) windows are captured and input may be ignored"
 	}
-	spec.input = []string{
-		"-f", "x11grab",
-		// A short demuxer queue bounds how stale a captured frame can get
-		// when the encoder momentarily falls behind.
-		"-thread_queue_size", "2",
-		"-framerate", strconv.Itoa(fps),
-		"-draw_mouse", "1",
-		"-video_size", fmt.Sprintf("%dx%d", spec.width, spec.height),
-		"-grab_x", strconv.Itoa(spec.x), "-grab_y", strconv.Itoa(spec.y),
-		"-i", d.Name,
+	grab := func(mouse string) []string {
+		return []string{
+			"-f", "x11grab",
+			// A short demuxer queue bounds how stale a captured frame can
+			// get when the encoder momentarily falls behind.
+			"-thread_queue_size", "2",
+			"-framerate", strconv.Itoa(fps),
+			"-draw_mouse", mouse,
+			"-video_size", fmt.Sprintf("%dx%d", spec.width, spec.height),
+			"-grab_x", strconv.Itoa(spec.x), "-grab_y", strconv.Itoa(spec.y),
+			"-i", d.Name,
+		}
 	}
+	spec.input, spec.noCursor = grab("1"), grab("0")
 	return spec, nil
 }
 

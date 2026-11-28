@@ -16,6 +16,7 @@ type hostInjector struct {
 	inj   *inject.Injector
 	spec  captureSpec
 	wheel wheelAcc
+	rel   moveAcc
 	// geom, on macOS, maps the captured display's pixels to the global
 	// points the injector takes; geomFor finds it for a capture area.
 	geom    *inject.DisplayGeometry
@@ -61,10 +62,15 @@ func (h *hostInjector) inject(ev InputEvent) error {
 		if !ok {
 			return fmt.Errorf("unknown mouse button %d", ev.Button)
 		}
-		if err := h.moveTo(ev.X, ev.Y); err != nil {
-			return err
+		if !ev.Rel {
+			if err := h.moveTo(ev.X, ev.Y); err != nil {
+				return err
+			}
 		}
 		return h.inj.Button(b, ev.Down)
+	case InputMoveBy:
+		dx, dy := h.rel.steps(ev.DX, ev.DY)
+		return h.inj.MoveBy(dx, dy)
 	case InputWheel:
 		sx, sy := h.wheel.steps(ev.DX, ev.DY)
 		return h.inj.Scroll(sx, sy)
