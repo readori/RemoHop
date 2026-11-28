@@ -21,6 +21,7 @@ RemoHop is a peer-to-peer remote control tool. One static Go binary, `remohop`, 
 | AI agents | MCP server (29 tools), six Agent Skills, scoped and expiring grants | [AI agents](docs/en/ai-agents.md) |
 | Host access control | feature switches, approval, one-time passwords, key logins, audit log | [Host access control](docs/en/host-access-control.md) |
 | Accounts (optional) | group your own devices and see which are online; grants no access | [Accounts](docs/en/accounts.md) |
+| Same network, no server | `remohop lan` and the desktop app find the RemoHop computers on the local network (mDNS); connect by address, nothing to set up | [Quick start](docs/en/quick-start.md#find-hosts-on-this-network) |
 | Your own server | run the rendezvous server yourself, optionally with a relay and a websocket bridge | [Self-hosting](docs/en/self-hosting.md) |
 | Mobile | Android and iOS apps: controllers, and on Android the phone can also be viewed and controlled ([App Store](https://apps.apple.com/app/id6838609056); Google Play coming soon) | [Mobile apps](docs/en/mobile-apps.md) |
 

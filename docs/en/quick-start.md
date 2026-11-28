@@ -81,6 +81,23 @@ remohop 192.168.1.5:21118 pair --name lab
 remohop lab info
 ```
 
+### Find hosts on this network
+
+You do not have to know the address. `remohop lan` lists the hosts on the local network, found within about two seconds, with no rendezvous server and no setup:
+
+```
+$ remohop lan
+NAME     ADDRESS             ID           HOST IDENTITY             SAVED HERE
+studio   192.168.1.5:21118   -            9b2e:771c:0aa4:d3f1:1234  lab = 192.168.1.5:21118 (paired)
+nas      192.168.1.9:40213   276 941 009  0c41:9d2a:77e0:12f8:aa03  -
+```
+
+- Connect with the address shown: `remohop 192.168.1.9:40213 info`. ID is shown when the host is registered with a rendezvous server; *SAVED HERE* says how this machine already knows the host (by its identity key). `--json` is for scripts; `--wait 5s` listens longer.
+- A host is listed while it runs `remohop host` (with or without a server), the [desktop app](desktop-app.md) with incoming connections on, or quick support. The mobile apps do not announce themselves yet.
+- What a host says about itself is only a hint. Connecting checks its key as always, and a host you saved under an ID keeps its pinned key. If a host claims the ID of a saved host but announces another key, `remohop lan` warns that it may be an impostor.
+- It uses multicast DNS (mDNS, the protocol behind Bonjour and Avahi) on UDP port 5353, so it works where those do: a firewall that blocks that port, or a Wi-Fi network that isolates its clients, hides the hosts. On Windows, allow `remohop` through the firewall on private networks.
+- A host announces its name, the UDP port it listens on, its ID if it has one and its key fingerprint, and nothing secret. It answers only machines on its own subnets. To turn it off: `remohop config lan-discovery off` on the host (it applies at once), or `REMOHOP_LAN_DISCOVERY=0`. A host bound to a loopback address never answers. See [security.md](../security.md#lan-discovery).
+
 ## Status and devices
 
 ```bash

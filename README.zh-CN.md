@@ -21,6 +21,7 @@ RemoHop 是一个点对点远程控制工具。一个静态链接的 Go 程序 `
 | AI 代理 | MCP 服务器（29 个工具）、六个 Agent Skills、限定范围并自动过期的授权 | [AI 代理](docs/zh/ai-agents.md) |
 | 被控端访问控制 | 功能开关、连接审批、一次性密码、密钥登录、审计日志 | [被控端访问控制](docs/zh/host-access-control.md) |
 | 账号（可选） | 把自己的设备归为一组并查看在线状态；不授予访问权 | [账号](docs/zh/accounts.md) |
+| 同一网络，无需服务器 | `remohop lan` 和桌面应用找出本地网络中的 RemoHop 电脑（mDNS），按地址连接，无需任何设置 | [快速入门](docs/zh/quick-start.md) |
 | 自建服务器 | 自己运行汇合服务器，可选中继和 websocket 桥 | [自建汇合服务器](docs/zh/self-hosting.md) |
 | 移动端 | Android 和 iOS 应用：控制端；Android 手机也可以被观看和控制（[App Store](https://apps.apple.com/app/id6838609056)；Google Play 即将上架） | [移动端应用](docs/zh/mobile-apps.md) |
 

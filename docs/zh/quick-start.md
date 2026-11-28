@@ -81,6 +81,23 @@ remohop 192.168.1.5:21118 pair --name lab
 remohop lab info
 ```
 
+### 查找本网络中的被控机
+
+不必知道地址。`remohop lan` 在大约两秒内列出本地网络中的被控机，不需要汇合服务器，也不需要任何设置：
+
+```
+$ remohop lan
+NAME     ADDRESS             ID           HOST IDENTITY             SAVED HERE
+studio   192.168.1.5:21118   -            9b2e:771c:0aa4:d3f1:1234  lab = 192.168.1.5:21118 (paired)
+nas      192.168.1.9:40213   276 941 009  0c41:9d2a:77e0:12f8:aa03  -
+```
+
+- 用列出的地址连接：`remohop 192.168.1.9:40213 info`。被控机在汇合服务器上注册过时会显示 ID；*SAVED HERE* 表示本机已经以什么方式保存了它（按身份密钥对应）。`--json` 供脚本使用；`--wait 5s` 会多等一会儿。
+- 运行 `remohop host`（无论是否使用服务器）、打开了“允许别人连接”的[桌面应用](desktop-app.md)或快速协助的电脑会被列出。移动端应用暂时不会公布自己。
+- 被控机关于自己的说法只是提示。连接时照常核对它的密钥，以 ID 保存的被控机仍使用已固定的密钥。如果某台机器自称是已保存的某个 ID，公布的却是另一个密钥，`remohop lan` 会警告它可能是冒充的。
+- 它使用组播 DNS（mDNS，即 Bonjour 和 Avahi 所用的协议），UDP 端口 5353，所以能用它们的地方就能用：防火墙挡住这个端口，或 Wi-Fi 网络隔离了各个客户端时，就找不到被控机。在 Windows 上，请在专用网络中允许 `remohop` 通过防火墙。
+- 被控机只公布它的名称、监听的 UDP 端口、ID（如果有）和密钥指纹，不含任何机密，并且只回答与它在同一子网中的机器。关闭方法：在被控机上执行 `remohop config lan-discovery off`（立即生效），或设置 `REMOHOP_LAN_DISCOVERY=0`。绑定在回环地址上的被控机从不回答。另见 [security.md](../security.md#lan-discovery)。
+
 ## 状态与设备
 
 ```bash
