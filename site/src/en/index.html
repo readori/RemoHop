@@ -9,8 +9,7 @@
 <a class="btn primary glow" href="{{L:download}}">Download free</a>
 <a class="btn ghost" href="{{L:docs/ai-agents}}">Hand a machine to an agent</a>
 </div>
-<p class="meta"><!--src-->Open source (AGPL-3.0) · free for any use · no account needed · <a class="nobr" href="{{REPO}}">source on GitHub</a><!--/src--><!--nosrc-->Free for any use · no account needed · source to be published under the AGPL-3.0 once the apps are out<!--/nosrc--></p>
-<p class="meta">On your own network: direct connections are free, need no server and no account, and are end-to-end encrypted. Nobody connects without a pairing, the password or a grant you gave.</p>
+<ul class="hero-tags"><!--src--><li>Open source, AGPL-3.0</li><!--/src--><li>Free</li><li>No account</li><li>End-to-end encrypted</li></ul>
 </div>
 <div class="stage agent-stage">
 <figure class="term-win">
@@ -31,7 +30,6 @@
 <p class="ask-top"><span class="mono">remohop_exec</span><span class="chip bad">Refused by the host</span></p>
 <p class="ask-q"><code>git push</code></p>
 <p class="ask-why">command "git push" is not allowed by grant claude-session (allowed commands: go test)</p>
-<figcaption>What the agent is told. Real output of RemoHop; the code is shortened.</figcaption>
 </figure>
 </div>
 </div>
@@ -74,7 +72,6 @@
 <pre class="term"><code><span class="p">$ </span>remohop host approve
 <span class="hang3">1  grant claude-session wants to exec: go test ./...  (since 11:12:40)
 </span><span class="p">$ </span>remohop host approve 1</code></pre>
-<figcaption class="term-foot">Or answer <code>y</code> in the terminal running <code>remohop host</code>, or from a desktop notification on Linux and macOS.</figcaption>
 </figure>
 </div>
 <ol class="grant-notes">
@@ -103,9 +100,10 @@
 <span class="t t2"><span class="p">$ </span>claude mcp add remohop -- remohop mcp</span><span class="caret" aria-hidden="true"></span></code></pre>
 </article>
 </div>
-<div class="note reveal">
-<p><strong>What a grant does not do.</strong> A command allow-list is a guard rail, not a sandbox: an allowed program that can run others (<code>make</code>, git hooks, any interpreter) carries that power along, and approving <code>./deploy.sh</code> approves whatever it does. <a href="{{E:docs/agents}}#limits-of-the-protection">Limits of the protection</a> spells this out. For a whole team, <a href="{{L:teams}}">RemoHop Teams</a> issues the same grants from one policy and lets admins answer approvals.</p>
-</div>
+<details class="fold reveal">
+<summary>What a grant does not do</summary>
+<p>A command allow-list is a guard rail, not a sandbox: an allowed program that can run others (<code>make</code>, git hooks, any interpreter) carries that power along, and approving <code>./deploy.sh</code> approves whatever it does. <a href="{{E:docs/agents}}#limits-of-the-protection">Limits of the protection</a> spells this out. For a whole team, <a href="{{L:teams}}">RemoHop Teams</a> issues the same grants from one policy and lets admins answer approvals.</p>
+</details>
 </section>
 
 <section class="band alt" id="tool" aria-labelledby="tool-h">
@@ -204,14 +202,14 @@
 <li><span><strong>Every connection asks first.</strong> New devices come with a scam warning, and an allowed device only sees the screen until you tick more.</span></li>
 <li><span><strong><!--src-->Open source under the AGPL-3.0.<!--/src--><!--nosrc-->Source to be published under the AGPL-3.0.<!--/nosrc--></strong> Run the rendezvous server, the relay and the browser gateway yourself, or connect on a LAN with no server at all.</span></li>
 </ul>
-<div class="note warn reveal">
-<p><strong>Not done yet, stated plainly.</strong></p>
+<details class="fold reveal">
+<summary>Not done yet</summary>
 <ul>
 <li>There has been no independent security audit.</li>
-<li>The Windows downloads are not code-signed; SmartScreen warns. The macOS ones are signed and notarized.</li>
+<li>The Windows downloads are not code-signed; SmartScreen warns.</li>
 <li>Linux is the reference platform. macOS and Windows are covered by automated runs on hosted machines, not checked by a person on physical ones.</li>
 </ul>
-</div>
+</details>
 </div>
 <p class="links reveal"><a href="{{L:security}}">Security model</a> <a href="{{L:how-it-works}}">How it works</a> <a href="{{L:self-hosting}}">Self-hosting</a></p>
 </section>
@@ -244,7 +242,7 @@
 <p class="chip">Available</p>
 <h3>RemoHop desktop app</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>One window to connect to your other computers and to let others connect to this one, with a question before every incoming connection. Signed and notarized on macOS.</p>
+<p>One window to connect to your other computers and to let others connect to this one, with a question before every incoming connection.</p>
 <p class="links"><a href="{{L:download}}">Download</a><a href="{{L:docs/desktop-app}}">About the app</a></p>
 </article>
 <article class="panel get reveal">
@@ -270,9 +268,6 @@
 sh install.sh</code></pre>
 <p class="links"><a href="{{L:download}}#cli">Download</a><a href="{{L:features}}#platforms">Platforms</a></p>
 </article>
-</div>
-<div class="note status-note reveal">
-<p><strong>Where it stands (November 2026):</strong> released; see <a href="{{L:download}}">Download</a>. The desktop app offers the official rendezvous server on first start, or your own; the command-line program has no built-in default server. <a href="{{L:features}}#status">Full list of limits</a></p>
 </div>
 </section>
 

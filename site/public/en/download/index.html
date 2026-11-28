@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Download | RemoHop</title>
 <meta name="description" content="Download RemoHop: the quick-support app for the person being helped (Windows, macOS, Linux), the remohop command-line archives, packages and install scripts, package managers, the phone apps, and how to verify a download.">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -51,7 +51,6 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <h1>Download RemoHop</h1>
-<p>Every file is on <a href="https://github.com/readori/RemoHop/releases/latest">GitHub Releases</a>; the links below always fetch the newest release. All of them are listed in its <code>SHA256SUMS</code>, which is signed (see <a href="#verify">Verify a download</a>).</p>
 <p>Most people want <a href="#quick">RemoHop</a>, the desktop app: one window to connect to your computers and to let others connect to this one. Someone who only needs help once takes <a href="#quick">Quick Support</a>, which runs without installing anything. Servers and scripts use <a href="#cli">the <code>remohop</code> program</a>; phones use the <a href="#mobile">apps</a>.</p>
 
 <h2 id="quick">RemoHop and Quick Support</h2>
@@ -78,16 +77,16 @@ sh install.sh</code></pre>
 <pre tabindex="0"><code>Invoke-WebRequest https://github.com/readori/RemoHop/releases/latest/download/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <h3>Archives</h3>
-<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>. Each archive also holds <code>LICENSE</code>, <code>NOTICE</code> and <code>THIRD_PARTY_LICENSES.txt</code>.</p>
+<p>Or unpack one yourself and put <code>remohop</code> on your <code>PATH</code>.</p>
 <div class="table-wrap dl" tabindex="0" role="region" aria-label="Command-line downloads">
 <table>
 <thead><tr><th scope="col">System</th><th scope="col">File</th></tr></thead>
 <tbody>
-<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_amd64.tar.gz"><code>remohop_linux_amd64.tar.gz</code></a><br><span class="small">statically linked</span></td></tr>
-<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_arm64.tar.gz"><code>remohop_linux_arm64.tar.gz</code></a><br><span class="small">statically linked</span></td></tr>
-<tr><td>macOS<br><span class="small">universal (Apple silicon and Intel)</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_darwin_universal.tar.gz"><code>remohop_darwin_universal.tar.gz</code></a><br><span class="small">Developer ID signed, notarized</span></td></tr>
-<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_amd64.zip"><code>remohop_windows_amd64.zip</code></a><br><span class="small">not code-signed yet</span></td></tr>
-<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_arm64.zip"><code>remohop_windows_arm64.zip</code></a><br><span class="small">not code-signed yet</span></td></tr>
+<tr><td>Linux<br><span class="small">x86-64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_amd64.tar.gz"><code>remohop_linux_amd64.tar.gz</code></a></td></tr>
+<tr><td>Linux<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_linux_arm64.tar.gz"><code>remohop_linux_arm64.tar.gz</code></a></td></tr>
+<tr><td>macOS<br><span class="small">universal (Apple silicon and Intel)</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_darwin_universal.tar.gz"><code>remohop_darwin_universal.tar.gz</code></a></td></tr>
+<tr><td>Windows<br><span class="small">x64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_amd64.zip"><code>remohop_windows_amd64.zip</code></a></td></tr>
+<tr><td>Windows<br><span class="small">ARM64</span></td><td class="file"><a href="https://github.com/readori/RemoHop/releases/latest/download/remohop_windows_arm64.zip"><code>remohop_windows_arm64.zip</code></a></td></tr>
 </tbody>
 </table>
 </div>
@@ -95,7 +94,6 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
 <p><code>.deb</code>, <code>.rpm</code> and <code>.apk</code> for x86-64 and ARM64. Their names carry the version (for example <code>remohop_1.0.1_amd64.deb</code>), so take them from the <a href="https://github.com/readori/RemoHop/releases/latest">release page</a>. They install <code>remohop</code> and the systemd units and enable nothing; <code>remohop service install</code> starts a host at boot. More in <a href="/en/docs/install/">Install</a>.</p>
 
 <h2 id="channels">Package managers, store and container</h2>
-<p>The ones marked Available are live; the others are being set up, and each shows its command here once it is published.</p>
 <div class="cards">
 <article class="panel">
 <p class="chip">Available</p>
@@ -142,12 +140,11 @@ scoop install remohop</code></pre>
 </div>
 
 <h2 id="mobile">Phone apps</h2>
-<p>For Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can also be controlled if you allow it, and an iPhone or iPad can share its screen (view only).</p>
+<p>For Android and iOS / iPadOS: connect to and operate your computers from a phone or tablet, with sessions that reconnect by themselves. The phone can be a host too: an Android phone can also be controlled if you allow it, and an iPhone or iPad can share its screen (view only). See <a href="/en/apps/">Apps</a>.</p>
 <div class="actions">
 <a class="btn primary" href="https://apps.apple.com/app/id6838609056">App Store (iPhone, iPad)</a>
+<span class="chip wait">Google Play: coming soon</span>
 </div>
-<p><span class="chip wait">Google Play: coming soon</span></p>
-<p>The Android app has been submitted to Google Play for review; this section will link to it when it is available. See <a href="/en/apps/">Apps</a> for what they do.</p>
 
 <h2 id="verify">Verify a download</h2>
 <p>Every file of a release is listed in its <code>SHA256SUMS</code>. That file has a keyless cosign signature: it proves that this repository's release workflow made it, for that tag, and the signature is recorded in the public Sigstore log. Download <code>SHA256SUMS</code>, <code>SHA256SUMS.sigstore.json</code> and your files into one directory, then:</p>
@@ -155,7 +152,7 @@ scoop install remohop</code></pre>
 cosign verify-blob --bundle SHA256SUMS.sigstore.json \
   --certificate-identity-regexp '^https://github\.com/readori/RemoHop/\.github/workflows/release\.yml@refs/tags/v.+$' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS</code></pre>
-<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. The macOS downloads are also signed with a Developer ID and notarized by Apple; the Windows programs are not code-signed yet. Details: <a href="/en/docs/install/#verifying-a-download">Install</a> and the <a href="/en/security/">security model</a>.</p>
+<p>On Windows, compare <code>Get-FileHash FILE</code> with the line in <code>SHA256SUMS</code>. Details: <a href="/en/docs/install/#verifying-a-download">Install</a> and the <a href="/en/security/">security model</a>.</p>
 
 <h2 id="source">Source code</h2>
 <p>RemoHop is free software under the GNU AGPL-3.0: the complete source is at <a href="https://github.com/readori/RemoHop">github.com/readori/RemoHop</a>, and each release page has the source of that version as an archive. To build it yourself, see <a href="/en/docs/building/">Building from source</a>. A commercial license is available where the AGPL does not fit; see <a href="/en/licensing/">Licensing</a>.</p>
