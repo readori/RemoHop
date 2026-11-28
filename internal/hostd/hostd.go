@@ -173,7 +173,8 @@ type Host struct {
 	offers       map[string]introduction    // nonces of recent introductions
 	id           string
 	online       bool
-	viaWS        bool // registered through the websocket bridge
+	viaWS        bool           // registered through the websocket bridge
+	sigc         *signal.Client // the registered rendezvous connection, while online
 	natType      nat.Type
 	sessions     map[*Session]struct{}
 	gate         *gate
@@ -751,7 +752,7 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 	h.mu.Lock()
 	first := h.id == ""
 	changed := h.id != reg.ID
-	h.id, h.online, h.viaWS = reg.ID, true, bridged
+	h.id, h.online, h.viaWS, h.sigc = reg.ID, true, bridged, c
 	if natType != nat.TypeUnknown {
 		h.natType = natType
 	}
@@ -797,7 +798,7 @@ func (h *Host) signalOnce(ctx context.Context) (wasOnline bool, err error) {
 	h.notify()
 	defer func() {
 		h.mu.Lock()
-		h.online, h.viaWS = false, false
+		h.online, h.viaWS, h.sigc = false, false, nil
 		h.mu.Unlock()
 		h.notify()
 	}()
