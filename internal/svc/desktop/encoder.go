@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/nowindow"
 )
 
@@ -412,25 +413,23 @@ func autoBitrate(pixels, fps int, fast bool) int64 {
 // fits below it).
 const maxAutoBitrate = 100_000_000
 
-// ffmpegPath finds the ffmpeg binary: $REMOHOP_FFMPEG, then PATH.
+// ffmpegPath finds the ffmpeg binary (ffmpeg.Find): $REMOHOP_FFMPEG, then
+// PATH, then RemoHop's downloaded copy.
 func ffmpegPath() (string, error) {
-	if p := os.Getenv("REMOHOP_FFMPEG"); p != "" {
-		return p, nil
-	}
-	p, err := exec.LookPath("ffmpeg")
+	f, err := ffmpeg.Find()
 	if err != nil {
 		return "", errors.New(ffmpegMissing + ": screen sharing needs ffmpeg with an H.264 or AV1 encoder. " + installHint())
 	}
-	return p, nil
+	return f.Path, nil
 }
 
 // ffmpegMissing starts the error of a host without ffmpeg; clients look
 // for it (older hosts say it too) to explain what else works.
 const ffmpegMissing = "ffmpeg not found on the host"
 
-// FFmpegInstalled reports whether this machine has ffmpeg (on PATH, or
-// named by REMOHOP_FFMPEG), which screen sharing needs, and if not, how to
-// install it.
+// FFmpegInstalled reports whether this machine has ffmpeg (named by
+// REMOHOP_FFMPEG, on PATH, or RemoHop's copy), which screen sharing needs,
+// and if not, how to install it.
 func FFmpegInstalled() (ok bool, hint string) {
 	if _, err := FindFFmpeg(); err != nil {
 		return false, installHint()
@@ -439,10 +438,17 @@ func FFmpegInstalled() (ok bool, hint string) {
 }
 
 func installHint() string {
+	own := ffmpeg.InstallHint()
 	switch runtime.GOOS {
 	case "windows":
+		if own != "" {
+			return own + ", or install it with `winget install Gyan.FFmpeg` (or put ffmpeg.exe on PATH, or set REMOHOP_FFMPEG)."
+		}
 		return "Install it with `winget install Gyan.FFmpeg` (or put ffmpeg.exe on PATH, or set REMOHOP_FFMPEG)."
 	case "darwin":
+		if own != "" {
+			return own + ", or install it with `brew install ffmpeg` (or set REMOHOP_FFMPEG)."
+		}
 		return "Install it with `brew install ffmpeg` (or set REMOHOP_FFMPEG)."
 	default:
 		return "Install it with your package manager (Debian/Ubuntu: `apt install ffmpeg`, Fedora: `dnf install ffmpeg` from RPM Fusion, Arch: `pacman -S ffmpeg`) or set REMOHOP_FFMPEG; ffmpeg 6.0 or newer with libsvtav1 is recommended."
@@ -691,6 +697,8 @@ func warmEncoders(ctx context.Context) {
 	}
 	ffmpeg, err := ffmpegPath()
 	if err != nil {
+		// Again at the next start: ffmpeg may be installed by then.
+		warming.Store(false)
 		return
 	}
 	start := time.Now()

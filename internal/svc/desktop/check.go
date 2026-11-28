@@ -1,10 +1,21 @@
 package desktop
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
 
-// FindFFmpeg is the ffmpeg binary screen sharing would use ($REMOHOP_FFMPEG,
-// then PATH), or an error that says how to install it on this system.
-func FindFFmpeg() (string, error) { return ffmpegPath() }
+	"github.com/readori/RemoHop/internal/ffmpeg"
+)
+
+// FindFFmpeg is the ffmpeg screen sharing would use and where it comes from
+// (ffmpeg.Find), or an error that says how to install it on this system.
+func FindFFmpeg() (ffmpeg.Found, error) {
+	f, err := ffmpeg.Find()
+	if err != nil {
+		return f, errors.New(ffmpegMissing + ": screen sharing needs ffmpeg with an H.264 or AV1 encoder. " + installHint())
+	}
+	return f, nil
+}
 
 // CheckScreen looks for the screen a desktop session would capture, as a
 // probe does, without capturing: what it found (for example "1920x1080, 2
