@@ -21,6 +21,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/netip"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -34,6 +35,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/grant"
+	"github.com/readori/RemoHop/internal/lan"
 	"github.com/readori/RemoHop/internal/nat"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
@@ -122,6 +124,11 @@ type Config struct {
 	// do. A host without a rendezvous server, or on a PacketConn, never
 	// asks.
 	NoPortMap bool
+	// NoLANDiscovery keeps the host from answering discovery on the local
+	// network (internal/lan), as the lan-discovery setting and
+	// REMOHOP_LAN_DISCOVERY=0 do. A host on a PacketConn, or bound to a
+	// loopback or IPv6 address, never answers.
+	NoLANDiscovery bool
 
 	// PacketConn, if set, is used instead of opening a socket on Listen,
 	// and Locals replaces interface enumeration. Tests on a virtual
@@ -545,6 +552,9 @@ func (h *Host) Run(ctx context.Context) error {
 		defer pm.Close() // deletes the mapping
 	}
 	var wg sync.WaitGroup
+	if h.lanCapable() {
+		wg.Go(func() { lan.Serve(ctx, h.lanInfo, h.log) })
+	}
 	if h.cfg.Signal != "" {
 		wg.Go(func() { h.signalLoop(ctx) })
 	}
@@ -619,6 +629,40 @@ func (h *Host) startPortmap() *portmap.Mapper {
 	pm := portmap.Start(portmap.Config{Port: uint16(ua.Port), Logger: h.log, OnChange: h.notify})
 	h.portmap.Store(pm)
 	return pm
+}
+
+// lanCapable reports whether the host can be found on the local network
+// (internal/lan): it accepts direct connections there. Not when turned off
+// for this run, not on a socket the caller handed in, and not when bound to
+// a loopback address or to an IPv6 one (discovery offers IPv4 addresses).
+// The lan-discovery setting is read at each question (lanInfo).
+func (h *Host) lanCapable() bool {
+	if h.cfg.NoLANDiscovery || h.cfg.PacketConn != nil {
+		return false
+	}
+	ua, ok := h.sock.LocalAddr().(*net.UDPAddr)
+	if !ok || ua.Port <= 0 || ua.Port > 65535 {
+		return false
+	}
+	ip := ua.AddrPort().Addr().Unmap()
+	return !ip.IsLoopback() && (ip.IsUnspecified() || ip.Is4())
+}
+
+// lanInfo is what the host tells the local network about itself, and
+// whether its owner lets it answer now. Nothing in it is secret.
+func (h *Host) lanInfo() (lan.Info, bool) {
+	p := h.policy()
+	if !p.lan {
+		return lan.Info{}, false
+	}
+	ua := h.sock.LocalAddr().(*net.UDPAddr)
+	name := p.name
+	if name == "" {
+		host, _ := os.Hostname()
+		name = auth.CleanText(host, auth.MaxTokenName)
+	}
+	return lan.Info{Name: name, ID: h.ID(), Fingerprint: auth.Fingerprint(h.PublicKey()),
+		Port: uint16(ua.Port), Addr: ua.AddrPort().Addr()}, true
 }
 
 // mappedAddr is the socket's Mapped hook: the public address the router

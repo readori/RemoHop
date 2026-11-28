@@ -189,6 +189,14 @@ func (s *Server) routes() {
 		peers, errText := a.Peers(r.Context(), q.Refresh)
 		return map[string]any{"peers": peers, "error": errText}, nil
 	})
+	post("/api/lan", func(r *http.Request, _ req) (any, error) {
+		hosts, err := a.LAN(r.Context())
+		errText := ""
+		if err != nil {
+			errText = err.Error()
+		}
+		return map[string]any{"hosts": hosts, "error": errText}, nil
+	})
 	post("/api/peer/alias", func(_ *http.Request, q req) (any, error) { return nil, a.SetAlias(q.Target, q.Alias) })
 	post("/api/peer/forget", func(_ *http.Request, q req) (any, error) { return nil, a.Forget(q.Target) })
 	post("/api/peer/wake", func(r *http.Request, q req) (any, error) { return nil, a.Wake(r.Context(), q.Target) })

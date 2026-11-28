@@ -19,6 +19,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/signal"
@@ -62,6 +63,8 @@ type Config struct {
 	Gateway  func(*web.Config)
 	NoSignal bool
 	Now      func() time.Time
+	// LANBrowse replaces the look at the local network (dial.DiscoverLAN).
+	LANBrowse func(ctx context.Context, dir string) ([]dial.LANHost, error)
 	// The update check (update.go): the version file's address (empty:
 	// update.URL), the HTTP client, the first check's delay and the
 	// interval. NoUpdateCheck leaves the check out altogether.
@@ -129,6 +132,11 @@ type App struct {
 	// was made.
 	peersMtime time.Time
 	peersErr   string
+
+	// The last look at the local network (lan.go).
+	lanMu sync.Mutex
+	lan   []LANPeer
+	lanAt time.Time
 
 	upd updateInfo
 }

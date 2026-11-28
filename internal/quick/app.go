@@ -326,6 +326,11 @@ func (a *App) Start() {
 		}
 		hc.Signal, hc.SignalOptions = addr, opts
 	}
+	// Quick support is found by its ID and temporary password. It answers
+	// LAN discovery only when there is no server to look the ID up on:
+	// then the helper finds it on the network instead of typing its
+	// address.
+	hc.NoLANDiscovery = hc.Signal != "" || hc.SignalOptions.WS != ""
 	if hc.Dir == "" {
 		if settings, err := config.All(); err == nil {
 			hc.Listen = settings[hostd.SettingListen]
