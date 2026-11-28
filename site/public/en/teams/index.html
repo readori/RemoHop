@@ -51,11 +51,11 @@
 <main id="main" tabindex="-1">
 <div class="wrap prose">
 <p class="kicker">Commercial edition · self-hosted</p>
-<h1>RemoHop Teams: one policy for the people, devices and agents of a team</h1>
-<p class="lede">Teams adds groups, policies, single sign-on, admin approvals and central audit to RemoHop. It runs on your own servers, inside your own rendezvous server, and the team's membership and policy are a log signed by your admins' keys, which the server can store but cannot forge.</p>
+<h1>RemoHop Teams: your team decides which machines AI agents may reach, and what they may do there</h1>
+<p class="lede">Teams run more and more agents, and those agents run commands on build machines, test machines and even production servers. Teams gives every agent and every person the same rules: only the machines named, only the features named, deletes, pushes and deploys wait for an admin's approval, and every step leaves a signed audit record and a recording. It runs on your own servers, and the rules are a log signed by your admins' keys, which the server can store but cannot forge.</p>
 <div class="actions">
-<a class="btn primary" href="/en/pricing/">See pricing</a>
-<a class="btn" href="mailto:info@remohop.com?subject=RemoHop%20Teams">Ask about Teams</a>
+<a class="btn primary" href="mailto:info@remohop.com?subject=RemoHop%20Teams%20trial">Request a trial</a>
+<a class="btn" href="/en/pricing/">See pricing</a>
 </div>
 
 <h2 id="policy">Who may reach what, in one place</h2>
@@ -64,6 +64,7 @@
 <figcaption class="kicker">An example policy</figcaption>
 <div class="pol-head" aria-hidden="true"><span>People group</span><span>may reach</span><span>with</span></div>
 <ul class="pol" role="list">
+<li class="pol-row"><span><b class="who">AI agents</b></span><span><span class="arrow">may reach</span> <b class="what">Build servers</b></span><span><span class="arrow">with</span> <span class="pill">shell</span><span class="pill">files</span><span class="pill warn">deploys need an admin</span></span></li>
 <li class="pol-row"><span><b class="who">Support</b></span><span><span class="arrow">may reach</span> <b class="what">Office PCs</b></span><span><span class="arrow">with</span> <span class="pill">desktop</span><span class="pill">files</span></span></li>
 <li class="pol-row"><span><b class="who">Developers</b></span><span><span class="arrow">may reach</span> <b class="what">Build servers</b></span><span><span class="arrow">with</span> <span class="pill">shell</span><span class="pill">files</span><span class="pill">port forwarding</span></span></li>
 <li class="pol-row"><span><b class="who">Contractors</b></span><span><span class="arrow">may reach</span> <b class="what">Staging</b></span><span><span class="arrow">with</span> <span class="pill">shell</span><span class="pill warn">each command needs approval</span></span></li>
@@ -73,6 +74,10 @@
 
 <h2 id="features">What Teams adds</h2>
 <div class="feat-grid">
+<article class="feat">
+<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>Agents under the same rules</h3></div>
+<p>AI agents are covered by the same policies, approvals and audit as people. They count as devices, not users.</p>
+</article>
 <article class="feat">
 <div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><h3>People, devices and groups</h3></div>
 <p>A team of people and their devices, groups of people and groups of devices, and a policy that connects them. Changes reach the hosts as new grants.</p>
@@ -100,10 +105,6 @@
 <article class="feat">
 <div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg><h3>Inside your rendezvous server</h3></div>
 <p>The team server runs inside your own <code>remohop signal</code>, so there is nothing else to host. It can meter relay traffic per team.</p>
-</article>
-<article class="feat">
-<div class="feat-h"><svg class="tile" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V4M9 12h.01M15 12h.01M9.5 16h5"/></svg><h3>Agents under the same rules</h3></div>
-<p>AI agents are covered by the same policies, approvals and audit as people. They count as devices, not users.</p>
 </article>
 </div>
 
@@ -141,7 +142,7 @@
 <h2 id="price">Pricing</h2>
 <div class="tiers mini">
 <article class="tier"><h3>Teams Free</h3><p class="price"><b>Free</b></p><p>All team features for up to 5 users. No license file needed.</p></article>
-<article class="tier featured"><h3>Teams</h3><p class="price"><b>$5</b> <span>per user per month, billed yearly</span></p><p>10 devices per user included, email support, an offline license file.</p></article>
+<article class="tier featured"><h3>Teams</h3><p class="price"><b>$3</b> <span>per user per month, billed yearly</span></p><p>20 devices per user included, email support, an offline license file.</p></article>
 <article class="tier"><h3>Enterprise</h3><p class="price"><b>Contact us</b></p><p>More than 500 users, invoices and purchase orders, custom terms, help with security reviews.</p></article>
 </div>
 <p class="links"><a href="/en/pricing/">Compare the plans</a> <a href="/en/pricing/#faq">Questions about licenses</a></p>
