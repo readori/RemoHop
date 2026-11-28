@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>Self-hosting the rendezvous server | RemoHop</title>
 <meta name="description" content="Run remohop signal on a small VM: ports, memory use, the relay, the websocket bridge, and the limits, traffic budget and visible metadata when you offer a relay to the public.">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -71,7 +71,10 @@ remohop signal --show-key</code></pre>
 sudo /usr/local/bin/remohop service install --role signal --relay --relay-ports 40000-40099
 remohop service status --role signal
 sudo remohop signal --show-key --data /var/lib/remohop-signal</code></pre>
-<p class="note">UDP <code>21116</code>, <code>21117</code> and the relay range must be open in <strong>two</strong> places: the machine's own firewall, and the cloud provider's security list (Oracle Cloud's security list, an AWS security group, and so on). Cloudflare Tunnel does not forward UDP, so the rendezvous server itself cannot sit behind a tunnel.</p>
+<details class="fold">
+<summary>Open the ports in two places</summary>
+<p>UDP <code>21116</code>, <code>21117</code> and the relay range must be open in <strong>two</strong> places: the machine's own firewall, and the cloud provider's security list (Oracle Cloud's security list, an AWS security group, and so on). Cloudflare Tunnel does not forward UDP, so the rendezvous server itself cannot sit behind a tunnel.</p>
+</details>
 
 <h2 id="clients">Point clients at it</h2>
 <pre tabindex="0"><code>remohop config set signal HOST:PORT

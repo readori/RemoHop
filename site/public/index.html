@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="light dark">
 <title>RemoHop：给人和 AI 代理用的远程控制，权限由你划定</title>
 <meta name="description" content="RemoHop 是开源的点对点远程控制工具。内置 MCP 服务器（29 个工具），AI 代理可以在远程机器上执行命令、传文件、看屏幕，权限由被控机上限定命令、目录和时限、可要求批准和录制的授权决定。远程桌面、终端、文件、端口转发和组网都在一个 remohop 程序里，端到端加密，默认直连。">
-<link rel="stylesheet" href="/assets/site.css?v=ba52c9e52a">
+<link rel="stylesheet" href="/assets/site.css?v=28cbe94571">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -60,8 +60,7 @@
 <a class="btn primary glow" href="/download/">免费下载</a>
 <a class="btn ghost" href="/docs/ai-agents/">把一台机器交给代理</a>
 </div>
-<p class="meta">开源（AGPL-3.0）· 任何用途都免费 · 不用注册账号 · <a class="nobr" href="https://github.com/readori/RemoHop">源码在 GitHub</a></p>
-<p class="meta">局域网直连永久免费：不用服务器、不用账号，全程端到端加密；没有你给的配对、密码或授权，谁也连不进来。</p>
+<ul class="hero-tags"><li>开源 AGPL-3.0</li><li>免费</li><li>无需账号</li><li>端到端加密</li></ul>
 </div>
 <div class="stage agent-stage">
 <figure class="term-win">
@@ -82,7 +81,6 @@
 <p class="ask-top"><span class="mono">remohop_exec</span><span class="chip bad">被控机拒绝</span></p>
 <p class="ask-q"><code>git push</code></p>
 <p class="ask-why">command "git push" is not allowed by grant claude-session (allowed commands: go test)</p>
-<figcaption>代理收到的回复。RemoHop 的真实输出，授权码有删节。</figcaption>
 </figure>
 </div>
 </div>
@@ -125,7 +123,6 @@
 <pre class="term"><code><span class="p">$ </span>remohop host approve
 <span class="hang3">1  grant claude-session wants to exec: go test ./...  (since 11:12:40)
 </span><span class="p">$ </span>remohop host approve 1</code></pre>
-<figcaption class="term-foot">也可以在运行 <code>remohop host</code> 的终端里输入 <code>y</code>，Linux&nbsp;和&nbsp;macOS 上还会弹出桌面通知。</figcaption>
 </figure>
 </div>
 <ol class="grant-notes">
@@ -154,9 +151,10 @@
 <span class="t t2"><span class="p">$ </span>claude mcp add remohop -- remohop mcp</span><span class="caret" aria-hidden="true"></span></code></pre>
 </article>
 </div>
-<div class="note reveal">
-<p><strong>授权做不到的事。</strong>命令白名单是护栏，不是沙箱：能启动别的程序的命令（<code>make</code>、git 钩子、任何解释器）会把这种能力一起带进来；批准 <code>./deploy.sh</code>，就是批准了这个脚本做的一切。详见<a href="/en/docs/agents/#limits-of-the-protection">保护的边界</a>（英文）。整个团队用的话，<a href="/teams/">RemoHop 团队版</a>按一套策略签发同样的授权，管理员也可以批准操作。</p>
-</div>
+<details class="fold reveal">
+<summary>授权做不到的事</summary>
+<p>命令白名单是护栏，不是沙箱：能启动别的程序的命令（<code>make</code>、git 钩子、任何解释器）会把这种能力一起带进来；批准 <code>./deploy.sh</code>，就是批准了这个脚本做的一切。详见<a href="/en/docs/agents/#limits-of-the-protection">保护的边界</a>（英文）。整个团队用的话，<a href="/teams/">RemoHop 团队版</a>按一套策略签发同样的授权，管理员也可以批准操作。</p>
+</details>
 </section>
 
 <section class="band alt" id="tool" aria-labelledby="tool-h">
@@ -255,14 +253,14 @@
 <li><span><strong>每次连接都先问你。</strong>新设备附防诈骗提醒；允许的设备默认只能看屏幕，其余的要你勾选。</span></li>
 <li><span><strong>以 AGPL-3.0 开源。</strong>汇合服务器、中继和浏览器网关都可以自己运行；局域网里甚至不需要服务器。</span></li>
 </ul>
-<div class="note warn reveal">
-<p><strong>还没做到的，直接说明。</strong></p>
+<details class="fold reveal">
+<summary>还没做到的事</summary>
 <ul>
 <li>没有经过独立的安全审计。</li>
-<li>Windows 下载尚未代码签名，SmartScreen 会提示；macOS 下载已签名并经过公证。</li>
+<li>Windows 下载尚未代码签名，SmartScreen 会提示。</li>
 <li>Linux 是参考平台。macOS&nbsp;和&nbsp;Windows 由托管机器上的自动化测试覆盖，还没有人在实体机上逐项检查。</li>
 </ul>
-</div>
+</details>
 </div>
 <p class="links reveal"><a href="/security/">安全模型</a> <a href="/how-it-works/">工作原理</a> <a href="/self-hosting/">自建服务器</a></p>
 </section>
@@ -295,7 +293,7 @@
 <p class="chip">可以下载</p>
 <h3>RemoHop 桌面应用</h3>
 <p class="platforms">Windows · macOS · Linux</p>
-<p>一个窗口：连接你的其他电脑，也让别人连接这台电脑，每次有人连接都先问你。macOS 版已签名并经过公证。</p>
+<p>一个窗口：连接你的其他电脑，也让别人连接这台电脑，每次有人连接都先问你。</p>
 <p class="links"><a href="/download/">下载</a><a href="/docs/desktop-app/">桌面应用说明</a></p>
 </article>
 <article class="panel get reveal">
@@ -321,9 +319,6 @@
 sh install.sh</code></pre>
 <p class="links"><a href="/download/#cli">下载</a><a href="/features/#platforms">平台支持</a></p>
 </article>
-</div>
-<div class="note status-note reveal">
-<p><strong>现状（2026 年 11 月）：</strong>已经发布，见<a href="/download/">下载</a>。桌面应用首次启动时可以选用官方汇合服务器，也可以填自己的；命令行程序没有内置默认服务器。<a href="/features/#status">完整的限制清单</a></p>
 </div>
 </section>
 
