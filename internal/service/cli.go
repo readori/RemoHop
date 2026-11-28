@@ -152,8 +152,9 @@ Unattended access (Windows, --unattended)
   The desktop service needs ffmpeg the service can find (machine PATH, or
   REMOHOP_FFMPEG in the service's environment); keep it, like remohop.exe, where
   only administrators can write (e.g. under Program Files). Or install a
-  verified copy for the service, from an elevated prompt:
-      set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install
+  verified copy for the service, from an elevated prompt (the desktop app
+  does this when it turns unattended access on):
+      remohop ffmpeg install --service
 
 Examples:
   remohop service install                      # as yourself, starts now
