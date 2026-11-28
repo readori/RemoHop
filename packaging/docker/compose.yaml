@@ -19,10 +19,18 @@ services:
       - --relay-ports=40000-40099
       - --ws-listen=0.0.0.0:8080                  # the websocket bridge; not published below
       - --ws-real-ip-header=CF-Connecting-IP      # per-address limits use the client's real IP
+      # The operator's web panel (docs/en/self-hosting.md#the-operators-web-panel). On this
+      # bridge network it listens on 0.0.0.0, so it needs a password; publish it on loopback only.
+      # - --panel=0.0.0.0:8810
     ports:
       - "21116:21116/udp"    # rendezvous
       - "21117:21117/udp"    # NAT-type detection
       - "40000-40099:40000-40099/udp"   # relay sessions (must match --relay-ports)
+      # - "127.0.0.1:8810:8810/tcp"   # the panel, with --panel above
+    # environment:                     # the panel's settings; put the values in .env
+    #   REMOHOP_PANEL_PASSWORD: ${REMOHOP_PANEL_PASSWORD:?set it in .env}
+    #   REMOHOP_PANEL_CF_TEAM: ${REMOHOP_PANEL_CF_TEAM:-}
+    #   REMOHOP_PANEL_CF_AUD: ${REMOHOP_PANEL_CF_AUD:-}
     volumes:
       - signal-data:/data    # the server key and the ID table: keep it, or every host gets a new ID
     # Hardening: the image is already non-root and static; these make it strict.

@@ -75,6 +75,23 @@ Cloudflare forwards; only use it when the bridge is reachable **only** through C
 can be forged. Sessions that come through the bridge always use the relay, so `--relay` must be on.
 Details: [Networks that allow only HTTPS](../../docs/en/self-hosting.md#networks-that-allow-only-https-websocket-bridge).
 
+## The web panel
+
+`--panel` serves a read-only web panel for the operator (counts only, never addresses). Inside the
+container it has to listen on `0.0.0.0`, which needs a password, and it should be published on the host's
+loopback only:
+
+```bash
+docker run -d --name remohop-signal ... \
+  -p 127.0.0.1:8810:8810 -e REMOHOP_PANEL_PASSWORD \
+  ghcr.io/readori/remohop-signal:v1.2.3 \
+  --relay --relay-ports 40000-40099 --panel 0.0.0.0:8810
+```
+
+Then `ssh -L 8810:127.0.0.1:8810 server` and open `http://127.0.0.1:8810/`. With `--network host` the panel
+can stay on `127.0.0.1:8810` without a password. Cloudflare Access and the other settings:
+[The operator's web panel](../../docs/en/self-hosting.md#the-operators-web-panel).
+
 ## docker compose
 
 [`compose.yaml`](compose.yaml) has the same setup with hardening options and an optional `tunnel` profile

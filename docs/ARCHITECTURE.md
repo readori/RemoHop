@@ -23,7 +23,8 @@ and [zh/](zh/README.md); this page is for people reading the code.
 |---|---|---|
 | Framing | `internal/wire` | length-prefixed JSON messages and typed binary frames |
 | Session | `internal/peer` | `Conn`: an authenticated session multiplexing service streams |
-| Rendezvous | `internal/signal` | ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts (`remohop signal`) |
+| Rendezvous | `internal/signal` | ID allocation, presence, candidate exchange, the optional relay and websocket bridge, optional accounts, the operator's web panel (`remohop signal`) |
+| Cloudflare Access | `internal/cfaccess` | checks Cloudflare Access tokens for the rendezvous server's web panel |
 | NAT traversal | `internal/nat` | candidate gathering, UDP hole punching |
 | Router port mapping | `internal/portmap` | PCP, NAT-PMP and UPnP IGD: the host's UDP port forwarded by its router, offered as a candidate |
 | Websocket bridge | `internal/wsdgram` | UDP datagrams over a WebSocket (HTTPS proxy aware), for networks without UDP |

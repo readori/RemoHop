@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<title>RemoHop signal panel</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="panel.css">
+<script src="panel.js" defer></script>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M5 15l4.5-4.5 3.5 3 6-6.5"/><path d="M15 7h4v4"/></symbol>
+  <symbol id="i-relay" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="2.5"/><circle cx="18.5" cy="12" r="2.5"/><path d="M8 12h2.5l1.5-4 2 8 1.5-4h.5"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.5 17a8 8 0 1 1 15 0"/><path d="M12 13l3.5-4"/><circle cx="12" cy="13.5" r="1.2"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2-5 4 10 2-5h6"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6.5" rx="2"/><rect x="4" y="13.5" width="16" height="6.5" rx="2"/><path d="M8 7.25h.01M8 16.75h.01"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="11.5" rx="2"/><path d="M9 20h6M12 16v4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5l7 3v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9v-5z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/><path d="M9.5 3.5v3M14.5 3.5v3M9.5 17.5v3M14.5 17.5v3M3.5 9.5h3M3.5 14.5h3M17.5 9.5h3M17.5 14.5h3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5l3 2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4h-4"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M6.5 6.5l11 11"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 15.5H3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5l8-8M16 7l2.5 2.5M14 9l1.5 1.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M15.5 6a3 3 0 0 1 0 5.6M17 14.2a5.5 5.5 0 0 1 3.5 4.8"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3.5v4M15 3.5v4"/><path d="M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 16v4.5"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6"/><path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .5-8 6 6 0 0 0-11.5-1A4.5 4.5 0 0 0 7 18.5z"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 9.5l3 2.5-3 2.5M12.5 15h4"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="side" aria-label="Panel">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="32" height="32">
+      <div class="brand-t"><b>RemoHop</b><span class="mlabel" data-t="brandSub">Signal panel</span></div>
+    </div>
+    <div class="srv-card">
+      <span class="tile acc"><svg class="i"><use href="#i-server"/></svg><i class="pres" id="srv-dot"></i></span>
+      <div class="srv-t"><b data-t="server">Rendezvous server</b><span class="mono" id="srv-sub">–</span></div>
+    </div>
+    <nav class="nav" id="nav" aria-label="Pages">
+      <div class="nav-sec" data-t="secMonitor">Monitor</div>
+      <a class="tab" href="#overview" data-page="overview"><svg class="i ic"><use href="#i-grid"/></svg><span class="lbl" data-t="pOverview">Overview</span></a>
+      <a class="tab" href="#trends" data-page="trends"><svg class="i ic"><use href="#i-trend"/></svg><span class="lbl" data-t="pTrends">Trends</span></a>
+      <div class="nav-sec" data-t="secService">Service</div>
+      <a class="tab" href="#relay" data-page="relay"><svg class="i ic"><use href="#i-relay"/></svg><span class="lbl" data-t="pRelay">Relay</span><span class="count" id="nav-relay" hidden></span></a>
+      <a class="tab" href="#limits" data-page="limits"><svg class="i ic"><use href="#i-gauge"/></svg><span class="lbl" data-t="pLimits">Limits</span></a>
+      <div class="nav-sec" data-t="secOps">Operations</div>
+      <a class="tab" href="#health" data-page="health"><svg class="i ic"><use href="#i-pulse"/></svg><span class="lbl" data-t="pHealth">Health</span><span class="count warn" id="nav-health" hidden></span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="seg pill" data-set="theme" role="group" aria-label="Theme">
+        <button type="button" data-v="auto" data-t="auto">Auto</button><button type="button" data-v="light" data-t="light">Light</button><button type="button" data-v="dark" data-t="dark">Dark</button>
+      </div>
+      <div class="seg pill" data-set="lang" role="group" aria-label="Language">
+        <button type="button" data-v="auto" data-t="auto">Auto</button><button type="button" data-v="zh">中文</button><button type="button" data-v="en">EN</button>
+      </div>
+      <div class="me">
+        <span class="me-av"><svg class="i"><use href="#i-term" id="me-ic"/></svg></span>
+        <div class="me-txt"><b id="me-t">–</b><span id="me-s">–</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="col">
+    <main id="main">
+      <div class="page">
+        <header class="ph">
+          <div class="grow">
+            <div class="eyebrow" id="ph-eyebrow">–</div>
+            <h1 id="ph-title">Overview</h1>
+            <p class="lead" id="ph-lead"></p>
+          </div>
+          <div class="ph-tools">
+            <div class="seg pill" id="range" role="group" aria-label="Range" hidden>
+              <button type="button" data-v="24h" data-t="r24h">24 hours</button><button type="button" data-v="7d" data-t="r7d">7 days</button>
+            </div>
+            <span class="status" id="live"><i class="d"></i><span id="live-t">–</span></span>
+            <button type="button" class="icon-btn bordered" id="refresh" data-ta="refresh" aria-label="Refresh"><svg class="i"><use href="#i-refresh"/></svg></button>
+          </div>
+        </header>
+        <div class="err-bar" id="err" role="alert" hidden></div>
+
+        <!-- Overview -->
+        <section class="view" id="v-overview" data-page="overview" aria-labelledby="ph-title">
+          <div class="hero card">
+            <div class="hero-main">
+              <div class="eyebrow" id="hero-eyebrow">–</div>
+              <h2 class="hero-t" id="hero-t">–</h2>
+              <p class="hero-s" id="hero-s">–</p>
+              <div class="chips" id="listen-chips"></div>
+            </div>
+            <dl class="hero-facts">
+              <div><dt data-t="version">Version</dt><dd class="mono" id="f-version">–</dd></div>
+              <div><dt data-t="started">Started</dt><dd id="f-uptime">–</dd></div>
+              <div><dt data-t="idsStored">IDs stored</dt><dd id="f-ids">–</dd></div>
+            </dl>
+          </div>
+          <div class="grid kpis" id="kpis"></div>
+          <div class="grid two-one">
+            <div class="card">
+              <div class="card-h"><span class="tile"><svg class="i"><use href="#i-trend"/></svg></span><div class="grow"><h3 class="ct" data-t="actTitle">Hosts online and connections</h3><p class="cs" id="act-sub" data-t="actSub">Last 24 hours, one point a minute</p></div></div>
+              <div class="chart" id="ov-chart"></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><span class="tile"><svg class="i"><use href="#i-ban"/></svg></span><div class="grow"><h3 class="ct" data-t="refTitle">Refusals today</h3><p class="cs" data-t="refSub">What the limits turned away, by kind</p></div></div>
+              <div id="ov-donut"></div>
+            </div>
+          </div>
+          <div class="grid three">
+            <div class="card" id="ov-relay"></div>
+            <div class="card" id="ov-mem"></div>
+            <div class="card" id="ov-extra"></div>
+          </div>
+          <div class="privacy"><svg class="i"><use href="#i-shield"/></svg><p data-t="privacy">Counts and aggregates only. This panel never lists IP addresses, host IDs, account emails or keys, just as the server's own summaries hold counts, not addresses.</p></div>
+        </section>
+
+        <!-- Trends -->
+        <section class="view" id="v-trends" data-page="trends" hidden>
+          <div class="grid two" id="trend-grid"></div>
+          <div class="card mt16">
+            <div class="card-h"><span class="tile"><svg class="i"><use href="#i-ban"/></svg></span><div class="grow"><h3 class="ct" data-t="trRefusals">Refusals by kind</h3><p class="cs" id="tr-ref-sub"></p></div></div>
+            <div class="chart tall" id="tr-refusals"></div>
+            <div class="reason-table" id="tr-reasons"></div>
+          </div>
+        </section>
+
+        <!-- Relay -->
+        <section class="view" id="v-relay" data-page="relay" hidden>
+          <div id="relay-off" hidden></div>
+          <div id="relay-on">
+            <div class="grid three" id="relay-kpis"></div>
+            <div class="grid two-one">
+              <div class="card">
+                <div class="card-h"><span class="tile"><svg class="i"><use href="#i-db"/></svg></span><div class="grow"><h3 class="ct" data-t="byDay">Relayed per day</h3><p class="cs" id="rel-days-sub"></p></div><span class="chip" id="rel-peak" hidden></span></div>
+                <div class="chart" id="rel-days"></div>
+              </div>
+              <div class="card">
+                <div class="card-h"><span class="tile"><svg class="i"><use href="#i-ban"/></svg></span><div class="grow"><h3 class="ct" data-t="relRefused">Refused relay requests</h3><p class="cs" data-t="relRefusedSub">Today and since the server started</p></div></div>
+                <div id="rel-reasons"></div>
+              </div>
+            </div>
+            <div class="card mt16">
+              <div class="card-h"><span class="tile"><svg class="i"><use href="#i-key"/></svg></span><div class="grow"><h3 class="ct" data-t="policy">Policy</h3><p class="cs" data-t="policySub">What the relay allows, as the server applies it</p></div></div>
+              <dl class="kvgrid" id="rel-policy"></dl>
+            </div>
+          </div>
+        </section>
+
+        <!-- Limits -->
+        <section class="view" id="v-limits" data-page="limits" hidden>
+          <div class="card">
+            <div class="card-h"><span class="tile"><svg class="i"><use href="#i-gauge"/></svg></span><div class="grow"><h3 class="ct" data-t="closeness">How close the server is to each limit</h3><p class="cs" data-t="closenessSub">Right now. For per-address limits, the busiest address (which one is not shown).</p></div></div>
+            <div class="gauges" id="gauges"></div>
+          </div>
+          <div class="card table mt16">
+            <div class="card-h pad"><span class="tile"><svg class="i"><use href="#i-clock"/></svg></span><div class="grow"><h3 class="ct" data-t="rates">Rate limits</h3><p class="cs" data-t="ratesSub">Token buckets: a burst, then one more every interval</p></div></div>
+            <div class="tbl" id="rates"></div>
+          </div>
+          <div class="grid three mt16">
+            <div class="card"><div class="card-h"><h3 class="ct" data-t="limConns">Connections and IDs</h3></div><dl class="kv" id="lim-conns"></dl></div>
+            <div class="card"><div class="card-h"><h3 class="ct" data-t="limExt">Extension requests</h3></div><dl class="kv" id="lim-ext"></dl></div>
+            <div class="card"><div class="card-h"><h3 class="ct" data-t="limWS">Websocket bridge</h3></div><dl class="kv" id="lim-ws"></dl></div>
+          </div>
+        </section>
+
+        <!-- Health -->
+        <section class="view" id="v-health" data-page="health" hidden>
+          <div class="grid kpis" id="health-kpis"></div>
+          <div class="card table mt16">
+            <div class="card-h pad">
+              <span class="tile"><svg class="i"><use href="#i-pulse"/></svg></span>
+              <div class="grow"><h3 class="ct" data-t="logTitle">Recent log records</h3><p class="cs" id="log-sub"></p></div>
+              <div class="seg pill" id="log-filter" role="group">
+                <button type="button" data-v="warn" data-t="logWarn">Warnings and errors</button><button type="button" data-v="info" data-t="logInfo">Info</button>
+              </div>
+            </div>
+            <div class="logs" id="logs"></div>
+          </div>
+          <div class="privacy"><svg class="i"><use href="#i-shield"/></svg><p data-t="logPrivacy">Addresses, host IDs, keys and email addresses are removed from these records before they reach the panel. The full log stays in the system journal.</p></div>
+        </section>
+
+        <footer class="foot-m">
+          <div class="seg pill" data-set="theme" role="group" aria-label="Theme">
+            <button type="button" data-v="auto" data-t="auto">Auto</button><button type="button" data-v="light" data-t="light">Light</button><button type="button" data-v="dark" data-t="dark">Dark</button>
+          </div>
+          <div class="seg pill" data-set="lang" role="group" aria-label="Language">
+            <button type="button" data-v="auto" data-t="auto">Auto</button><button type="button" data-v="zh">中文</button><button type="button" data-v="en">EN</button>
+          </div>
+        </footer>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+</body>
+</html>

@@ -52,6 +52,7 @@ The server re-reads the file within 10 seconds of a change, and at once on SIGHU
 - The startup line shows the limits in force and this month's usage so far.
 - Once an hour the log has a `relay summary` line: sessions started, bytes relayed, active sessions, and refusals by reason (`per_source`, `mode`, `deny`, `budget`, `full`). It contains no addresses.
 - Lines at 50 %, 80 %, 100 % and 110 % of the budget are logged once per month.
+- `--panel 127.0.0.1:8810` (or `remohop service install --role signal ... --panel 127.0.0.1:8810`) serves a read-only web panel with the same counts and their trends over 24 hours and 7 days, the limits and how close the server is to each, and recent warnings. Like the summary it shows no addresses, IDs, emails or keys. Reach it over an SSH tunnel or a Cloudflare Tunnel with Access: see [The operator's web panel](en/self-hosting.md#the-operators-web-panel).
 - `journalctl -u remohop-signal` shows everything else.
 
 ## What a public operator can and cannot see

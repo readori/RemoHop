@@ -183,6 +183,22 @@ func (t *rateTable[K]) allow(key K) (bool, time.Duration) {
 	return true, 0
 }
 
+// peek reports whether key has a token left, without taking it.
+func (t *rateTable[K]) peek(key K) (bool, time.Duration) {
+	now := time.Now()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	b := t.buckets[key]
+	if b == nil {
+		return true, 0
+	}
+	tokens := min(t.burst, b.tokens+float64(now.Sub(b.at))/float64(t.every))
+	if tokens < 1 {
+		return false, time.Duration((1 - tokens) * float64(t.every))
+	}
+	return true, 0
+}
+
 // evict makes room in a full table. Buckets that have refilled completely
 // carry no information and go first. If that is not enough, the keys that
 // have been quiet longest are forgotten, about an eighth of the table at a

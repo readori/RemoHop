@@ -247,6 +247,7 @@ func (s *Server) handleExt(c *serverConn, st *quic.Stream, req *request, fail fa
 		return
 	}
 	if ok, wait := s.extSources.allow(c.source); !ok {
+		s.stats.add(stExtLimited)
 		fail(CodeRateLimited, "too many requests from this address", wait)
 		return
 	}
@@ -258,12 +259,14 @@ func (s *Server) handleExt(c *serverConn, st *quic.Stream, req *request, fail fa
 	}
 	st.SetReadDeadline(time.Time{})
 	if !s.extFlight.acquire(c.source, s.cfg.Ext.PerSourceConcurrent) {
+		s.stats.add(stExtLimited)
 		fail(CodeRateLimited, "too many requests from this address at once", time.Second)
 		return
 	}
 	defer s.extFlight.release(c.source)
 	if s.extActive.Add(1) > int64(s.cfg.Ext.MaxConcurrent) {
 		s.extActive.Add(-1)
+		s.stats.add(stExtLimited)
 		fail(CodeRateLimited, "the server is busy with other requests", time.Second)
 		return
 	}

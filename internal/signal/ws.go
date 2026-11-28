@@ -104,6 +104,9 @@ type wsRegistry struct {
 	// relayPorts holds the ports of relay sessions open now.
 	relayPorts sync.Map // uint16 → struct{}
 
+	// cfg is the bridge's configuration in force, for the panel.
+	cfg atomic.Pointer[WSConfig]
+
 	mu        sync.Mutex
 	conns     int
 	perSource map[netip.Addr]int
@@ -170,6 +173,8 @@ func (s *Server) allowedPort(port uint16) bool {
 // cfg.Path only and needs Serve to be running.
 func (s *Server) WSHandler(cfg WSConfig) http.Handler {
 	cfg.defaults(s.cfg.Relay)
+	eff := cfg
+	s.ws.cfg.Store(&eff)
 	total := nat.NewByteBudget(cfg.TotalRate)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != cfg.Path {
@@ -197,6 +202,7 @@ func (s *Server) WSHandler(cfg WSConfig) http.Handler {
 		src, _ := sourceOf(client)
 		release, reason := s.ws.admit(src, &cfg)
 		if release == nil {
+			s.stats.add(stWSRefused)
 			if s.ws.shouldWarn() {
 				s.log.Warn("websocket bridge: refused a connection", "client", client, "reason", reason)
 			}
@@ -275,6 +281,7 @@ func (s *Server) serveBridge(conn *websocket.Conn, client netip.Addr, cfg *WSCon
 		return
 	}
 	start := time.Now()
+	s.stats.add(stWSOpened)
 	s.log.Info("websocket bridge opened", "client", client)
 	var st bridgeStats
 	st.last.Store(start.UnixNano())

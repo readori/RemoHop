@@ -24,9 +24,10 @@ func (o Options) lowPorts() bool {
 	for i, a := range o.SignalArgs {
 		v := ""
 		switch {
-		case (a == "--listen" || a == "--alt" || a == "--relay-ports") && i+1 < len(o.SignalArgs):
+		case (a == "--listen" || a == "--alt" || a == "--relay-ports" || a == "--panel") && i+1 < len(o.SignalArgs):
 			v = o.SignalArgs[i+1]
-		case strings.HasPrefix(a, "--listen=") || strings.HasPrefix(a, "--alt=") || strings.HasPrefix(a, "--relay-ports="):
+		case strings.HasPrefix(a, "--listen=") || strings.HasPrefix(a, "--alt=") || strings.HasPrefix(a, "--relay-ports=") ||
+			strings.HasPrefix(a, "--panel="):
 			_, v, _ = strings.Cut(a, "=")
 		default:
 			continue
@@ -41,6 +42,36 @@ func (o Options) lowPorts() bool {
 		}
 	}
 	return false
+}
+
+// panelListen is the --panel address among the signal arguments, or "".
+func (o Options) panelListen() string {
+	for i, a := range o.SignalArgs {
+		if a == "--panel" && i+1 < len(o.SignalArgs) {
+			return o.SignalArgs[i+1]
+		}
+		if v, ok := strings.CutPrefix(a, "--panel="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// panelEnvFile holds the panel's settings (its password, Cloudflare
+// Access): environment variables, never on the command line or in the
+// world-readable unit.
+func (o Options) panelEnvFile() string { return "/etc/remohop/" + o.name() + "-panel.env" }
+
+// sshForward is the ssh -L argument that reaches a panel on addr.
+func sshForward(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return port + ":" + net.JoinHostPort(host, port)
 }
 
 // hiddenFromSignal says why the sandbox of the rendezvous server unit
@@ -88,6 +119,11 @@ func signalText(o Options, exe string) string {
 	u.WriteString("DynamicUser=yes\n")
 	u.WriteString("StateDirectory=" + o.name() + "\nStateDirectoryMode=0700\n")
 	u.WriteString("Environment=REMOHOP_CONFIG_DIR=" + stateDir(o) + "\n")
+	if o.panelListen() != "" {
+		// The web panel's password and Cloudflare Access settings; the
+		// leading "-" lets the service start without the file.
+		u.WriteString("EnvironmentFile=-" + o.panelEnvFile() + "\n")
+	}
 	u.WriteString("UMask=0077\n")
 	u.WriteString("NoNewPrivileges=yes\n")
 	u.WriteString("ProtectSystem=strict\nProtectHome=yes\nPrivateTmp=yes\nPrivateDevices=yes\n")

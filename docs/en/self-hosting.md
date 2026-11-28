@@ -99,3 +99,89 @@ sudo remohop signal --status --data /var/lib/remohop-signal --relay-monthly-gb 8
 - `--relay-monthly-gb N`: monthly budget, persisted across restarts. From 80 % anonymous sessions get half their rate; at 100 % anonymous sessions are refused; at 110 % all are. `remohop signal --status` shows the month's usage, and an hourly log line summarises sessions, bytes and refusals without addresses.
 
 [public-server.md](../public-server.md) is the full reference for these options; it also covers what such an operator can and cannot see, and has a privacy notice template.
+
+## The operator's web panel
+
+`--panel ADDR` adds a read-only web page for whoever runs the server: hosts online and IDs stored, open connections and websocket bridges, the relay (sessions now and today, this month's bytes against the budget, usage per day, refusals by reason), trends over 24 hours and 7 days, the limits in force and how close the server is to each, memory and goroutines, and recent warnings and errors from the log. It is off by default.
+
+The panel shows counts and aggregates only. It never lists an IP address, a host ID, an account's email or a key, and log records reach it with those removed. Its history (one sample a minute, kept for 24 hours, and 15-minute points for 7 days) is written to `panel-history.json` in `--data`, so a restart keeps it.
+
+```bash
+remohop signal --relay --relay-ports 40000-40099 --panel 127.0.0.1:8810
+sudo remohop service install --role signal --relay --relay-ports 40000-40099 --panel 127.0.0.1:8810
+```
+
+Who may open it:
+
+- **From the server itself, no login.** The panel listens on loopback. Reach it from your own machine over SSH, then open `http://127.0.0.1:8810/`:
+
+  ```bash
+  ssh -L 8810:127.0.0.1:8810 server
+  ```
+
+  A loopback request must name `127.0.0.1` or `localhost` as its host, so that a web page cannot reach the panel through DNS rebinding.
+- **Through Cloudflare Tunnel with Cloudflare Access**, for a browser anywhere. Every request that comes through Cloudflare (it carries a `Cf-Ray`, `Cf-Connecting-Ip` or `Cf-Access-Jwt-Assertion` header) must carry a valid Access token, in that header or the `CF_Authorization` cookie. The panel checks its RS256 signature against the team's keys (`https://TEAM/cdn-cgi/access/certs`, cached for an hour and fetched again for a new key ID), the audience (your application's AUD tag), the issuer (`https://TEAM`), and its expiry, with a little clock skew. If an email list is set, the token's email must be on it. The panel's header shows who is signed in. Without `REMOHOP_PANEL_CF_TEAM` and `REMOHOP_PANEL_CF_AUD`, requests through Cloudflare are refused, so a tunnel without Access in front never opens the panel.
+- **With a password.** With `REMOHOP_PANEL_PASSWORD` set, every page except `/healthz` asks for it (HTTP Basic, any user name). Listening beyond loopback (`--panel 0.0.0.0:8810`, say) is refused without it. Prefer loopback and a tunnel: Basic authentication over plain HTTP crosses the network in the clear.
+
+| Environment variable | Meaning |
+|---|---|
+| `REMOHOP_PANEL_CF_TEAM` | your Cloudflare Zero Trust team domain, e.g. `myteam.cloudflareaccess.com` |
+| `REMOHOP_PANEL_CF_AUD` | the Access application's Audience (AUD) tag |
+| `REMOHOP_PANEL_CF_EMAILS` | optional, comma-separated: the only emails let in (Access policies still apply first) |
+| `REMOHOP_PANEL_PASSWORD` | optional: a password for every page; required to listen beyond loopback |
+
+The settings are environment variables, never flags, so they stay off the command line. Under the installed service, put them in `/etc/remohop/remohop-signal-panel.env` (the unit reads it when the service starts; without the file it starts anyway), make it readable by root only, and restart:
+
+```bash
+sudo install -m 600 /dev/null /etc/remohop/remohop-signal-panel.env
+sudoedit /etc/remohop/remohop-signal-panel.env       # REMOHOP_PANEL_CF_TEAM=..., one per line
+sudo systemctl restart remohop-signal
+```
+
+The page is plain HTML, CSS and JavaScript built into the binary: no CDN, no web fonts, a strict Content-Security-Policy, no framing, no caching of data, and only `GET` requests. It follows the browser's language (English or Chinese) and the system's light or dark theme; both can be switched in the sidebar.
+
+### Cloudflare Tunnel and Access
+
+1. In the Cloudflare Zero Trust dashboard, add an Access application of type *Self-hosted* for a hostname such as `panel.example.com`, with a policy that allows your team. Copy its *Application Audience (AUD) tag*.
+2. Route the hostname through a tunnel to the panel. In `cloudflared`'s `config.yml` on the server:
+
+   ```yaml
+   tunnel: <tunnel-id>
+   credentials-file: /etc/cloudflared/<tunnel-id>.json
+   ingress:
+     - hostname: panel.example.com
+       service: http://127.0.0.1:8810
+     - hostname: relay.example.com          # the websocket bridge, if you use it
+       service: http://127.0.0.1:8080
+     - service: http_status:404
+   ```
+
+3. Start the server with `--panel 127.0.0.1:8810` and set `REMOHOP_PANEL_CF_TEAM=myteam.cloudflareaccess.com` and `REMOHOP_PANEL_CF_AUD=<AUD tag>` (and, if you like, `REMOHOP_PANEL_CF_EMAILS`).
+
+Cloudflare Access is the first lock and the panel's own check of the token is the second: a request that reaches the tunnel without passing Access is refused by the panel too.
+
+### Docker
+
+Inside a container, loopback is the container's own. Two ways to reach the panel:
+
+- **Host networking** (Linux): with `network_mode: host`, `--panel=127.0.0.1:8810` listens on the host's loopback, and the SSH tunnel and a `cloudflared` on the host work as above, without a password.
+- **The default bridge network**: the panel must listen on `0.0.0.0:8810` inside the container, so it needs `REMOHOP_PANEL_PASSWORD`. Publish it on the host's loopback only (`127.0.0.1:8810:8810`), or reach it from a `cloudflared` container on the same network (`service: http://signal:8810`) with the Cloudflare variables set. With a password set, every page asks for it, also behind Access.
+
+In `packaging/docker/compose.yaml`:
+
+```yaml
+services:
+  signal:
+    command:
+      - --relay
+      - --relay-ports=40000-40099
+      - --panel=0.0.0.0:8810
+    environment:
+      REMOHOP_PANEL_PASSWORD: ${REMOHOP_PANEL_PASSWORD:?set it in .env}
+      REMOHOP_PANEL_CF_TEAM: ${REMOHOP_PANEL_CF_TEAM:-}
+      REMOHOP_PANEL_CF_AUD: ${REMOHOP_PANEL_CF_AUD:-}
+    ports:
+      - "127.0.0.1:8810:8810"   # the panel: on the host's loopback only
+```
+
+`GET /healthz` answers `ok` without a login, for a health check.
