@@ -47,6 +47,10 @@ type Settings struct {
 	// ServiceID is the Windows unattended-access service's ID, as the
 	// elevated steps last found it (its state is administrators' only).
 	ServiceID string `json:"service_id,omitempty"`
+	// ServiceFFmpeg is the ffmpeg that service uses for screen sharing,
+	// as the elevated steps last found it; empty when none was found or
+	// nobody looked yet.
+	ServiceFFmpeg string `json:"service_ffmpeg,omitempty"`
 	// Seen are the devices that asked before, so a request can say
 	// whether this one is new. Oldest first; bounded.
 	Seen []SeenDevice `json:"seen,omitempty"`
