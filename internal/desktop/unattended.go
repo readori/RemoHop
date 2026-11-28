@@ -19,6 +19,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/signal"
 )
@@ -97,25 +98,31 @@ func (a *App) UnattendedState() UnattendedState {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if time.Since(u.at) > 5*time.Second && !u.busy {
-		installed, running, why := serviceStatusErr(a.ctx)
-		u.st = UnattendedState{Available: unattendedAvailable(), Installed: installed, Running: running, Admin: runtime.GOOS == "windows", StatusError: why}
-		if installed {
-			if runtime.GOOS == "windows" {
-				if u.winID == "" {
-					a.mu.Lock()
-					u.winID = signal.FormatID(a.settings.ServiceID)
-					a.mu.Unlock()
-				}
-				u.st.ID = u.winID
-			} else if hs, _ := hostd.ReadStatus(a.dir); hs != nil {
-				u.st.ID = signal.FormatID(hs.ID)
-			}
-		}
-		u.at = time.Now()
+		a.readUnattended()
 	}
 	st := u.st
 	st.Busy, st.Error = u.busy, u.err
 	return st
+}
+
+// readUnattended asks the service how it is. unattended.mu is held.
+func (a *App) readUnattended() {
+	u := &unattended
+	installed, running, why := serviceStatusErr(a.ctx)
+	u.st = UnattendedState{Available: unattendedAvailable(), Installed: installed, Running: running, Admin: runtime.GOOS == "windows", StatusError: why}
+	if installed {
+		if runtime.GOOS == "windows" {
+			if u.winID == "" {
+				a.mu.Lock()
+				u.winID = signal.FormatID(a.settings.ServiceID)
+				a.mu.Unlock()
+			}
+			u.st.ID = u.winID
+		} else if hs, _ := hostd.ReadStatus(a.dir); hs != nil {
+			u.st.ID = signal.FormatID(hs.ID)
+		}
+	}
+	u.at = time.Now()
 }
 
 func unattendedAvailable() bool {
@@ -180,23 +187,105 @@ func (a *App) EnableUnattended(ctx context.Context, password string) error {
 		return err
 	}
 	a.setBusy(true, nil)
-	var err error
+	var err, problem error
 	if runtime.GOOS == "windows" {
-		var id string
-		id, err = a.elevated(ctx, "enable", password)
-		if err == nil && id != "" {
-			a.setServiceID(id)
+		// The step may go on installing ffmpeg for the service after the
+		// service is up: then this returns, and the switch shows "Working"
+		// until it ends.
+		var r elevatedResult
+		r, err = a.elevatedStep(ctx, "enable", password, func(r elevatedResult, err error) {
+			a.setBusy(false, a.serviceFFmpegResult(r, err))
+		})
+		if err == nil && r.ID != "" {
+			a.setServiceID(r.ID)
+		}
+		if err == nil && r.More {
+			a.log.Info("unattended access turned on; installing ffmpeg for the service")
+			unattended.mu.Lock()
+			a.readUnattended() // show it on, while busy
+			unattended.mu.Unlock()
+			a.wake()
+			return nil
+		}
+		if err == nil {
+			problem = a.serviceFFmpegResult(r, nil)
 		}
 	} else {
 		err = a.installUserService(ctx, password)
 	}
 	if err != nil {
 		a.log.Warn("unattended access could not be turned on", "err", err)
+		problem = err
 	} else {
 		a.log.Info("unattended access turned on")
 	}
-	a.setBusy(false, err)
+	a.setBusy(false, problem)
 	return err
+}
+
+// serviceFFmpegResult records what the administrator step found or
+// installed for the Windows service's screen sharing, and returns the
+// problem to show under unattended access, if there is one: the service
+// has no ffmpeg. err is the step's own failure.
+func (a *App) serviceFFmpegResult(r elevatedResult, err error) error {
+	if r.FFmpegNote != "" {
+		a.log.Warn("ffmpeg for the service", "note", r.FFmpegNote)
+	}
+	if err != nil {
+		a.log.Warn("ffmpeg could not be installed for the service", "err", err)
+		return Errorf("service_ffmpeg", "ffmpeg was not installed for unattended access, so it cannot share the screen: "+err.Error())
+	}
+	if r.FFmpeg == nil {
+		return nil // the step did not look (no service)
+	}
+	path := ""
+	if r.FFmpeg.Found != nil {
+		path = r.FFmpeg.Found.Path
+	}
+	a.update(func(s *Settings) { s.ServiceFFmpeg = path })
+	switch {
+	case path != "":
+		a.log.Info("ffmpeg for the service", "path", path)
+		return nil
+	case r.FFmpegError != "":
+		a.log.Warn("ffmpeg could not be installed for the service", "err", r.FFmpegError)
+		return Errorf("service_ffmpeg", "unattended access cannot share the screen: installing ffmpeg for it failed: "+r.FFmpegError)
+	case r.FFmpeg.Why != "":
+		a.log.Info("the service has no ffmpeg", "why", r.FFmpeg.Why)
+		return Errorf("service_ffmpeg", "unattended access cannot share the screen: it has no ffmpeg, and "+r.FFmpeg.Why)
+	}
+	return nil
+}
+
+// serviceFFmpegToo: the user installs ffmpeg with the app's button while
+// unattended access is on (Windows). The service cannot use the user's
+// copy (see internal/ffmpeg, target.go), so an administrator step (one UAC
+// prompt) installs one for it too, unless an earlier step found that it
+// has one.
+func (a *App) serviceFFmpegToo() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	st := a.UnattendedState()
+	a.mu.Lock()
+	known := a.settings.ServiceFFmpeg
+	a.mu.Unlock()
+	if !needServiceFFmpeg(st, known) {
+		return
+	}
+	a.log.Info("asking an administrator to install ffmpeg for the service too")
+	a.setBusy(true, nil)
+	go func() {
+		r, err := a.elevatedResult(a.ctx, "ffmpeg", "")
+		a.setBusy(false, a.serviceFFmpegResult(r, err))
+	}()
+}
+
+// needServiceFFmpeg reports whether to ask an administrator to install
+// ffmpeg for the unattended-access service: it is installed, no step is
+// under way, and no step has found an ffmpeg for it (known).
+func needServiceFFmpeg(st UnattendedState, known string) bool {
+	return st.Installed && !st.Busy && known == ""
 }
 
 // DisableUnattended removes the service (and on macOS and Linux the fixed
@@ -206,6 +295,9 @@ func (a *App) DisableUnattended(ctx context.Context) error {
 	var err error
 	if runtime.GOOS == "windows" {
 		_, err = a.elevated(ctx, "disable", "")
+		if err == nil {
+			a.update(func(s *Settings) { s.ServiceFFmpeg = "" })
+		}
 	} else {
 		err = runService(ctx, "uninstall")
 		if err == nil {
@@ -264,6 +356,15 @@ type elevatedResult struct {
 	// Password is the service's password, for status --reveal only.
 	Password string `json:"password,omitempty"`
 	Error    string `json:"error,omitempty"`
+	// More: the step did what was asked and goes on installing ffmpeg for
+	// the service; the result it writes when it ends replaces this one.
+	More bool `json:"more,omitempty"`
+	// FFmpeg is the service's ffmpeg after the step (enable, ffmpeg), when
+	// it looked; FFmpegError says why installing it failed (the step
+	// itself did not), FFmpegNote what was moved aside first.
+	FFmpeg      *ffmpeg.Plan `json:"ffmpeg,omitempty"`
+	FFmpegError string       `json:"ffmpeg_error,omitempty"`
+	FFmpegNote  string       `json:"ffmpeg_note,omitempty"`
 }
 
 // elevated runs `<this program> desktop-unattended <op>` as administrator
@@ -274,6 +375,15 @@ func (a *App) elevated(ctx context.Context, op, password string, extra ...string
 }
 
 func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...string) (elevatedResult, error) {
+	return a.elevatedStep(ctx, op, password, nil, extra...)
+}
+
+// elevatedStep runs the administrator step op and returns its result. A
+// step may write a result with More before it ends: it has done what was
+// asked and goes on with something slow (installing ffmpeg for the
+// service). If later is set, elevatedStep then returns that result at once,
+// and later gets the final one when the step ends.
+func (a *App) elevatedStep(ctx context.Context, op, password string, later func(elevatedResult, error), extra ...string) (elevatedResult, error) {
 	run, err := config.SubDir("run")
 	if err != nil {
 		return elevatedResult{}, err
@@ -282,25 +392,60 @@ func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...
 	if err != nil {
 		return elevatedResult{}, err
 	}
-	defer os.RemoveAll(tmp)
 	result := filepath.Join(tmp, "result.json")
 	args := append([]string{"desktop-unattended", op, "--result", result}, extra...)
 	if password != "" {
 		pwFile := filepath.Join(tmp, "password")
 		if err := os.WriteFile(pwFile, []byte(auth.NormalizePassword(password)), 0o600); err != nil {
+			os.RemoveAll(tmp)
 			return elevatedResult{}, err
 		}
 		args = append(args, "--password-file", pwFile)
 	}
 	exe, err := os.Executable()
 	if err != nil {
+		os.RemoveAll(tmp)
 		return elevatedResult{}, err
 	}
 	a.log.Info("administrator step", "op", op, "exe", exe)
-	if err := runElevated(ctx, exe, args); err != nil {
-		a.log.Warn("administrator step did not start", "op", op, "err", err)
-		return elevatedResult{}, err
+	finish := func(err error) (elevatedResult, error) {
+		defer os.RemoveAll(tmp)
+		if err != nil {
+			a.log.Warn("administrator step did not start", "op", op, "err", err)
+			return elevatedResult{}, err
+		}
+		return a.readElevated(op, result)
 	}
+	if later == nil {
+		return finish(runElevated(ctx, exe, args))
+	}
+	// The step outlives this request when it goes on: wait for it with
+	// the app's context.
+	done := make(chan error, 1)
+	go func() { done <- runElevated(a.ctx, exe, args) }()
+	tick := time.NewTicker(250 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case err := <-done:
+			return finish(err)
+		case <-ctx.Done():
+			go func() { <-done; os.RemoveAll(tmp) }()
+			return elevatedResult{}, ctx.Err()
+		case <-tick.C:
+			// The step writes its result whole (renamed into place), so
+			// a result that reads is complete.
+			var r elevatedResult
+			if b, err := os.ReadFile(result); err == nil && json.Unmarshal(b, &r) == nil && r.More && r.Error == "" {
+				go func() { later(finish(<-done)) }()
+				return r, nil
+			}
+		}
+	}
+}
+
+// readElevated reads the result the step op wrote.
+func (a *App) readElevated(op, result string) (elevatedResult, error) {
 	b, err := os.ReadFile(result)
 	if err != nil {
 		// The helper ran but wrote nothing: it refused its arguments (for
@@ -320,7 +465,7 @@ func (a *App) elevatedResult(ctx context.Context, op, password string, extra ...
 	return r, nil
 }
 
-const unattendedUsage = `Usage: desktop-unattended enable|disable|status|disconnect|password --result FILE
+const unattendedUsage = `Usage: desktop-unattended enable|disable|status|disconnect|password|ffmpeg --result FILE
                           [--password-file FILE] [--id N] [--reveal]
 
 The administrator steps of the desktop app's "Unattended access" (Windows),
@@ -328,7 +473,10 @@ which the app starts elevated, one at a time, when the user asks: install
 the RemoHop service with --unattended and set its password (enable), remove
 it (disable), report its ID and sessions (status; with --reveal also its
 password, which the user asked to see), end a session (disconnect,
---id 0 for all) or change its password (password). Not meant to be typed.
+--id 0 for all), change its password (password) or install ffmpeg for it
+(ffmpeg). Enable installs ffmpeg for the service too when it has none (as
+ffmpeg does): it writes its result with "more" first, then the final one.
+Not meant to be typed.
 `
 
 func init() {
@@ -348,7 +496,7 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 	pwFile := fs.String("password-file", "", "")
 	id := fs.Int("id", 0, "")
 	reveal := fs.Bool("reveal", false, "")
-	known := map[string]bool{"enable": true, "disable": true, "status": true, "disconnect": true, "password": true}
+	known := map[string]bool{"enable": true, "disable": true, "status": true, "disconnect": true, "password": true, "ffmpeg": true}
 	if err := fs.Parse(args[1:]); err != nil || *result == "" || !known[op] {
 		env.Errorf("%s", unattendedUsage)
 		return cli.ExitUsage
@@ -359,6 +507,16 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		env.Errorf("desktop-unattended: the files must be in the RemoHop run directory")
 		return cli.ExitUsage
 	}
+	// This user's settings, before a step points this process at the
+	// service's: whether this user switched ffmpeg downloads off counts.
+	userConfigDir, hadConfigDir := os.LookupEnv("REMOHOP_CONFIG_DIR")
+	backToUserSettings := func() {
+		if hadConfigDir {
+			os.Setenv("REMOHOP_CONFIG_DIR", userConfigDir)
+		} else {
+			os.Unsetenv("REMOHOP_CONFIG_DIR")
+		}
+	}
 	var r elevatedResult
 	err := func() error {
 		dir, err := serviceConfigDir()
@@ -366,6 +524,9 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 			return err
 		}
 		switch op {
+		case "ffmpeg":
+			serviceFFmpeg(ctx, &r, func() {})
+			return nil
 		case "disable":
 			return runService(ctx, "uninstall")
 		case "status":
@@ -432,13 +593,21 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 			return err
 		}
 		r.ID = id
+		// Screen sharing through the service needs ffmpeg it can use.
+		// Unattended access is on now: the app may go on while a
+		// download runs.
+		backToUserSettings()
+		serviceFFmpeg(ctx, &r, func() {
+			r.More = true
+			writeElevatedResult(*result, r)
+			r.More = false
+		})
 		return nil
 	}()
 	if err != nil {
 		r.Error = err.Error()
 	}
-	b, _ := json.Marshal(r)
-	if werr := os.WriteFile(*result, b, 0o600); werr != nil {
+	if werr := writeElevatedResult(*result, r); werr != nil {
 		env.Errorf("desktop-unattended: %v", werr)
 		return cli.ExitError
 	}
@@ -446,6 +615,49 @@ func runUnattendedHelper(ctx context.Context, env *cli.Env, args []string) int {
 		return cli.ExitError
 	}
 	return cli.ExitOK
+}
+
+// writeElevatedResult writes r whole, so that the app, which may read it
+// while the step goes on, never sees part of it.
+func writeElevatedResult(path string, r elevatedResult) error {
+	b, _ := json.Marshal(r)
+	return config.WriteFileAtomic(path, b, 0o600)
+}
+
+// serviceFFmpeg makes sure the unattended-access service has an ffmpeg it
+// can use, which cannot be the user's copy: when it finds none, RemoHop's
+// verified copy is installed into its own directory, which only SYSTEM and
+// the Administrators can change (ffmpeg.PrepareFor, InstallFor). Not when
+// the service has one, there is no build for this system or downloads are
+// switched off (this user's switches and the machine's). starting is called
+// before a download. The outcome goes into r.
+func serviceFFmpeg(ctx context.Context, r *elevatedResult, starting func()) {
+	if ffmpeg.Service == nil {
+		return
+	}
+	t, ok, err := ffmpeg.Service(ctx)
+	if err != nil {
+		r.FFmpeg, r.FFmpegError = &ffmpeg.Plan{}, err.Error()
+		return
+	}
+	if !ok {
+		return
+	}
+	plan, note, err := ffmpeg.PrepareFor(t)
+	r.FFmpegNote = note
+	if err != nil {
+		r.FFmpeg, r.FFmpegError = &ffmpeg.Plan{}, err.Error()
+		return
+	}
+	if plan.Install {
+		starting()
+		if f, err := ffmpeg.InstallFor(ctx, t, ffmpeg.Options{}); err != nil {
+			plan, r.FFmpegError = ffmpeg.Plan{}, err.Error()
+		} else {
+			plan = ffmpeg.Plan{Found: &f}
+		}
+	}
+	r.FFmpeg = &plan
 }
 
 // serviceSignalArgs are the `service install` arguments for the rendezvous

@@ -262,43 +262,53 @@ func prepareStateDir(dir string) error {
 		}
 		return secureDir(dir)
 	}
-	refuse := func(why string) error {
+	why, err := lockTree(dir, me)
+	if why != "" {
 		return fmt.Errorf("the state directory %s already exists, and %s. It may hold credentials someone else put there for the service to use. "+
 			"Move it aside or delete it, then install again. (If you made it yourself, from an elevated prompt: "+
 			"takeown /a /r /d y /f \"%s\", then install again.)", dir, why, dir)
 	}
-	var walk func(p string, isRoot bool) error
-	walk = func(p string, isRoot bool) error {
+	return err
+}
+
+// lockTree checks dir and everything in it: no links, junctions or hard
+// links, and every owner trusted (trustedOwner, with extra). What passes
+// is given to the Administrators, with access for SYSTEM and the
+// Administrators only. why says what failed the check (what was looked at
+// before it may already have been changed); err is any other failure.
+func lockTree(dir string, extra *windows.SID) (why string, err error) {
+	var walk func(p string, isRoot bool) (string, error)
+	walk = func(p string, isRoot bool) (string, error) {
 		const access = windows.READ_CONTROL | windows.WRITE_DAC | windows.WRITE_OWNER
 		h, info, err := openNoFollow(p, access)
 		if err != nil {
-			return refuse(fmt.Sprintf("%s cannot be opened by an administrator (%v)", p, err))
+			return fmt.Sprintf("%s cannot be opened by an administrator (%v)", p, err), nil
 		}
 		defer windows.CloseHandle(h)
 		isDir := info.FileAttributes&windows.FILE_ATTRIBUTE_DIRECTORY != 0
 		switch {
 		case info.FileAttributes&windows.FILE_ATTRIBUTE_REPARSE_POINT != 0:
-			return refuse(p + " is a link or junction")
+			return p + " is a link or junction", nil
 		case isRoot && !isDir:
-			return refuse("it is not a directory")
+			return "it is not a directory", nil
 		case !isDir && info.NumberOfLinks > 1:
-			return refuse(p + " has other names (hard links)")
+			return p + " has other names (hard links)", nil
 		}
 		owner, err := ownerOf(h)
 		if err != nil {
-			return err
+			return "", err
 		}
-		if !trustedOwner(owner, me) {
-			return refuse(fmt.Sprintf("%s belongs to %s", p, accountName(owner)))
+		if !trustedOwner(owner, extra) {
+			return fmt.Sprintf("%s belongs to %s", p, accountName(owner)), nil
 		}
 		if isDir {
 			entries, err := os.ReadDir(p)
 			if err != nil {
-				return err
+				return "", err
 			}
 			for _, e := range entries {
-				if err := walk(filepath.Join(p, e.Name()), false); err != nil {
-					return err
+				if why, err := walk(filepath.Join(p, e.Name()), false); why != "" || err != nil {
+					return why, err
 				}
 			}
 		}
@@ -308,9 +318,9 @@ func prepareStateDir(dir string) error {
 		}
 		d, err := dacl(sddl)
 		if err != nil {
-			return err
+			return "", err
 		}
-		return windows.SetSecurityInfo(h, windows.SE_FILE_OBJECT,
+		return "", windows.SetSecurityInfo(h, windows.SE_FILE_OBJECT,
 			windows.OWNER_SECURITY_INFORMATION|windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION,
 			adminsSID, nil, d, nil)
 	}

@@ -3,9 +3,10 @@
 //
 // Which ffmpeg is used (Find): the one $REMOHOP_FFMPEG names, else one on
 // PATH (the system's), else RemoHop's own copy. RemoHop's copy is only ever
-// downloaded when someone asks for it (`remohop ffmpeg install`, or the
-// button in the desktop app and the quick support window), never by
-// itself. The download is one of the builds pinned in builds.go: a fixed,
+// downloaded when someone asks for it (`remohop ffmpeg install`, the button
+// in the desktop app and the quick support window, or turning unattended
+// access on in the desktop app on Windows, for the service: target.go),
+// never by itself. The download is one of the builds pinned in builds.go: a fixed,
 // versioned file whose SHA-256 is in this source. It is fetched over HTTPS
 // (through the proxy that HTTPS_PROXY names, if any), checked against the
 // pin before anything in it is read, and only the ffmpeg program is taken
@@ -118,7 +119,7 @@ func installed() (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() {
+	if fi, err := os.Stat(p); err != nil || !fi.Mode().IsRegular() || !trustedCopy(p) {
 		return "", false
 	}
 	return p, true
@@ -164,8 +165,7 @@ func path() (string, error) {
 // (the environment variable or the setting).
 func DownloadDisabled() (bool, string) {
 	if v := strings.TrimSpace(os.Getenv(DownloadEnv)); v != "" {
-		switch strings.ToLower(v) {
-		case "off", "0", "false", "no":
+		if envOff(v) {
 			return true, DownloadEnv + "=" + v
 		}
 		return false, ""
@@ -174,6 +174,15 @@ func DownloadDisabled() (bool, string) {
 		return true, "the setting " + SettingDownload + " (" + v + ")"
 	}
 	return false, ""
+}
+
+// envOff reports whether a value of DownloadEnv switches downloads off.
+func envOff(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "off", "0", "false", "no":
+		return true
+	}
+	return false
 }
 
 // InstallHint is the sentence that offers `remohop ffmpeg install`, or ""

@@ -34,11 +34,14 @@ type Options struct {
 	// Client downloads; nil means a client that goes through the proxy
 	// the environment names (HTTPS_PROXY).
 	Client *http.Client
+	// Dir, if set, is where to install instead of Dir(): another RemoHop
+	// instance's directory (InstallFor). Whoever sets it makes sure that
+	// only the accounts that instance trusts can change what is there.
+	Dir string
 
-	// For tests: another build and directory, and what checks that the
-	// program runs (nil: Version).
+	// For tests: another build, and what checks that the program runs
+	// (nil: Version).
 	build   *Build
-	dir     string
 	version func(ctx context.Context, path string) string
 }
 
@@ -71,7 +74,7 @@ func Install(ctx context.Context, o Options) (string, error) {
 	if !ok {
 		return "", ErrUnsupported
 	}
-	dir := o.dir
+	dir := o.Dir
 	if dir == "" {
 		d, err := Dir()
 		if err != nil {
@@ -171,6 +174,11 @@ func InstalledManifest() (Manifest, bool) {
 	if err != nil {
 		return Manifest{}, false
 	}
+	return manifestIn(dir)
+}
+
+// manifestIn describes the copy in dir, if its manifest is there.
+func manifestIn(dir string) (Manifest, bool) {
 	m, err := readManifest(dir)
 	return m, err == nil
 }
