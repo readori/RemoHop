@@ -102,7 +102,13 @@ Apache-2.0 licenses, all compatible with the AGPL-3.0. Release archives include
 their license texts as `THIRD_PARTY_LICENSES.txt`, produced by
 [`packaging/third_party_licenses.sh`](packaging/third_party_licenses.sh).
 
-RemoHop does not include or distribute ffmpeg. The remote desktop runs the
-`ffmpeg` already installed on the host as a separate program. Anyone who
-bundles an ffmpeg build with RemoHop takes on that build's own license terms:
-ffmpeg with libx264 is under the GPL.
+RemoHop does not include or distribute ffmpeg. The remote desktop runs
+`ffmpeg` on the host as a separate program: one already installed there or,
+on Windows and macOS when the user asks for it (`remohop ffmpeg install`, or
+the button in the desktop app and the Quick Support window), a build that
+the user's computer downloads from its publisher (gyan.dev, BtbN's
+FFmpeg-Builds, Martin Riedl's build server) at an address and SHA-256 pinned
+in `internal/ffmpeg/builds.go`. Those builds are under the GPL (they include
+libx264), and come with their own license terms and source offers from
+their publishers. Anyone who bundles an ffmpeg build with RemoHop takes on
+that build's own license terms: ffmpeg with libx264 is under the GPL.

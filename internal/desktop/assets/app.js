@@ -62,6 +62,11 @@
       'in.unreach': "Can't reach {s}. Check the address in Settings › Rendezvous server.", 'in.official': 'the official server', 'in.fix': 'Rendezvous server settings',
       'in.elsewhere': 'Served by the RemoHop service (ID {id})', 'in.error': 'Could not start',
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
+      'ff.missing': 'Screen sharing needs ffmpeg, which is not installed on this computer. Whoever connects can still use files and commands.',
+      'ff.install': 'Install screen sharing component (ffmpeg, about {mb} MB)', 'ff.from': 'ffmpeg {v} from {s}. RemoHop checks the download against a fingerprint built into it before using it.',
+      'ff.downloading': 'Downloading… {p}%', 'ff.verifying': 'Checking the download…', 'ff.installing': 'Installing…',
+      'ff.failed': 'The install did not work: {m}', 'ff.off': 'Downloading it is switched off on this computer ({b}).',
+      'ff.linux': "Install it with your system's package manager, for example: sudo apt install ffmpeg",
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
       'un.title': 'Unattended access', 'un.creds': 'Unattended ID and password', 'un.credsoff': 'Unattended access is off. Turn it on from Home.', 'un.admin3': 'Show asks Windows for an administrator.', 'un.runok': 'Running', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
@@ -152,6 +157,11 @@
       'in.unreach': '无法连接 {s}。请在 设置 › 汇合服务器 中检查地址。', 'in.official': '官方服务器', 'in.fix': '汇合服务器设置',
       'in.elsewhere': '由 RemoHop 服务提供（ID {id}）', 'in.error': '无法启动',
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
+      'ff.missing': '屏幕共享需要 ffmpeg，但这台电脑上没有安装。连接进来的人仍然可以使用文件和命令。',
+      'ff.install': '安装屏幕共享组件（ffmpeg，约 {mb} MB）', 'ff.from': 'ffmpeg {v}，来自 {s}。RemoHop 使用前会用内置的指纹校验下载的文件。',
+      'ff.downloading': '正在下载… {p}%', 'ff.verifying': '正在校验下载的文件…', 'ff.installing': '正在安装…',
+      'ff.failed': '安装没有成功：{m}', 'ff.off': '这台电脑禁止了下载（{b}）。',
+      'ff.linux': '请用系统的包管理器安装，例如：sudo apt install ffmpeg',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
       'un.title': '无人值守访问', 'un.creds': '无人值守 ID 与密码', 'un.credsoff': '无人值守访问未开启，请先在“首页”打开开关。', 'un.admin3': '点“显示”时 Windows 会要求管理员授权。', 'un.runok': '运行中', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '未开启', 'un.on': '已开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
@@ -684,6 +694,26 @@
   });
 
   // ---- this computer ----
+  // Screen sharing without ffmpeg: say so while others may connect, and
+  // offer to install it where RemoHop can (Windows, macOS).
+  function renderFFmpeg(ff, on) {
+    $('ff').hidden = !(on && ff.missing) && !ff.stage;
+    const btn = $('ff-install');
+    btn.hidden = !ff.can_install; btn.disabled = !!ff.stage;
+    $('ff-install-t').textContent = t('ff.install', {mb: ff.size_mb});
+    let st = '';
+    if (ff.stage) st = t('ff.' + ff.stage, {p: ff.percent});
+    else if (ff.error) st = t('ff.failed', {m: ff.error});
+    $('ff-status').textContent = st;
+    $('ff-row').hidden = btn.hidden && !st;
+    let note = '';
+    if (ff.can_install) note = t('ff.from', {v: ff.version, s: ff.source});
+    else if (ff.disabled) note = t('ff.off', {b: ff.disabled});
+    else if (S && S.ui && S.ui.platform === 'linux') note = t('ff.linux');
+    $('ff-note').textContent = note; $('ff-note').hidden = !note;
+  }
+  $('ff-install').addEventListener('click', () => api('ffmpeg/install').catch(e => snack(errText(e))));
+
   function renderComputer(s) {
     const i = s.incoming;
     $('incoming').checked = i.on;
@@ -721,6 +751,7 @@
     $('in-addr').hidden = !(i.addresses && i.addresses.length);
     if (i.addresses) $('in-addr').textContent = t('in.addr', {a: i.addresses.slice(0, 3).join(', ')});
     $('in-err').textContent = i.phase === 'error' ? (i.error || '') : '';
+    renderFFmpeg(s.ffmpeg || {}, i.on);
     // sessions
     const box = $('sessions'); box.textContent = '';
     $('sessions-box').hidden = !i.sessions.length;

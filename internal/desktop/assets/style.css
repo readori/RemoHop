@@ -282,6 +282,11 @@ button.chip:hover { border-color: var(--text-3); }
 .cred .acts { display: flex; flex-wrap: wrap; gap: 2px; margin-left: -8px; }
 #dlg-uncreds .creds { grid-template-columns: 1fr; }
 #dlg-uncreds .cred .v { white-space: normal; overflow-wrap: anywhere; font-size: 24px; line-height: 32px; }
+.ffbox { display: flex; gap: 10px; padding: 10px 12px; border-radius: var(--r-2); background: var(--warn-soft); color: var(--warn); margin: 12px 0; font-size: 13px; line-height: 18px; }
+.ffbox > svg.i { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.ffbox p { margin: 0; }
+.ffbox .ff-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; font-weight: 500; }
+.ffbox .note { margin-top: 6px; color: inherit; opacity: .85; }
 .off-note { display: flex; align-items: center; gap: 12px; padding: 18px 16px; border-radius: var(--r-3); border: 1px dashed var(--line-2); color: var(--text-2); background: var(--card-2); }
 .off-note svg.i { width: 20px; height: 20px; color: var(--text-3); }
 #in-addr { margin: 10px 0 0; }

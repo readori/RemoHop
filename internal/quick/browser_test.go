@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/readori/RemoHop/internal/ffmpeg"
 )
 
 // TestPageInBrowser runs the real page in headless Chromium through
@@ -45,8 +47,18 @@ func TestPageInBrowser(t *testing.T) {
 		"action": func(st *State) {
 			st.Requests = []Request{{N: 9, Name: "ci-agent", Grant: "ci-agent", Action: "exec: git push", Identity: request.Identity, From: request.From, Auth: "token", Left: 50}}
 		},
-		"noffmpeg":   func(st *State) { st.NoFFmpeg = true },
-		"ffmpeg":     func(st *State) { st.NoFFmpeg = false },
+		"noffmpeg": func(st *State) {
+			st.NoFFmpeg = true
+			st.FFmpeg = ffmpeg.UIState{Missing: true, CanInstall: true, SizeMB: 119, Version: "9.1", Source: "gyan.dev (release essentials build)"}
+		},
+		"ffmpegverify": func(st *State) { st.FFmpeg.Stage, st.FFmpeg.Percent = "verifying", 100 },
+		"ffmpegfail": func(st *State) {
+			st.FFmpeg.Stage, st.FFmpeg.Percent, st.FFmpeg.Error = "", 0, "downloading ffmpeg 9.1: github.com: HTTP 404"
+		},
+		"ffmpegoff": func(st *State) {
+			st.FFmpeg = ffmpeg.UIState{Missing: true, Disabled: "REMOHOP_FFMPEG_DOWNLOAD=off", SizeMB: 119, Version: "9.1", Source: "gyan.dev"}
+		},
+		"ffmpeg":     func(st *State) { st.NoFFmpeg, st.FFmpeg = false, ffmpeg.UIState{} },
 		"offline":    func(st *State) { st.Online = false },
 		"online":     func(st *State) { st.Online = true },
 		"connecting": func(st *State) { st.Phase, st.ID, st.Online, st.Waited = PhaseConnecting, "", false, 20 },

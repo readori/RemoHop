@@ -19,6 +19,7 @@ import (
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/dial"
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/mesh"
 	"github.com/readori/RemoHop/internal/nat"
@@ -96,11 +97,17 @@ type SignalReport struct {
 
 // ScreenReport is what screen sharing to helpers needs here.
 type ScreenReport struct {
-	FFmpeg       string `json:"ffmpeg,omitempty"`
-	FFmpegError  string `json:"ffmpeg_error,omitempty"`
-	Display      string `json:"display,omitempty"`
-	DisplayError string `json:"display_error,omitempty"`
-	Warning      string `json:"warning,omitempty"`
+	FFmpeg string `json:"ffmpeg,omitempty"`
+	// FFmpegKind is where it comes from: env (REMOHOP_FFMPEG), system
+	// (PATH) or remohop (RemoHop's copy, `remohop ffmpeg install`).
+	FFmpegKind ffmpeg.Kind `json:"ffmpeg_kind,omitempty"`
+	// FFmpegVersion is the first line of `ffmpeg -version`, empty when it
+	// did not run.
+	FFmpegVersion string `json:"ffmpeg_version,omitempty"`
+	FFmpegError   string `json:"ffmpeg_error,omitempty"`
+	Display       string `json:"display,omitempty"`
+	DisplayError  string `json:"display_error,omitempty"`
+	Warning       string `json:"warning,omitempty"`
 }
 
 // TargetReport is a machine looked up with ` + "`remohop doctor TARGET`" + `.
@@ -228,8 +235,9 @@ func Collect(ctx context.Context, signalOverride string, offline bool) (*Report,
 			r.Signal.Error = err.Error()
 		}
 	}
-	if p, err := desktop.FindFFmpeg(); err == nil {
-		r.Screen.FFmpeg = p
+	if f, err := desktop.FindFFmpeg(); err == nil {
+		r.Screen.FFmpeg, r.Screen.FFmpegKind = f.Path, f.Kind
+		r.Screen.FFmpegVersion = ffmpeg.Version(ctx, f.Path)
 	} else {
 		r.Screen.FFmpegError = err.Error()
 	}
@@ -391,7 +399,12 @@ func Print(w io.Writer, r *Report) {
 
 	sec("Screen sharing (for helpers)")
 	if r.Screen.FFmpeg != "" {
-		kv("ffmpeg", r.Screen.FFmpeg)
+		kv("ffmpeg", r.Screen.FFmpeg+" ("+r.Screen.FFmpegKind.Describe()+")")
+		v := r.Screen.FFmpegVersion
+		if v == "" {
+			v = "unknown: it did not run"
+		}
+		kv("version", v)
 	} else {
 		kv("ffmpeg", "not found (screen sharing needs it; screenshots do not)")
 	}

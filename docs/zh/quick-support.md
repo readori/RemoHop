@@ -41,7 +41,7 @@
 
 需要了解的限制：
 
-- **屏幕共享需要被协助的电脑上装有 ffmpeg**（带 H.264 或 AV1 编码器）。RemoHop 不附带它（见 [LICENSING.md](../../LICENSING.md)）。没有 ffmpeg 时，窗口会显示“屏幕共享需要 ffmpeg，但这台电脑上没有安装。协助者仍然可以使用文件和命令。”，协助者的 `remohop <ID> desktop` 也会说明被控端没有 ffmpeg；`remohop <ID> screenshot` 仍然可以截取屏幕画面。安装方法：Windows 上 `winget install Gyan.FFmpeg`，macOS 上 `brew install ffmpeg`，Linux 上用包管理器（`apt install ffmpeg`），或用 `REMOHOP_FFMPEG` 指向一个 ffmpeg 程序；在那台电脑上运行 `remohop doctor` 可以查看是否找到了它。
+- **屏幕共享需要被协助的电脑上装有 ffmpeg**（带 H.264 或 AV1 编码器）。RemoHop 的安装包不附带它（见 [LICENSING.md](../../LICENSING.md)）。没有 ffmpeg 时，窗口会显示“屏幕共享需要 ffmpeg，但这台电脑上没有安装。协助者仍然可以使用文件和命令。”，协助者的 `remohop <ID> desktop` 也会说明被控端没有 ffmpeg；`remohop <ID> screenshot` 仍然可以截取屏幕画面。在 Windows 和 macOS 上，这条提示下有一个按钮 **安装屏幕共享组件**：它下载 RemoHop 中固定的一个 ffmpeg 版本，解压前先用写在 RemoHop 里的 SHA-256 校验，并显示进度；之后开始的会话就能看到屏幕。不按这个按钮就不会下载任何东西。来源、存放位置以及如何关闭下载，见 [屏幕共享与 ffmpeg](remote-desktop.md#屏幕共享与-ffmpeg)。在 Linux 上请用包管理器安装（`apt install ffmpeg`）。在那台电脑上运行 `remohop doctor` 可以查看用的是哪个 ffmpeg。
 - **Windows：** `RemoHop.exe` 尚未做代码签名，首次启动时 SmartScreen 会给出警告（点“更多信息”，再点“仍要运行”）。它不以管理员权限运行，所以协助者无法操作 UAC 提示框，也无法操作以管理员身份运行的程序窗口。首次启动时 Windows 防火墙可能询问是否允许联网；在大多数网络中无论怎么回答都能连接，因为被控端是向外发起连接的。
 - **macOS：** 第一次连接需要“屏幕录制”权限，鼠标和键盘需要“辅助功能”权限（系统设置 > 隐私与安全性；单独下载的快速协助显示为“RemoHop Quick Support”，完整应用显示为“RemoHop”。macOS 把它们当作两个应用，权限要分别授予；“屏幕录制”要在重新启动应用后才生效）。下载的 `RemoHop-macos.dmg` 已用 Developer ID 签名、经过公证并附带公证票据；自己构建的 `RemoHop.app` 没有签名；签名和公证见 [packaging/quick/README.md](../../packaging/quick/README.md)。
 - 页面及其服务器在 Linux 上用真实浏览器测试过；启动器窗口在 CI 中于 Windows、macOS 和 Linux 上实际启动并截图。

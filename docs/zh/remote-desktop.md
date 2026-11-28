@@ -49,9 +49,33 @@ remohop dev desktop --bench --bench-duration 20s
 
   这些数字止于帧到达查看器进程的时刻，而 x11grab 在抓取时才给帧打时间戳，比屏幕变化最多晚一个帧周期。从屏幕变化到画面出现的真实数字在无头 Chromium 157 中测得（H.264，800x300，30 fps；测试让远程屏幕上的一块区域闪烁，页面里的 `requestAnimationFrame` 循环记录画布何时显示出来，所以包含最多 33 ms 的抓取等待和最多 16 ms 的检测误差）：40 次闪烁的中位数 31 ms，p95 为 47 ms（`go test ./internal/svc/desktop -run TestViewerPageXvfb -v`）。96 kbit/s 的音频每秒增加 50 个包；它的采集时间是根据包的到达时间估计的（被控机假定采集加编码流水线为 37 ms），所以采集到接收均值 47 ms 主要就是这个假设，并非独立测量。真实链路还要加上自己的往返时间，GPU 编码器会改变编码部分的数字。
 
-查看器只监听 `127.0.0.1`，地址中带有随机路径，按 Ctrl-C 结束。被控机需要带 H.264 或 AV1 编码器的 ffmpeg，见 [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders)。
+查看器只监听 `127.0.0.1`，地址中带有随机路径，按 Ctrl-C 结束。被控机需要带 H.264 或 AV1 编码器的 ffmpeg（见 [屏幕共享与 ffmpeg](#屏幕共享与-ffmpeg) 和 [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders)）。
 
 macOS 被控端采集需要“屏幕录制”权限，输入需要“辅助功能”权限。macOS 同一时间只把屏幕交给一个采集进程，所以一台 macOS 被控端的所有会话共用一路采集；如果共享采集在某台 Mac 上工作不正常，可在被控端设置 `REMOHOP_MAC_DIRECT_CAPTURE=1` 关闭它（每个会话各自采集）。
+
+## 屏幕共享与 ffmpeg
+
+被控机（共享屏幕的那台电脑）用 ffmpeg 编码屏幕画面，ffmpeg 作为独立程序运行。被控机按下面的顺序查找：
+
+1. `REMOHOP_FFMPEG` 指向的程序；
+2. `PATH` 上的 `ffmpeg`，即系统里装的（`winget install Gyan.FFmpeg`、`brew install ffmpeg`、`apt install ffmpeg`）；
+3. RemoHop 自己的副本，仅 Windows 和 macOS。
+
+只有在有人要求时才会下载 RemoHop 的副本：运行 `remohop ffmpeg install`，或在桌面应用（首页，“允许别人连接”打开时）和快速协助窗口中点 **安装屏幕共享组件**，窗口会显示进度。下载的是 RemoHop 源代码中固定的版本：一个固定、带版本号的文件及其 SHA-256。下载走 HTTPS（如果设置了 `HTTPS_PROXY`，就经过它指定的代理），解压前先用这个哈希校验，并且只从中取出 `ffmpeg` 程序。不匹配的文件会被删除，绝不会运行。
+
+| 被控机 | 版本 | 下载大小 |
+|---|---|---|
+| Windows x64 | 来自 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) 的 ffmpeg 9.1 “essentials”（先用它在 GitHub 上的镜像） | 119 MB |
+| Windows arm64 | 来自 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) 的 ffmpeg 9.0.2（2026 年 10 月 31 日的构建） | 137 MB |
+| macOS，Apple 芯片 / Intel | 来自 [Martin Riedl 的构建服务器](https://ffmpeg.martin-riedl.de/) 的 ffmpeg 9.1（已签名；需要 macOS 12 或更新版本） | 29 MB / 34 MB |
+
+这三个都是 GPL 版本。它们包含 libx264：在没有可用硬件编码器的电脑上（虚拟机、没有 GPU 的电脑），被控机就退回到这个快速的 H.264 软件编码器；LGPL 版本没有它。RemoHop 把 ffmpeg 作为独立程序运行，安装包里不附带它：是这台电脑自己从发布者那里下载。
+
+程序存放在 Windows 的 `%LocalAppData%\remohop\ffmpeg\ffmpeg.exe`，macOS 的 `~/Library/Application Support/remohop/ffmpeg/ffmpeg`（设置了 `REMOHOP_CONFIG_DIR` 时放在它下面），旁边的 `ffmpeg.json` 记录它是什么版本。在 macOS 上，RemoHop 只清除这一个文件的下载隔离属性。`remohop ffmpeg`（以及 `remohop doctor`）显示当前用的是哪个 ffmpeg 及其版本；`remohop ffmpeg remove` 删除 RemoHop 的副本。新版 RemoHop 可能固定了更新的版本：这时 `remohop ffmpeg` 会提示，`remohop ffmpeg install` 会替换副本。
+
+在统一管理的电脑上，可以在环境变量中设置 `REMOHOP_FFMPEG_DOWNLOAD=off`（或运行 `remohop config set ffmpeg-download off`）关闭下载：窗口会说明这一点，不再显示按钮。已经存在的副本仍会被使用。
+
+Windows 服务（无人值守访问）以 LocalSystem 身份运行，使用自己的目录 `%ProgramData%\RemoHop`，不会使用某个用户配置文件里的副本。请把 ffmpeg 放在系统的 `PATH` 上，或在服务的环境中设置 `REMOHOP_FFMPEG`，或在管理员命令提示符中为它安装一份：`set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install`。
 
 ## 图形界面自动化
 

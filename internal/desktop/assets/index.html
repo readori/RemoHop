@@ -139,6 +139,13 @@
                 <button class="btn text sm" id="pw-reveal" hidden aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg><span>Show</span></button>
                 <button class="btn text sm" id="pw-set"><svg class="i"><use href="#i-settings"/></svg><span data-t="in.setpw">Password settings</span></button></div></div>
           </div>
+          <div class="ffbox" id="ff" hidden>
+            <svg class="i"><use href="#i-warn"/></svg>
+            <div class="grow"><p data-t="ff.missing">Screen sharing needs ffmpeg, which is not installed on this computer. Whoever connects can still use files and commands.</p>
+              <div class="ff-row" id="ff-row" hidden><button class="btn sm" id="ff-install" hidden><svg class="i"><use href="#i-download"/></svg><span id="ff-install-t"></span></button>
+                <span id="ff-status" role="status" aria-live="polite"></span></div>
+              <p class="note" id="ff-note" hidden></p></div>
+          </div>
           <div class="off-note" id="in-offnote"><svg class="i"><use href="#i-power"/></svg><span data-t="in.offnote">Switch on to show this computer's ID and a password to give to whoever helps you.</span></div>
           <p class="muted small mono" id="in-addr" hidden></p>
           <p class="err" id="in-err"></p>

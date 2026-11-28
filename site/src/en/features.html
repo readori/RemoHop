@@ -128,7 +128,7 @@ sudo remohop dev vpn up --route 192.168.1.0/24 -b</code></pre>
 <section class="task">
 <div>
 <h3>Screen and remote desktop</h3>
-<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p. The viewer picks the quality (native size, or at most 2160p down to 480p), the frame rate (30 to 144 fps; Auto follows the display's refresh rate, up to 120) and the monitor, and Stats shows bitrate, latency and the frames dropped in the last 10 seconds.</p>
+<p><code>desktop</code> opens a viewer in your local browser, streams H.264 or AV1, and can record to MP4. The host needs an ffmpeg with an encoder; on Windows and macOS RemoHop installs a verified build with one click when there is none. Measured on a CPU-only 4-core VM, end-to-end latency with H.264 was about 20 ms at 720p and 31 ms at 1080p. The viewer picks the quality (native size, or at most 2160p down to 480p), the frame rate (30 to 144 fps; Auto follows the display's refresh rate, up to 120) and the monitor, and Stats shows bitrate, latency and the frames dropped in the last 10 seconds.</p>
 </div>
 <div>
 <pre><code>remohop dev desktop --max-height 1080 --fps 30

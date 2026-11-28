@@ -30,7 +30,7 @@
 
 <h2 id="third-party">Third-party software</h2>
 <p>RemoHop links Go modules under the MIT, BSD-2-Clause, BSD-3-Clause, ISC and Apache-2.0 licenses, all compatible with the AGPL-3.0. Release archives will include their license texts as <code>THIRD_PARTY_LICENSES.txt</code>.</p>
-<p>RemoHop does not include or distribute ffmpeg. The remote desktop runs the <code>ffmpeg</code> already installed on the host as a separate program. Anyone who bundles an ffmpeg build with RemoHop takes on that build's own license terms: ffmpeg with libx264 is under the GPL.</p>
+<p>RemoHop does not include or distribute ffmpeg. The remote desktop runs <code>ffmpeg</code> on the host as a separate program: one already installed there or, on Windows and macOS when the user asks for it, a build that the user's computer downloads from its publisher (gyan.dev, BtbN's FFmpeg-Builds, Martin Riedl's build server) at an address and SHA-256 pinned in RemoHop. Those builds are under the GPL (they include libx264) and come with their publishers' own license terms. Anyone who bundles an ffmpeg build with RemoHop takes on that build's own license terms: ffmpeg with libx264 is under the GPL.</p>
 <p>The VPN client on Windows needs the Wintun driver, which <code>remohop</code> neither includes nor downloads.</p>
 
 <h2 id="attribution">Credit RemoHop in derived works</h2>

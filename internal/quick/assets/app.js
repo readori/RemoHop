@@ -34,6 +34,13 @@
       change_server: 'Change server',
       setup_cancel: 'Cancel',
       no_ffmpeg: 'Screen sharing needs ffmpeg, which is not installed on this computer. Your helper can still use files and commands.',
+      ffmpeg_install: 'Install screen sharing component (ffmpeg, about {mb} MB)',
+      ffmpeg_from: 'ffmpeg {v} from {source}. RemoHop checks the download against a fingerprint built into it before using it.',
+      ffmpeg_downloading: 'Downloading… {p}%',
+      ffmpeg_verifying: 'Checking the download…',
+      ffmpeg_installing: 'Installing…',
+      ffmpeg_failed: 'The install did not work: {msg}',
+      ffmpeg_off: 'Downloading it is switched off on this computer ({by}).',
       st_ready: 'Ready. Waiting for your helper to connect.',
       st_offline: 'Lost contact with the server; trying again. New helpers cannot connect until it is back.',
       st_offline_live: 'Lost contact with the server; trying again. The people already connected are not affected.',
@@ -125,6 +132,13 @@
       change_server: '更换服务器',
       setup_cancel: '取消',
       no_ffmpeg: '屏幕共享需要 ffmpeg，但这台电脑上没有安装。协助者仍然可以使用文件和命令。',
+      ffmpeg_install: '安装屏幕共享组件（ffmpeg，约 {mb} MB）',
+      ffmpeg_from: 'ffmpeg {v}，来自 {source}。RemoHop 使用前会用内置的指纹校验下载的文件。',
+      ffmpeg_downloading: '正在下载… {p}%',
+      ffmpeg_verifying: '正在校验下载的文件…',
+      ffmpeg_installing: '正在安装…',
+      ffmpeg_failed: '安装没有成功：{msg}',
+      ffmpeg_off: '这台电脑禁止了下载（{by}）。',
       st_ready: '已就绪，等待协助者连接。',
       st_offline: '与服务器的连接中断，正在重试。恢复之前，新的协助者无法连接。',
       st_offline_live: '与服务器的连接中断，正在重试。已连接的人不受影响。',
@@ -419,7 +433,7 @@
     $('opt-input').checked = !!s.options.input;
     $('opt-files').checked = !!s.options.files;
     $('opt-advanced').checked = !!s.options.advanced;
-    $('noffmpeg').hidden = !s.no_ffmpeg;
+    renderFFmpeg(s.ffmpeg || {}, !!s.no_ffmpeg);
 
     var n = s.sessions.length;
     if (s.requests.length) setStatus('wait', t('st_asking'));
@@ -439,6 +453,24 @@
     else add(t(s.relay ? 'net_direct_relay' : 'net_direct_only'));
     add(t('net_approve', { s: s.ask_timeout }));
     if (s.device) add(t('net_device', { name: s.device }));
+  }
+
+  // Screen sharing without ffmpeg: say so, and offer to install it where
+  // RemoHop can (Windows, macOS), with its progress.
+  function renderFFmpeg(ff, missing) {
+    $('noffmpeg').hidden = !missing && !ff.stage;
+    var btn = $('ffmpeg-install');
+    btn.hidden = !ff.can_install;
+    btn.disabled = !!ff.stage;
+    btn.textContent = t('ffmpeg_install', { mb: ff.size_mb });
+    var st = '';
+    if (ff.stage) st = t('ffmpeg_' + ff.stage, { p: ff.percent });
+    else if (ff.error) st = t('ffmpeg_failed', { msg: ff.error });
+    $('ffmpeg-status').textContent = st;
+    $('ffmpeg-row').hidden = btn.hidden && !st;
+    var note = ff.can_install ? t('ffmpeg_from', { v: ff.version, source: ff.source }) : ff.disabled ? t('ffmpeg_off', { by: ff.disabled }) : '';
+    $('ffmpeg-note').textContent = note;
+    $('ffmpeg-note').hidden = !note;
   }
 
   function update(s) {
@@ -496,6 +528,7 @@
   $('copyid').addEventListener('click', function () { copy(this, $('id')); });
   $('copypw').addEventListener('click', function () { copy(this, $('pw')); });
   $('regen').addEventListener('click', function () { act('regenerate'); });
+  $('ffmpeg-install').addEventListener('click', function () { act('ffmpeg'); });
   $('stop').addEventListener('click', function () { $('stop').disabled = true; act('stop'); });
   $('changeserver').addEventListener('click', function () {
     changing = true;
