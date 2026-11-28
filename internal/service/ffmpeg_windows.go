@@ -85,9 +85,10 @@ func serviceEnv(name string) func(string) string {
 //
 // The state directory must be one the service trusts (as adoptStateDir
 // checks it), and its access list is set to SYSTEM and the Administrators
-// only once more: a step that wrote the service's settings may have let
-// the administrator's own account in (config.MakePrivate), and with it
-// that account's programs that run without elevation. Then dir and
+// only once more: an older version's step that wrote the service's
+// settings let the administrator's own account in (config.MakePrivate no
+// longer does, when elevated outside the profile), and with it that
+// account's programs that run without elevation. Then dir and
 // everything in it must belong to SYSTEM, the Administrators or
 // TrustedInstaller, not to the administrator running this (whose
 // unelevated programs could have put it there), except right after this

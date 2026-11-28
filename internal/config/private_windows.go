@@ -3,16 +3,25 @@
 package config
 
 import (
+	"os"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// privateSIDs are the only accounts allowed into a private directory: the
-// user running this process, the system, and the Administrators group
-// (which could take ownership anyway).
-func privateSIDs() ([]*windows.SID, error) {
-	user, err := windows.GetCurrentProcessToken().GetTokenUser()
+// privateSIDs are the only accounts allowed into the private directory
+// dir: the system, the Administrators group (which could take ownership
+// anyway) and, usually, the user running this process.
+//
+// Not that user when this process runs elevated and dir is outside the
+// user's profile: that is a machine-wide directory such as the Windows
+// service's state under %ProgramData%, written by an administrator step.
+// Letting the administrator's own account in there would let every
+// program that account runs without elevation in too, and so change what
+// the service, running as LocalSystem, reads and runs.
+func privateSIDs(dir string) ([]*windows.SID, error) {
+	token := windows.GetCurrentProcessToken()
+	user, err := token.GetTokenUser()
 	if err != nil {
 		return nil, err
 	}
@@ -24,11 +33,15 @@ func privateSIDs() ([]*windows.SID, error) {
 	if err != nil {
 		return nil, err
 	}
+	if token.IsElevated() && !inProfile(dir, os.Getenv("USERPROFILE")) {
+		return []*windows.SID{system, admins}, nil
+	}
 	return []*windows.SID{user.User.Sid, system, admins}, nil
 }
 
 // MakePrivate restricts dir, and everything created in it from now on, to
-// the current user (plus SYSTEM and Administrators).
+// the current user (plus SYSTEM and Administrators; see privateSIDs for when
+// the user is left out).
 //
 // Windows has no permission bits; who may read a file is decided by its
 // access-control list, which a new file inherits from its directory. The
@@ -39,7 +52,7 @@ func privateSIDs() ([]*windows.SID, error) {
 // from inheritance from above and inheritable downwards, wherever key
 // material is about to be stored.
 func MakePrivate(dir string) error {
-	sids, err := privateSIDs()
+	sids, err := privateSIDs(dir)
 	if err != nil {
 		return err
 	}
@@ -67,7 +80,7 @@ func MakePrivate(dir string) error {
 // IsPrivate reports whether path (a file or directory) is accessible only
 // to the accounts MakePrivate allows.
 func IsPrivate(path string) (bool, error) {
-	sids, err := privateSIDs()
+	sids, err := privateSIDs(path)
 	if err != nil {
 		return false, err
 	}

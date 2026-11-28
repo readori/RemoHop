@@ -335,7 +335,7 @@ Use only a gateway you control.
 
 The config directory is `$REMOHOP_CONFIG_DIR`, or the platform default. An installed system-wide service keeps its own: `/var/lib/remohop` on Linux, `/Library/Application Support/remohop` on macOS and `%ProgramData%\RemoHop` on Windows.
 
-On Linux and macOS the directory is created with mode 0700 and the files below with mode 0600. Windows has no mode bits: RemoHop sets an owner-only access list on its configuration directory, and the Windows service keeps its state under ProgramData restricted to SYSTEM and Administrators.
+On Linux and macOS the directory is created with mode 0700 and the files below with mode 0600. Windows has no mode bits: RemoHop sets an owner-only access list on its configuration directory, and the Windows service keeps its state under ProgramData restricted to SYSTEM and Administrators. An elevated RemoHop step that writes there (turning unattended access on, changing or showing its password) leaves out the administrator's own account, so that account's programs that run without elevation cannot change what the service reads.
 
 | File | Holds |
 |---|---|

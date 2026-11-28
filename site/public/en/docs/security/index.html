@@ -324,7 +324,7 @@
 </ul>
 <h2 id="secrets-on-disk">Secrets on disk</h2>
 <p>The config directory is <code>$REMOHOP_CONFIG_DIR</code>, or the platform default. An installed system-wide service keeps its own: <code>/var/lib/remohop</code> on Linux, <code>/Library/Application Support/remohop</code> on macOS and <code>%ProgramData%\RemoHop</code> on Windows.</p>
-<p>On Linux and macOS the directory is created with mode 0700 and the files below with mode 0600. Windows has no mode bits: RemoHop sets an owner-only access list on its configuration directory, and the Windows service keeps its state under ProgramData restricted to SYSTEM and Administrators.</p>
+<p>On Linux and macOS the directory is created with mode 0700 and the files below with mode 0600. Windows has no mode bits: RemoHop sets an owner-only access list on its configuration directory, and the Windows service keeps its state under ProgramData restricted to SYSTEM and Administrators. An elevated RemoHop step that writes there (turning unattended access on, changing or showing its password) leaves out the administrator's own account, so that account's programs that run without elevation cannot change what the service reads.</p>
 <div class="table-wrap" tabindex="0" role="region" aria-label="File / Holds">
 <table>
 <thead><tr><th scope="col">File</th><th scope="col">Holds</th></tr></thead>
