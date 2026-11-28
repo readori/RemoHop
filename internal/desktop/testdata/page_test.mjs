@@ -107,6 +107,21 @@ try {
   check(await p.waitFor(`!document.getElementById('bar').hidden && !document.getElementById('v-connect').hidden`), 'after the wizard: the Connect tab');
   check(await p.eval(`!document.getElementById('peers-empty').hidden`), 'no saved computers yet');
   await p.shot('connect-empty');
+
+  // On this network: what answered discovery, this computer left out.
+  check(await p.waitFor(`document.querySelectorAll('#lan .peer').length === 2 && document.getElementById('lan-empty').hidden`), 'On this network lists the computers found, not this one');
+  check(await p.eval(`(s => s.includes('192.0.2.10:21118') && s.includes('Saved as studio') && s.includes('Paired'))(document.querySelector('#lan .peer .s').textContent)`), 'with their address and how they are saved');
+  check(await p.eval(`document.querySelector('#lan .peer .pc-col').textContent === '418 203 775' && document.getElementById('lan-count').textContent === '2'`), 'their ID, and the count');
+  check(await p.eval(`(c => c && c.title.includes('500 600 700'))(document.querySelector('#lan .chip.bad'))`), 'a computer claiming a saved ID with another key is flagged');
+  check(await p.eval(`!window.__y && !document.querySelector('#lan img')`), 'a hostile name is shown as text');
+  await p.shot('connect-lan');
+  await p.eval(`document.querySelector('#lan .peer .btn').click()`);
+  check(await p.waitFor(`document.querySelector('#tabs .tab.host[data-view="host:192.0.2.10:21118"] .name').textContent === 'studio'`), 'Connect opens its address in a tab');
+  await p.eval(`document.querySelector('#tabs .tab.host .x[aria-label="Disconnect and close"]').click()`);
+  check(await p.waitFor(`document.querySelectorAll('#tabs .tab.host').length === 0`), 'and the tab closes');
+  await p.eval(`document.getElementById('tab-computer').click()`);
+  { const before = await control('/lanlooks'); await sleep(4500); const after = await control('/lanlooks');
+    check(before === after, 'the network is not looked at while Connect is not shown', [before, after]); }
   await p.goto(url);
   check(await p.waitFor(`!document.getElementById('v-computer').hidden`), 'a new start opens on Home (this computer)');
   await p.eval(`document.getElementById('tab-connect').click()`);
@@ -118,7 +133,20 @@ try {
   check(await p.waitFor(`/^\\d{3} \\d{3} \\d{3}$/.test(document.getElementById('in-id').textContent)`), 'switched on: the ID shows');
   const pw = await p.eval(`document.getElementById('in-pw').textContent`);
   check(pw.length >= 8, 'and the temporary password');
+  check(await p.eval(`document.getElementById('ff').hidden`), 'no ffmpeg notice while there is ffmpeg');
   await p.shot('computer');
+
+  // Without ffmpeg: a notice, and the one-click install with its progress.
+  await control('/ffmpeg/missing');
+  check(await p.waitFor(`!document.getElementById('ff').hidden`), 'no ffmpeg: the notice shows');
+  check(await p.eval(`document.getElementById('ff-install-t').textContent`) === 'Install screen sharing component (ffmpeg, about 119 MB)', 'the install button');
+  check(await p.eval(`document.getElementById('ff-note').textContent.includes('ffmpeg 9.1 from gyan.dev')`), 'where it comes from');
+  await p.shot('computer-no-ffmpeg');
+  await p.eval(`document.getElementById('ff-install').click()`);
+  check(await p.waitFor(`document.getElementById('ff-status').textContent === 'Downloading… 50%' && document.getElementById('ff-install').disabled`), 'the download shows its progress');
+  await p.shot('computer-ffmpeg-installing');
+  await control('/ffmpeg/finish');
+  check(await p.waitFor(`document.getElementById('ff').hidden`), 'installed: the notice goes');
 
   // A helper asks: new device, scam warning, view only by default. Deny.
   control('/dial?name=Alex-Laptop');
@@ -247,6 +275,7 @@ try {
   await p.shot('request-zh');
   await p.eval(`document.getElementById('req-deny').click()`);
   await p.eval(`document.getElementById('tab-connect').click()`);
+  check(await p.waitFor(`document.querySelector('#lan .chip.bad').textContent === '密钥已变'`), 'On this network in Chinese');
   await p.shot('connect-zh');
   await p.eval(`document.querySelector('#set-lang [data-lang=""]').click()`);
   await p.waitFor(`!document.documentElement.dataset.theme && document.getElementById('tab-computer').textContent.includes('Home')`);

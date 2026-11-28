@@ -33,6 +33,8 @@ type Controller interface {
 	Disconnect(id int) error
 	SetOption(name string, on bool) error
 	Configure(mode, server string) error
+	// InstallFFmpeg starts the one-click install of ffmpeg (State.FFmpeg).
+	InstallFFmpeg() error
 	Stop()
 }
 
@@ -321,6 +323,7 @@ func (s *Server) routes() *http.ServeMux {
 	post("/api/decide", true, func(b body) (any, error) { return nil, s.ctl.Decide(b.N, b.Allow) })
 	post("/api/disconnect", true, func(b body) (any, error) { return nil, s.ctl.Disconnect(b.ID) })
 	post("/api/option", true, func(b body) (any, error) { return nil, s.ctl.SetOption(b.Name, b.On) })
+	post("/api/ffmpeg", true, func(body) (any, error) { return nil, s.ctl.InstallFFmpeg() })
 	post("/api/configure", true, func(b body) (any, error) { return nil, s.ctl.Configure(b.Mode, strings.TrimSpace(b.Server)) })
 	post("/api/stop", true, func(body) (any, error) {
 		// Answer first: stopping closes sessions and can take a moment.

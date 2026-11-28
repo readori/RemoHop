@@ -23,7 +23,12 @@
     <section id="requests" aria-live="assertive"></section>
 
     <section id="ready" hidden>
-      <p id="noffmpeg" class="notice" hidden data-t="no_ffmpeg"></p>
+      <div id="noffmpeg" class="notice" hidden>
+        <p data-t="no_ffmpeg"></p>
+        <p id="ffmpeg-row" class="ffrow" hidden><button id="ffmpeg-install" class="small" type="button" hidden></button>
+          <span id="ffmpeg-status" role="status" aria-live="polite"></span></p>
+        <p id="ffmpeg-note" class="ffnote" hidden></p>
+      </div>
       <div class="creds">
         <div class="card cred">
           <div class="label" id="idlabel" data-t="your_id">Your ID</div>

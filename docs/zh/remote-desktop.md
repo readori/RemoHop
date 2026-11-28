@@ -25,6 +25,8 @@ remohop dev desktop --bench --bench-duration 20s
 - **编码。** 被控机有 GPU AV1 编码器时用 AV1；否则用低延迟的 H.264，能硬件编码就硬件编码，不能则用 libx264。在只有 CPU 的主机上，H.264 的延迟约为软件 AV1 的一半或更低。`--codec av1` 强制使用 AV1。
 - **关键帧。** 查看端需要关键帧时（解码器启动或恢复，或被控机在慢速链路上丢了帧），被控机让正在运行的编码器直接出一个关键帧，而不是另起一个编码器：ffmpeg 的 `zmq` 滤镜通过私有临时目录里的 Unix 套接字接收请求，下一帧即编码为关键帧。在 Linux 上用 libx264 实测（请求随机落在帧周期内，命令 `REMOHOP_KEYFRAME_REPORT=1 go test ./internal/svc/desktop -run TestKeyframeReportXvfb -v`），从请求到收到关键帧的等待：30 fps 时由中位数 120 ms（p95 143 ms）降到 19 ms（p95 34 ms），60 fps 时由 89 ms（95 ms）降到 11 ms（19 ms），编码器 CPU 占用没有增加；紧接着的第二次请求最多等半秒，而不是重启编码器时的两秒间隔。这需要带 `zmq` 滤镜的 ffmpeg（`ffmpeg -hide_banner -filters | grep zmq`；它依赖 libzmq，Ubuntu 的 ffmpeg 自带）。没有该滤镜、编码器忽略强制关键帧（实测 ffmpeg 6.1 下的 SVT-AV1 1.7；Media Foundation 和 AMF 可能也是），或在被控机上设置了 `REMOHOP_FORCE_KEYFRAMES=0` 时，关键帧仍像以前一样靠重启编码器获得。更改分辨率、帧率、码率或显示器始终会重启编码器。目前只验证了 libx264 和 libaom（Linux）；GPU 编码器、macOS 和 Windows 尚未测试。
 - **查看器。** 页面上有按钮可以发送浏览器自己会拦截的组合键（Ctrl+Alt+Del、Alt+Tab、Windows 键），还可以输入任意 Unicode 文本、切换画质预设（原始分辨率，或最高 2160p 到 480p）、选择帧率、切换显示器、锁定远程屏幕、传输剪贴板、上传文件、音频和录制。帧率可选“自动”、30、60、90、120 或 144 fps；“自动”在显示器刷新率达到 90 Hz 及以上时按刷新率请求（最高 120），否则用 60，选择立即生效并记在本设备上。**统计**按钮会在画面上叠加分辨率、编码格式和编码器（GPU 或 CPU）、码率、延迟和往返时间、被控端帧率，以及被控端丢帧和本端跳过的帧数（累计和近 10 秒）。
+- **鼠标指针。** 页面自己绘制远程鼠标指针，作为画面上的光标，因此它按本机鼠标自身的速率跟手移动，而不是随下一帧视频才到达。被控机在视频中不画指针，而是在指针形状变化时发送形状（带热点的图像，只发送一次，之后用 ID 指代），在位置或显隐变化时发送位置和显隐；页面按画面在屏幕上的大小缩放形状，在高像素密度屏幕上也保持清晰。当被控机上的程序自己移动了指针、鼠标在画面之外、或者会话是只读的时候，页面还会在被控机报告的位置画出指针；它从不移动你自己的指针。远程程序隐藏的指针（游戏、视频播放器）在画面上也会隐藏。Windows 被控机（GetCursorInfo；会反色屏幕的单色指针，例如文本输入的 I 形光标，画成带白色轮廓的黑色）和 Linux X11 被控机（XFixes）支持这一功能。macOS 被控机、Windows 服务的控制台采集（登录和锁屏界面、UAC 提示）以及旧版被控机仍把指针画在视频里，浏览器客户端（remohop web）的桌面页面也是如此；被控机读不到指针时（两秒后回退）以及录制期间的视频也是如此。Windows 部分在 Linux 上交叉编译并做了单元测试，尚未在真实 Windows 机器上运行；那里的指针图像大小与 Windows 按指针大小设置和显示缩放生成的一致。
+- **鼠标锁定。** 用于游戏和 3D 程序：**Lock mouse**（或 Ctrl+Alt+Shift+M，页面自己处理、不传给远程机器）用浏览器的 Pointer Lock 把鼠标锁定在画面上，发送鼠标的移动量而不是位置；按 Esc 或再按一次快捷键解除。浏览器支持时（Chromium 的 `unadjustedMovement`），页面请求原始移动量，这样本机的指针加速（尤其是 macOS 的）不会叠加到被控机的加速上。远程程序隐藏指针时页面会建议锁定；打开 **Auto lock** 后，在画面上的下一次点击会锁定鼠标（这次点击不会传给远程）。被控机像真实鼠标一样注入相对移动：Windows 上用不带绝对坐标的 SendInput（Windows 会应用其指针速度设置；读取原始输入的游戏收到的就是发送的移动量），X11 上用 XTEST 相对移动，macOS 上用带增量字段的 Quartz 事件（未在 Mac 上验证）。相对移动与其他输入一样：需要被控机的 `input` 功能，只读会话中会被拒绝。
 - **录制。** `--record FILE.mp4`（或页面上的录制按钮）把收到的视频流写成本机上的分片 MP4，不重新编码。
 - **音频。** `--audio`（或页面上的“Audio”按钮；“Mute”只静音、不停止传输）转发被控机正在播放的声音：被控机用 ffmpeg 采集系统输出，编码为 Opus（libopus，低延迟模式，20 ms 帧，96 kbit/s），在视频旁边的独立流上发送，所以视频帧晚到不会拖慢声音。页面用 WebCodecs 解码，通过 Web Audio 配合抖动缓冲播放，每个包按其采集时间和视频自身的延迟来安排播放，使画面与声音保持同步。音频默认关闭、需要主动请求；它属于被控机的 `screen` 功能（`screen` 关闭的主机不提供音频），也可以在被控机上用 `REMOHOP_DESKTOP_AUDIO=off` 单独关闭；只会采集机器的输出，绝不采集麦克风。被控机无法采集时，`--audio` 会停止并说明原因和需要安装什么，页面上的按钮也会显示同样的信息。被控机的要求：
 
@@ -47,9 +49,33 @@ remohop dev desktop --bench --bench-duration 20s
 
   这些数字止于帧到达查看器进程的时刻，而 x11grab 在抓取时才给帧打时间戳，比屏幕变化最多晚一个帧周期。从屏幕变化到画面出现的真实数字在无头 Chromium 157 中测得（H.264，800x300，30 fps；测试让远程屏幕上的一块区域闪烁，页面里的 `requestAnimationFrame` 循环记录画布何时显示出来，所以包含最多 33 ms 的抓取等待和最多 16 ms 的检测误差）：40 次闪烁的中位数 31 ms，p95 为 47 ms（`go test ./internal/svc/desktop -run TestViewerPageXvfb -v`）。96 kbit/s 的音频每秒增加 50 个包；它的采集时间是根据包的到达时间估计的（被控机假定采集加编码流水线为 37 ms），所以采集到接收均值 47 ms 主要就是这个假设，并非独立测量。真实链路还要加上自己的往返时间，GPU 编码器会改变编码部分的数字。
 
-查看器只监听 `127.0.0.1`，地址中带有随机路径，按 Ctrl-C 结束。被控机需要带 H.264 或 AV1 编码器的 ffmpeg，见 [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders)。
+查看器只监听 `127.0.0.1`，地址中带有随机路径，按 Ctrl-C 结束。被控机需要带 H.264 或 AV1 编码器的 ffmpeg（见 [屏幕共享与 ffmpeg](#屏幕共享与-ffmpeg) 和 [troubleshooting.md](../troubleshooting.md#ffmpeg-and-encoders)）。
 
 macOS 被控端采集需要“屏幕录制”权限，输入需要“辅助功能”权限。macOS 同一时间只把屏幕交给一个采集进程，所以一台 macOS 被控端的所有会话共用一路采集；如果共享采集在某台 Mac 上工作不正常，可在被控端设置 `REMOHOP_MAC_DIRECT_CAPTURE=1` 关闭它（每个会话各自采集）。
+
+## 屏幕共享与 ffmpeg
+
+被控机（共享屏幕的那台电脑）用 ffmpeg 编码屏幕画面，ffmpeg 作为独立程序运行。被控机按下面的顺序查找：
+
+1. `REMOHOP_FFMPEG` 指向的程序；
+2. `PATH` 上的 `ffmpeg`，即系统里装的（`winget install Gyan.FFmpeg`、`brew install ffmpeg`、`apt install ffmpeg`）；
+3. RemoHop 自己的副本，仅 Windows 和 macOS。
+
+只有在有人要求时才会下载 RemoHop 的副本：运行 `remohop ffmpeg install`，或在桌面应用（首页，“允许别人连接”打开时）和快速协助窗口中点 **安装屏幕共享组件**，窗口会显示进度。下载的是 RemoHop 源代码中固定的版本：一个固定、带版本号的文件及其 SHA-256。下载走 HTTPS（如果设置了 `HTTPS_PROXY`，就经过它指定的代理），解压前先用这个哈希校验，并且只从中取出 `ffmpeg` 程序。不匹配的文件会被删除，绝不会运行。
+
+| 被控机 | 版本 | 下载大小 |
+|---|---|---|
+| Windows x64 | 来自 [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) 的 ffmpeg 9.1 “essentials”（先用它在 GitHub 上的镜像） | 119 MB |
+| Windows arm64 | 来自 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) 的 ffmpeg 9.0.2（2026 年 10 月 31 日的构建） | 137 MB |
+| macOS，Apple 芯片 / Intel | 来自 [Martin Riedl 的构建服务器](https://ffmpeg.martin-riedl.de/) 的 ffmpeg 9.1（已签名；需要 macOS 12 或更新版本） | 29 MB / 34 MB |
+
+这三个都是 GPL 版本。它们包含 libx264：在没有可用硬件编码器的电脑上（虚拟机、没有 GPU 的电脑），被控机就退回到这个快速的 H.264 软件编码器；LGPL 版本没有它。RemoHop 把 ffmpeg 作为独立程序运行，安装包里不附带它：是这台电脑自己从发布者那里下载。
+
+程序存放在 Windows 的 `%LocalAppData%\remohop\ffmpeg\ffmpeg.exe`，macOS 的 `~/Library/Application Support/remohop/ffmpeg/ffmpeg`（设置了 `REMOHOP_CONFIG_DIR` 时放在它下面），旁边的 `ffmpeg.json` 记录它是什么版本。在 macOS 上，RemoHop 只清除这一个文件的下载隔离属性。`remohop ffmpeg`（以及 `remohop doctor`）显示当前用的是哪个 ffmpeg 及其版本；`remohop ffmpeg remove` 删除 RemoHop 的副本。新版 RemoHop 可能固定了更新的版本：这时 `remohop ffmpeg` 会提示，`remohop ffmpeg install` 会替换副本。
+
+在统一管理的电脑上，可以在环境变量中设置 `REMOHOP_FFMPEG_DOWNLOAD=off`（或运行 `remohop config set ffmpeg-download off`）关闭下载：窗口会说明这一点，不再显示按钮。已经存在的副本仍会被使用。
+
+Windows 服务（无人值守访问）以 LocalSystem 身份运行，使用自己的目录 `%ProgramData%\RemoHop`，不会使用某个用户配置文件里的副本。请把 ffmpeg 放在系统的 `PATH` 上，或在服务的环境中设置 `REMOHOP_FFMPEG`，或在管理员命令提示符中为它安装一份：`set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install`。
 
 ## 图形界面自动化
 

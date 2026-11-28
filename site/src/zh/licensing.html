@@ -30,7 +30,7 @@
 
 <h2 id="third-party">第三方软件</h2>
 <p>RemoHop 链接的 Go 模块采用 MIT、BSD-2-Clause、BSD-3-Clause、ISC 和 Apache-2.0 许可证，都与 AGPL-3.0 兼容。发布的压缩包里会附带它们的许可证全文（<code>THIRD_PARTY_LICENSES.txt</code>）。</p>
-<p>RemoHop 不包含也不分发 ffmpeg。远程桌面调用的是被控机上已经安装的 <code>ffmpeg</code>，它作为独立的程序运行。把某个 ffmpeg 构建和 RemoHop 捆绑在一起的人，需要自行承担那个构建的许可证条款：带 libx264 的 ffmpeg 采用 GPL。</p>
+<p>RemoHop 不包含也不分发 ffmpeg。远程桌面在被控机上把 <code>ffmpeg</code> 作为独立的程序运行：用那里已经安装的，或者在 Windows 和 macOS 上、用户要求时，由用户的电脑从发布者（gyan.dev、BtbN 的 FFmpeg-Builds、Martin Riedl 的构建服务器）下载一个地址和 SHA-256 都固定在 RemoHop 中的构建。这些构建采用 GPL（包含 libx264），并附有发布者自己的许可证条款。把某个 ffmpeg 构建和 RemoHop 捆绑在一起的人，需要自行承担那个构建的许可证条款：带 libx264 的 ffmpeg 采用 GPL。</p>
 <p>Windows 上的 VPN 客户端需要 Wintun 驱动，<code>remohop</code> 不包含也不下载它。</p>
 
 <h2 id="attribution">二次开发必须署名</h2>

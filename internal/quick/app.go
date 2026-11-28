@@ -65,10 +65,10 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/cli"
 	"github.com/readori/RemoHop/internal/config"
+	"github.com/readori/RemoHop/internal/ffmpeg"
 	"github.com/readori/RemoHop/internal/hostd"
 	"github.com/readori/RemoHop/internal/perm"
 	"github.com/readori/RemoHop/internal/signal"
-	"github.com/readori/RemoHop/internal/svc/desktop"
 )
 
 // AskTimeout is how long a connection request waits for the user's answer
@@ -185,6 +185,9 @@ type State struct {
 	// NoFFmpeg: this computer has no ffmpeg, so helpers cannot see the
 	// screen live (screenshots, files and commands still work).
 	NoFFmpeg bool `json:"no_ffmpeg,omitempty"`
+	// FFmpeg is the one-click install of ffmpeg (InstallFFmpeg), where
+	// RemoHop can download it.
+	FFmpeg ffmpeg.UIState `json:"ffmpeg"`
 }
 
 // AppConfig configures an App.
@@ -207,6 +210,9 @@ type AppConfig struct {
 	Host func(*hostd.Config)
 	// NoSignal runs without a rendezvous server (tests).
 	NoSignal bool
+	// FFmpeg finds and installs ffmpeg; nil means the real one (tests
+	// replace it).
+	FFmpeg *ffmpeg.Installer
 }
 
 // App runs the quick-support host and answers the UI.
@@ -225,7 +231,7 @@ type App struct {
 	errCode  string
 	errText  string
 	otherID  string
-	noFFmpeg bool
+	ffmpeg   *ffmpeg.Installer
 	host     *hostd.Host
 	hostDone chan struct{}
 	// hostStop stops the running host alone (Configure restarts it).
@@ -248,6 +254,11 @@ func NewApp(cfg AppConfig) *App {
 	a := &App{cfg: cfg, log: cfg.Logger, done: make(chan struct{}), phase: PhaseConnecting, opts: DefaultOptions(),
 		subs: map[chan struct{}]struct{}{}, prompts: map[int]bool{}}
 	a.ctx, a.stop = context.WithCancel(context.Background())
+	a.ffmpeg = cfg.FFmpeg
+	if a.ffmpeg == nil {
+		a.ffmpeg = &ffmpeg.Installer{}
+	}
+	a.ffmpeg.OnChange = a.wake
 	return a
 }
 
@@ -326,6 +337,11 @@ func (a *App) Start() {
 		}
 		hc.Signal, hc.SignalOptions = addr, opts
 	}
+	// Quick support is found by its ID and temporary password. It answers
+	// LAN discovery only when there is no server to look the ID up on:
+	// then the helper finds it on the network instead of typing its
+	// address.
+	hc.NoLANDiscovery = hc.Signal != "" || hc.SignalOptions.WS != ""
 	if hc.Dir == "" {
 		if settings, err := config.All(); err == nil {
 			hc.Listen = settings[hostd.SettingListen]
@@ -349,11 +365,9 @@ func (a *App) Start() {
 	h.OnChange(a.wake)
 	hostDone := make(chan struct{})
 	hctx, hstop := context.WithCancel(a.ctx)
-	ok, _ := desktop.FFmpegInstalled()
 	a.mu.Lock()
 	a.host, a.hostDone, a.hostStop, a.started, a.server = h, hostDone, hstop, time.Now(), hc.Signal
 	a.phase, a.errCode, a.errText = PhaseConnecting, "", ""
-	a.noFFmpeg = !ok
 	a.mu.Unlock()
 	a.wake()
 	go func() {
@@ -437,10 +451,11 @@ func addrOnly(ap netip.AddrPort) string {
 
 // State reports what the page shows.
 func (a *App) State() State {
+	ff := a.ffmpeg.State()
 	a.mu.Lock()
 	st := State{Phase: a.phase, ErrorCode: a.errCode, Error: a.errText, OtherID: a.otherID, Server: a.server,
 		Options: a.opts, AskTimeout: int(a.cfg.AskTimeout / time.Second), Version: cli.Version,
-		Requests: []Request{}, Sessions: []SessionInfo{}, NoFFmpeg: a.noFFmpeg}
+		Requests: []Request{}, Sessions: []SessionInfo{}, NoFFmpeg: ff.Missing, FFmpeg: ff}
 	h, started := a.host, a.started
 	a.mu.Unlock()
 	if h == nil || st.Phase == PhaseStopped || st.Phase == PhaseError {
@@ -540,6 +555,17 @@ func pending(h *hostd.Host, n int) bool {
 		}
 	}
 	return false
+}
+
+// InstallFFmpeg downloads and installs ffmpeg in the background (the
+// button under "Screen sharing needs ffmpeg"); State follows it. Sessions
+// started after it has finished can share the screen.
+func (a *App) InstallFFmpeg() error {
+	if err := a.ffmpeg.Start(a.ctx); err != nil {
+		return &codedError{code: "ffmpeg", msg: err.Error()}
+	}
+	a.log.Info("installing ffmpeg for screen sharing")
+	return nil
 }
 
 // Regenerate replaces the temporary password. Sessions stay; whoever has

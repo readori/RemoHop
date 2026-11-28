@@ -13,6 +13,10 @@ type captureSpec struct {
 	// input are the ffmpeg arguments selecting the capture device,
 	// ending with -i.
 	input []string
+	// noCursor, when set, is input with the mouse pointer left out of
+	// the picture, for a client that draws the pointer itself (see
+	// cursor.go). It is nil where the capture cannot leave it out.
+	noCursor []string
 	// filter is a filter chain to run before scaling ("" for none), e.g.
 	// downloading GPU frames.
 	filter string
@@ -87,6 +91,23 @@ func (w *wheelAcc) steps(dx, dy float64) (sx, sy int) {
 	sx, sy = int(w.x), int(w.y)
 	w.x -= float64(sx)
 	w.y -= float64(sy)
+	return sx, sy
+}
+
+// moveAcc turns fractional relative movement (a browser reports it in
+// CSS pixels, which need not be whole) into whole pixels, keeping the
+// remainder so that slow movement still adds up.
+type moveAcc struct{ x, y float64 }
+
+func (m *moveAcc) steps(dx, dy float64) (sx, sy int) {
+	if dx != dx || dy != dy { // NaN
+		return 0, 0
+	}
+	m.x += max(min(dx, maxMoveBy), -maxMoveBy)
+	m.y += max(min(dy, maxMoveBy), -maxMoveBy)
+	sx, sy = int(m.x), int(m.y)
+	m.x -= float64(sx)
+	m.y -= float64(sy)
 	return sx, sy
 }
 

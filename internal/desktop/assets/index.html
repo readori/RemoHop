@@ -139,6 +139,13 @@
                 <button class="btn text sm" id="pw-reveal" hidden aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg><span>Show</span></button>
                 <button class="btn text sm" id="pw-set"><svg class="i"><use href="#i-settings"/></svg><span data-t="in.setpw">Password settings</span></button></div></div>
           </div>
+          <div class="ffbox" id="ff" hidden>
+            <svg class="i"><use href="#i-warn"/></svg>
+            <div class="grow"><p data-t="ff.missing">Screen sharing needs ffmpeg, which is not installed on this computer. Whoever connects can still use files and commands.</p>
+              <div class="ff-row" id="ff-row" hidden><button class="btn sm" id="ff-install" hidden><svg class="i"><use href="#i-download"/></svg><span id="ff-install-t"></span></button>
+                <span id="ff-status" role="status" aria-live="polite"></span></div>
+              <p class="note" id="ff-note" hidden></p></div>
+          </div>
           <div class="off-note" id="in-offnote"><svg class="i"><use href="#i-power"/></svg><span data-t="in.offnote">Switch on to show this computer's ID and a password to give to whoever helps you.</span></div>
           <p class="muted small mono" id="in-addr" hidden></p>
           <p class="err" id="in-err"></p>
@@ -208,6 +215,17 @@
           <button class="btn lg" data-t="c.connect">Connect</button>
         </form>
         <p class="err" id="c-err"></p>
+      </section>
+      <!-- computers on this network that answered discovery (lan.go) -->
+      <div class="sec-h">
+        <h2 class="st"><span data-t="lan.title">On this network</span> <span class="count" id="lan-count" hidden></span> <button class="info" data-help="h-lan" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>
+      </div>
+      <p class="help" id="h-lan" hidden data-t="help.lan">Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.</p>
+      <section class="card table lan-card">
+        <div class="thead mono" id="lan-head" hidden><span data-t="col.name">Computer</span><span data-t="col.id">ID</span><span data-t="col.key">Key fingerprint</span><span></span></div>
+        <div class="peers" id="lan"></div>
+        <div class="empty" id="lan-empty"><span class="empty-ic"><svg class="i"><use href="#i-search"/></svg></span>
+          <div class="empty-t" id="lan-empty-t" data-t="lan.looking">Looking for computers on this network…</div><div class="muted small" data-t="lan.none.sub">A computer appears here while RemoHop runs on it with incoming connections on.</div></div>
       </section>
       <div class="sec-h">
         <h2 class="st"><span data-t="c.saved">Saved computers</span> <span class="count" id="peers-count"></span> <button class="info" data-help="h-saved" aria-expanded="false"><svg class="i"><use href="#i-info"/></svg></button></h2>

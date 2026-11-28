@@ -28,7 +28,12 @@
       'c.eyebrow': 'Address book', 'c.lead': 'Type an ID, a name you gave a computer, or host:port.',
       'c.none.sub': "The computers you connect to or pair with, and your account's devices, are listed here.",
       'f.all': 'All', 'c.search': 'Search saved computers', 'c.refresh': 'Check who is online', 'c.nomatch': 'No saved computer matches.',
-      'col.name': 'Computer', 'col.platform': 'System', 'col.seen': 'Last seen online',
+      'col.name': 'Computer', 'col.platform': 'System', 'col.seen': 'Last seen online', 'col.id': 'ID', 'col.key': 'Key fingerprint',
+      'lan.title': 'On this network', 'lan.looking': 'Looking for computers on this network…', 'lan.none': 'No computer on this network answered.',
+      'lan.none.sub': 'A computer appears here while RemoHop runs on it with incoming connections on.',
+      'lan.saved': 'Saved as {t}', 'lan.conflict': 'Key changed', 'lan.err': 'Could not look at this network: {m}',
+      'lan.conflict.tip': 'Its key is not the one saved for {t}: it may be another computer pretending to be it.',
+      'help.lan': 'Computers on this network running RemoHop with incoming connections on, found without a server. Connect uses their address; their key is checked when you connect, as always.',
       'sess.eyebrow': 'Sessions and approvals', 'sess.lead': 'Who is waiting, who is connected, and who may come back without asking.',
       'q.title': 'Needs you', 'q.none': 'Nothing needs you', 'q.none.sub': 'When someone asks to connect, the question appears in front of every window and waits here.',
       'q.foot': 'Unanswered requests are refused after {n} s · Esc denies', 'q.open': 'Answer in the dialog', 'q.next': 'Waiting its turn',
@@ -57,6 +62,11 @@
       'in.unreach': "Can't reach {s}. Check the address in Settings › Rendezvous server.", 'in.official': 'the official server', 'in.fix': 'Rendezvous server settings',
       'in.elsewhere': 'Served by the RemoHop service (ID {id})', 'in.error': 'Could not start',
       'in.addr': 'Address: {a}', 'in.sessions': 'Connected now', 'in.discall': 'Disconnect everyone',
+      'ff.missing': 'Screen sharing needs ffmpeg, which is not installed on this computer. Whoever connects can still use files and commands.',
+      'ff.install': 'Install screen sharing component (ffmpeg, about {mb} MB)', 'ff.from': 'ffmpeg {v} from {s}. RemoHop checks the download against a fingerprint built into it before using it.',
+      'ff.downloading': 'Downloading… {p}%', 'ff.verifying': 'Checking the download…', 'ff.installing': 'Installing…',
+      'ff.failed': 'The install did not work: {m}', 'ff.off': 'Downloading it is switched off on this computer ({b}).',
+      'ff.linux': "Install it with your system's package manager, for example: sudo apt install ffmpeg",
       'help.incoming': 'While this is on, someone with this ID and password can ask to connect. You decide each time what they may do.',
       's.view': 'View', 's.control': 'Control', 's.files': 'Files', 's.disc': 'Disconnect', 's.remembered': 'Remembered',
       'un.title': 'Unattended access', 'un.creds': 'Unattended ID and password', 'un.credsoff': 'Unattended access is off. Turn it on from Home.', 'un.admin3': 'Show asks Windows for an administrator.', 'un.runok': 'Running', 'un.idl': 'Unattended ID', 'un.pwl': 'Unattended password', 'un.getid': 'Show ID', 'un.nopw': 'The service has no password set.', 'un.off': 'Off', 'un.on': 'On', 'un.running': 'Running · ID {id}', 'un.stopped': 'Installed, not running',
@@ -113,7 +123,12 @@
       'c.eyebrow': '通讯录', 'c.lead': '输入 ID、你给电脑起的名字，或 主机:端口。',
       'c.none.sub': '你连接过、配对过的电脑，以及账号下的设备，都会列在这里。',
       'f.all': '全部', 'c.search': '搜索已保存的电脑', 'c.refresh': '刷新在线状态', 'c.nomatch': '没有匹配的电脑。',
-      'col.name': '电脑', 'col.platform': '系统', 'col.seen': '最近在线',
+      'col.name': '电脑', 'col.platform': '系统', 'col.seen': '最近在线', 'col.id': 'ID', 'col.key': '密钥指纹',
+      'lan.title': '本网络中的电脑', 'lan.looking': '正在查找本网络中的电脑…', 'lan.none': '本网络中没有电脑应答。',
+      'lan.none.sub': '电脑上运行 RemoHop 并允许连接时，会出现在这里。',
+      'lan.saved': '已保存为 {t}', 'lan.conflict': '密钥已变', 'lan.err': '无法查找本网络：{m}',
+      'lan.conflict.tip': '它的密钥与为 {t} 保存的不同：可能是另一台电脑在冒充它。',
+      'help.lan': '本网络中运行 RemoHop 并允许连接的电脑，无需服务器即可找到。“连接”使用它的地址；连接时照常核对它的密钥。',
       'sess.eyebrow': '会话与审批', 'sess.lead': '谁在等待、谁已连接，以及谁可以不经询问再次连接。',
       'q.title': '待你处理', 'q.none': '没有待处理的请求', 'q.none.sub': '有人请求连接时，问题会出现在所有窗口最前面，并在这里排队。',
       'q.foot': '无人回应的请求 {n} 秒后自动拒绝 · Esc 拒绝', 'q.open': '请在对话框中回答', 'q.next': '排队中',
@@ -142,6 +157,11 @@
       'in.unreach': '无法连接 {s}。请在 设置 › 汇合服务器 中检查地址。', 'in.official': '官方服务器', 'in.fix': '汇合服务器设置',
       'in.elsewhere': '由 RemoHop 服务提供（ID {id}）', 'in.error': '无法启动',
       'in.addr': '地址：{a}', 'in.sessions': '当前连接', 'in.discall': '全部断开',
+      'ff.missing': '屏幕共享需要 ffmpeg，但这台电脑上没有安装。连接进来的人仍然可以使用文件和命令。',
+      'ff.install': '安装屏幕共享组件（ffmpeg，约 {mb} MB）', 'ff.from': 'ffmpeg {v}，来自 {s}。RemoHop 使用前会用内置的指纹校验下载的文件。',
+      'ff.downloading': '正在下载… {p}%', 'ff.verifying': '正在校验下载的文件…', 'ff.installing': '正在安装…',
+      'ff.failed': '安装没有成功：{m}', 'ff.off': '这台电脑禁止了下载（{b}）。',
+      'ff.linux': '请用系统的包管理器安装，例如：sudo apt install ffmpeg',
       'help.incoming': '打开后，知道这个 ID 和密码的人可以请求连接。每次由你决定对方能做什么。',
       's.view': '查看', 's.control': '控制', 's.files': '文件', 's.disc': '断开', 's.remembered': '已记住',
       'un.title': '无人值守访问', 'un.creds': '无人值守 ID 与密码', 'un.credsoff': '无人值守访问未开启，请先在“首页”打开开关。', 'un.admin3': '点“显示”时 Windows 会要求管理员授权。', 'un.runok': '运行中', 'un.idl': '无人值守 ID', 'un.pwl': '无人值守密码', 'un.getid': '查看 ID', 'un.nopw': '服务还没有设置密码。', 'un.off': '未开启', 'un.on': '已开启', 'un.running': '运行中 · ID {id}', 'un.stopped': '已安装，未运行',
@@ -199,7 +219,7 @@
     for (const el of document.querySelectorAll('.side .tab:not(.host)')) el.title = el.querySelector('.lbl').textContent;
     sideLabel();
     homeDate();
-    if (S && S.setup) { renderPeers(); renderOut(); renderActivity(); }
+    if (S && S.setup) { renderPeers(); renderLAN(); renderOut(); renderActivity(); }
   }
 
   // ---- API ----
@@ -242,6 +262,7 @@
     document.body.classList.toggle('on-host', v.startsWith('host:'));
     if (S && S.update) renderUpdate(S.update);
     if (v === 'connect' || v === 'computer') loadPeers(false);
+    if (v === 'connect') loadLAN();
     const h = v.startsWith('host:') && hosts.get(v.slice(5));
     if (h) h.tab.scrollIntoView({block: 'nearest', inline: 'nearest'});
     else { const el = $('v-' + v); if (el) el.scrollTop = 0; }
@@ -509,6 +530,56 @@
       if (a) loadPeers(true);
     } catch (e) { snack(errText(e)); }
   }
+  // ---- on this network ----
+  // The computers that answered discovery on the local network, looked
+  // for every few seconds while Connect is shown (and not when the window
+  // is hidden). Connect uses the address; what a computer says about
+  // itself is only a hint, its key is checked when connecting.
+  let lanHosts = null, lanErr = '', lanBusy = false;
+  async function loadLAN() {
+    if (lanBusy || !S || !S.setup || view !== 'connect' || document.hidden) return;
+    lanBusy = true;
+    try { const j = await api('lan', {}); lanHosts = j.hosts || []; lanErr = j.error || ''; renderLAN(); }
+    catch (e) { /* keep the old list */ } finally { lanBusy = false; }
+  }
+  setInterval(loadLAN, 4000);
+  document.addEventListener('visibilitychange', loadLAN);
+  function renderLAN() {
+    const box = $('lan'); box.textContent = '';
+    const list = lanHosts || [];
+    $('lan-count').hidden = !list.length; $('lan-count').textContent = list.length;
+    $('lan-head').hidden = !list.length;
+    $('lan-empty').hidden = list.length > 0;
+    $('lan-empty-t').textContent = lanErr ? t('lan.err', {m: lanErr}) : t(lanHosts === null ? 'lan.looking' : 'lan.none');
+    for (const h of list) {
+      const title = h.name || h.addr;
+      const el = document.createElement('div'); el.className = 'peer';
+      const txt = document.createElement('div'); txt.className = 'grow';
+      const a = document.createElement('div'); a.className = 't'; a.textContent = title;
+      const b = document.createElement('div'); b.className = 's';
+      const bits = [h.addr];
+      if (h.saved) bits.push(t('lan.saved', {t: fmtID(h.saved)}));
+      if (h.paired) bits.push(t('p.paired'));
+      b.textContent = bits.join(' · ');
+      txt.append(a, b);
+      const name = document.createElement('div'); name.className = 'pc-name'; name.append(avatar(title, true), txt);
+      const id = document.createElement('div'); id.className = 'pc-col mono'; id.textContent = h.id ? fmtID(h.id) : '—';
+      const key = document.createElement('div'); key.className = 'pc-col mono';
+      if (h.conflict) {
+        const c = document.createElement('span'); c.className = 'chip bad'; c.textContent = t('lan.conflict');
+        c.title = t('lan.conflict.tip', {t: fmtID(h.conflict)});
+        key.append(c);
+      } else { key.textContent = h.fingerprint; key.title = h.fingerprint; }
+      const acts = document.createElement('div'); acts.className = 'pc-acts';
+      const go = document.createElement('button'); go.className = 'btn tonal sm'; go.textContent = t('c.connect');
+      go.setAttribute('aria-label', t('c.connect') + ' · ' + title);
+      go.addEventListener('click', () => openHost(h.addr, title));
+      acts.append(go);
+      el.append(name, id, key, acts);
+      box.append(el);
+    }
+  }
+
   // Connect (and Home's quick connect): an ID, a saved name or host:port.
   function connectTo(input) {
     const v = input.value.trim(); if (!v) return;
@@ -623,6 +694,26 @@
   });
 
   // ---- this computer ----
+  // Screen sharing without ffmpeg: say so while others may connect, and
+  // offer to install it where RemoHop can (Windows, macOS).
+  function renderFFmpeg(ff, on) {
+    $('ff').hidden = !(on && ff.missing) && !ff.stage;
+    const btn = $('ff-install');
+    btn.hidden = !ff.can_install; btn.disabled = !!ff.stage;
+    $('ff-install-t').textContent = t('ff.install', {mb: ff.size_mb});
+    let st = '';
+    if (ff.stage) st = t('ff.' + ff.stage, {p: ff.percent});
+    else if (ff.error) st = t('ff.failed', {m: ff.error});
+    $('ff-status').textContent = st;
+    $('ff-row').hidden = btn.hidden && !st;
+    let note = '';
+    if (ff.can_install) note = t('ff.from', {v: ff.version, s: ff.source});
+    else if (ff.disabled) note = t('ff.off', {b: ff.disabled});
+    else if (S && S.ui && S.ui.platform === 'linux') note = t('ff.linux');
+    $('ff-note').textContent = note; $('ff-note').hidden = !note;
+  }
+  $('ff-install').addEventListener('click', () => api('ffmpeg/install').catch(e => snack(errText(e))));
+
   function renderComputer(s) {
     const i = s.incoming;
     $('incoming').checked = i.on;
@@ -660,6 +751,7 @@
     $('in-addr').hidden = !(i.addresses && i.addresses.length);
     if (i.addresses) $('in-addr').textContent = t('in.addr', {a: i.addresses.slice(0, 3).join(', ')});
     $('in-err').textContent = i.phase === 'error' ? (i.error || '') : '';
+    renderFFmpeg(s.ffmpeg || {}, i.on);
     // sessions
     const box = $('sessions'); box.textContent = '';
     $('sessions-box').hidden = !i.sessions.length;

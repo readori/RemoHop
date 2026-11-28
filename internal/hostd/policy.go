@@ -10,6 +10,7 @@ import (
 	"github.com/readori/RemoHop/internal/auth"
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/grant"
+	"github.com/readori/RemoHop/internal/lan"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/perm"
 )
@@ -35,6 +36,8 @@ type policy struct {
 	askPaired bool   // ... even with a pairing or an authorised key
 	otp       bool   // the temporary password is single-use
 	fixed     string // fixed password from the config file, normalised
+	lan       bool   // answer discovery on the local network (internal/lan)
+	name      string // the device name setting, cleaned; "" for the host name
 }
 
 type policyCache struct {
@@ -79,6 +82,8 @@ func (c *policyCache) get(dir string) policy {
 	p.askPaired = config.Bool(values[SettingAskPaired], false)
 	p.otp = config.Bool(values[SettingOTP], false)
 	p.fixed = auth.NormalizePassword(values[SettingPassword])
+	p.lan = lan.Allowed(values)
+	p.name = auth.CleanText(values[SettingName], auth.MaxTokenName)
 	c.p, c.mtime, c.size, c.have = p, mtime, size, true
 	return p
 }

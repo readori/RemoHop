@@ -151,7 +151,9 @@ Unattended access (Windows, --unattended)
           /v SoftwareSASGeneration /t REG_DWORD /d 1 /f
   The desktop service needs ffmpeg the service can find (machine PATH, or
   REMOHOP_FFMPEG in the service's environment); keep it, like remohop.exe, where
-  only administrators can write (e.g. under Program Files).
+  only administrators can write (e.g. under Program Files). Or install a
+  verified copy for the service, from an elevated prompt:
+      set REMOHOP_CONFIG_DIR=%ProgramData%\RemoHop & remohop ffmpeg install
 
 Examples:
   remohop service install                      # as yourself, starts now

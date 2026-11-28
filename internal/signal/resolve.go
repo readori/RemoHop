@@ -49,7 +49,7 @@ var ErrNotConfigured = errors.New("no rendezvous server configured. Choose one:\
 func Choices(indent string) string {
 	return indent + "official server: remohop config set signal " + OfficialAddr + "  (as offered by the desktop app and Quick Support)\n" +
 		indent + "your own server: remohop config set signal HOST[:PORT]  (start one with `remohop signal`)\n" +
-		indent + "same network:    remohop HOST:PORT <command>  (no server needed)\n"
+		indent + "same network:    remohop HOST:PORT <command>  (no server needed; `remohop lan` lists the hosts)\n"
 }
 
 func init() {
