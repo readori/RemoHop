@@ -2,7 +2,7 @@
 
 [English](../en/web-gateway.md)
 
-`remohop web` 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）：
+`remohop web` 在本机提供一个浏览器客户端（远程桌面、终端、文件、剪贴板和系统信息）。其中的远程桌面与独立查看器一样，由页面绘制指针，并支持鼠标锁定和声音（见[屏幕与远程桌面](remote-desktop.md)）：
 
 ```bash
 remohop web
