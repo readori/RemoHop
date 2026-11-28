@@ -6,17 +6,20 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/readori/RemoHop/internal/config"
 	"github.com/readori/RemoHop/internal/dial"
 	"github.com/readori/RemoHop/internal/hostd"
+	"github.com/readori/RemoHop/internal/lan"
 	"github.com/readori/RemoHop/internal/peer"
 	"github.com/readori/RemoHop/internal/signal"
 )
@@ -44,11 +47,15 @@ func testSignal(t *testing.T) string {
 }
 
 // startApp runs an App and its UI server on a fresh configuration.
-func startApp(t *testing.T, sig string) (*App, *Server) {
+func startApp(t *testing.T, sig string, opts ...func(*Config)) (*App, *Server) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("REMOHOP_CONFIG_DIR", dir)
-	app, err := NewApp(Config{Signal: sig, AskTimeout: 20 * time.Second, NoUpdateCheck: true})
+	cfg := Config{Signal: sig, AskTimeout: 20 * time.Second, NoUpdateCheck: true}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	app, err := NewApp(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +89,22 @@ func TestPageInBrowser(t *testing.T) {
 		t.Skip("no node")
 	}
 	sig := testSignal(t)
-	app, srv := startApp(t, "")
+	// What the local network answers (lan.go): a computer saved here, one
+	// that claims a saved ID with another key and has a hostile name, and
+	// this computer itself, which is not listed.
+	var lanLooks atomic.Int32
+	app, srv := startApp(t, "", func(c *Config) {
+		c.LANBrowse = func(context.Context, string) ([]dial.LANHost, error) {
+			lanLooks.Add(1)
+			return []dial.LANHost{
+				{Host: lan.Host{Name: "studio", Addr: netip.MustParseAddrPort("192.0.2.10:21118"), ID: "418203775", Fingerprint: "9b2e:771c:0aa4:d3f1:1234"},
+					Saved: []dial.LANSaved{{Target: "418203775", Alias: "studio", Paired: true}}},
+				{Host: lan.Host{Name: "<img src=x onerror=window.__y=1>", Addr: netip.MustParseAddrPort("192.0.2.11:4000"), ID: "500600700", Fingerprint: "aaaa:aaaa:aaaa:aaaa:aaaa"},
+					Conflict: "500600700"},
+				{Host: lan.Host{Name: "me", Addr: netip.MustParseAddrPort("192.0.2.2:1"), Fingerprint: "bbbb:bbbb:bbbb:bbbb:bbbb"}, Self: true},
+			}, nil
+		}
+	})
 
 	var mu sync.Mutex
 	result := ""
@@ -134,6 +156,8 @@ func TestPageInBrowser(t *testing.T) {
 				all, fs := s.Features()
 				fmt.Fprintln(w, all, fs)
 			}
+		case "/lanlooks":
+			fmt.Fprint(w, lanLooks.Load())
 		case "/savepeer":
 			id := strings.ReplaceAll(app.State().Incoming.ID, " ", "")
 			st, err := dial.OpenStore("")

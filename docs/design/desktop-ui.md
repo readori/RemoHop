@@ -339,6 +339,12 @@ Type an ID, a name you gave a computer, or host:port.
 │ Computer ID or address                                           │
 │ [ 123 456 789                                         ] [Connect]│
 └──────────────────────────────────────────────────────────────────┘
+On this network (2) ⓘ
+┌──────────────────────────────────────────────────────────────────┐
+│ COMPUTER                     ID           KEY FINGERPRINT        │
+│ [S]• studio                  418 203 775  9b2e:771c:…  [Connect] │
+│      192.168.1.20:21118 · Saved as studio · Paired               │
+└──────────────────────────────────────────────────────────────────┘
 Saved computers (6) ⓘ          (All|Online|Paired) [⌕ Search    ] [↻]
 ┌──────────────────────────────────────────────────────────────────┐
 │ COMPUTER                     SYSTEM     LAST SEEN ONLINE          │
@@ -348,6 +354,14 @@ Saved computers (6) ⓘ          (All|Online|Paired) [⌕ Search    ] [↻]
 │      731 550 204 · Offline · Password saved                      │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
+*On this network* (`#lan`, rows `.peer`) lists the computers that answered
+discovery on the local network (`remohop lan`; this computer left out),
+looked for every 4 seconds while Connect is shown and never while it is
+not or the window is hidden. Connect opens the address. A computer that
+claims a saved ID with another key gets a red *Key changed* chip instead
+of its fingerprint. Empty: "Looking for computers on this network…", then
+"No computer on this network answered." with what will appear.
 
 ⋮ opens the computer's menu (rename, wake, show or delete the saved
 password, Wake-on-LAN address, forget). Empty: "No saved computers yet."
